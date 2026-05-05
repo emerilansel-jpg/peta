@@ -19,10 +19,10 @@ The Reddit dependency is **internal** — public marketing copy (Landing, Login,
 
 ## Environments
 
-| Env | Supabase project ID | Purpose |
-|---|---|---|
-| **staging** | `duxzxizedtvnopfihllz` (current) | Local dev + staging.penghasilantambahan.com |
-| **prod**    | *to be created* | penghasilantambahan.com |
+| Env | Supabase project ID | URL | Purpose |
+|---|---|---|---|
+| **staging** | `duxzxizedtvnopfihllz` | https://duxzxizedtvnopfihllz.supabase.co | Local dev + staging.penghasilantambahan.com |
+| **prod**    | `yorlsgzsawchpeeazcvi` | https://yorlsgzsawchpeeazcvi.supabase.co | penghasilantambahan.com |
 
 Same migration files apply to both — see `peta/supabase/migrations/`. Always test on staging first.
 
