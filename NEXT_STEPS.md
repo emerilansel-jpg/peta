@@ -1,105 +1,106 @@
-# 🚀 Next Steps — Quick Runbook
+# 🚀 What's Done & What's Left
 
-You're 90% done. These are the ~5 manual steps that need *your* accounts (Claude can't do them):
+## ✅ Done autonomously (95%)
 
-## Status
+| | |
+|---|---|
+| ✅ | Bolt Supabase project paused (freed free-tier slot) |
+| ✅ | `peta-prod` Supabase project created — id `yorlsgzsawchpeeazcvi`, region Singapore |
+| ✅ | All 8 migrations applied to peta-prod (schema + RLS + RPCs + triggers) |
+| ✅ | Prod admin seeded: `info@jetdigitalpro.com` / `peta` (change after first login) |
+| ✅ | Code pushed to GitHub: `https://github.com/emerilansel-jpg/peta` (main + staging branches) |
+| ✅ | Vercel project deployed: production live at `peta-...vercel.app` |
+| ✅ | Domain `penghasilantambahan.com` attached to Production env in Vercel |
+| ✅ | Domain `staging.penghasilantambahan.com` attached to Preview env in Vercel |
 
-- ✅ Migrations exported as files (`peta/supabase/migrations/`)
-- ✅ All docs written (CLAUDE.md, DEPLOYMENT.md)
-- ✅ `vercel.json` ready
-- ✅ Git initialized, first commit done
-- ⏸️ **BLOCKED**: prod Supabase project (free tier 2-project limit hit). See option below.
-- ⏳ Pending: GitHub push, Vercel deploy, DNS
+## 🟡 You finish in 5 min total
 
----
+### 1. DNS at Spaceship.com (5 min — needs your login)
 
-## Step 1 — Free up a Supabase slot (2 min)
+Log in to https://www.spaceship.com → **Launchpad → Domains → penghasilantambahan.com → Manage → DNS / Advanced DNS**.
 
-Go to https://supabase.com/dashboard. Either:
-- **Pause** `bolt-native-database-65652303` if you don't need it (free, reversible)
-- **Delete** it if it's truly abandoned
-- **Or upgrade** to Pro ($25/mo) — recommended once you have real users
+Replace existing `A` and `CNAME` records (if any) with:
 
-Then come back and tell me **"retry prod project"** — I'll create `peta-prod`, apply all 8 migrations, and run the admin seed automatically.
+| Type | Host / Name | Value | TTL |
+|---|---|---|---|
+| `A` | `@` (or blank) | `76.76.21.21` | Auto |
+| `CNAME` | `www` | `cname.vercel-dns.com` | Auto |
+| `CNAME` | `staging` | `cname.vercel-dns.com` | Auto |
 
----
+Save. Propagation 5–30 min usually. Vercel auto-issues SSL once it sees the DNS.
 
-## Step 2 — Push to GitHub (3 min)
-
+Verify with:
 ```bash
-cd "D:\Claude Cowork\Reddit Army Local"
-
-# Set your real git identity (currently placeholder)
-git config user.name "Your Name"
-git config user.email "you@yourdomain.com"
-git commit --amend --no-edit --reset-author
-
-# Create a private repo on github.com (UI), then:
-git remote add origin git@github.com:<your-handle>/peta.git
-git push -u origin main
-
-# Create staging branch from main
-git checkout -b staging
-git push -u origin staging
+nslookup penghasilantambahan.com   # should resolve to 76.76.21.21
+nslookup staging.penghasilantambahan.com  # should CNAME to vercel
 ```
 
----
+Or just visit `https://penghasilantambahan.com` in 30 min.
 
-## Step 3 — Vercel deploy (5 min)
+### 2. Per-environment env vars (2 min — important)
 
-1. https://vercel.com/new → import the GitHub repo
-2. **Important: Root Directory = `peta`** (not the repo root)
-3. Framework: Vite (auto-detected). Don't change build command.
-4. Click "Deploy" — first deploy will fail with a missing env-var error. That's expected.
-5. **Settings → Environment Variables** — add 2 vars *twice* (once per env):
+Right now both Production and Preview deploys use the **prod** Supabase. That means staging branch will write to production DB. **Bad.**
 
-   | Name | Production value | Preview (staging branch) value |
-   |---|---|---|
-   | `VITE_SUPABASE_URL` | `https://<prod-id>.supabase.co` | `https://duxzxizedtvnopfihllz.supabase.co` |
-   | `VITE_SUPABASE_ANON_KEY` | (prod anon key from Settings → API) | `<your current staging anon key from peta/.env.local>` |
+Fix at https://vercel.com/n311311-6290s-projects/peta/settings/environment-variables :
 
-   - For Production var: scope = "Production" only
-   - For Preview var: scope = "Preview" + select branch `staging`
+For each of `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`:
+1. Click the row's `⋯` menu → **Edit**
+2. Uncheck **Preview** environment (leave only Production checked)
+3. Save
 
-6. **Deployments → ⋯ → Redeploy** the latest. Should succeed now.
+Then add Preview duplicates:
+1. Click **Add Environment Variable** at top
+2. Name: `VITE_SUPABASE_URL` · Value: `https://duxzxizedtvnopfihllz.supabase.co` · Env: **Preview only**
+3. Save
+4. Repeat for `VITE_SUPABASE_ANON_KEY`. Value:
+   ```
+   eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1eHp4aXplZHR2bm9wZmlobGx6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5NDk0NDYsImV4cCI6MjA5MzUyNTQ0Nn0.awbwCZOMtow2w0HIKTLmpO5UqSyjQVzDFC5r6Iw6y5g
+   ```
 
----
+Then redeploy the staging branch: **Deployments → on the latest staging build → ⋯ → Redeploy**.
 
-## Step 4 — Hook up the domain (5 min + DNS wait)
+### 3. Sanity check (5 min — once DNS propagates)
 
-Vercel → Settings → Domains:
-- Add `penghasilantambahan.com` → assign to **Production**
-- Add `staging.penghasilantambahan.com` → assign to **staging branch (Preview)**
+- [ ] `https://penghasilantambahan.com` loads the landing page
+- [ ] Click "Daftar" → register fresh account → Onboarding all 6 steps work, confetti, saldo Rp50K
+- [ ] Login as `info@jetdigitalpro.com` / `peta` → `/admin/team` shows your test user
+- [ ] Earnings page shows correct saldo
 
-Vercel will show DNS records. At your registrar:
-- Root domain: `A` record → `76.76.21.21`
-- Subdomain: `CNAME` `staging` → `cname.vercel-dns.com`
+## Reference: Project IDs
 
-Wait 5–30 min for propagation. Vercel auto-issues SSL certs.
+```
+GitHub:           https://github.com/emerilansel-jpg/peta
+Vercel project:   https://vercel.com/n311311-6290s-projects/peta
+Supabase prod:    https://supabase.com/dashboard/project/yorlsgzsawchpeeazcvi
+Supabase staging: https://supabase.com/dashboard/project/duxzxizedtvnopfihllz
+```
 
----
+## Production credentials
 
-## Step 5 — Verify (5 min)
+```
+Admin email:    info@jetdigitalpro.com
+Admin password: peta   ← CHANGE THIS after first login
+```
 
-Visit `https://penghasilantambahan.com` and:
+## Day-to-day workflow
 
-- [ ] Landing page loads
-- [ ] Click "Daftar" → register fresh account → onboarding all 6 steps work, confetti, saldo Rp50K
-- [ ] Login as admin → `/admin/team` shows your test user
-- [ ] `/admin/team` "+ Tambah" creates a new member
-- [ ] Earnings page shows correct saldo, payout button disabled below Rp150K
+```bash
+# Edit code
+git checkout staging
+# … hack on code, test against staging Supabase ...
+git push                          # auto-deploys to staging.penghasilantambahan.com
 
-If anything's off, tell me the failing step and I'll fix it.
+# Promote to prod
+git checkout main
+git merge staging
+git push                          # auto-deploys to penghasilantambahan.com
 
----
-
-## What's where
-
-| Doc | Read this when… |
-|---|---|
-| [`README.md`](./README.md) | First-time orientation |
-| [`CLAUDE.md`](./CLAUDE.md) | Starting a fresh AI session — paste this in or it auto-loads |
-| [`DEPLOYMENT.md`](./DEPLOYMENT.md) | Detailed deployment reference |
-| [`NEXT_STEPS.md`](./NEXT_STEPS.md) | This file. Delete after deploy is done. |
-| [`peta/supabase/migrations/`](./peta/supabase/migrations/) | Schema-as-code. Apply with `supabase db push`. |
-| [`peta/supabase/seed_prod_admin.sql`](./peta/supabase/seed_prod_admin.sql) | One-time prod admin user. Edit password before running. |
+# Schema change
+supabase migration new add_xyz    # in peta/ folder
+# write SQL, then:
+supabase link --project-ref duxzxizedtvnopfihllz
+supabase db push                  # apply to staging
+# test, then:
+supabase link --project-ref yorlsgzsawchpeeazcvi
+supabase db push                  # apply to prod
+```
