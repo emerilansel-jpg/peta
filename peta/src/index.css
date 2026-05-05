@@ -1,0 +1,123 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #FF6B6B;
+  --color-primary-dark: #E85555;
+  --color-secondary: #4ECDC4;
+  --color-secondary-dark: #3DB8B0;
+  --color-accent: #FFD93D;
+  --color-success: #06D6A0;
+  --color-warning: #FFB740;
+  --color-danger: #EF4444;
+  --color-dark: #1A1D1F;
+  --color-muted: #6B7280;
+  --color-light: #FAFAFA;
+  --color-border: #E5E7EB;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  background-color: #FAFAFA;
+  color: #1A1D1F;
+  margin: 0;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+#root {
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Container — narrower on mobile, wider on desktop */
+.container-custom {
+  max-width: 64rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+@media (min-width: 768px) {
+  .container-custom {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+/* Safe area for iOS notch / Android gesture bar */
+.safe-top    { padding-top:    env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+/* Reserve space for mobile bottom nav (4rem nav + safe-area) */
+.pb-bottomnav {
+  padding-bottom: calc(5rem + env(safe-area-inset-bottom));
+}
+@media (min-width: 768px) {
+  .pb-bottomnav { padding-bottom: 0; }
+}
+
+/* Tap-friendly base */
+button, a {
+  touch-action: manipulation;
+}
+
+/* Subtle press effect on tappable elements */
+.tap-shrink {
+  transition: transform 0.08s ease-out, box-shadow 0.15s ease-out;
+}
+.tap-shrink:active {
+  transform: scale(0.97);
+}
+
+/* Money number style */
+.money {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Skeleton shimmer */
+@keyframes shimmer {
+  0%   { background-position: -200px 0; }
+  100% { background-position: calc(200px + 100%) 0; }
+}
+.shimmer {
+  background: linear-gradient(90deg, #EEE 0px, #F8F8F8 40px, #EEE 80px);
+  background-size: 200px 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+
+/* Hide scrollbar (mobile horizontal scroll) */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Slide-up animation for mobile sheets */
+@keyframes slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+.animate-slide-up { animation: slide-up 0.25s ease-out; }
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-fade-in { animation: fade-in 0.2s ease-out; }
+
+/* Confetti */
+.confetti-piece {
+  position: absolute;
+  top: -20px;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+@keyframes confetti-fall {
+  0%   { transform: translate3d(0, -10vh, 0) rotate(0deg);                       opacity: 1; }
+  10%  { opacity: 1; }
+  100% { transform: translate3d(var(--drift, 0px), 110vh, 0) rotate(var(--rot, 360deg)); opacity: 0; }
+}

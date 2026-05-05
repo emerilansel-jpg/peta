@@ -1,0 +1,9 @@
+# Supabase project config — required by `supabase db push` / `supabase link`
+# `project_id` is set per-environment via `supabase link`.
+project_id = "peta-staging"
+
+[auth]
+# Email confirmation is disabled for both staging and prod — onboarding flow
+# auto-confirms via the `handle_new_user` trigger.
+enable_signup = true
+enable_confirmations = false

@@ -1,0 +1,17 @@
+{
+  "name": "PeTa - Penghasilan Tambahan",
+  "short_name": "PeTa",
+  "description": "Platform gamified untuk Reddit Army Indonesia",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#FF6B6B",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

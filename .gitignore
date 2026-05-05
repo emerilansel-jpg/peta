@@ -1,0 +1,20 @@
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Local Claude / agent state — these are per-developer
+.claude/
+**/.claude/
+memory/
+
+# Don't commit the inner project's node_modules / build / env from root either
+peta/node_modules
+peta/dist
+peta/.env
+peta/.env.local
+peta/.env.staging
+peta/.env.production
+peta/.supabase/
+peta/supabase/.temp/
