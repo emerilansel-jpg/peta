@@ -180,7 +180,7 @@ export async function requestPayout(userId: string, amount: number) {
   return data;
 }
 
-export async function getTotalEarnings(userId: string) {
+export async function getTotalEarnings(userId: string): Promise<{ earned: number; referral: number; total: number }> {
   // 1) Approved task earnings (across all reddit accounts)
   const { data: accounts, error: accErr } = await supabase
     .from('reddit_accounts')
@@ -203,12 +203,25 @@ export async function getTotalEarnings(userId: string) {
   // 2) Credits (referral bonus, signup bonus, manual adjustments)
   const { data: credits, error: cErr } = await supabase
     .from('user_credits')
-    .select('amount')
+    .select('amount, source')
     .eq('user_id', userId);
   if (cErr) throw cErr;
-  const creditTotal = (credits || []).reduce((s: number, c: any) => s + (c.amount || 0), 0);
 
-  return taskTotal + creditTotal;
+  let earnedCredits = 0;
+  let referralCredits = 0;
+  (credits || []).forEach((c: any) => {
+    if (c.source === 'referral_bonus_referrer') {
+      referralCredits += c.amount || 0;
+    } else {
+      earnedCredits += c.amount || 0;
+    }
+  });
+
+  const earned = taskTotal + earnedCredits;
+  const referral = referralCredits;
+  const total = earned + referral;
+
+  return { earned, referral, total };
 }
 
 // Mask a name for privacy: "Ahmad" -> "A****", "Ahmad Rifki" -> "A**** R."

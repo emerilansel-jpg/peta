@@ -33,7 +33,7 @@ export function Earnings() {
     enabled: !!user?.id,
   });
 
-  const { data: totalEarnings = 0, isLoading: earningsLoading } = useQuery({
+  const { data: earningsBreakdown = { earned: 0, referral: 0, total: 0 }, isLoading: earningsLoading } = useQuery({
     queryKey: ['earnings', user?.id],
     queryFn: () => getTotalEarnings(user!.id),
     enabled: !!user?.id,
@@ -60,17 +60,26 @@ export function Earnings() {
 
   const totalPending = payouts.filter((p) => p.status === 'pending').reduce((s, p) => s + p.amount, 0);
   const totalPaid    = payouts.filter((p) => p.status === 'paid').reduce((s, p) => s + p.amount, 0);
-  const available    = totalEarnings - totalPending - totalPaid;
+  const available    = earningsBreakdown.total - totalPending - totalPaid;
+
+  // Referral income doesn't count toward min 150K, but can be withdrawn together
+  const canWithdraw = earningsBreakdown.earned >= MIN_PAYOUT || earningsBreakdown.total >= MIN_PAYOUT;
+  const requirementMet = earningsBreakdown.earned >= MIN_PAYOUT;
 
   // Milestone — first goal is min payout, then bigger targets
   const milestones = [MIN_PAYOUT, 300000, 500000, 1000000, 2000000];
-  const next = milestones.find((m) => m > totalEarnings) || milestones[milestones.length - 1];
-  const progress = Math.min((totalEarnings / next) * 100, 100);
-  const remaining = Math.max(next - totalEarnings, 0);
+  const next = milestones.find((m) => m > earningsBreakdown.total) || milestones[milestones.length - 1];
+  const progress = Math.min((earningsBreakdown.total / next) * 100, 100);
+  const remaining = Math.max(next - earningsBreakdown.total, 0);
 
   const submit = () => {
     if (amount < MIN_PAYOUT) { toast.error(`Minimum payout Rp${MIN_PAYOUT.toLocaleString('id-ID')}`); return; }
     if (amount > available) { toast.error('Saldo tidak cukup'); return; }
+    if (!canWithdraw) {
+      const shortfall = MIN_PAYOUT - earningsBreakdown.earned;
+      toast.error(`Butuh Rp${shortfall.toLocaleString('id-ID')} lagi dari task (bonus referral ga dihitung)`);
+      return;
+    }
     payoutMutation.mutate();
   };
 
@@ -78,10 +87,28 @@ export function Earnings() {
     <Layout userRole="army">
       {/* Hero saldo card */}
       <Card className="mb-4 bg-gradient-to-br from-primary to-secondary text-white border-0 ring-0">
-        <p className="text-xs opacity-80 mb-1">Saldo bisa dicairkan</p>
+        <p className="text-xs opacity-80 mb-1">Siap dicairkan</p>
         <p className="text-4xl sm:text-5xl font-extrabold money mb-3">
           Rp{available.toLocaleString('id-ID')}
         </p>
+
+        {/* Breakdown: earned + referral */}
+        <div className="bg-white/15 backdrop-blur rounded-xl p-3 mb-4 space-y-2 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-1.5">✅ Dari task & bonus</span>
+            <span className="font-bold">Rp{earningsBreakdown.earned.toLocaleString('id-ID')}</span>
+          </div>
+          {earningsBreakdown.referral > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5">🎁 Dari referral</span>
+              <span className="font-bold">Rp{earningsBreakdown.referral.toLocaleString('id-ID')}</span>
+            </div>
+          )}
+          <div className="border-t border-white/20 pt-2 flex items-center justify-between font-extrabold">
+            <span>🎯 Total</span>
+            <span>Rp{earningsBreakdown.total.toLocaleString('id-ID')}</span>
+          </div>
+        </div>
 
         <div className="bg-white/15 backdrop-blur rounded-xl p-3 mb-4">
           <div className="flex items-center justify-between text-xs mb-1.5">
@@ -111,21 +138,23 @@ export function Earnings() {
           variant="success"
           size="lg"
           fullWidth
-          disabled={available < MIN_PAYOUT}
+          disabled={!canWithdraw || available < MIN_PAYOUT}
           className="!bg-yellow-300 !text-dark hover:!brightness-95 !shadow-yellow-300/30"
         >
           <Banknote size={20} />
-          {available < MIN_PAYOUT
-            ? `Min Rp${(MIN_PAYOUT/1000).toFixed(0)}K (kurang Rp${(MIN_PAYOUT - available).toLocaleString('id-ID')})`
-            : 'Tarik Saldo Sekarang'}
+          {!requirementMet && available < MIN_PAYOUT
+            ? `Min Rp${(MIN_PAYOUT/1000).toFixed(0)}K dari task (kurang Rp${(MIN_PAYOUT - earningsBreakdown.earned).toLocaleString('id-ID')})`
+            : canWithdraw && available >= MIN_PAYOUT
+            ? 'Tarik Saldo Sekarang'
+            : `Min Rp${(MIN_PAYOUT/1000).toFixed(0)}K dari task`}
         </Button>
       </Card>
 
       {/* Quick stats */}
       <div className="grid grid-cols-3 gap-2 mb-5">
         <Card padding="sm" className="text-center">
-          <p className="text-[10px] text-muted uppercase font-bold tracking-wide">Total</p>
-          <p className="text-base font-extrabold money">Rp{(totalEarnings / 1000).toFixed(0)}K</p>
+          <p className="text-[10px] text-muted uppercase font-bold tracking-wide">Dari Task</p>
+          <p className="text-base font-extrabold money">Rp{(earningsBreakdown.earned / 1000).toFixed(0)}K</p>
         </Card>
         <Card padding="sm" className="text-center">
           <p className="text-[10px] text-muted uppercase font-bold tracking-wide">Pending</p>
