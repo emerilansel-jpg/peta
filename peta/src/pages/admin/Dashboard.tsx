@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Users, ListChecks, ClipboardCheck, Coins, Link as LinkIcon, ArrowUpRight } from 'lucide-react';
+import { Users, ListChecks, ClipboardCheck, Link as LinkIcon, ArrowUpRight } from 'lucide-react';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
 import { supabase } from '../../lib/supabase';

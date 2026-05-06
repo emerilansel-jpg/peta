@@ -8,7 +8,7 @@ import { toast } from '../components/Toast';
 import { addRedditAccount, claimOnboardingBonus, type OnboardingStep } from '../lib/api';
 import { WHATSAPP_GROUP_URL } from '../lib/config';
 import { ConfettiBurst } from '../components/Confetti';
-import { CheckCircle, Lock, ArrowRight, ExternalLink } from 'lucide-react';
+import { ArrowRight, ExternalLink } from 'lucide-react';
 
 export function Onboarding() {
   const navigate = useNavigate();
@@ -348,7 +348,6 @@ export function Onboarding() {
   ];
 
   const current = steps[currentStep - 1];
-  const isCompleted = completedSteps.includes(currentStep);
 
   return (
     <Layout userRole="army">
@@ -480,7 +479,7 @@ export function Onboarding() {
       <div className="mt-12">
         <p className="text-center text-sm text-gray-600 mb-4">Progress Onboarding</p>
         <div className="flex gap-2 justify-center">
-          {steps.map((step, idx) => (
+          {steps.map((step) => (
             <button
               key={step.number}
               onClick={() => completedSteps.includes(step.number) && setCurrentStep(step.number)}
