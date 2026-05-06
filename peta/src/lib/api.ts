@@ -251,6 +251,46 @@ export async function claimOnboardingBonus(step: OnboardingStep) {
   if (error) throw error;
 }
 
+// Karma milestone (post-onboarding "Misi Wajib #1"): awards Rp5K when the
+// user's highest reddit_accounts.karma >= 10. Server-side check + idempotent.
+export type KarmaMilestoneResult =
+  | { awarded: true;  karma: number; amount: number }
+  | { awarded: false; karma: number; reason: 'karma_below_threshold' | 'already_claimed' };
+
+export async function claimKarmaMilestone(): Promise<KarmaMilestoneResult> {
+  const { data, error } = await supabase.rpc('claim_karma_milestone');
+  if (error) throw error;
+  return data as KarmaMilestoneResult;
+}
+
+// Has the user already claimed the karma_10 milestone? (For UI state)
+export async function hasClaimedKarmaMilestone(userId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('user_credits')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('source', 'karma_milestone')
+    .eq('description', 'karma_10')
+    .maybeSingle();
+  if (error) throw error;
+  return !!data;
+}
+
+// Highest karma across all reddit accounts for a user. Used by Karma Mission
+// progress bar without re-hitting reddit.com.
+export async function getMaxRedditKarma(userId: string): Promise<{karma: number; username: string | null; accountId: string | null}> {
+  const { data, error } = await supabase
+    .from('reddit_accounts')
+    .select('id, username, karma')
+    .eq('user_id', userId)
+    .order('karma', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) return { karma: 0, username: null, accountId: null };
+  return { karma: data.karma || 0, username: data.username, accountId: data.id };
+}
+
 export async function getCommunityStats() {
   const [armyCount, paidPayouts] = await Promise.all([
     supabase.from('users').select('id', { count: 'exact', head: true }).eq('role', 'army').eq('is_active', true),

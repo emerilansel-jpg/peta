@@ -22,9 +22,12 @@ export function Login() {
       navigate('/tasks');
     } catch (error: any) {
       const msg = error?.message || 'Login gagal';
-      // Friendlier copy for the most common case
       if (/invalid login credentials/i.test(msg)) {
         toast.error('Email atau password salah. Coba lagi ya.');
+      } else if (/email not confirmed|not.+confirmed/i.test(msg)) {
+        // Should not happen now that DB auto-confirms, but just in case any
+        // legacy account is still in unconfirmed limbo.
+        toast.error('Akun masih nunggu verifikasi. Hubungi admin di grup WA ya 🙏');
       } else {
         toast.error(msg);
       }

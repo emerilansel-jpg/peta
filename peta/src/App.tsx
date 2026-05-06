@@ -9,6 +9,7 @@ import { Register } from './pages/Register';
 import { Onboarding } from './pages/Onboarding';
 import { Tasks } from './pages/Tasks';
 import { TaskDetail } from './pages/TaskDetail';
+import { KarmaMission } from './pages/KarmaMission';
 import { Account } from './pages/Account';
 import { Earnings } from './pages/Earnings';
 
@@ -41,6 +42,7 @@ function App() {
           {/* Army Routes */}
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/task/:taskId" element={<TaskDetail />} />
+          <Route path="/karma-mission" element={<KarmaMission />} />
           <Route path="/account" element={<Account />} />
           <Route path="/earnings" element={<Earnings />} />
 

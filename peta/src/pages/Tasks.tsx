@@ -4,13 +4,17 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Lock, Flame, Bell, Wallet, Users, Star, MessageCircle,
   Sparkles, TrendingUp, Trophy, Clock, UserPlus, Banknote, Gift,
+  Target, Unlock, ArrowRight,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
 import { WHATSAPP_GROUP_URL } from '../lib/config';
-import { getCommunityStats, getCommunityFeed, type CommunityEvent } from '../lib/api';
+import {
+  getCommunityStats, getCommunityFeed, type CommunityEvent,
+  getMaxRedditKarma, hasClaimedKarmaMilestone,
+} from '../lib/api';
 
 // Realistic-feeling preview tasks — visible but locked, to create FOMO
 const PREVIEW_TASKS = [
@@ -101,6 +105,23 @@ export function Tasks() {
     refetchInterval: 60_000,
   });
 
+  // Karma mission state — drives the "Misi Wajib #1" banner
+  const { data: karmaInfo } = useQuery({
+    queryKey: ['maxKarma', user?.id],
+    queryFn: () => getMaxRedditKarma(user!.id),
+    enabled: !!user?.id,
+  });
+  const { data: karmaClaimed } = useQuery({
+    queryKey: ['karmaClaimed', user?.id],
+    queryFn: () => hasClaimedKarmaMilestone(user!.id),
+    enabled: !!user?.id,
+  });
+  const currentKarma = karmaInfo?.karma ?? 0;
+  const KARMA_GOAL = 10;
+  const karmaProgress = Math.min((currentKarma / KARMA_GOAL) * 100, 100);
+  const karmaRemaining = Math.max(KARMA_GOAL - currentKarma, 0);
+  const karmaGoalReached = currentKarma >= KARMA_GOAL;
+
   const tickerIdx = useTickerIndex(feed.length);
   const ticker: CommunityEvent | undefined = feed[tickerIdx];
 
@@ -186,6 +207,84 @@ export function Tasks() {
             )}
           </div>
         </Card>
+
+        {/* MISI WAJIB #1 — Karma builder. Top priority above streak so users
+            see it immediately after onboarding. State adapts to progress. */}
+        {!karmaClaimed ? (
+          <Card
+            onClick={() => navigate('/karma-mission')}
+            className={`mb-3 cursor-pointer hover:ring-primary/40 transition-all ${
+              karmaGoalReached
+                ? 'bg-gradient-to-br from-success/10 to-secondary/10 ring-success/30'
+                : 'bg-gradient-to-br from-primary/5 to-secondary/5 ring-primary/30'
+            }`}
+            padding="md"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide ${
+                karmaGoalReached ? 'bg-success/20 text-success' : 'bg-primary/15 text-primary'
+              }`}>
+                <Target size={11} /> Misi Wajib #1
+              </span>
+              <span className="text-[10px] uppercase font-bold tracking-wide text-muted">
+                {karmaGoalReached ? '✅ Siap klaim' : 'Buka misi cuan'}
+              </span>
+            </div>
+            <div className="flex items-start justify-between gap-3 mb-2">
+              <div className="flex-1 min-w-0">
+                <p className="font-extrabold text-base sm:text-lg leading-tight">
+                  {karmaGoalReached
+                    ? 'Karma kamu udah cukup — klaim Rp5K!'
+                    : 'Bangun karma Reddit dulu — dapat Rp5K + unlock cuan'}
+                </p>
+                <p className="text-xs text-muted mt-1">
+                  {karmaGoalReached
+                    ? 'Klik buat klaim bonus + lihat tips lanjutan biar level naik.'
+                    : `Tinggal ${karmaRemaining} karma lagi. Tap buat panduan + cek karma.`}
+                </p>
+              </div>
+              <div className={`shrink-0 w-12 h-12 rounded-xl grid place-items-center ${
+                karmaGoalReached ? 'bg-success text-white' : 'bg-primary text-white'
+              }`}>
+                {karmaGoalReached ? <Unlock size={20} /> : <Target size={20} />}
+              </div>
+            </div>
+            {/* Progress bar */}
+            <div className="flex items-center gap-2 text-xs mb-1">
+              <span className="font-bold text-dark">{currentKarma}</span>
+              <div className="flex-1 h-2 bg-white rounded-full overflow-hidden ring-1 ring-black/5">
+                <div
+                  className={`h-full rounded-full transition-all ${
+                    karmaGoalReached
+                      ? 'bg-gradient-to-r from-success to-secondary'
+                      : 'bg-gradient-to-r from-primary to-secondary'
+                  }`}
+                  style={{ width: `${karmaProgress}%` }}
+                />
+              </div>
+              <span className="font-bold text-muted">{KARMA_GOAL} karma</span>
+            </div>
+            <div className="flex items-center justify-end gap-1 mt-2 text-xs text-primary font-bold">
+              Buka panduan <ArrowRight size={12} />
+            </div>
+          </Card>
+        ) : (
+          <Card padding="sm" className="mb-3 bg-success/5 ring-success/30 flex items-center gap-3">
+            <div className="w-9 h-9 bg-success/20 text-success rounded-lg grid place-items-center shrink-0">
+              <Trophy size={18} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-sm">Misi karma kelar ✅ — Rp5K masuk saldo</p>
+              <p className="text-xs text-muted">Karma kamu sekarang {currentKarma}. Lanjut naikin biar reward task makin gede.</p>
+            </div>
+            <button
+              onClick={() => navigate('/karma-mission')}
+              className="text-xs text-success font-bold hover:underline shrink-0"
+            >
+              Tips →
+            </button>
+          </Card>
+        )}
 
         {/* STREAK + MILESTONE — concrete reward, no clock */}
         <Card className="mb-3 bg-gradient-to-br from-yellow-50 to-orange-50 ring-yellow-200">
