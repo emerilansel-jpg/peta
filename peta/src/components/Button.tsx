@@ -10,6 +10,8 @@ interface ButtonProps {
   type?: 'button' | 'submit' | 'reset';
   loading?: boolean;
   fullWidth?: boolean;
+  'aria-label'?: string;
+  title?: string;
 }
 
 export function Button({
@@ -22,6 +24,8 @@ export function Button({
   type = 'button',
   loading = false,
   fullWidth = false,
+  'aria-label': ariaLabel,
+  title,
 }: ButtonProps) {
   const base =
     'inline-flex items-center justify-center gap-2 font-bold rounded-xl tap-shrink ' +
@@ -55,6 +59,8 @@ export function Button({
       type={type}
       onClick={onClick}
       disabled={disabled || loading}
+      aria-label={ariaLabel}
+      title={title}
       className={`${base} ${variants[variant]} ${sizes[size]} ${
         fullWidth ? 'w-full' : ''
       } ${className}`}
