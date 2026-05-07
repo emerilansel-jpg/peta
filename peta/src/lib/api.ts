@@ -80,6 +80,22 @@ export async function updateRedditAccountKarma(accountId: string, username: stri
   return { account: data, fallback: karmaData.fallback };
 }
 
+// User toggle: hide the "Gabung WhatsApp" CTA on the Tasks page forever.
+// Stored on `users.wa_group_dismissed` so it persists across devices.
+export async function dismissWaGroup() {
+  const { error } = await supabase.rpc('dismiss_wa_group');
+  if (error) throw error;
+}
+
+export async function getWaDismissed(userId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('users')
+    .select('wa_group_dismissed')
+    .eq('id', userId)
+    .single();
+  return !!data?.wa_group_dismissed;
+}
+
 // Admin-only: manually set karma + age (level recomputes via DB trigger).
 export async function adminSetKarma(
   accountId: string,

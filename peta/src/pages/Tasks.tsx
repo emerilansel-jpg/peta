@@ -1,10 +1,11 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Lock, Flame, Bell, Wallet, Users, Star, MessageCircle,
-  Sparkles, TrendingUp, Trophy, Clock, UserPlus, Banknote, Gift,
-  Target, Unlock, ArrowRight,
+  Lock, Flame, Bell, Users, Star, MessageCircle,
+  Sparkles, TrendingUp, Trophy, Clock, Gift,
+  Target, ArrowRight, Copy, Share2, ChevronDown, ChevronUp, X,
+  HelpCircle, Lightbulb, Award, Zap,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
@@ -12,11 +13,12 @@ import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
 import { WHATSAPP_GROUP_URL } from '../lib/config';
 import {
-  getCommunityStats, getCommunityFeed, type CommunityEvent,
-  getMaxRedditKarma, hasClaimedKarmaMilestone,
+  getCommunityFeed, type CommunityEvent,
+  getMaxRedditKarma, getReferralStats, getWaDismissed, dismissWaGroup,
 } from '../lib/api';
+import { LEVELS, getLevelInfo } from '../lib/levels';
+import { toast } from '../components/Toast';
 
-// Realistic-feeling preview tasks — visible but locked, to create FOMO
 const PREVIEW_TASKS = [
   { type: 'comment', title: 'Comment di thread crypto trending',  reward: 18000, slots: 5,  hot: true },
   { type: 'upvote',  title: 'Upvote 5 post pilihan',               reward: 1500,  slots: 20 },
@@ -24,8 +26,6 @@ const PREVIEW_TASKS = [
   { type: 'upvote',  title: 'Upvote thread niche',                 reward: 1000,  slots: 15 },
   { type: 'comment', title: 'Comment di r/IndonesiaSemua',         reward: 12000, slots: 10 },
   { type: 'comment', title: 'Comment thread tech (level 4+)',      reward: 20000, slots: 3,  premium: true },
-  { type: 'upvote',  title: 'Upvote 10 thread niche',              reward: 2000,  slots: 12 },
-  { type: 'comment', title: 'Comment review produk',               reward: 10000, slots: 7 },
 ] as const;
 
 const STREAK_KEY = 'peta_streak';
@@ -35,7 +35,6 @@ const ymdMinusDays = (n: number) => {
   return d.toISOString().slice(0, 10);
 };
 
-// 4-tier streak rewards — concrete, escalating goals
 const STREAK_MILESTONES = [
   { days: 3,  bonus: 5000,  label: 'Streak Pemula',  emoji: '🌱' },
   { days: 7,  bonus: 10000, label: 'Streak Konsisten', emoji: '🔥' },
@@ -65,7 +64,6 @@ function useDailyStreak(uid?: string) {
   return count;
 }
 
-// Rotate through whatever real items are passed in
 function useTickerIndex(length: number) {
   const [idx, setIdx] = React.useState(0);
   React.useEffect(() => {
@@ -76,12 +74,22 @@ function useTickerIndex(length: number) {
   return Math.min(idx, Math.max(0, length - 1));
 }
 
+const SITE_URL = typeof window !== 'undefined' ? window.location.origin : 'https://penghasilantambahan.com';
+const buildReferralLink = (code?: string) =>
+  code ? `${SITE_URL}/register?ref=${code}` : SITE_URL;
+
+const buildWhatsAppShare = (link: string) => {
+  const msg =
+    `🤑 Aku gabung PeTa — dibayar tiap komen di internet (Rp5K–Rp20K per komen).\n\n` +
+    `Pakai kode aku biar kamu dapat bonus Rp25K masuk saldo:\n${link}\n\n` +
+    `Aku juga dapet Rp20K kalo kamu daftar 😎`;
+  return `https://wa.me/?text=${encodeURIComponent(msg)}`;
+};
+
 export function Tasks() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [user, setUser] = React.useState<any>(null);
-  const [waJoined, setWaJoined] = React.useState<boolean>(() =>
-    localStorage.getItem('peta_wa_joined') === '1'
-  );
 
   React.useEffect(() => {
     (async () => {
@@ -93,34 +101,38 @@ export function Tasks() {
 
   const streak = useDailyStreak(user?.id);
 
-  const { data: stats } = useQuery({
-    queryKey: ['communityStats'],
-    queryFn: getCommunityStats,
-    refetchInterval: 60_000, // refresh once a minute
-  });
-
   const { data: feed = [] } = useQuery({
     queryKey: ['communityFeed'],
-    queryFn: () => getCommunityFeed(12),
+    queryFn: () => getCommunityFeed(8),
     refetchInterval: 60_000,
   });
 
-  // Karma mission state — drives the "Misi Wajib #1" banner
+  const { data: referralStats } = useQuery({
+    queryKey: ['referralStats', user?.id],
+    queryFn: () => getReferralStats(user!.id),
+    enabled: !!user?.id,
+  });
+
   const { data: karmaInfo } = useQuery({
     queryKey: ['maxKarma', user?.id],
     queryFn: () => getMaxRedditKarma(user!.id),
     enabled: !!user?.id,
   });
-  const { data: karmaClaimed } = useQuery({
-    queryKey: ['karmaClaimed', user?.id],
-    queryFn: () => hasClaimedKarmaMilestone(user!.id),
+
+  const { data: waDismissed = false } = useQuery({
+    queryKey: ['waDismissed', user?.id],
+    queryFn: () => getWaDismissed(user!.id),
     enabled: !!user?.id,
   });
-  const currentKarma = karmaInfo?.karma ?? 0;
-  const KARMA_GOAL = 10;
-  const karmaProgress = Math.min((currentKarma / KARMA_GOAL) * 100, 100);
-  const karmaRemaining = Math.max(KARMA_GOAL - currentKarma, 0);
-  const karmaGoalReached = currentKarma >= KARMA_GOAL;
+
+  const dismissMutation = useMutation({
+    mutationFn: dismissWaGroup,
+    onSuccess: () => {
+      toast.success('Oke — link grup ga muncul lagi');
+      queryClient.invalidateQueries({ queryKey: ['waDismissed', user?.id] });
+    },
+    onError: () => toast.error('Gagal hide. Coba lagi.'),
+  });
 
   const tickerIdx = useTickerIndex(feed.length);
   const ticker: CommunityEvent | undefined = feed[tickerIdx];
@@ -128,12 +140,6 @@ export function Tasks() {
   const nextMilestone = STREAK_MILESTONES.find((m) => m.days > streak) || STREAK_MILESTONES[STREAK_MILESTONES.length - 1];
   const milestoneProgress = Math.min((streak / nextMilestone.days) * 100, 100);
   const daysToGo = Math.max(nextMilestone.days - streak, 0);
-
-  const handleJoinWa = () => {
-    localStorage.setItem('peta_wa_joined', '1');
-    setWaJoined(true);
-    window.open(WHATSAPP_GROUP_URL, '_blank');
-  };
 
   if (!user) {
     return (
@@ -145,235 +151,68 @@ export function Tasks() {
 
   return (
     <Layout userRole="army">
-      <div className="max-w-2xl mx-auto">
-        {/* HERO — real community stats, no fake numbers */}
-        <Card className="mb-3 bg-gradient-to-br from-primary via-[#FF8B6B] to-secondary text-white border-0 ring-0 overflow-hidden relative">
-          <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-          <div className="relative">
-            <h1 className="text-2xl sm:text-3xl font-extrabold leading-tight mb-1">
-              Task buka random sepanjang hari
-            </h1>
-            <p className="text-sm opacity-95 mb-4">
-              Slot terbatas — yang notif WA-nya aktif tahu duluan. Bookmark page ini.
-            </p>
+      <div className="max-w-2xl mx-auto pb-8">
+        {/* ============================================================
+            PRIORITY #1 — REFERRAL HERO
+            Highest CRO leverage: every share compounds. Big, friendly,
+            with social-proof counters (already-earned + already-invited)
+            so the user feels rewarded for past effort and motivated to
+            do more.
+        ============================================================= */}
+        <ReferralHero
+          code={referralStats?.code}
+          invitedCount={referralStats?.invitedCount ?? 0}
+          totalBonus={referralStats?.totalBonus ?? 0}
+          ticker={ticker}
+        />
 
-            {/* Real community stats */}
-            <div className="grid grid-cols-2 gap-2 mb-3">
-              <div className="bg-white/15 backdrop-blur rounded-xl px-3 py-2">
-                <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide font-bold opacity-90">
-                  <Users size={11} /> Komunitas
-                </div>
-                <p className="text-xl font-extrabold money">
-                  {stats?.totalMembers ?? '–'} <span className="text-xs font-normal opacity-90">member</span>
-                </p>
-              </div>
-              <div className="bg-white/15 backdrop-blur rounded-xl px-3 py-2">
-                <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide font-bold opacity-90">
-                  <Banknote size={11} /> Dibayar
-                </div>
-                <p className="text-xl font-extrabold money">
-                  Rp{stats ? (stats.totalPaid / 1000).toFixed(0) : '–'}K
-                </p>
-              </div>
-            </div>
+        {/* ============================================================
+            PRIORITY #2 — KARMA 101
+            Newbies don't know what Reddit/karma is. Educate first
+            (Apa → Why → Gimana), then show progress to next level.
+            Collapsible so power users skip it.
+        ============================================================= */}
+        <KarmaSection
+          karma={karmaInfo?.karma ?? 0}
+          level={karmaInfo?.level ?? 0}
+          accountAgeDays={karmaInfo?.accountAgeDays ?? 0}
+          onCta={() => navigate('/karma-mission')}
+        />
 
-            {/* Real activity ticker — only render if we have actual events */}
-            {ticker ? (
-              <div className="bg-white/15 backdrop-blur rounded-xl px-3 py-2.5 flex items-center gap-3 animate-fade-in" key={ticker.at}>
-                <div className="shrink-0">
-                  {ticker.kind === 'signup'   && <UserPlus size={16} className="text-green-300" />}
-                  {ticker.kind === 'payout'   && <Banknote size={16} className="text-yellow-300" />}
-                  {ticker.kind === 'referral' && <Gift size={16} className="text-pink-200" />}
-                </div>
-                <div className="flex-1 min-w-0 text-sm">
-                  <p className="leading-tight">
-                    <span className="font-bold">{ticker.who}</span>
-                    {ticker.kind === 'signup'   && <span className="opacity-90"> baru gabung 👋</span>}
-                    {ticker.kind === 'payout'   && (
-                      <span className="opacity-90"> cair <b className="font-extrabold">Rp{ticker.amount?.toLocaleString('id-ID')}</b> 💸</span>
-                    )}
-                    {ticker.kind === 'referral' && (
-                      <span className="opacity-90"> dapat bonus referral <b className="font-extrabold">Rp{ticker.amount?.toLocaleString('id-ID')}</b> 🎁</span>
-                    )}
-                  </p>
-                  <p className="text-[11px] opacity-75">{ticker.rel}</p>
-                </div>
-              </div>
-            ) : (
-              <div className="bg-white/15 backdrop-blur rounded-xl px-3 py-2.5 text-sm">
-                <p className="font-semibold">Komunitas baru dimulai 🚀</p>
-                <p className="text-xs opacity-90">Kamu termasuk member awal — task pertama akan dialokasikan ke yang aktif.</p>
-              </div>
-            )}
-          </div>
-        </Card>
+        {/* ============================================================
+            PRIORITY #3 — STREAK + WHATSAPP
+            Habit nudge + notification opt-in. WhatsApp dismissable
+            so users who already joined aren't nagged forever.
+        ============================================================= */}
+        <StreakSection
+          streak={streak}
+          nextMilestone={nextMilestone}
+          milestoneProgress={milestoneProgress}
+          daysToGo={daysToGo}
+        />
 
-        {/* MISI WAJIB #1 — Karma builder. Top priority above streak so users
-            see it immediately after onboarding. State adapts to progress. */}
-        {!karmaClaimed ? (
-          <Card
-            onClick={() => navigate('/karma-mission')}
-            className={`mb-3 cursor-pointer hover:ring-primary/40 transition-all ${
-              karmaGoalReached
-                ? 'bg-gradient-to-br from-success/10 to-secondary/10 ring-success/30'
-                : 'bg-gradient-to-br from-primary/5 to-secondary/5 ring-primary/30'
-            }`}
-            padding="md"
-          >
-            <div className="flex items-center gap-2 mb-2">
-              <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide ${
-                karmaGoalReached ? 'bg-success/20 text-success' : 'bg-primary/15 text-primary'
-              }`}>
-                <Target size={11} /> Misi Wajib #1
-              </span>
-              <span className="text-[10px] uppercase font-bold tracking-wide text-muted">
-                {karmaGoalReached ? '✅ Siap klaim' : 'Buka misi cuan'}
-              </span>
-            </div>
-            <div className="flex items-start justify-between gap-3 mb-2">
-              <div className="flex-1 min-w-0">
-                <p className="font-extrabold text-base sm:text-lg leading-tight">
-                  {karmaGoalReached
-                    ? 'Karma kamu udah cukup — klaim Rp5K!'
-                    : 'Bangun karma Reddit dulu — dapat Rp5K + unlock cuan'}
-                </p>
-                <p className="text-xs text-muted mt-1">
-                  {karmaGoalReached
-                    ? 'Klik buat klaim bonus + lihat tips lanjutan biar level naik.'
-                    : `Tinggal ${karmaRemaining} karma lagi. Tap buat panduan + cek karma.`}
-                </p>
-              </div>
-              <div className={`shrink-0 w-12 h-12 rounded-xl grid place-items-center ${
-                karmaGoalReached ? 'bg-success text-white' : 'bg-primary text-white'
-              }`}>
-                {karmaGoalReached ? <Unlock size={20} /> : <Target size={20} />}
-              </div>
-            </div>
-            {/* Progress bar */}
-            <div className="flex items-center gap-2 text-xs mb-1">
-              <span className="font-bold text-dark">{currentKarma}</span>
-              <div className="flex-1 h-2 bg-white rounded-full overflow-hidden ring-1 ring-black/5">
-                <div
-                  className={`h-full rounded-full transition-all ${
-                    karmaGoalReached
-                      ? 'bg-gradient-to-r from-success to-secondary'
-                      : 'bg-gradient-to-r from-primary to-secondary'
-                  }`}
-                  style={{ width: `${karmaProgress}%` }}
-                />
-              </div>
-              <span className="font-bold text-muted">{KARMA_GOAL} karma</span>
-            </div>
-            <div className="flex items-center justify-end gap-1 mt-2 text-xs text-primary font-bold">
-              Buka panduan <ArrowRight size={12} />
-            </div>
-          </Card>
-        ) : (
-          <Card padding="sm" className="mb-3 bg-success/5 ring-success/30 flex items-center gap-3">
-            <div className="w-9 h-9 bg-success/20 text-success rounded-lg grid place-items-center shrink-0">
-              <Trophy size={18} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-sm">Misi karma kelar ✅ — Rp5K masuk saldo</p>
-              <p className="text-xs text-muted">Karma kamu sekarang {currentKarma}. Lanjut naikin biar reward task makin gede.</p>
-            </div>
-            <button
-              onClick={() => navigate('/karma-mission')}
-              className="text-xs text-success font-bold hover:underline shrink-0"
-            >
-              Tips →
-            </button>
-          </Card>
+        {!waDismissed && (
+          <WhatsAppSection
+            onDismiss={() => dismissMutation.mutate()}
+            dismissing={dismissMutation.isPending}
+          />
         )}
 
-        {/* STREAK + MILESTONE — concrete reward, no clock */}
-        <Card className="mb-3 bg-gradient-to-br from-yellow-50 to-orange-50 ring-yellow-200">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-12 h-12 bg-yellow-300 text-yellow-900 rounded-xl grid place-items-center shrink-0 shadow-md shadow-yellow-300/30">
-              <Flame size={26} className={streak >= 3 ? 'animate-pulse' : ''} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs uppercase font-bold tracking-wide text-yellow-900/80">Streak harian</p>
-              <p className="text-2xl font-extrabold leading-tight">
-                {streak} hari{streak >= 3 ? ' 🔥' : ''}
-              </p>
-            </div>
-            <div className="text-right shrink-0">
-              <p className="text-[10px] uppercase font-bold tracking-wide text-muted">Berikut</p>
-              <p className="text-sm font-extrabold">{nextMilestone.emoji} +Rp{(nextMilestone.bonus / 1000).toFixed(0)}K</p>
-            </div>
-          </div>
-          <div className="flex items-center justify-between text-xs mb-1.5">
-            <span className="text-muted font-semibold">{nextMilestone.label}</span>
-            <span className="font-bold">
-              {streak} / {nextMilestone.days} hari
-            </span>
-          </div>
-          <div className="w-full h-2.5 bg-white/70 rounded-full overflow-hidden ring-1 ring-yellow-200">
-            <div
-              className="h-full bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full transition-all"
-              style={{ width: `${milestoneProgress}%` }}
-            />
-          </div>
-          {daysToGo > 0 ? (
-            <p className="text-xs text-muted mt-2">
-              ⚡ {daysToGo} hari lagi — datang besok jangan sampai putus, kalau lewat 1 hari streak reset ke 0.
-            </p>
-          ) : (
-            <p className="text-xs text-success font-bold mt-2">
-              🎉 Bonus Rp{nextMilestone.bonus.toLocaleString('id-ID')} unlocked! Hubungi admin di grup WA.
-            </p>
-          )}
-        </Card>
-
-        {/* WA GROUP CTA */}
-        {!waJoined ? (
-          <Card className="mb-3 bg-success/10 ring-success/40">
-            <div className="flex items-start gap-3 mb-3">
-              <div className="w-11 h-11 bg-success text-white rounded-xl grid place-items-center shrink-0">
-                <MessageCircle size={22} />
-              </div>
-              <div className="flex-1">
-                <p className="font-extrabold">Notif task baru via WhatsApp</p>
-                <p className="text-sm text-muted mt-0.5">
-                  Kami kabarin pas task baru muncul. Yang ga di grup = ketinggalan slot terbatas.
-                </p>
-              </div>
-            </div>
-            <Button onClick={handleJoinWa} variant="success" fullWidth size="lg">
-              <MessageCircle size={18} /> Aktifkan Notif (Gabung Grup)
-            </Button>
-          </Card>
-        ) : (
-          <Card className="mb-3 bg-success/5 ring-success/30 flex items-center gap-3" padding="sm">
-            <div className="w-9 h-9 bg-success/20 text-success rounded-lg grid place-items-center shrink-0">
-              <Bell size={18} />
-            </div>
-            <div className="flex-1">
-              <p className="font-bold text-sm">Notif aktif ✅</p>
-              <p className="text-xs text-muted">Update task akan masuk ke grup WhatsApp.</p>
-            </div>
-            <button
-              onClick={() => window.open(WHATSAPP_GROUP_URL, '_blank')}
-              className="text-xs text-success font-bold hover:underline shrink-0"
-            >
-              Buka grup
-            </button>
-          </Card>
-        )}
-
-        {/* Section divider */}
-        <div className="flex items-baseline justify-between mb-2 mt-5 px-1">
+        {/* ============================================================
+            BELOW THE FOLD — task previews + helper cards
+            FOMO mechanism stays. No fake numbers; locked overlay is
+            honest ("Akan dialokasikan").
+        ============================================================= */}
+        <div className="flex items-baseline justify-between mb-2 mt-6 px-1">
           <h2 className="text-lg sm:text-xl font-extrabold flex items-center gap-2">
             <Lock size={16} className="text-muted" /> Preview task umum
           </h2>
-          <span className="text-xs text-muted">Berputar setiap hari</span>
+          <span className="text-xs text-muted">Berputar tiap hari</span>
         </div>
         <p className="text-xs text-muted mb-3 px-1">
-          Inilah jenis task & bayaran yang biasanya muncul. Yang real akan diumumkan di grup 👇
+          Inilah jenis task & bayaran yang biasanya muncul. Yang real diumumkan di grup 👇
         </p>
 
-        {/* Locked preview cards — bait, not lie */}
         <div className="space-y-2 mb-5">
           {PREVIEW_TASKS.map((task, idx) => (
             <Card key={idx} padding="sm" className="relative overflow-hidden select-none">
@@ -426,7 +265,6 @@ export function Tasks() {
           ))}
         </div>
 
-        {/* Why-stay-active explainer (replaces clock pressure with logic) */}
         <Card className="mb-3" padding="sm">
           <p className="text-xs uppercase font-bold tracking-wide text-muted mb-2 flex items-center gap-1.5">
             <Sparkles size={12} className="text-primary" /> Cara dapat task duluan
@@ -446,32 +284,451 @@ export function Tasks() {
             </li>
           </ul>
         </Card>
-
-        {/* Productive nudges */}
-        <div className="space-y-2">
-          <Card padding="sm" onClick={() => navigate('/earnings')} className="flex items-center gap-3 hover:ring-primary/30">
-            <div className="w-10 h-10 bg-primary/10 text-primary rounded-xl grid place-items-center shrink-0">
-              <Wallet size={18} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-sm">Saldo bonusmu udah aman</p>
-              <p className="text-xs text-muted">Cek total — siap cair kalau ≥ Rp150K.</p>
-            </div>
-            <span className="text-primary font-bold text-sm">→</span>
-          </Card>
-
-          <Card padding="sm" onClick={() => navigate('/account')} className="flex items-center gap-3 hover:ring-primary/30">
-            <div className="w-10 h-10 bg-yellow-200 text-yellow-900 rounded-xl grid place-items-center shrink-0">
-              <Users size={18} />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-sm">+Rp20K tiap teman yang ikut</p>
-              <p className="text-xs text-muted">Bagikan link sambil nunggu — earning ga harus dari task aja.</p>
-            </div>
-            <span className="text-primary font-bold text-sm">→</span>
-          </Card>
-        </div>
       </div>
     </Layout>
+  );
+}
+
+// ============================================================
+// REFERRAL HERO — priority #1
+// ============================================================
+function ReferralHero({
+  code, invitedCount, totalBonus, ticker,
+}: {
+  code?: string;
+  invitedCount: number;
+  totalBonus: number;
+  ticker?: CommunityEvent;
+}) {
+  const link = buildReferralLink(code);
+  const [copied, setCopied] = React.useState(false);
+
+  const onCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopied(true);
+      toast.success('Link tersalin — paste di chat / story');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Browser ga support copy. Tahan & copy manual.');
+    }
+  };
+
+  const onShareWa = () => {
+    window.open(buildWhatsAppShare(link), '_blank');
+  };
+
+  return (
+    <Card className="mb-3 bg-gradient-to-br from-primary via-[#FF8B6B] to-secondary text-white border-0 ring-0 overflow-hidden relative">
+      <div className="absolute -top-10 -right-10 w-44 h-44 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="relative">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="inline-flex items-center gap-1 rounded-full bg-white/20 backdrop-blur px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide">
+            <Zap size={11} /> Cuan tercepat
+          </span>
+        </div>
+
+        <h1 className="text-2xl sm:text-3xl font-extrabold leading-tight mb-1">
+          Ajak teman = +Rp20K masuk saldo
+        </h1>
+        <p className="text-sm opacity-95 mb-4">
+          Tiap teman daftar pakai kode kamu, <b>kamu dapat Rp20K, dia dapat Rp25K</b>. Belum ada limit.
+        </p>
+
+        {/* Counters: social proof of own progress */}
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          <div className="bg-white/15 backdrop-blur rounded-xl px-3 py-2">
+            <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide font-bold opacity-90">
+              <Users size={11} /> Udah ajak
+            </div>
+            <p className="text-xl font-extrabold money">
+              {invitedCount} <span className="text-xs font-normal opacity-90">teman</span>
+            </p>
+          </div>
+          <div className="bg-white/15 backdrop-blur rounded-xl px-3 py-2">
+            <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide font-bold opacity-90">
+              <Gift size={11} /> Dapet
+            </div>
+            <p className="text-xl font-extrabold money">
+              Rp{(totalBonus / 1000).toLocaleString('id-ID', { maximumFractionDigits: 1 })}K
+            </p>
+          </div>
+        </div>
+
+        {/* The code itself — tap to copy is the hero CTA */}
+        <button
+          onClick={onCopy}
+          className="w-full bg-white text-dark rounded-xl px-3 py-3 mb-2 flex items-center gap-3 hover:scale-[1.02] active:scale-[0.99] transition-transform shadow-md"
+        >
+          <div className="text-left flex-1 min-w-0">
+            <p className="text-[10px] uppercase tracking-wide font-bold text-muted">Kode kamu</p>
+            <p className="font-extrabold text-lg tracking-wider truncate">{code ?? '—'}</p>
+          </div>
+          <div className="flex items-center gap-1 text-primary font-bold text-sm shrink-0">
+            <Copy size={14} /> {copied ? 'Tersalin!' : 'Salin link'}
+          </div>
+        </button>
+
+        <Button
+          onClick={onShareWa}
+          variant="success"
+          size="md"
+          fullWidth
+        >
+          <Share2 size={16} /> Share ke WhatsApp
+        </Button>
+
+        {/* Live community ticker — small, only shown when real activity exists */}
+        {ticker && (
+          <div className="mt-3 bg-white/10 backdrop-blur rounded-xl px-3 py-2 flex items-center gap-2 text-xs animate-fade-in" key={ticker.at}>
+            <div className="shrink-0 opacity-90">
+              {ticker.kind === 'signup' && '👋'}
+              {ticker.kind === 'payout' && '💸'}
+              {ticker.kind === 'referral' && '🎁'}
+            </div>
+            <p className="leading-tight flex-1 min-w-0 truncate">
+              <b>{ticker.who}</b>
+              {ticker.kind === 'signup' && ' baru gabung'}
+              {ticker.kind === 'payout' && ` cair Rp${ticker.amount?.toLocaleString('id-ID')}`}
+              {ticker.kind === 'referral' && ` dapat referral Rp${ticker.amount?.toLocaleString('id-ID')}`}
+              <span className="opacity-70"> · {ticker.rel}</span>
+            </p>
+          </div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+// ============================================================
+// KARMA 101 — priority #2
+// ============================================================
+function KarmaSection({
+  karma, level, accountAgeDays, onCta,
+}: {
+  karma: number;
+  level: number;
+  accountAgeDays: number;
+  onCta: () => void;
+}) {
+  const [openSection, setOpenSection] = React.useState<string | null>('what');
+
+  const currentLvl = getLevelInfo(level);
+  const nextLvl = LEVELS[Math.min(level + 1, LEVELS.length - 1)];
+  const isMaxLevel = level >= LEVELS.length - 1;
+
+  const karmaTarget = isMaxLevel ? currentLvl.minKarma : nextLvl.minKarma;
+  const karmaPct = isMaxLevel
+    ? 100
+    : Math.min((karma / Math.max(karmaTarget, 1)) * 100, 100);
+
+  const ageTarget = isMaxLevel ? currentLvl.minDays : nextLvl.minDays;
+  const agePct = isMaxLevel
+    ? 100
+    : Math.min((accountAgeDays / Math.max(ageTarget, 1)) * 100, 100);
+
+  return (
+    <Card className="mb-3" padding="md">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="inline-flex items-center gap-1 rounded-full bg-secondary/15 text-secondary px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide">
+          <Target size={11} /> Cuan #2
+        </span>
+        <span className="text-[10px] uppercase font-bold tracking-wide text-muted">
+          Naik level = naik bayaran
+        </span>
+      </div>
+
+      <h2 className="text-xl font-extrabold leading-tight mb-1">
+        Bangun Karma Reddit
+      </h2>
+      <p className="text-sm text-muted mb-3">
+        Karma = "skor reputasi" kamu di Reddit. Makin tinggi → reward per task makin gede.
+      </p>
+
+      {/* Current status — hero number */}
+      <div className="bg-gradient-to-br from-secondary/10 to-primary/10 rounded-xl p-3 mb-3">
+        <div className="flex items-center gap-3">
+          <div className="text-3xl">{currentLvl.emoji}</div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] uppercase font-bold tracking-wide text-muted">Level kamu</p>
+            <p className="text-lg font-extrabold leading-tight">{currentLvl.name}</p>
+            <p className="text-xs text-muted">
+              Reward sekarang: <b className="text-dark">Rp{currentLvl.reward.toLocaleString('id-ID')}</b>/task
+            </p>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="text-2xl font-extrabold money">{karma}</p>
+            <p className="text-[10px] text-muted">karma kamu</p>
+          </div>
+        </div>
+
+        {!isMaxLevel ? (
+          <>
+            <div className="mt-3 space-y-2">
+              <ProgressRow
+                label="Karma"
+                current={karma}
+                target={karmaTarget}
+                pct={karmaPct}
+              />
+              <ProgressRow
+                label="Umur akun"
+                current={accountAgeDays}
+                target={ageTarget}
+                pct={agePct}
+                unit="hari"
+              />
+            </div>
+            <p className="text-xs text-muted mt-2">
+              Capai keduanya → unlock <b>{nextLvl.emoji} {nextLvl.name}</b> (Rp{nextLvl.reward.toLocaleString('id-ID')}/task)
+            </p>
+          </>
+        ) : (
+          <p className="text-sm font-bold text-success mt-3">
+            🏆 Top tier — kamu di level tertinggi.
+          </p>
+        )}
+      </div>
+
+      {/* 101 — collapsible, default opens "Apa" for newbies */}
+      <div className="space-y-1.5 mb-3">
+        <FaqItem
+          icon={<HelpCircle size={16} className="text-primary" />}
+          title="Apa itu karma?"
+          isOpen={openSection === 'what'}
+          onToggle={() => setOpenSection(openSection === 'what' ? null : 'what')}
+        >
+          <p>
+            Reddit itu kayak forum gede. Tiap kamu komen / posting, member lain bisa kasih
+            👍 (upvote) atau 👎 (downvote).
+          </p>
+          <p className="mt-2">
+            <b>Karma</b> = total upvote yang pernah kamu dapet. Kayak "skor kepercayaan".
+            Akun yang karma-nya tinggi dianggap lebih kredibel — komennya ga kena spam filter.
+          </p>
+        </FaqItem>
+
+        <FaqItem
+          icon={<Lightbulb size={16} className="text-warning" />}
+          title="Kenapa karma penting buat kamu?"
+          isOpen={openSection === 'why'}
+          onToggle={() => setOpenSection(openSection === 'why' ? null : 'why')}
+        >
+          <p>3 alasan langsung pengaruh ke saldo:</p>
+          <ul className="mt-2 space-y-1.5">
+            <li className="flex gap-2"><b className="text-primary shrink-0">1.</b> Reward per task naik. Level 0 = Rp5K. Level 5 = Rp20K. Selisih 4×.</li>
+            <li className="flex gap-2"><b className="text-primary shrink-0">2.</b> Task premium (Rp20K+) cuma buka buat level 4+.</li>
+            <li className="flex gap-2"><b className="text-primary shrink-0">3.</b> Komen dari akun karma rendah sering kena auto-remove. Karma tinggi = aman.</li>
+          </ul>
+        </FaqItem>
+
+        <FaqItem
+          icon={<Award size={16} className="text-success" />}
+          title="Gimana cara naikin karma?"
+          isOpen={openSection === 'how'}
+          onToggle={() => setOpenSection(openSection === 'how' ? null : 'how')}
+        >
+          <p>Newbie banget? Ikutin step ini, target 50–100 karma di minggu pertama:</p>
+          <ol className="mt-2 space-y-2">
+            <li className="flex gap-2">
+              <b className="text-primary shrink-0">1.</b>
+              <span>
+                Login ke Reddit pakai akun yang udah kamu register di onboarding.
+                Pasang foto profil + bio singkat (akun kosong = sus).
+              </span>
+            </li>
+            <li className="flex gap-2">
+              <b className="text-primary shrink-0">2.</b>
+              <span>
+                Join 5–10 subreddit yang kamu suka (r/IndonesiaSemua, r/AskReddit, r/explainlikeimfive).
+                Subreddit = komunitas berdasar topik.
+              </span>
+            </li>
+            <li className="flex gap-2">
+              <b className="text-primary shrink-0">3.</b>
+              <span>
+                Lihat thread populer hari ini, komen yang <b>natural & helpful</b> (jangan promo, jangan
+                copy-paste). 1–2 kalimat aja udah cukup.
+              </span>
+            </li>
+            <li className="flex gap-2">
+              <b className="text-primary shrink-0">4.</b>
+              <span>
+                Tunggu 1–2 jam. Komen yang bagus dapet upvote = karma naik. Konsisten 3–5 komen/hari
+                = +50 karma dalam 1 minggu.
+              </span>
+            </li>
+          </ol>
+          <div className="mt-3 bg-warning/10 ring-1 ring-warning/30 rounded-lg p-2 text-xs">
+            <b>⚠️ Hindari:</b> komen "Nice", "Up", emoji doang, atau iklan. Itu ga dapet karma + bisa banned.
+          </div>
+        </FaqItem>
+      </div>
+
+      <Button onClick={onCta} variant="primary" fullWidth size="md">
+        <Target size={16} /> Buka Misi Karma + Cek Karma Sekarang
+        <ArrowRight size={14} />
+      </Button>
+    </Card>
+  );
+}
+
+function ProgressRow({
+  label, current, target, pct, unit = '',
+}: {
+  label: string;
+  current: number;
+  target: number;
+  pct: number;
+  unit?: string;
+}) {
+  const done = current >= target;
+  return (
+    <div>
+      <div className="flex items-center justify-between text-xs mb-1">
+        <span className="font-semibold text-muted">{label}</span>
+        <span className="font-bold">
+          {current.toLocaleString('id-ID')} / {target.toLocaleString('id-ID')} {unit}
+          {done && ' ✓'}
+        </span>
+      </div>
+      <div className="h-2 bg-white rounded-full overflow-hidden ring-1 ring-black/5">
+        <div
+          className={`h-full rounded-full transition-all ${
+            done ? 'bg-gradient-to-r from-success to-secondary' : 'bg-gradient-to-r from-primary to-secondary'
+          }`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function FaqItem({
+  icon, title, isOpen, onToggle, children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  isOpen: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-xl ring-1 ring-black/5 overflow-hidden">
+      <button
+        onClick={onToggle}
+        className="w-full px-3 py-2.5 flex items-center gap-2 text-left hover:bg-light transition-colors"
+      >
+        <div className="shrink-0">{icon}</div>
+        <span className="flex-1 font-bold text-sm">{title}</span>
+        {isOpen ? <ChevronUp size={16} className="text-muted" /> : <ChevronDown size={16} className="text-muted" />}
+      </button>
+      {isOpen && (
+        <div className="px-3 pb-3 pt-0 text-sm text-dark/85 leading-relaxed border-t border-black/5">
+          <div className="pt-3">{children}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// STREAK — priority #3a
+// ============================================================
+function StreakSection({
+  streak, nextMilestone, milestoneProgress, daysToGo,
+}: {
+  streak: number;
+  nextMilestone: typeof STREAK_MILESTONES[number];
+  milestoneProgress: number;
+  daysToGo: number;
+}) {
+  return (
+    <Card className="mb-3 bg-gradient-to-br from-yellow-50 to-orange-50 ring-yellow-200">
+      <div className="flex items-center gap-3 mb-3">
+        <div className="w-12 h-12 bg-yellow-300 text-yellow-900 rounded-xl grid place-items-center shrink-0 shadow-md shadow-yellow-300/30">
+          <Flame size={26} className={streak >= 3 ? 'animate-pulse' : ''} />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs uppercase font-bold tracking-wide text-yellow-900/80">Streak harian</p>
+          <p className="text-2xl font-extrabold leading-tight">
+            {streak} hari{streak >= 3 ? ' 🔥' : ''}
+          </p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-[10px] uppercase font-bold tracking-wide text-muted">Berikut</p>
+          <p className="text-sm font-extrabold">{nextMilestone.emoji} +Rp{(nextMilestone.bonus / 1000).toFixed(0)}K</p>
+        </div>
+      </div>
+      <div className="flex items-center justify-between text-xs mb-1.5">
+        <span className="text-muted font-semibold">{nextMilestone.label}</span>
+        <span className="font-bold">{streak} / {nextMilestone.days} hari</span>
+      </div>
+      <div className="w-full h-2.5 bg-white/70 rounded-full overflow-hidden ring-1 ring-yellow-200">
+        <div
+          className="h-full bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full transition-all"
+          style={{ width: `${milestoneProgress}%` }}
+        />
+      </div>
+      {daysToGo > 0 ? (
+        <p className="text-xs text-muted mt-2">
+          ⚡ {daysToGo} hari lagi — datang besok jangan sampai putus, lewat 1 hari = streak reset.
+        </p>
+      ) : (
+        <p className="text-xs text-success font-bold mt-2">
+          🎉 Bonus Rp{nextMilestone.bonus.toLocaleString('id-ID')} unlocked! Hubungi admin di grup WA.
+        </p>
+      )}
+    </Card>
+  );
+}
+
+// ============================================================
+// WHATSAPP — priority #3b — dismissable forever
+// ============================================================
+function WhatsAppSection({
+  onDismiss, dismissing,
+}: {
+  onDismiss: () => void;
+  dismissing: boolean;
+}) {
+  return (
+    <Card className="mb-3 bg-success/10 ring-success/40 relative">
+      <button
+        onClick={onDismiss}
+        disabled={dismissing}
+        title="Sudah join — sembunyikan selamanya"
+        aria-label="Sembunyikan link grup selamanya"
+        className="absolute top-2 right-2 w-8 h-8 grid place-items-center rounded-full text-success/70 hover:bg-success/15 hover:text-success transition-colors disabled:opacity-50"
+      >
+        <X size={16} />
+      </button>
+      <div className="flex items-start gap-3 mb-3 pr-8">
+        <div className="w-11 h-11 bg-success text-white rounded-xl grid place-items-center shrink-0">
+          <MessageCircle size={22} />
+        </div>
+        <div className="flex-1">
+          <p className="font-extrabold">Notif task baru via WhatsApp</p>
+          <p className="text-sm text-muted mt-0.5">
+            Yang ga di grup = ketinggalan slot. Task baru kami kabarin di sana real-time.
+          </p>
+        </div>
+      </div>
+      <Button
+        onClick={() => window.open(WHATSAPP_GROUP_URL, '_blank')}
+        variant="success"
+        fullWidth
+        size="lg"
+      >
+        <MessageCircle size={18} /> Gabung Grup WhatsApp
+      </Button>
+      <button
+        onClick={onDismiss}
+        disabled={dismissing}
+        className="w-full text-xs text-success/80 hover:text-success font-bold mt-2 py-1 disabled:opacity-50"
+      >
+        Udah join? Klik di sini biar ga muncul lagi
+      </button>
+    </Card>
   );
 }
