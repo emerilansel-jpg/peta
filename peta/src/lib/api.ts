@@ -313,17 +313,29 @@ export async function hasClaimedKarmaMilestone(userId: string): Promise<boolean>
 
 // Highest karma across all reddit accounts for a user. Used by Karma Mission
 // progress bar without re-hitting reddit.com.
-export async function getMaxRedditKarma(userId: string): Promise<{karma: number; username: string | null; accountId: string | null}> {
+export async function getMaxRedditKarma(userId: string): Promise<{
+  karma: number;
+  level: number;
+  accountAgeDays: number;
+  username: string | null;
+  accountId: string | null;
+}> {
   const { data, error } = await supabase
     .from('reddit_accounts')
-    .select('id, username, karma')
+    .select('id, username, karma, level, account_age_days')
     .eq('user_id', userId)
     .order('karma', { ascending: false })
     .limit(1)
     .maybeSingle();
   if (error) throw error;
-  if (!data) return { karma: 0, username: null, accountId: null };
-  return { karma: data.karma || 0, username: data.username, accountId: data.id };
+  if (!data) return { karma: 0, level: 0, accountAgeDays: 0, username: null, accountId: null };
+  return {
+    karma: data.karma || 0,
+    level: data.level || 0,
+    accountAgeDays: data.account_age_days || 0,
+    username: data.username,
+    accountId: data.id,
+  };
 }
 
 export async function getCommunityStats() {
