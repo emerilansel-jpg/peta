@@ -1,35 +1,30 @@
 import { supabase } from './supabase';
-import axios from 'axios';
 import { calculateLevel } from './levels';
 
+// Reddit API blocks browser CORS — we proxy through a Supabase Edge Function
+// which fetches /user/<u>/about.json server-side with a User-Agent header.
+// Level is recomputed by a BEFORE INSERT/UPDATE trigger on reddit_accounts,
+// so the value here is for optimistic UI only.
 export async function syncRedditKarma(username: string) {
   try {
-    const response = await axios.get(`https://www.reddit.com/user/${username}/about.json`, {
-      timeout: 5000,
+    const { data, error } = await supabase.functions.invoke('sync-reddit-karma', {
+      body: { username },
     });
-    const data = response.data.data;
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error || 'edge_function_failure');
 
-    const accountCreatedAt = new Date(data.created_utc * 1000);
-    const accountAgeDays = Math.floor((Date.now() - accountCreatedAt.getTime()) / (1000 * 60 * 60 * 24));
-    const karma = data.link_karma + data.comment_karma;
-    const level = calculateLevel(karma, accountAgeDays);
-
+    const karma = data.karma ?? 0;
+    const accountAgeDays = data.accountAgeDays ?? 0;
     return {
       karma,
       accountAgeDays,
-      level,
+      level: calculateLevel(karma, accountAgeDays),
       success: true,
+      fallback: !!data.fallback,
     };
   } catch (error) {
-    console.warn('Reddit API unreachable, using defaults:', error);
-    // Fallback: assume new account when Reddit API is unreachable (CORS/timeout/blocked)
-    return {
-      karma: 0,
-      accountAgeDays: 0,
-      level: 0,
-      success: true,
-      fallback: true,
-    };
+    console.warn('sync-reddit-karma edge fn failed, using defaults:', error);
+    return { karma: 0, accountAgeDays: 0, level: 0, success: true, fallback: true };
   }
 }
 
@@ -68,23 +63,34 @@ export async function addRedditAccount(userId: string, username: string) {
 
 export async function updateRedditAccountKarma(accountId: string, username: string) {
   const karmaData = await syncRedditKarma(username);
+  if (!karmaData.success) throw new Error('Failed to sync Reddit data');
 
-  if (!karmaData.success) {
-    throw new Error('Failed to sync Reddit data');
-  }
-
+  // DB trigger recomputes level + last_sync from karma + account_age_days.
   const { data, error } = await supabase
     .from('reddit_accounts')
     .update({
       karma: karmaData.karma,
       account_age_days: karmaData.accountAgeDays,
-      level: karmaData.level,
-      last_sync: new Date().toISOString(),
     })
     .eq('id', accountId)
     .select()
     .single();
 
+  if (error) throw error;
+  return { account: data, fallback: karmaData.fallback };
+}
+
+// Admin-only: manually set karma + age (level recomputes via DB trigger).
+export async function adminSetKarma(
+  accountId: string,
+  karma: number,
+  accountAgeDays?: number,
+) {
+  const { data, error } = await supabase.rpc('admin_set_karma', {
+    p_account_id: accountId,
+    p_karma: karma,
+    p_account_age_days: accountAgeDays ?? null,
+  });
   if (error) throw error;
   return data;
 }
@@ -327,10 +333,9 @@ export async function getReferralStats(userId: string) {
     .eq('id', userId)
     .single();
 
-  const { count } = await supabase
-    .from('users')
-    .select('id', { count: 'exact', head: true })
-    .eq('referred_by', userId);
+  // RLS blocks SELECT on other users' rows, so we use a SECURITY DEFINER RPC.
+  const { data: countData } = await supabase.rpc('get_referral_count', { p_user_id: userId });
+  const count = (countData as number) ?? 0;
 
   const { data: bonusRows } = await supabase
     .from('user_credits')
@@ -342,7 +347,7 @@ export async function getReferralStats(userId: string) {
 
   return {
     code: profile?.referral_code as string | undefined,
-    invitedCount: count || 0,
+    invitedCount: count,
     totalBonus,
   };
 }
