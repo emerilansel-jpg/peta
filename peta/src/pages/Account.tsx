@@ -76,8 +76,10 @@ export function Account() {
     refetchProfile();
   };
 
+  // Referral link points at the homepage so friends read the landing copy
+  // first; Landing.tsx forwards ?ref= to /register on CTA click.
   const refLink = referral?.code
-    ? `${window.location.origin}/register?ref=${referral.code}`
+    ? `${window.location.origin}/?ref=${referral.code}`
     : '';
   // Emojis as Unicode escapes — Vite build on Windows was corrupting
   // 4-byte UTF-8 emoji literals in source, leaving invalid sequences

@@ -79,8 +79,10 @@ function useTickerIndex(length: number) {
 }
 
 const SITE_URL = typeof window !== 'undefined' ? window.location.origin : 'https://penghasilantambahan.com';
+// Send referrals to the homepage so friends see the landing copy first.
+// Landing.tsx reads ?ref= and forwards it to /register when they click the CTA.
 const buildReferralLink = (code?: string) =>
-  code ? `${SITE_URL}/register?ref=${code}` : SITE_URL;
+  code ? `${SITE_URL}/?ref=${code}` : SITE_URL;
 
 // Pre-filled WhatsApp share — pure ASCII + Latin-1 punctuation only.
 //

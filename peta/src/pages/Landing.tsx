@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Shield, Zap, Wallet, ArrowRight, Check, Lock, AlertTriangle,
@@ -9,6 +9,13 @@ import { FOUNDING_LIMIT } from '../lib/config';
 
 export function Landing() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  // Forward referral codes through to /register. Friends land here via
+  // /?ref=<code> so they read the value prop before being asked to sign up.
+  const ref = searchParams.get('ref');
+  const registerHref = ref ? `/register?ref=${encodeURIComponent(ref)}` : '/register';
+  const goRegister = () => navigate(registerHref);
 
   const { data: founding } = useQuery({
     queryKey: ['foundingMembers'],
@@ -46,7 +53,15 @@ export function Landing() {
           <div className="absolute -bottom-32 -left-20 w-72 h-72 bg-yellow-200 rounded-full blur-3xl" />
         </div>
 
-        <div className="relative container-custom pt-12 pb-10 sm:pt-20 sm:pb-16 safe-top">
+        <div className="relative container-custom pt-6 pb-10 sm:pt-10 sm:pb-16 safe-top">
+          {/* Brand logo — white on the gradient via filter invert */}
+          <img
+            src="/logo-horizontal.png"
+            alt="PeTa · PenghasilanTambahan.com"
+            className="h-10 sm:h-14 w-auto mb-7 sm:mb-10"
+            style={{ filter: 'invert(1) brightness(2)' }}
+          />
+
           {/* Real scarcity ribbon — pulled from DB, no inflation */}
           <div className="bg-white/15 backdrop-blur w-fit max-w-full px-3 py-2 rounded-full mb-5 ring-1 ring-white/25 flex items-center gap-2 text-sm">
             <Lock size={14} className="shrink-0" />
@@ -95,7 +110,7 @@ export function Landing() {
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row gap-3 max-w-lg">
             <button
-              onClick={() => navigate('/register')}
+              onClick={() => goRegister()}
               className="tap-shrink bg-yellow-300 hover:bg-yellow-200 text-[#1A1D1F] font-extrabold rounded-2xl px-6 py-4 text-lg shadow-xl shadow-black/20 flex items-center justify-center gap-2"
             >
               {isFull ? '📝 Masuk Waitlist' : <>💰 Klaim Slot Founding <ArrowRight size={20} /></>}
@@ -309,7 +324,7 @@ export function Landing() {
               : 'Daftar gratis sekarang. Bonus founding Rp50K cuma buat 100 pertama. Cair 24 jam.'}
           </p>
           <button
-            onClick={() => navigate('/register')}
+            onClick={() => goRegister()}
             className="tap-shrink bg-yellow-300 hover:bg-yellow-200 text-[#1A1D1F] font-extrabold rounded-2xl px-7 py-4 text-lg shadow-2xl flex items-center justify-center gap-2 mx-auto"
           >
             {isFull ? '📝 Masuk Waitlist' : '💰 Klaim Slot Founding'} <ArrowRight size={20} />
@@ -336,7 +351,7 @@ export function Landing() {
       {/* Sticky mobile CTA */}
       <div className="md:hidden fixed bottom-0 inset-x-0 z-40 p-3 bg-white/95 backdrop-blur ring-1 ring-black/5 safe-bottom">
         <button
-          onClick={() => navigate('/register')}
+          onClick={() => goRegister()}
           className="w-full tap-shrink bg-primary hover:bg-primary-dark text-white font-extrabold rounded-2xl px-6 py-3.5 text-base shadow-lg shadow-primary/30 flex items-center justify-center gap-2"
         >
           {isFull ? '📝 Masuk Waitlist' : `💰 Klaim Slot · sisa ${slotsLeft}`}
