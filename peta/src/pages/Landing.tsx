@@ -54,13 +54,15 @@ export function Landing() {
         </div>
 
         <div className="relative container-custom pt-6 pb-10 sm:pt-10 sm:pb-16 safe-top">
-          {/* Brand logo — white on the gradient via filter invert */}
-          <img
-            src="/logo-horizontal.png"
-            alt="PeTa · PenghasilanTambahan.com"
-            className="h-10 sm:h-14 w-auto mb-7 sm:mb-10"
-            style={{ filter: 'invert(1) brightness(2)' }}
-          />
+          {/* Brand logo on white pill — preserves the gold accents the
+              CSS invert filter was mangling against the gradient bg. */}
+          <div className="inline-flex bg-white rounded-2xl px-4 py-2.5 sm:px-5 sm:py-3 shadow-lg shadow-black/15 mb-7 sm:mb-10">
+            <img
+              src="/logo-horizontal.png"
+              alt="PeTa · PenghasilanTambahan.com"
+              className="h-7 sm:h-10 w-auto"
+            />
+          </div>
 
           {/* Real scarcity ribbon — pulled from DB, no inflation */}
           <div className="bg-white/15 backdrop-blur w-fit max-w-full px-3 py-2 rounded-full mb-5 ring-1 ring-white/25 flex items-center gap-2 text-sm">
@@ -338,12 +340,13 @@ export function Landing() {
       </section>
 
       <footer className="bg-dark text-white/70 text-xs py-10 text-center">
-        <img
-          src="/logo-horizontal.png"
-          alt="PeTa · PenghasilanTambahan.com"
-          className="h-12 w-auto mx-auto mb-3"
-          style={{ filter: 'invert(1) brightness(2)' }}
-        />
+        <div className="inline-flex bg-white rounded-2xl px-4 py-2.5 shadow-md mb-3">
+          <img
+            src="/logo-horizontal.png"
+            alt="PeTa · PenghasilanTambahan.com"
+            className="h-8 w-auto"
+          />
+        </div>
         <p>© 2026 PenghasilanTambahan.com (PeTa) · Komunitas PeTa Army</p>
         <p className="opacity-60 mt-1">Komentar · Hasilkan · Tambahan</p>
       </footer>
