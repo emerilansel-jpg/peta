@@ -425,11 +425,15 @@ export async function trackReferralClick(refCode: string) {
   } catch { /* private mode etc — fall back to noop session */ }
 
   // Fire and forget — don't block UI on click tracking.
-  await supabase.rpc('track_referral_click', {
-    p_ref_code: refCode,
-    p_session: session,
-    p_user_agent: navigator.userAgent.slice(0, 500),
-  }).catch(() => null);
+  try {
+    await supabase.rpc('track_referral_click', {
+      p_ref_code: refCode,
+      p_session: session,
+      p_user_agent: navigator.userAgent.slice(0, 500),
+    });
+  } catch {
+    // tracking failure is non-fatal
+  }
 }
 
 export async function getReferralAnalytics(userId: string) {
