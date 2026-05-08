@@ -1,11 +1,12 @@
 import React from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { RefreshCw, Plus, Trash2, X, LogOut, Copy, Share2, MessageCircle, Pencil, Check } from 'lucide-react';
+import { RefreshCw, Plus, Trash2, X, LogOut, Copy, MessageCircle, Pencil, Check } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { CardSkeleton } from '../components/Skeleton';
+import { SocialShare } from '../components/SocialShare';
 import { supabase } from '../lib/supabase';
 import { getRedditAccounts, addRedditAccount, updateRedditAccountKarma, getReferralStats } from '../lib/api';
 import { getLevelInfo, LEVELS } from '../lib/levels';
@@ -81,14 +82,8 @@ export function Account() {
   const refLink = referral?.code
     ? `${window.location.origin}/?ref=${referral.code}`
     : '';
-  // Emojis as Unicode escapes — Vite build on Windows was corrupting
-  // 4-byte UTF-8 emoji literals in source, leaving invalid sequences
-  // that WhatsApp rendered as `�`.
-  // \u{1F4B0} = 💰, \u{1F512} = 🔒
-  const refText =
-    `\u{1F4B0} Aku gabung PeTa — dibayar Rp5K–Rp20K per komen di internet, cair 24 jam ke e-wallet.\n\n` +
-    `\u{1F512} Founding 100 — slot terbatas. Pakai link aku, lo dapet bonus founding Rp25K + slot lebih cepet:\n${refLink}\n\n` +
-    `(Aku juga dapet Rp20K kalo lo daftar — sama-sama untung.)`;
+  // (Old single-WhatsApp share text removed — <SocialShare> now owns
+  // the message templating across all channels.)
 
   // Robust copy that works on http://localhost too (Clipboard API needs HTTPS or localhost)
   const copyToClipboard = async (text: string) => {
@@ -121,12 +116,6 @@ export function Account() {
     else toast.error('Gagal menyalin — copy manual ya');
   };
 
-  const shareViaWhatsApp = () => {
-    if (!refLink) { toast.error('Kode referral belum siap, refresh dulu'); return; }
-    const wa = `https://wa.me/?text=${encodeURIComponent(refText)}`;
-    // Direct location change (popup blockers leave this alone, unlike window.open)
-    window.location.href = wa;
-  };
 
   const addMutation = useMutation({
     mutationFn: (username: string) => addRedditAccount(user.id, username),
@@ -256,14 +245,15 @@ export function Account() {
           <Copy size={20} className="text-primary shrink-0" />
         </button>
 
-        <div className="grid grid-cols-2 gap-2">
-          <Button onClick={copyRefLink} variant="outline" size="md" disabled={!refLink}>
-            <Copy size={16} /> Salin Link
+        {refLink ? (
+          <div className="bg-dark/90 text-white rounded-xl p-3">
+            <SocialShare link={refLink} title="Share link kamu" />
+          </div>
+        ) : (
+          <Button onClick={copyRefLink} variant="outline" size="md" disabled fullWidth>
+            <Copy size={16} /> Loading...
           </Button>
-          <Button onClick={shareViaWhatsApp} variant="primary" size="md" disabled={!refLink}>
-            <Share2 size={16} /> WhatsApp
-          </Button>
-        </div>
+        )}
         {(referral?.totalBonus ?? 0) > 0 && (
           <p className="text-xs text-success font-semibold text-center mt-3">
             🎉 Total bonus referral: Rp{(referral?.totalBonus ?? 0).toLocaleString('id-ID')}

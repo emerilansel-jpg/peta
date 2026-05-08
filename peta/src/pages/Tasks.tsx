@@ -4,12 +4,13 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Lock, Flame, Bell, Users, MessageCircle,
   Sparkles, TrendingUp, Trophy, Clock, Gift,
-  Target, ArrowRight, Copy, Share2, ChevronDown, ChevronUp, X,
+  Target, ArrowRight, Copy, ChevronDown, ChevronUp, X,
   HelpCircle, Lightbulb, Award, Zap,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
+import { SocialShare } from '../components/SocialShare';
 import { supabase } from '../lib/supabase';
 import { WHATSAPP_GROUP_URL, FOUNDING_LIMIT } from '../lib/config';
 import {
@@ -84,32 +85,8 @@ const SITE_URL = typeof window !== 'undefined' ? window.location.origin : 'https
 const buildReferralLink = (code?: string) =>
   code ? `${SITE_URL}/?ref=${code}` : SITE_URL;
 
-// Pre-filled WhatsApp share — pure ASCII + Latin-1 punctuation only.
-//
-// We tried emojis (👀 💸 ✅ ⚡ 👉 ⚠️) and verified end-to-end that the
-// bytes were correct in the bundle, encodeURIComponent produced valid
-// percent-encoded UTF-8, and Chrome canvas rendered the glyphs. Yet
-// when the share-link was opened the recipient consistently saw the
-// U+FFFD replacement character — even for 3-byte BMP icons like ✅
-// and ⚡, which have universal font support.
-//
-// Conclusion: at least one common WhatsApp Web build along the share
-// path strips supplementary-plane emoji from URL-prefilled text. We
-// cannot detect or work around it client-side, and a referral message
-// that prints `?` to ANY recipient is worse than one without icons.
-// Em-dash / en-dash render fine in their environment (Latin-1 General
-// Punctuation block), so we keep typography but lose icons.
-const buildWhatsAppShare = (link: string) => {
-  const msg =
-    `Kamu tau nggak ada platform yang bayar kamu cuma buat komentar?\n\n` +
-    `Aku baru dapat Rp50K dari komentar internet. Literally cuma komentar doang.\n\n` +
-    `Platform-nya PeTa — bayar Rp5K–Rp20K per komen, cair ke e-wallet dalam 24 jam.\n\n` +
-    `Sekarang lagi buka Founding 100. Artinya cuma 100 orang bisa masuk — dan udah hampir penuh.\n\n` +
-    `Kalau kamu mau coba, pakai link aku biar dapet bonus Rp25K ekstra langsung:\n` +
-    `${link}\n\n` +
-    `PERHATIAN: kalau slot habis, tutup permanen. Aku nggak bisa janjiin kamu masih bisa masuk.`;
-  return `https://wa.me/?text=${encodeURIComponent(msg)}`;
-};
+// (Old single-WhatsApp share helper removed — moved to <SocialShare>
+// which fans out to WhatsApp + Telegram + X + Facebook + Native Share.)
 
 export function Tasks() {
   const navigate = useNavigate();
@@ -340,10 +317,6 @@ function ReferralHero({
     }
   };
 
-  const onShareWa = () => {
-    window.open(buildWhatsAppShare(link), '_blank');
-  };
-
   const slotsPct = Math.min((totalFounding / FOUNDING_LIMIT) * 100, 100);
 
   return (
@@ -414,14 +387,7 @@ function ReferralHero({
           </div>
         </button>
 
-        <Button
-          onClick={onShareWa}
-          variant="success"
-          size="md"
-          fullWidth
-        >
-          <Share2 size={16} /> Share ke WhatsApp
-        </Button>
+        <SocialShare link={link} title="Share link kamu" />
 
         {/* Live community ticker — small, only shown when real activity exists */}
         {ticker && (

@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /admin/
+Disallow: /onboarding
+Disallow: /tasks
+Disallow: /earnings
+Disallow: /account
+Disallow: /karma-mission
+
+Sitemap: https://penghasilantambahan.com/sitemap.xml

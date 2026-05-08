@@ -54,13 +54,13 @@ export function Landing() {
         </div>
 
         <div className="relative container-custom pt-6 pb-10 sm:pt-10 sm:pb-16 safe-top">
-          {/* Brand logo on white pill — preserves the gold accents the
+          {/* Brand logo on white pill — preserves gold accents that
               CSS invert filter was mangling against the gradient bg. */}
-          <div className="inline-flex bg-white rounded-2xl px-4 py-2.5 sm:px-5 sm:py-3 shadow-lg shadow-black/15 mb-7 sm:mb-10">
+          <div className="inline-flex bg-white rounded-2xl px-6 py-4 sm:px-8 sm:py-5 shadow-xl shadow-black/15 mb-7 sm:mb-10">
             <img
               src="/logo-horizontal.png"
               alt="PeTa · PenghasilanTambahan.com"
-              className="h-7 sm:h-10 w-auto"
+              className="h-12 sm:h-16 w-auto"
             />
           </div>
 
@@ -77,14 +77,16 @@ export function Landing() {
             </span>
           </div>
 
+          <p className="text-xs sm:text-sm font-bold uppercase tracking-[0.2em] opacity-90 mb-2">
+            Penghasilan Tambahan Online
+          </p>
           <h1 className="text-[2.5rem] leading-[1.05] sm:text-6xl font-extrabold tracking-tight mb-4">
             Cuma komen.<br/>
             <span className="text-yellow-300">Dibayar tiap hari.</span>
           </h1>
           <p className="text-base sm:text-xl opacity-95 max-w-xl mb-6">
-            Mulai dari <b className="text-yellow-200">Rp5.000 per komentar</b> — naik sampai{' '}
-            <b className="text-yellow-200">Rp20.000</b> seiring performa kamu.
-            Like/upvote juga dibayar Rp500–Rp2.000.
+            <b>PeTa (PenghasilanTambahan.com)</b> bayar kamu Rp5.000–Rp20.000 tiap komentar di internet.
+            Cuan tanpa skill, tanpa modal, langsung cair ke e-wallet 24 jam.
           </p>
           <p className="text-sm sm:text-base opacity-95 max-w-xl mb-7">
             🎁 Founding 100 dapat bonus <b className="text-yellow-200 underline decoration-2 underline-offset-2">Rp50.000</b> + <b className="text-yellow-200">Rp20.000</b> tiap teman yang kamu ajak. Slot ke-101 dst tidak dapat bonus founding.
@@ -155,7 +157,8 @@ export function Landing() {
       {/* HOW IT WORKS -------------------------------------------- */}
       <section className="container-custom py-12 sm:py-16">
         <p className="text-primary font-bold text-sm tracking-wide mb-2">CARA KERJA</p>
-        <h2 className="text-3xl sm:text-4xl font-extrabold mb-8">3 langkah, mulai earning</h2>
+        <h2 className="text-3xl sm:text-4xl font-extrabold mb-2">3 langkah, mulai earning penghasilan tambahan</h2>
+        <p className="text-muted mb-8">Setup PeTa di bawah 5 menit. Komen pertama kamu dibayar hari yang sama.</p>
         <div className="space-y-4">
           {[
             { n: 1, t: 'Daftar 30 detik', d: 'Email + password aja. Langsung dapat bonus Rp25K masuk saldo.', e: '🚀' },
@@ -178,7 +181,8 @@ export function Landing() {
       <section className="bg-light">
         <div className="container-custom py-12 sm:py-16">
           <p className="text-primary font-bold text-sm tracking-wide mb-2">JENIS TASK</p>
-          <h2 className="text-3xl sm:text-4xl font-extrabold mb-6">Mau yang cepet atau yang gede?</h2>
+          <h2 className="text-3xl sm:text-4xl font-extrabold mb-2">Dua jalur penghasilan tambahan</h2>
+          <p className="text-muted mb-6">Pilih sesuai mood — yang gede tapi mikir, atau yang cepet tinggal klik.</p>
           <div className="grid sm:grid-cols-2 gap-4">
             <div className="bg-white rounded-2xl p-5 ring-1 ring-black/5">
               <div className="text-3xl mb-2">💬</div>
@@ -339,12 +343,12 @@ export function Landing() {
         </div>
       </section>
 
-      <footer className="bg-dark text-white/70 text-xs py-10 text-center">
-        <div className="inline-flex bg-white rounded-2xl px-4 py-2.5 shadow-md mb-3">
+      <footer className="bg-dark text-white/70 text-xs py-12 text-center">
+        <div className="inline-flex bg-white rounded-2xl px-6 py-4 shadow-md mb-4">
           <img
             src="/logo-horizontal.png"
             alt="PeTa · PenghasilanTambahan.com"
-            className="h-8 w-auto"
+            className="h-12 w-auto"
           />
         </div>
         <p>© 2026 PenghasilanTambahan.com (PeTa) · Komunitas PeTa Army</p>
