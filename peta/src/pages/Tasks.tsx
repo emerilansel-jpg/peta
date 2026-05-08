@@ -82,32 +82,30 @@ const SITE_URL = typeof window !== 'undefined' ? window.location.origin : 'https
 const buildReferralLink = (code?: string) =>
   code ? `${SITE_URL}/register?ref=${code}` : SITE_URL;
 
-// Pre-filled WhatsApp share — story-driven copy with emojis.
+// Pre-filled WhatsApp share — pure ASCII + Latin-1 punctuation only.
 //
-// Emojis are written as `\u{XXXXX}` Unicode escapes because the
-// Vite/esbuild build chain on Windows was corrupting literal 4-byte
-// UTF-8 emoji in source. Verified end-to-end: bundle bytes are
-// correct (e.g. f0 9f 91 80 for 👀), runtime encodeURIComponent
-// produces %F0%9F%91%80, browser canvas can render the glyph, and
-// the wa.me URL the user opens contains valid percent-encoded UTF-8.
-// Render quality on the recipient end is then a function of THEIR
-// WhatsApp client + system emoji font — which we don't control.
-const E_EYES        = '\u{1F440}'; // 👀
-const E_MONEY_WINGS = '\u{1F4B8}'; // 💸
-const E_CHECK       = '\u{2705}';  // ✅
-const E_BOLT        = '\u{26A1}';  // ⚡
-const E_POINT_RIGHT = '\u{1F449}'; // 👉
-const E_WARNING     = '\u{26A0}\u{FE0F}'; // ⚠️ (warning + variation selector)
-
+// We tried emojis (👀 💸 ✅ ⚡ 👉 ⚠️) and verified end-to-end that the
+// bytes were correct in the bundle, encodeURIComponent produced valid
+// percent-encoded UTF-8, and Chrome canvas rendered the glyphs. Yet
+// when the share-link was opened the recipient consistently saw the
+// U+FFFD replacement character — even for 3-byte BMP icons like ✅
+// and ⚡, which have universal font support.
+//
+// Conclusion: at least one common WhatsApp Web build along the share
+// path strips supplementary-plane emoji from URL-prefilled text. We
+// cannot detect or work around it client-side, and a referral message
+// that prints `?` to ANY recipient is worse than one without icons.
+// Em-dash / en-dash render fine in their environment (Latin-1 General
+// Punctuation block), so we keep typography but lose icons.
 const buildWhatsAppShare = (link: string) => {
   const msg =
-    `Kamu tau nggak ada platform yang bayar kamu cuma buat komentar? ${E_EYES}\n\n` +
-    `Aku baru dapat Rp50K dari komentar internet. Literally cuma komentar doang. ${E_MONEY_WINGS}\n\n` +
-    `Platform-nya PeTa — bayar Rp5K–Rp20K per komen, cair ke e-wallet dalam 24 jam. ${E_CHECK}\n\n` +
-    `Sekarang lagi buka Founding 100. Artinya cuma 100 orang bisa masuk — dan udah hampir penuh. ${E_BOLT}\n\n` +
+    `Kamu tau nggak ada platform yang bayar kamu cuma buat komentar?\n\n` +
+    `Aku baru dapat Rp50K dari komentar internet. Literally cuma komentar doang.\n\n` +
+    `Platform-nya PeTa — bayar Rp5K–Rp20K per komen, cair ke e-wallet dalam 24 jam.\n\n` +
+    `Sekarang lagi buka Founding 100. Artinya cuma 100 orang bisa masuk — dan udah hampir penuh.\n\n` +
     `Kalau kamu mau coba, pakai link aku biar dapet bonus Rp25K ekstra langsung:\n` +
-    `${E_POINT_RIGHT} ${link}\n\n` +
-    `${E_WARNING} Kalau slot habis, tutup permanen. Aku nggak bisa janjiin kamu masih bisa masuk.`;
+    `${link}\n\n` +
+    `PERHATIAN: kalau slot habis, tutup permanen. Aku nggak bisa janjiin kamu masih bisa masuk.`;
   return `https://wa.me/?text=${encodeURIComponent(msg)}`;
 };
 
