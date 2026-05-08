@@ -52,7 +52,7 @@ export function Login() {
           <img
             src="/logo-horizontal.png"
             alt="PeTa · PenghasilanTambahan.com"
-            className="h-10 w-auto mb-3"
+            className="h-16 w-auto mb-4"
           />
           <h2 className="text-xl sm:text-2xl font-extrabold text-dark mb-1">Welcome back, PeTa Army!</h2>
           <p className="text-sm text-muted mb-6">Lanjut earning, ambil saldonya.</p>

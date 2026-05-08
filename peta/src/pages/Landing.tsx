@@ -322,11 +322,11 @@ export function Landing() {
         </div>
       </section>
 
-      <footer className="bg-dark text-white/70 text-xs py-8 text-center">
+      <footer className="bg-dark text-white/70 text-xs py-10 text-center">
         <img
           src="/logo-horizontal.png"
           alt="PeTa · PenghasilanTambahan.com"
-          className="h-6 w-auto mx-auto opacity-80 mb-2 invert brightness-0"
+          className="h-12 w-auto mx-auto mb-3"
           style={{ filter: 'invert(1) brightness(2)' }}
         />
         <p>© 2026 PenghasilanTambahan.com (PeTa) · Komunitas PeTa Army</p>

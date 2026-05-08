@@ -113,7 +113,7 @@ export function Register() {
           <img
             src="/logo-horizontal.png"
             alt="PeTa · PenghasilanTambahan.com"
-            className="h-10 w-auto mb-3"
+            className="h-16 w-auto mb-4"
           />
           <h1 className="text-2xl sm:text-3xl font-extrabold text-dark mb-1">Gabung PeTa Army, gratis</h1>
           <p className="text-sm text-muted mb-5">Selesai dalam 30 detik.</p>
