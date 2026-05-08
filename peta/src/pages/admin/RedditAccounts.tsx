@@ -6,9 +6,9 @@ import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
 import { getLevelInfo } from '../../lib/levels';
-import { adminSetKarma, updateRedditAccountKarma } from '../../lib/api';
+import { adminSetKarma, adminRejectKarmaClaim, updateRedditAccountKarma } from '../../lib/api';
 import { toast } from '../../components/Toast';
-import { Pencil, RefreshCw, Check, X } from 'lucide-react';
+import { Pencil, RefreshCw, Check, X, ExternalLink, ShieldCheck, Trash2 } from 'lucide-react';
 
 type Row = {
   id: string;
@@ -17,6 +17,8 @@ type Row = {
   level: number;
   account_age_days: number;
   last_sync: string;
+  pending_karma: number | null;
+  pending_karma_submitted_at: string | null;
   users?: { email?: string; full_name?: string };
 };
 
@@ -60,6 +62,42 @@ export function AdminRedditAccounts() {
     onError: (e: any) => toast.error(`Sync gagal: ${e.message || e}`),
   });
 
+  // Approve a pending honor-system claim — writes the claimed value into
+  // the live karma column (DB trigger recomputes level + last_sync).
+  const approveClaimMutation = useMutation({
+    mutationFn: ({ id, karma, age }: { id: string; karma: number; age: number }) =>
+      adminSetKarma(id, karma, age),
+    onSuccess: () => {
+      toast.success('Claim approved — karma updated, level recomputed');
+      queryClient.invalidateQueries({ queryKey: ['allRedditAccounts'] });
+    },
+    onError: (e: any) => toast.error(`Gagal approve: ${e.message || e}`),
+  });
+
+  const rejectClaimMutation = useMutation({
+    mutationFn: (id: string) => adminRejectKarmaClaim(id),
+    onSuccess: () => {
+      toast.success('Claim ditolak — pending fields dikosongkan');
+      queryClient.invalidateQueries({ queryKey: ['allRedditAccounts'] });
+    },
+    onError: (e: any) => toast.error(`Gagal reject: ${e.message || e}`),
+  });
+
+  const pendingClaims = accounts.filter(
+    (a) => a.pending_karma !== null && a.pending_karma_submitted_at !== null
+  );
+
+  const relativeAgo = (iso: string) => {
+    const ms = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(ms / 60_000);
+    if (mins < 1) return 'baru saja';
+    if (mins < 60) return `${mins} menit lalu`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours} jam lalu`;
+    const days = Math.floor(hours / 24);
+    return `${days} hari lalu`;
+  };
+
   const startEdit = (a: Row) =>
     setEditing({ id: a.id, karma: String(a.karma), age: String(a.account_age_days) });
 
@@ -79,6 +117,84 @@ export function AdminRedditAccounts() {
         <h1 className="text-2xl sm:text-3xl font-extrabold">Akun Reddit</h1>
         <p className="text-sm text-muted">{accounts.length} akun terdaftar — klik ✏️ untuk set karma manual, 🔄 untuk sync dari Reddit</p>
       </div>
+
+      {/* PENDING KARMA CLAIMS — honor-system submissions waiting on
+          admin verification. Highest-priority work. */}
+      {pendingClaims.length > 0 && (
+        <Card className="mb-5 bg-warning/10 ring-warning/40">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-xs uppercase tracking-wide font-bold text-warning">Verify queue</p>
+              <h2 className="text-lg sm:text-xl font-extrabold">
+                {pendingClaims.length} klaim karma menunggu
+              </h2>
+              <p className="text-xs text-muted">
+                User submit angka karma sendiri (auto-sync diblokir Reddit). Buka profile mereka, cocokin angka, lalu approve/reject.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {pendingClaims.map((a) => (
+              <div
+                key={a.id}
+                className="bg-white rounded-xl ring-1 ring-warning/30 p-3 sm:p-4"
+              >
+                <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
+                  <div className="min-w-0">
+                    <p className="font-extrabold truncate">u/{a.username}</p>
+                    <p className="text-xs text-muted truncate">{a.users?.email}</p>
+                    <p className="text-[11px] text-muted mt-0.5">
+                      Submitted {relativeAgo(a.pending_karma_submitted_at!)}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-[10px] uppercase font-bold tracking-wide text-muted">Claimed</p>
+                    <p className="text-2xl sm:text-3xl font-extrabold money tabular-nums">
+                      {a.pending_karma!.toLocaleString('id-ID')}
+                    </p>
+                    <p className="text-[10px] text-muted">vs current: {a.karma.toLocaleString('id-ID')}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <a
+                    href={`https://www.reddit.com/user/${a.username}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="bg-white ring-1 ring-black/15 rounded-xl px-3 py-2 text-sm font-bold flex items-center justify-center gap-1.5 hover:ring-primary"
+                  >
+                    <ExternalLink size={14} /> Buka profile
+                  </a>
+                  <Button
+                    onClick={() =>
+                      approveClaimMutation.mutate({
+                        id: a.id,
+                        karma: a.pending_karma!,
+                        age: a.account_age_days,
+                      })
+                    }
+                    loading={approveClaimMutation.isPending}
+                    variant="success"
+                    size="sm"
+                  >
+                    <ShieldCheck size={14} /> Approve {a.pending_karma!.toLocaleString('id-ID')}
+                  </Button>
+                  <Button
+                    onClick={() => rejectClaimMutation.mutate(a.id)}
+                    loading={rejectClaimMutation.isPending}
+                    variant="outline"
+                    size="sm"
+                    className="!border-danger !text-danger hover:!bg-danger hover:!text-white"
+                  >
+                    <Trash2 size={14} /> Reject
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {isLoading ? (
         <div className="space-y-3"><CardSkeleton /><CardSkeleton /></div>

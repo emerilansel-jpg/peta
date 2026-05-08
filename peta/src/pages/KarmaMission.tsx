@@ -1,10 +1,10 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import {
   ArrowLeft, Target, TrendingUp, Sparkles, Lock, Unlock, RefreshCw,
   AlertTriangle, ExternalLink, Trophy, Heart, Camera, MessageSquare, Film,
-  ShieldQuestion,
+  ShieldQuestion, Clock, Send,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
@@ -13,7 +13,7 @@ import { ConfettiBurst } from '../components/Confetti';
 import { supabase } from '../lib/supabase';
 import {
   getMaxRedditKarma, hasClaimedKarmaMilestone, claimKarmaMilestone,
-  updateRedditAccountKarma,
+  updateRedditAccountKarma, submitKarmaClaim,
 } from '../lib/api';
 import { WHATSAPP_GROUP_URL } from '../lib/config';
 import { toast } from '../components/Toast';
@@ -65,9 +65,42 @@ export function KarmaMission() {
   const karma = karmaInfo?.karma ?? 0;
   const username = karmaInfo?.username;
   const accountId = karmaInfo?.accountId;
+  const pendingKarma = karmaInfo?.pendingKarma ?? null;
+  const pendingSubmittedAt = karmaInfo?.pendingSubmittedAt ?? null;
+  const hasPending = pendingKarma !== null && pendingSubmittedAt !== null;
   const progress = Math.min((karma / KARMA_GOAL) * 100, 100);
   const remaining = Math.max(KARMA_GOAL - karma, 0);
   const goalReached = karma >= KARMA_GOAL;
+
+  // Honor-system claim input — used when auto-sync is blocked. Admin
+  // verifies the value against the user's actual Reddit profile before
+  // approving via /admin/accounts.
+  const [claimInput, setClaimInput] = React.useState('');
+  const claimMutation = useMutation({
+    mutationFn: (n: number) => submitKarmaClaim(accountId!, n),
+    onSuccess: () => {
+      toast.success('Karma claim dikirim ke admin — verify dalam ≤ 24 jam');
+      setClaimInput('');
+      refetchKarma();
+    },
+    onError: (e: any) => toast.error(`Gagal kirim claim: ${e.message || e}`),
+  });
+  const handleSubmitClaim = () => {
+    const n = parseInt(claimInput.trim(), 10);
+    if (isNaN(n) || n < 0) {
+      toast.error('Masukkan angka karma yang valid (≥ 0)');
+      return;
+    }
+    if (n > 1_000_000) {
+      toast.error('Angka kebesaran — cek lagi profile-mu');
+      return;
+    }
+    if (!accountId) {
+      toast.error('Akun Reddit belum siap');
+      return;
+    }
+    claimMutation.mutate(n);
+  };
 
   const handleRefreshKarma = async () => {
     if (!username || !accountId) {
@@ -230,9 +263,44 @@ export function KarmaMission() {
           </div>
         </Card>
 
-        {/* Reddit-blocked fallback — surfaces the admin handoff path so users
-            don't get stuck at karma=0 forever when Reddit's bot wall hits. */}
-        {syncFallback && (
+        {/* Pending claim — already submitted, waiting on admin verify */}
+        {hasPending && (
+          <Card className="mb-3 bg-primary/5 ring-primary/30" padding="md">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 bg-primary/15 text-primary rounded-xl grid place-items-center shrink-0">
+                <Clock size={20} />
+              </div>
+              <div className="flex-1">
+                <p className="font-extrabold text-base">
+                  Claim kamu lagi diverifikasi
+                </p>
+                <p className="text-sm text-muted mt-1">
+                  Kamu lapor karma <b>{pendingKarma!.toLocaleString('id-ID')}</b> pada{' '}
+                  <b>
+                    {new Date(pendingSubmittedAt!).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  </b>. Admin verify ke profile Reddit-mu — biasa &lt; 24 jam. Pastikan profile public (bukan private).
+                </p>
+                {username && (
+                  <a
+                    href={`https://www.reddit.com/user/${username}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-primary font-bold hover:underline mt-2"
+                  >
+                    <ExternalLink size={12} /> Buka profilmu di Reddit (cek public)
+                  </a>
+                )}
+              </div>
+            </div>
+          </Card>
+        )}
+
+        {/* Reddit-blocked fallback — show honor-system karma claim form so
+            users don't get stuck at karma=0 forever when Reddit's bot wall
+            hits. Admin verifies the claim via /admin/accounts before
+            approving — they open the user's Reddit profile and confirm the
+            number matches. */}
+        {syncFallback && !hasPending && (
           <Card className="mb-3 bg-warning/10 ring-warning/30" padding="md">
             <div className="flex items-start gap-3 mb-3">
               <div className="w-10 h-10 bg-warning/20 text-warning rounded-xl grid place-items-center shrink-0">
@@ -241,35 +309,66 @@ export function KarmaMission() {
               <div className="flex-1">
                 <p className="font-extrabold text-base">Reddit memblokir auto-sync</p>
                 <p className="text-sm text-muted mt-1">
-                  Reddit lagi anti-bot ke server kami. Bukan dari kamu — admin biasa update manual dalam {' '}
-                  <b>kurang dari 24 jam</b>. Kirim username kamu via WA grup biar diprioritasin.
+                  Bukan kesalahan kamu — Reddit lagi anti-bot ke server kami.
+                  Lapor karma manual aja, admin verify dalam &lt; 24 jam.
                 </p>
               </div>
             </div>
 
-            <div className="grid sm:grid-cols-2 gap-2">
-              {username && (
-                <a
-                  href={`https://www.reddit.com/user/${username}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="bg-white ring-1 ring-black/10 rounded-xl px-3 py-2.5 text-sm font-bold flex items-center justify-center gap-1.5 hover:ring-primary"
-                >
-                  <ExternalLink size={14} /> Buka profilku di Reddit
-                </a>
-              )}
+            <ol className="space-y-1.5 text-sm mb-3 list-decimal list-inside">
+              <li>
+                Buka{' '}
+                {username ? (
+                  <a
+                    href={`https://www.reddit.com/user/${username}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-bold text-primary inline-flex items-center gap-0.5 hover:underline"
+                  >
+                    profile Reddit kamu <ExternalLink size={11} />
+                  </a>
+                ) : (
+                  'profile Reddit kamu'
+                )}
+                {' '}di tab baru
+              </li>
+              <li>Cari angka <b>karma</b> (di samping avatar / nama)</li>
+              <li>Paste angkanya di bawah & submit — admin verify</li>
+            </ol>
+
+            <div className="flex gap-2">
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                step={1}
+                value={claimInput}
+                onChange={(e) => setClaimInput(e.target.value)}
+                placeholder="Contoh: 142"
+                className="flex-1 px-3 py-2.5 rounded-xl ring-1 ring-black/10 bg-white text-sm font-bold tabular-nums focus:ring-2 focus:ring-primary outline-none"
+              />
+              <Button
+                onClick={handleSubmitClaim}
+                loading={claimMutation.isPending}
+                size="md"
+              >
+                <Send size={14} /> Submit
+              </Button>
+            </div>
+            <p className="text-[11px] text-muted mt-2">
+              Jangan kasih angka kebesaran — admin bakal cek profile-mu langsung. Salah angka = ditolak.
+            </p>
+
+            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-warning/20">
               <a
                 href={adminWaUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bg-success text-white rounded-xl px-3 py-2.5 text-sm font-extrabold flex items-center justify-center gap-1.5 hover:brightness-95"
+                className="flex-1 text-xs text-success font-bold hover:underline flex items-center justify-center gap-1"
               >
-                <MessageSquare size={14} /> Lapor admin via WA
+                <MessageSquare size={12} /> Atau lapor via WA grup admin
               </a>
             </div>
-            <p className="text-[11px] text-muted mt-2">
-              Pesan WA udah pre-filled — tinggal kirim. Admin akan cek profile-mu & update karma.
-            </p>
           </Card>
         )}
 

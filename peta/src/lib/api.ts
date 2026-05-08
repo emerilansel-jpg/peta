@@ -108,7 +108,8 @@ export async function getWaDismissed(userId: string): Promise<boolean> {
   return !!data?.wa_group_dismissed;
 }
 
-// Admin-only: manually set karma + age (level recomputes via DB trigger).
+// Admin-only: manually set karma + age (level recomputes via DB trigger,
+// pending claim cleared at the same time).
 export async function adminSetKarma(
   accountId: string,
   karma: number,
@@ -118,6 +119,27 @@ export async function adminSetKarma(
     p_account_id: accountId,
     p_karma: karma,
     p_account_age_days: accountAgeDays ?? null,
+  });
+  if (error) throw error;
+  return data;
+}
+
+// User-callable: submit a karma value the user copied from their Reddit
+// profile, queued for admin verification. Used as the fallback path when
+// the auto-sync edge function gets blocked by Reddit.
+export async function submitKarmaClaim(accountId: string, claimedKarma: number) {
+  const { data, error } = await supabase.rpc('submit_karma_claim', {
+    p_account_id: accountId,
+    p_claimed_karma: claimedKarma,
+  });
+  if (error) throw error;
+  return data;
+}
+
+// Admin-only: clear a pending claim without awarding it (e.g. user lied).
+export async function adminRejectKarmaClaim(accountId: string) {
+  const { data, error } = await supabase.rpc('admin_reject_karma_claim', {
+    p_account_id: accountId,
   });
   if (error) throw error;
   return data;
@@ -331,22 +353,32 @@ export async function getMaxRedditKarma(userId: string): Promise<{
   accountAgeDays: number;
   username: string | null;
   accountId: string | null;
+  pendingKarma: number | null;
+  pendingSubmittedAt: string | null;
 }> {
   const { data, error } = await supabase
     .from('reddit_accounts')
-    .select('id, username, karma, level, account_age_days')
+    .select('id, username, karma, level, account_age_days, pending_karma, pending_karma_submitted_at')
     .eq('user_id', userId)
     .order('karma', { ascending: false })
     .limit(1)
     .maybeSingle();
   if (error) throw error;
-  if (!data) return { karma: 0, level: 0, accountAgeDays: 0, username: null, accountId: null };
+  if (!data) {
+    return {
+      karma: 0, level: 0, accountAgeDays: 0,
+      username: null, accountId: null,
+      pendingKarma: null, pendingSubmittedAt: null,
+    };
+  }
   return {
     karma: data.karma || 0,
     level: data.level || 0,
     accountAgeDays: data.account_age_days || 0,
     username: data.username,
     accountId: data.id,
+    pendingKarma: data.pending_karma ?? null,
+    pendingSubmittedAt: data.pending_karma_submitted_at ?? null,
   };
 }
 
