@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeft, Target, TrendingUp, Sparkles, Lock, Unlock, RefreshCw,
   AlertTriangle, ExternalLink, Trophy, Heart, Camera, MessageSquare, Film,
+  ShieldQuestion,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
@@ -14,6 +15,7 @@ import {
   getMaxRedditKarma, hasClaimedKarmaMilestone, claimKarmaMilestone,
   updateRedditAccountKarma,
 } from '../lib/api';
+import { WHATSAPP_GROUP_URL } from '../lib/config';
 import { toast } from '../components/Toast';
 
 const KARMA_GOAL = 10;
@@ -36,6 +38,9 @@ export function KarmaMission() {
   const [refreshing, setRefreshing] = React.useState(false);
   const [claiming, setClaiming] = React.useState(false);
   const [confettiActive, setConfettiActive] = React.useState(false);
+  // True after the most recent sync attempt fell back (Reddit blocked the
+  // server-side fetch). Surfaces the admin-handoff CTA. Reset on next attempt.
+  const [syncFallback, setSyncFallback] = React.useState(false);
 
   React.useEffect(() => {
     (async () => {
@@ -70,16 +75,36 @@ export function KarmaMission() {
       return;
     }
     setRefreshing(true);
+    setSyncFallback(false);
     try {
-      await updateRedditAccountKarma(accountId, username);
+      const res = await updateRedditAccountKarma(accountId, username);
       await refetchKarma();
-      toast.success('Karma di-refresh ✅');
+      if (res.fallback) {
+        setSyncFallback(true);
+        toast.error('Reddit memblokir auto-sync — minta admin verify manual');
+      } else {
+        toast.success('Karma di-refresh ✅');
+      }
     } catch (e: any) {
-      toast.error('Gagal sync — Reddit kadang nge-block. Coba sebentar lagi.');
+      setSyncFallback(true);
+      toast.error('Gagal sync — coba lagi atau lapor admin di bawah');
     } finally {
       setRefreshing(false);
     }
   };
+
+  const adminWaMessage = (() => {
+    const lines = [
+      `Halo admin PeTa, mau lapor karma manual:`,
+      `• Akun Reddit: u/${username || '<isi username kamu>'}`,
+      `• Link profile: https://www.reddit.com/user/${username || ''}`,
+      `• Alasan: auto-sync gagal (Reddit memblokir server)`,
+      ``,
+      `Mohon di-verify & update karma. Makasih 🙏`,
+    ];
+    return encodeURIComponent(lines.join('\n'));
+  })();
+  const adminWaUrl = `${WHATSAPP_GROUP_URL}?text=${adminWaMessage}`;
 
   const handleClaim = async () => {
     setClaiming(true);
@@ -202,6 +227,49 @@ export function KarmaMission() {
             )}
           </div>
         </Card>
+
+        {/* Reddit-blocked fallback — surfaces the admin handoff path so users
+            don't get stuck at karma=0 forever when Reddit's bot wall hits. */}
+        {syncFallback && (
+          <Card className="mb-3 bg-warning/10 ring-warning/30" padding="md">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="w-10 h-10 bg-warning/20 text-warning rounded-xl grid place-items-center shrink-0">
+                <ShieldQuestion size={20} />
+              </div>
+              <div className="flex-1">
+                <p className="font-extrabold text-base">Reddit memblokir auto-sync</p>
+                <p className="text-sm text-muted mt-1">
+                  Reddit lagi anti-bot ke server kami. Bukan dari kamu — admin biasa update manual dalam {' '}
+                  <b>kurang dari 24 jam</b>. Kirim username kamu via WA grup biar diprioritasin.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-2">
+              {username && (
+                <a
+                  href={`https://www.reddit.com/user/${username}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="bg-white ring-1 ring-black/10 rounded-xl px-3 py-2.5 text-sm font-bold flex items-center justify-center gap-1.5 hover:ring-primary"
+                >
+                  <ExternalLink size={14} /> Buka profilku di Reddit
+                </a>
+              )}
+              <a
+                href={adminWaUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-success text-white rounded-xl px-3 py-2.5 text-sm font-extrabold flex items-center justify-center gap-1.5 hover:brightness-95"
+              >
+                <MessageSquare size={14} /> Lapor admin via WA
+              </a>
+            </div>
+            <p className="text-[11px] text-muted mt-2">
+              Pesan WA udah pre-filled — tinggal kirim. Admin akan cek profile-mu & update karma.
+            </p>
+          </Card>
+        )}
 
         {/* WHY (the CRO anchor) */}
         <Card className="mb-3 bg-light/50" padding="sm">

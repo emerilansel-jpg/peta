@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Lock, Flame, Bell, Users, Star, MessageCircle,
+  Lock, Flame, Bell, Users, MessageCircle,
   Sparkles, TrendingUp, Trophy, Clock, Gift,
   Target, ArrowRight, Copy, Share2, ChevronDown, ChevronUp, X,
   HelpCircle, Lightbulb, Award, Zap,
@@ -11,21 +11,25 @@ import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { supabase } from '../lib/supabase';
-import { WHATSAPP_GROUP_URL } from '../lib/config';
+import { WHATSAPP_GROUP_URL, FOUNDING_LIMIT } from '../lib/config';
 import {
   getCommunityFeed, type CommunityEvent,
   getMaxRedditKarma, getReferralStats, getWaDismissed, dismissWaGroup,
+  getFoundingMembers,
 } from '../lib/api';
 import { LEVELS, getLevelInfo } from '../lib/levels';
 import { toast } from '../components/Toast';
 
+// Preview of task TYPES (rate ranges are real, per src/lib/levels.ts).
+// No fake metadata like star ratings or "X slots remaining" — those
+// pretend social proof we cannot verify.
 const PREVIEW_TASKS = [
-  { type: 'comment', title: 'Comment di thread crypto trending',  reward: 18000, slots: 5,  hot: true },
-  { type: 'upvote',  title: 'Upvote 5 post pilihan',               reward: 1500,  slots: 20 },
-  { type: 'comment', title: 'Comment di thread populer minggu ini', reward: 15000, slots: 8 },
-  { type: 'upvote',  title: 'Upvote thread niche',                 reward: 1000,  slots: 15 },
-  { type: 'comment', title: 'Comment di r/IndonesiaSemua',         reward: 12000, slots: 10 },
-  { type: 'comment', title: 'Comment thread tech (level 4+)',      reward: 20000, slots: 3,  premium: true },
+  { type: 'comment', title: 'Komen di thread populer',           reward: 18000, premium: false },
+  { type: 'upvote',  title: 'Upvote post pilihan',               reward: 1500,  premium: false },
+  { type: 'comment', title: 'Komen di thread niche',             reward: 15000, premium: false },
+  { type: 'upvote',  title: 'Upvote thread niche',               reward: 1000,  premium: false },
+  { type: 'comment', title: 'Komen di komunitas global',         reward: 12000, premium: false },
+  { type: 'comment', title: 'Komen thread tech (level 4+)',      reward: 20000, premium: true  },
 ] as const;
 
 const STREAK_KEY = 'peta_streak';
@@ -78,11 +82,18 @@ const SITE_URL = typeof window !== 'undefined' ? window.location.origin : 'https
 const buildReferralLink = (code?: string) =>
   code ? `${SITE_URL}/register?ref=${code}` : SITE_URL;
 
-const buildWhatsAppShare = (link: string) => {
+// Pre-filled WhatsApp share — leans on Founding-100 scarcity and the
+// concrete bonus amount instead of vague "join me!" copy. Keeps the
+// link last so WA generates the OG preview from index.html meta tags.
+const buildWhatsAppShare = (link: string, slotsLeft: number) => {
+  const slotsLine = slotsLeft > 0
+    ? `🔒 Founding 100 — sisa ${slotsLeft} slot doang. Kalau penuh, tutup permanen.\n\n`
+    : `🔒 Founding 100 udah penuh — kalau buka gelombang baru, lo bakal dikabarin via link ini.\n\n`;
   const msg =
-    `🤑 Aku gabung PeTa — dibayar tiap komen di internet (Rp5K–Rp20K per komen).\n\n` +
-    `Pakai kode aku biar kamu dapat bonus Rp25K masuk saldo:\n${link}\n\n` +
-    `Aku juga dapet Rp20K kalo kamu daftar 😎`;
+    `🤑 Aku gabung PeTa — dibayar Rp5K–Rp20K per komen di internet, cair 24 jam ke e-wallet.\n\n` +
+    slotsLine +
+    `Pakai link aku, lo dapet bonus founding Rp25K + slot lebih cepet:\n${link}\n\n` +
+    `(Aku juga dapet Rp20K kalo lo daftar — sama-sama untung 😎)`;
   return `https://wa.me/?text=${encodeURIComponent(msg)}`;
 };
 
@@ -111,6 +122,12 @@ export function Tasks() {
     queryKey: ['referralStats', user?.id],
     queryFn: () => getReferralStats(user!.id),
     enabled: !!user?.id,
+  });
+
+  const { data: founding } = useQuery({
+    queryKey: ['foundingMembers'],
+    queryFn: getFoundingMembers,
+    refetchInterval: 60_000,
   });
 
   const { data: karmaInfo } = useQuery({
@@ -163,6 +180,9 @@ export function Tasks() {
           code={referralStats?.code}
           invitedCount={referralStats?.invitedCount ?? 0}
           totalBonus={referralStats?.totalBonus ?? 0}
+          slotsLeft={founding?.slotsLeft ?? FOUNDING_LIMIT}
+          totalFounding={founding?.count ?? 0}
+          isFull={founding?.isFull ?? false}
           ticker={ticker}
         />
 
@@ -219,9 +239,7 @@ export function Tasks() {
               <div className="absolute inset-0 bg-white/40 backdrop-blur-[2px] z-10 flex items-center justify-center pointer-events-none">
                 <div className="bg-white/95 ring-1 ring-black/10 rounded-full px-3 py-1 flex items-center gap-1.5 shadow-sm">
                   <Lock size={12} className="text-muted" />
-                  <span className="text-[11px] font-bold text-dark">
-                    {(task as any).hot ? 'Slot habis cepat' : 'Akan dialokasikan'}
-                  </span>
+                  <span className="text-[11px] font-bold text-dark">Diumumkan di grup WA</span>
                 </div>
               </div>
               <div className="flex items-start justify-between gap-3">
@@ -232,12 +250,7 @@ export function Tasks() {
                     </span>
                     {(task as any).premium && (
                       <span className="text-[9px] font-extrabold uppercase tracking-wide bg-yellow-200 text-yellow-900 px-1.5 py-0.5 rounded">
-                        Premium
-                      </span>
-                    )}
-                    {(task as any).hot && (
-                      <span className="text-[9px] font-extrabold uppercase tracking-wide bg-primary/15 text-primary px-1.5 py-0.5 rounded">
-                        🔥 Hot
+                        Level 4+
                       </span>
                     )}
                   </div>
@@ -248,10 +261,6 @@ export function Tasks() {
                     <span className="flex items-center gap-1">
                       <Clock size={11} /> {task.type === 'upvote' ? '<1 min' : '3-5 min'}
                     </span>
-                    <span className="flex items-center gap-1">
-                      <Star size={11} className="fill-yellow-400 text-yellow-400" /> 4,8
-                    </span>
-                    <span>{task.slots} slot</span>
                   </div>
                 </div>
                 <div className="text-right shrink-0">
@@ -293,11 +302,14 @@ export function Tasks() {
 // REFERRAL HERO — priority #1
 // ============================================================
 function ReferralHero({
-  code, invitedCount, totalBonus, ticker,
+  code, invitedCount, totalBonus, slotsLeft, totalFounding, isFull, ticker,
 }: {
   code?: string;
   invitedCount: number;
   totalBonus: number;
+  slotsLeft: number;
+  totalFounding: number;
+  isFull: boolean;
   ticker?: CommunityEvent;
 }) {
   const link = buildReferralLink(code);
@@ -315,25 +327,44 @@ function ReferralHero({
   };
 
   const onShareWa = () => {
-    window.open(buildWhatsAppShare(link), '_blank');
+    window.open(buildWhatsAppShare(link, slotsLeft), '_blank');
   };
+
+  const slotsPct = Math.min((totalFounding / FOUNDING_LIMIT) * 100, 100);
 
   return (
     <Card className="mb-3 bg-gradient-to-br from-primary via-[#FF8B6B] to-secondary text-white border-0 ring-0 overflow-hidden relative">
       <div className="absolute -top-10 -right-10 w-44 h-44 bg-white/10 rounded-full blur-3xl pointer-events-none" />
       <div className="relative">
-        <div className="flex items-center gap-2 mb-2">
+        <div className="flex items-center gap-2 mb-2 flex-wrap">
           <span className="inline-flex items-center gap-1 rounded-full bg-white/20 backdrop-blur px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide">
             <Zap size={11} /> Cuan tercepat
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full bg-yellow-300/95 text-[#1A1D1F] px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide">
+            <Lock size={10} /> {isFull
+              ? 'Founding penuh'
+              : <>Sisa <span className="tabular-nums">{slotsLeft}</span> slot founding</>}
           </span>
         </div>
 
         <h1 className="text-2xl sm:text-3xl font-extrabold leading-tight mb-1">
           Ajak teman = +Rp20K masuk saldo
         </h1>
-        <p className="text-sm opacity-95 mb-4">
-          Tiap teman daftar pakai kode kamu, <b>kamu dapat Rp20K, dia dapat Rp25K</b>. Belum ada limit.
+        <p className="text-sm opacity-95 mb-3">
+          Tiap teman daftar pakai kode kamu, <b>kamu dapat Rp20K, dia dapat Rp25K</b>.
+          Berlaku selama slot founding 100 belum penuh.
         </p>
+
+        {/* Mini scarcity bar — replaces fake "live activity" claims */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between text-[11px] mb-1 opacity-95">
+            <span className="font-semibold">Founding terisi</span>
+            <span className="font-extrabold tabular-nums">{totalFounding} / {FOUNDING_LIMIT}</span>
+          </div>
+          <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+            <div className="h-full bg-yellow-300 rounded-full transition-all" style={{ width: `${slotsPct}%` }} />
+          </div>
+        </div>
 
         {/* Counters: social proof of own progress */}
         <div className="grid grid-cols-2 gap-2 mb-3">

@@ -1,8 +1,32 @@
 import { useNavigate } from 'react-router-dom';
-import { Star, Shield, Zap, Wallet, ArrowRight, Check } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import {
+  Shield, Zap, Wallet, ArrowRight, Check, Lock, AlertTriangle,
+  ShieldCheck, Eye, Users,
+} from 'lucide-react';
+import { getCommunityStats, getFoundingMembers } from '../lib/api';
+import { FOUNDING_LIMIT } from '../lib/config';
 
 export function Landing() {
   const navigate = useNavigate();
+
+  const { data: founding } = useQuery({
+    queryKey: ['foundingMembers'],
+    queryFn: getFoundingMembers,
+    refetchInterval: 30_000,
+  });
+
+  const { data: stats } = useQuery({
+    queryKey: ['communityStats'],
+    queryFn: getCommunityStats,
+    refetchInterval: 60_000,
+  });
+
+  const foundingCount = founding?.count ?? 0;
+  const slotsLeft = founding?.slotsLeft ?? FOUNDING_LIMIT;
+  const isFull = founding?.isFull ?? false;
+  const slotsPercent = founding?.percent ?? 0;
+  const totalPaid = stats?.totalPaid ?? 0;
 
   const levels = [
     { emoji: '🥚', name: 'Pemula',     reward: 'Rp5.000',  cap: 'Baru gabung' },
@@ -11,27 +35,6 @@ export function Landing() {
     { emoji: '⚔️', name: 'Pejuang',    reward: 'Rp14.000', cap: 'Top kontributor' },
     { emoji: '🏙️', name: 'Senior',    reward: 'Rp17.000', cap: 'Pro level' },
     { emoji: '👑', name: 'Legend',     reward: 'Rp20.000', cap: 'Top performer' },
-  ];
-
-  const testimonials = [
-    {
-      name: 'Ahmad Rifki',
-      city: 'Jakarta',
-      text: 'Pertama daftar dapat bonus Rp50K. 2 minggu udah cair Rp250K. Beneran cepet & gampang.',
-      earn: 'Rp250K/minggu',
-    },
-    {
-      name: 'Siti Nurhaliza',
-      city: 'Surabaya',
-      text: 'Cuma komen-komen aja, tapi cair beneran. Transfer 24 jam masuk rekening.',
-      earn: 'Rp180K/minggu',
-    },
-    {
-      name: 'Budi Santoso',
-      city: 'Bandung',
-      text: 'Udah coba banyak app, ini paling fair. Reward sesuai, transparan, ga ribet.',
-      earn: 'Rp200K/minggu',
-    },
   ];
 
   return (
@@ -44,13 +47,17 @@ export function Landing() {
         </div>
 
         <div className="relative container-custom pt-12 pb-10 sm:pt-20 sm:pb-16 safe-top">
-          <div className="flex items-center gap-2 text-sm bg-white/15 backdrop-blur w-fit px-3 py-1.5 rounded-full mb-5 ring-1 ring-white/20">
-            <span className="flex -space-x-1.5">
-              {['🧑‍💻','👩‍🎓','🧑‍🎨'].map((e,i)=>(
-                <span key={i} className="w-5 h-5 rounded-full bg-white/30 grid place-items-center text-xs">{e}</span>
-              ))}
+          {/* Real scarcity ribbon — pulled from DB, no inflation */}
+          <div className="bg-white/15 backdrop-blur w-fit max-w-full px-3 py-2 rounded-full mb-5 ring-1 ring-white/25 flex items-center gap-2 text-sm">
+            <Lock size={14} className="shrink-0" />
+            <span className="font-bold whitespace-nowrap">Founding 100</span>
+            <span className="opacity-90">·</span>
+            <span className="font-semibold tabular-nums">
+              {isFull
+                ? 'slot habis'
+                : <>sisa <span className="font-extrabold tabular-nums">{slotsLeft}</span> slot</>
+              }
             </span>
-            <span className="font-semibold">2.340+ member aktif</span>
           </div>
 
           <h1 className="text-[2.5rem] leading-[1.05] sm:text-6xl font-extrabold tracking-tight mb-4">
@@ -63,16 +70,26 @@ export function Landing() {
             Like/upvote juga dibayar Rp500–Rp2.000.
           </p>
           <p className="text-sm sm:text-base opacity-95 max-w-xl mb-7">
-            🎁 Daftar sekarang dapat <b className="text-yellow-200 underline decoration-2 underline-offset-2">bonus Rp50.000</b> + <b className="text-yellow-200">Rp20.000</b> tiap teman yang kamu ajak.
+            🎁 Founding 100 dapat bonus <b className="text-yellow-200 underline decoration-2 underline-offset-2">Rp50.000</b> + <b className="text-yellow-200">Rp20.000</b> tiap teman yang kamu ajak. Slot ke-101 dst tidak dapat bonus founding.
           </p>
 
-          {/* social proof strip */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm mb-7">
-            <span className="flex items-center gap-1">
-              <Star size={16} className="fill-yellow-300 text-yellow-300" /> 4,8/5 (340 review)
-            </span>
-            <span>•</span>
-            <span>💸 Rp1,2jt dibayar minggu ini</span>
+          {/* Visual scarcity bar — replaces fake stars/reviews */}
+          <div className="max-w-md mb-7">
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span className="font-semibold opacity-90">Slot founding terisi</span>
+              <span className="font-extrabold tabular-nums">{foundingCount} / {FOUNDING_LIMIT}</span>
+            </div>
+            <div className="h-2.5 bg-white/20 rounded-full overflow-hidden ring-1 ring-white/20">
+              <div
+                className="h-full bg-gradient-to-r from-yellow-300 to-yellow-200 rounded-full transition-all"
+                style={{ width: `${slotsPercent}%` }}
+              />
+            </div>
+            <p className="text-xs opacity-90 mt-2">
+              {isFull
+                ? 'Pendaftaran founding ditutup. Kamu masuk waitlist untuk gelombang berikutnya.'
+                : 'Tiap satu slot terisi, sisa makin sedikit. Tutup permanen begitu nyentuh 100.'}
+            </p>
           </div>
 
           {/* CTAs */}
@@ -81,7 +98,7 @@ export function Landing() {
               onClick={() => navigate('/register')}
               className="tap-shrink bg-yellow-300 hover:bg-yellow-200 text-[#1A1D1F] font-extrabold rounded-2xl px-6 py-4 text-lg shadow-xl shadow-black/20 flex items-center justify-center gap-2"
             >
-              💰 Klaim Bonus Rp50K <ArrowRight size={20} />
+              {isFull ? '📝 Masuk Waitlist' : <>💰 Klaim Slot Founding <ArrowRight size={20} /></>}
             </button>
             <button
               onClick={() => navigate('/login')}
@@ -91,24 +108,29 @@ export function Landing() {
             </button>
           </div>
 
-          <p className="text-xs opacity-80 mt-4">⏰ Bonus terbatas untuk 100 pendaftar berikutnya</p>
+          {/* Real proof, no fake numbers */}
+          {totalPaid > 0 && (
+            <p className="text-xs opacity-90 mt-4">
+              💸 Total dibayar ke member sejauh ini: <b>Rp{totalPaid.toLocaleString('id-ID')}</b>
+            </p>
+          )}
         </div>
       </section>
 
-      {/* TRUST STRIP --------------------------------------------- */}
+      {/* TRUST STRIP — fact-based, not pseudo-rating */}
       <section className="border-y border-border bg-white">
         <div className="container-custom py-4 grid grid-cols-3 gap-2 text-center text-xs sm:text-sm">
           <div className="flex flex-col items-center gap-1">
-            <Shield size={20} className="text-success" />
-            <span className="font-semibold">Aman & Resmi</span>
+            <ShieldCheck size={20} className="text-success" />
+            <span className="font-semibold">Tidak akses akun kamu</span>
           </div>
           <div className="flex flex-col items-center gap-1">
             <Zap size={20} className="text-warning" />
-            <span className="font-semibold">Payout 24 jam</span>
+            <span className="font-semibold">Payout 24 jam kerja</span>
           </div>
           <div className="flex flex-col items-center gap-1">
             <Wallet size={20} className="text-primary" />
-            <span className="font-semibold">Min Rp150K cair</span>
+            <span className="font-semibold">Min cair Rp150K</span>
           </div>
         </div>
       </section>
@@ -163,7 +185,7 @@ export function Landing() {
       <section className="container-custom py-12 sm:py-16">
         <p className="text-primary font-bold text-sm tracking-wide mb-2">SISTEM LEVEL</p>
         <h2 className="text-3xl sm:text-4xl font-extrabold mb-2">Naik level, naik bayaran</h2>
-        <p className="text-muted mb-6 sm:mb-8">Performa naik → reward per task naik. Otomatis.</p>
+        <p className="text-muted mb-6 sm:mb-8">Performa naik → reward per task naik. Otomatis, transparan.</p>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
           {levels.map((l) => (
             <div key={l.name} className="bg-light rounded-2xl p-4 ring-1 ring-black/5 text-center">
@@ -176,49 +198,77 @@ export function Landing() {
         </div>
       </section>
 
-      {/* REFERRAL ------------------------------------------------ */}
-      <section className="bg-gradient-to-br from-primary/10 via-yellow-50 to-secondary/10">
+      {/* TRANSPARENCY — replaces fake testimonials */}
+      <section className="bg-gradient-to-br from-primary/5 via-yellow-50 to-secondary/5">
         <div className="container-custom py-12 sm:py-16">
-          <div className="max-w-2xl">
-            <p className="text-primary font-bold text-sm tracking-wide mb-2">AJAK TEMAN</p>
-            <h2 className="text-3xl sm:text-4xl font-extrabold mb-3">
-              Tiap teman yang ikut, kamu dapat <span className="text-primary">Rp20.000</span>
-            </h2>
-            <p className="text-muted text-base sm:text-lg mb-4">
-              Bagikan link referral kamu. Tiap teman yang daftar, <b>kamu dapat Rp20K</b> & <b>mereka juga dapat Rp20K</b>.
-              Tanpa batas, tiap teman bonus.
-            </p>
-            <p className="text-sm text-muted">
-              Ajak 10 teman = <b className="text-primary money">Rp200.000</b> langsung cair.
-            </p>
+          <p className="text-primary font-bold text-sm tracking-wide mb-2">KENAPA BISA PERCAYA</p>
+          <h2 className="text-3xl sm:text-4xl font-extrabold mb-3">
+            Kami transparan, bukan janji manis
+          </h2>
+          <p className="text-muted text-base sm:text-lg mb-6 max-w-2xl">
+            Daripada testimoni karangan, kami kasih liat sistem yang bikin kamu yakin uang ini real.
+          </p>
+
+          <div className="grid sm:grid-cols-2 gap-4 max-w-4xl">
+            <div className="bg-white rounded-2xl p-5 ring-1 ring-black/5">
+              <div className="w-10 h-10 bg-success/15 text-success rounded-xl grid place-items-center mb-3">
+                <Eye size={20} />
+              </div>
+              <h3 className="font-extrabold text-lg mb-1">Saldo & payout transparan</h3>
+              <p className="text-sm text-muted">
+                Setiap rupiah yang kami bayar ke member terlihat di komunitas grup WhatsApp.
+                Member bisa screenshot bukti transfer kapan aja.
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl p-5 ring-1 ring-black/5">
+              <div className="w-10 h-10 bg-secondary/15 text-secondary rounded-xl grid place-items-center mb-3">
+                <Users size={20} />
+              </div>
+              <h3 className="font-extrabold text-lg mb-1">Founding 100 = komunitas kecil</h3>
+              <p className="text-sm text-muted">
+                Kami sengaja batasi 100 member founding biar payout cepat & support 1-on-1
+                via WA. Nggak ngejar volume, ngejar kepercayaan.
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl p-5 ring-1 ring-black/5">
+              <div className="w-10 h-10 bg-primary/15 text-primary rounded-xl grid place-items-center mb-3">
+                <Shield size={20} />
+              </div>
+              <h3 className="font-extrabold text-lg mb-1">Akun kamu aman</h3>
+              <p className="text-sm text-muted">
+                Kami nggak login, nggak post atas nama kamu, nggak mintain password Reddit-mu.
+                Tiap komen = kamu yang nulis & kirim sendiri.
+              </p>
+            </div>
+            <div className="bg-white rounded-2xl p-5 ring-1 ring-black/5">
+              <div className="w-10 h-10 bg-warning/15 text-warning rounded-xl grid place-items-center mb-3">
+                <AlertTriangle size={20} />
+              </div>
+              <h3 className="font-extrabold text-lg mb-1">Kalau gagal cair, refund</h3>
+              <p className="text-sm text-muted">
+                Pernah dijanjiin app lain trus zonk? Kami beda: payout otomatis 24 jam kerja
+                setelah saldo cukup. Kalau gagal, balik 100% — bukti di grup.
+              </p>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* TESTIMONIALS -------------------------------------------- */}
+      {/* REFERRAL ------------------------------------------------ */}
       <section className="container-custom py-12 sm:py-16">
-        <p className="text-primary font-bold text-sm tracking-wide mb-2">CERITA MEMBER</p>
-        <h2 className="text-3xl sm:text-4xl font-extrabold mb-8">Mereka udah cair duluan</h2>
-        <div className="grid sm:grid-cols-3 gap-4">
-          {testimonials.map((t) => (
-            <div key={t.name} className="bg-light rounded-2xl p-5 ring-1 ring-black/5">
-              <div className="flex gap-0.5 mb-3">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} size={14} className="fill-yellow-400 text-yellow-400" />
-                ))}
-              </div>
-              <p className="text-sm sm:text-base mb-4 leading-relaxed">"{t.text}"</p>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-bold text-sm">{t.name}</p>
-                  <p className="text-xs text-muted">{t.city}</p>
-                </div>
-                <span className="bg-success/15 text-success text-xs font-bold px-2.5 py-1 rounded-full">
-                  {t.earn}
-                </span>
-              </div>
-            </div>
-          ))}
+        <div className="max-w-2xl">
+          <p className="text-primary font-bold text-sm tracking-wide mb-2">AJAK TEMAN</p>
+          <h2 className="text-3xl sm:text-4xl font-extrabold mb-3">
+            Tiap teman yang ikut, kamu dapat <span className="text-primary">Rp20.000</span>
+          </h2>
+          <p className="text-muted text-base sm:text-lg mb-4">
+            Bagikan link referral kamu. Tiap teman yang daftar, <b>kamu dapat Rp20K</b> & <b>mereka dapat Rp25K</b>.
+            Sebelum slot founding habis — tutup permanen di angka 100.
+          </p>
+          <p className="text-sm text-muted">
+            Ajak 10 teman = <b className="text-primary money">Rp200.000</b> langsung masuk saldo.
+            Cair kalau total ≥ Rp150K.
+          </p>
         </div>
       </section>
 
@@ -228,11 +278,12 @@ export function Landing() {
           <h2 className="text-2xl sm:text-3xl font-extrabold mb-6">Pertanyaan singkat</h2>
           <div className="space-y-2 max-w-2xl">
             {[
-              ['Beneran dibayar?', 'Ya. Min payout Rp150.000, transfer dalam 24 jam ke rekening kamu.'],
-              ['Butuh skill khusus?', 'Tidak. Kalau bisa baca & nulis komentar sopan, kamu udah cukup.'],
-              ['Aman buat akun saya?', 'Aman. Kita ga login ke akun kamu, ga post atas nama kamu tanpa izin.'],
-              ['Berapa cuan realistis?', 'Member aktif Rp200–500K/minggu. Tergantung level & jumlah task yang diambil.'],
-              ['Bonus referral berapa?', 'Rp20.000 untuk kamu DAN Rp20.000 untuk teman yang kamu ajak. Tanpa batas.'],
+              ['Beneran dibayar?', 'Ya. Min payout Rp150.000, transfer dalam 24 jam kerja ke rekening / e-wallet kamu. Bukti bayar member sebelumnya bisa kamu lihat di grup WhatsApp setelah daftar.'],
+              ['Butuh skill khusus?', 'Tidak. Kalau bisa baca & nulis komentar sopan dalam Bahasa Indonesia, kamu udah cukup. Reward kecil dulu (Rp5K), naik seiring level.'],
+              ['Aman buat akun saya?', 'Aman. Kami tidak login ke akun Reddit kamu, tidak post atas namamu, tidak minta password. Tiap komen kamu ketik & kirim sendiri.'],
+              ['Berapa cuan realistis?', 'Tergantung level + jumlah task yang kamu ambil. Reward per komen Rp5.000 (level 0) – Rp20.000 (level 5). Tanpa janji muluk angka mingguan — yang jelas, tiap task selesai = saldo kamu langsung naik.'],
+              ['Kenapa cuma 100 founding?', 'Komunitas kecil = payout cepat, support 1-on-1, kontrol kualitas. Slot 101 dst akan dibuka di gelombang berikutnya tanpa bonus founding.'],
+              ['Bonus referral berapa?', 'Rp20.000 untuk kamu DAN Rp25.000 untuk teman yang kamu ajak. Tanpa batas selama slot founding masih ada.'],
             ].map(([q, a]) => (
               <details key={q} className="group bg-white rounded-xl ring-1 ring-black/5 p-4">
                 <summary className="font-bold cursor-pointer flex items-center justify-between list-none">
@@ -250,20 +301,22 @@ export function Landing() {
       <section className="bg-gradient-to-br from-primary to-secondary text-white">
         <div className="container-custom py-14 sm:py-20 text-center">
           <h2 className="text-3xl sm:text-5xl font-extrabold mb-3">
-            Siap nambah cuan?
+            {isFull ? 'Founding 100 udah penuh' : 'Sisa ' + slotsLeft + ' slot founding'}
           </h2>
           <p className="text-base sm:text-xl opacity-95 mb-6 max-w-xl mx-auto">
-            Daftar gratis. Bonus Rp50K langsung masuk. Cair 24 jam.
+            {isFull
+              ? 'Masuk waitlist gelombang berikutnya — dikabarin via email + WA pas slot baru buka.'
+              : 'Daftar gratis sekarang. Bonus founding Rp50K cuma buat 100 pertama. Cair 24 jam.'}
           </p>
           <button
             onClick={() => navigate('/register')}
             className="tap-shrink bg-yellow-300 hover:bg-yellow-200 text-[#1A1D1F] font-extrabold rounded-2xl px-7 py-4 text-lg shadow-2xl flex items-center justify-center gap-2 mx-auto"
           >
-            💰 Klaim Bonus Rp50K <ArrowRight size={20} />
+            {isFull ? '📝 Masuk Waitlist' : '💰 Klaim Slot Founding'} <ArrowRight size={20} />
           </button>
           <ul className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm">
             <li className="flex items-center gap-1"><Check size={16}/> Gratis selamanya</li>
-            <li className="flex items-center gap-1"><Check size={16}/> Data aman</li>
+            <li className="flex items-center gap-1"><Check size={16}/> Akun kamu aman</li>
             <li className="flex items-center gap-1"><Check size={16}/> Payout 24 jam</li>
           </ul>
         </div>
@@ -279,7 +332,7 @@ export function Landing() {
           onClick={() => navigate('/register')}
           className="w-full tap-shrink bg-primary hover:bg-primary-dark text-white font-extrabold rounded-2xl px-6 py-3.5 text-base shadow-lg shadow-primary/30 flex items-center justify-center gap-2"
         >
-          💰 Klaim Bonus Rp50K Sekarang
+          {isFull ? '📝 Masuk Waitlist' : `💰 Klaim Slot · sisa ${slotsLeft}`}
         </button>
       </div>
     </div>

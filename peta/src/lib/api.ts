@@ -65,6 +65,18 @@ export async function updateRedditAccountKarma(accountId: string, username: stri
   const karmaData = await syncRedditKarma(username);
   if (!karmaData.success) throw new Error('Failed to sync Reddit data');
 
+  // CRITICAL: When Reddit blocks the edge function (karmaData.fallback=true),
+  // we MUST NOT overwrite stored karma with 0 — that would clobber any value
+  // an admin set manually via admin_set_karma. Only write when we got real data.
+  if (karmaData.fallback) {
+    const { data } = await supabase
+      .from('reddit_accounts')
+      .select('*')
+      .eq('id', accountId)
+      .single();
+    return { account: data, fallback: true };
+  }
+
   // DB trigger recomputes level + last_sync from karma + account_age_days.
   const { data, error } = await supabase
     .from('reddit_accounts')
@@ -77,7 +89,7 @@ export async function updateRedditAccountKarma(accountId: string, username: stri
     .single();
 
   if (error) throw error;
-  return { account: data, fallback: karmaData.fallback };
+  return { account: data, fallback: false };
 }
 
 // User toggle: hide the "Gabung WhatsApp" CTA on the Tasks page forever.
@@ -346,6 +358,25 @@ export async function getCommunityStats() {
   const totalMembers = armyCount.count || 0;
   const totalPaid = (paidPayouts.data || []).reduce((s: number, p: any) => s + (p.amount || 0), 0);
   return { totalMembers, totalPaid };
+}
+
+// Founding-cohort scarcity: max 100 founding members. Returns real count
+// from DB so the counter is honest (no inflation).
+export const FOUNDING_LIMIT = 100;
+export async function getFoundingMembers() {
+  const { count } = await supabase
+    .from('users')
+    .select('id', { count: 'exact', head: true })
+    .eq('role', 'army');
+  const total = count || 0;
+  const slotsLeft = Math.max(FOUNDING_LIMIT - total, 0);
+  return {
+    count: total,
+    max: FOUNDING_LIMIT,
+    slotsLeft,
+    isFull: total >= FOUNDING_LIMIT,
+    percent: Math.min((total / FOUNDING_LIMIT) * 100, 100),
+  };
 }
 
 export async function getCommunityFeed(limit = 12): Promise<CommunityEvent[]> {
