@@ -94,13 +94,15 @@ export function KarmaMission() {
   };
 
   const adminWaMessage = (() => {
+    // 4-byte emoji escaped (\u{1F64F} = 🙏) — Vite build on Windows was
+    // corrupting literal supplementary-plane emoji in source.
     const lines = [
       `Halo admin PeTa, mau lapor karma manual:`,
       `• Akun Reddit: u/${username || '<isi username kamu>'}`,
       `• Link profile: https://www.reddit.com/user/${username || ''}`,
       `• Alasan: auto-sync gagal (Reddit memblokir server)`,
       ``,
-      `Mohon di-verify & update karma. Makasih 🙏`,
+      `Mohon di-verify & update karma. Makasih \u{1F64F}`,
     ];
     return encodeURIComponent(lines.join('\n'));
   })();

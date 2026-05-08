@@ -85,15 +85,24 @@ const buildReferralLink = (code?: string) =>
 // Pre-filled WhatsApp share — leans on Founding-100 scarcity and the
 // concrete bonus amount instead of vague "join me!" copy. Keeps the
 // link last so WA generates the OG preview from index.html meta tags.
+//
+// IMPORTANT: emoji codepoints are written as `\u{XXXXX}` escapes
+// (4-byte UTF-8 supplementary plane) instead of literal emoji
+// characters. The Vite/esbuild build chain on Windows was corrupting
+// 4-byte UTF-8 in source — the leading f0 9f bytes were getting
+// stripped, leaving invalid sequences that WhatsApp rendered as `�`.
+const E_MONEY  = '\u{1F911}'; // 🤑
+const E_LOCK   = '\u{1F512}'; // 🔒
+const E_COOL   = '\u{1F60E}'; // 😎
 const buildWhatsAppShare = (link: string, slotsLeft: number) => {
   const slotsLine = slotsLeft > 0
-    ? `🔒 Founding 100 — sisa ${slotsLeft} slot doang. Kalau penuh, tutup permanen.\n\n`
-    : `🔒 Founding 100 udah penuh — kalau buka gelombang baru, lo bakal dikabarin via link ini.\n\n`;
+    ? `${E_LOCK} Founding 100 — sisa ${slotsLeft} slot doang. Kalau penuh, tutup permanen.\n\n`
+    : `${E_LOCK} Founding 100 udah penuh — kalau buka gelombang baru, lo bakal dikabarin via link ini.\n\n`;
   const msg =
-    `🤑 Aku gabung PeTa — dibayar Rp5K–Rp20K per komen di internet, cair 24 jam ke e-wallet.\n\n` +
+    `${E_MONEY} Aku gabung PeTa — dibayar Rp5K–Rp20K per komen di internet, cair 24 jam ke e-wallet.\n\n` +
     slotsLine +
     `Pakai link aku, lo dapet bonus founding Rp25K + slot lebih cepet:\n${link}\n\n` +
-    `(Aku juga dapet Rp20K kalo lo daftar — sama-sama untung 😎)`;
+    `(Aku juga dapet Rp20K kalo lo daftar — sama-sama untung ${E_COOL})`;
   return `https://wa.me/?text=${encodeURIComponent(msg)}`;
 };
 

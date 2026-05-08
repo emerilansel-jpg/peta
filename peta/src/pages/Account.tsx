@@ -79,7 +79,14 @@ export function Account() {
   const refLink = referral?.code
     ? `${window.location.origin}/register?ref=${referral.code}`
     : '';
-  const refText = `Hey! Aku nemu PeTa, app yang bayar buat komen di internet. Daftar pakai link ini, kita berdua dapat Rp20.000! 💰\n\n${refLink}`;
+  // Emojis as Unicode escapes — Vite build on Windows was corrupting
+  // 4-byte UTF-8 emoji literals in source, leaving invalid sequences
+  // that WhatsApp rendered as `�`.
+  // \u{1F4B0} = 💰, \u{1F512} = 🔒
+  const refText =
+    `\u{1F4B0} Aku gabung PeTa — dibayar Rp5K–Rp20K per komen di internet, cair 24 jam ke e-wallet.\n\n` +
+    `\u{1F512} Founding 100 — slot terbatas. Pakai link aku, lo dapet bonus founding Rp25K + slot lebih cepet:\n${refLink}\n\n` +
+    `(Aku juga dapet Rp20K kalo lo daftar — sama-sama untung.)`;
 
   // Robust copy that works on http://localhost too (Clipboard API needs HTTPS or localhost)
   const copyToClipboard = async (text: string) => {
