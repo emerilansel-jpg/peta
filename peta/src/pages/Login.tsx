@@ -49,8 +49,12 @@ export function Login() {
 
       <div className="flex-1 flex items-end sm:items-center justify-center px-4 pb-4 sm:pb-8">
         <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 sm:p-8 animate-slide-up">
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-primary mb-1">💰 PeTa</h1>
-          <h2 className="text-xl sm:text-2xl font-extrabold text-dark mb-1">Welcome back!</h2>
+          <img
+            src="/logo-horizontal.png"
+            alt="PeTa · PenghasilanTambahan.com"
+            className="h-10 w-auto mb-3"
+          />
+          <h2 className="text-xl sm:text-2xl font-extrabold text-dark mb-1">Welcome back, PeTa Army!</h2>
           <p className="text-sm text-muted mb-6">Lanjut earning, ambil saldonya.</p>
 
           <form onSubmit={handleLogin} className="space-y-4">

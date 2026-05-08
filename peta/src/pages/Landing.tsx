@@ -111,7 +111,7 @@ export function Landing() {
           {/* Real proof, no fake numbers */}
           {totalPaid > 0 && (
             <p className="text-xs opacity-90 mt-4">
-              💸 Total dibayar ke member sejauh ini: <b>Rp{totalPaid.toLocaleString('id-ID')}</b>
+              Total dibayar ke PeTa Army sejauh ini: <b>Rp{totalPaid.toLocaleString('id-ID')}</b>
             </p>
           )}
         </div>
@@ -216,8 +216,8 @@ export function Landing() {
               </div>
               <h3 className="font-extrabold text-lg mb-1">Saldo & payout transparan</h3>
               <p className="text-sm text-muted">
-                Setiap rupiah yang kami bayar ke member terlihat di komunitas grup WhatsApp.
-                Member bisa screenshot bukti transfer kapan aja.
+                Setiap rupiah yang kami bayar ke PeTa Army terlihat di komunitas grup WhatsApp.
+                PeTa Army bisa screenshot bukti transfer kapan aja.
               </p>
             </div>
             <div className="bg-white rounded-2xl p-5 ring-1 ring-black/5">
@@ -226,7 +226,7 @@ export function Landing() {
               </div>
               <h3 className="font-extrabold text-lg mb-1">Founding 100 = komunitas kecil</h3>
               <p className="text-sm text-muted">
-                Kami sengaja batasi 100 member founding biar payout cepat & support 1-on-1
+                Kami sengaja batasi 100 PeTa Army founding biar payout cepat & support 1-on-1
                 via WA. Nggak ngejar volume, ngejar kepercayaan.
               </p>
             </div>
@@ -278,7 +278,7 @@ export function Landing() {
           <h2 className="text-2xl sm:text-3xl font-extrabold mb-6">Pertanyaan singkat</h2>
           <div className="space-y-2 max-w-2xl">
             {[
-              ['Beneran dibayar?', 'Ya. Min payout Rp150.000, transfer dalam 24 jam kerja ke rekening / e-wallet kamu. Bukti bayar member sebelumnya bisa kamu lihat di grup WhatsApp setelah daftar.'],
+              ['Beneran dibayar?', 'Ya. Min payout Rp150.000, transfer dalam 24 jam kerja ke rekening / e-wallet kamu. Bukti bayar PeTa Army sebelumnya bisa kamu lihat di grup WhatsApp setelah daftar.'],
               ['Butuh skill khusus?', 'Tidak. Kalau bisa baca & nulis komentar sopan dalam Bahasa Indonesia, kamu udah cukup. Reward kecil dulu (Rp5K), naik seiring level.'],
               ['Aman buat akun saya?', 'Aman. Kami tidak login ke akun Reddit kamu, tidak post atas namamu, tidak minta password. Tiap komen kamu ketik & kirim sendiri.'],
               ['Berapa cuan realistis?', 'Tergantung level + jumlah task yang kamu ambil. Reward per komen Rp5.000 (level 0) – Rp20.000 (level 5). Tanpa janji muluk angka mingguan — yang jelas, tiap task selesai = saldo kamu langsung naik.'],
@@ -322,8 +322,15 @@ export function Landing() {
         </div>
       </section>
 
-      <footer className="bg-dark text-white/70 text-xs py-6 text-center">
-        © 2026 PeTa · Penghasilan Tambahan untuk Semua
+      <footer className="bg-dark text-white/70 text-xs py-8 text-center">
+        <img
+          src="/logo-horizontal.png"
+          alt="PeTa · PenghasilanTambahan.com"
+          className="h-6 w-auto mx-auto opacity-80 mb-2 invert brightness-0"
+          style={{ filter: 'invert(1) brightness(2)' }}
+        />
+        <p>© 2026 PenghasilanTambahan.com (PeTa) · Komunitas PeTa Army</p>
+        <p className="opacity-60 mt-1">Komentar · Hasilkan · Tambahan</p>
       </footer>
 
       {/* Sticky mobile CTA */}

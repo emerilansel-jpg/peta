@@ -41,7 +41,7 @@ export function AdminDashboard() {
     { href: '/admin/approval',  label: 'Approval Queue', sub: `${stats?.pending ?? 0} menunggu review`, urgent: (stats?.pending ?? 0) > 0 },
     { href: '/admin/payroll',   label: 'Payroll',        sub: `${stats?.pendingPayouts ?? 0} payout • Rp${(stats?.pendingPayoutTotal ?? 0).toLocaleString('id-ID')}`, urgent: (stats?.pendingPayouts ?? 0) > 0 },
     { href: '/admin/tasks',     label: 'Task Queue',     sub: 'Buat & kelola task' },
-    { href: '/admin/team',      label: 'Tim Army',       sub: 'Lihat semua member' },
+    { href: '/admin/team',      label: 'PeTa Army',      sub: 'Lihat semua member army' },
     { href: '/admin/accounts',  label: 'Akun Reddit',    sub: 'Sync karma & monitoring' },
   ];
 

@@ -110,7 +110,12 @@ export function Register() {
             </div>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-dark mb-1">Buat akun, gratis</h1>
+          <img
+            src="/logo-horizontal.png"
+            alt="PeTa · PenghasilanTambahan.com"
+            className="h-10 w-auto mb-3"
+          />
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-dark mb-1">Gabung PeTa Army, gratis</h1>
           <p className="text-sm text-muted mb-5">Selesai dalam 30 detik.</p>
 
           <form onSubmit={handleRegister} className="space-y-4">

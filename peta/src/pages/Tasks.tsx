@@ -293,7 +293,7 @@ export function Tasks() {
           <ul className="space-y-2 text-sm">
             <li className="flex items-start gap-2">
               <Trophy size={16} className="text-primary shrink-0 mt-0.5" />
-              <span><b>Streak harian.</b> Member dengan streak 7+ otomatis dapat prioritas slot.</span>
+              <span><b>Streak harian.</b> PeTa Army dengan streak 7+ otomatis dapat prioritas slot.</span>
             </li>
             <li className="flex items-start gap-2">
               <Bell size={16} className="text-success shrink-0 mt-0.5" />

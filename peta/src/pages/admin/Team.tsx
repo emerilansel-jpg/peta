@@ -45,8 +45,8 @@ export function AdminTeam() {
       <div className="flex items-start justify-between gap-3 mb-5">
         <div>
           <p className="text-xs uppercase tracking-wide font-bold text-muted">Admin Console</p>
-          <h1 className="text-2xl sm:text-3xl font-extrabold">Tim Army</h1>
-          <p className="text-sm text-muted">{users.length} member terdaftar</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold">PeTa Army</h1>
+          <p className="text-sm text-muted">{users.length} member terdaftar di komunitas</p>
         </div>
         <Button onClick={() => { setEditingMember(null); setShowSheet(true); }} variant="primary" size="md">
           <Plus size={18} /> Tambah
@@ -58,7 +58,7 @@ export function AdminTeam() {
       ) : users.length === 0 ? (
         <Card className="text-center py-10">
           <div className="text-5xl mb-3">👥</div>
-          <p className="font-bold">Belum ada army member</p>
+          <p className="font-bold">Belum ada PeTa Army member</p>
         </Card>
       ) : (
         <>

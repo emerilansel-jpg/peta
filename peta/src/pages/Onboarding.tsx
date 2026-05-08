@@ -246,8 +246,8 @@ export function Onboarding() {
     heading: 'Selamat Datang!',
     subheading: 'Step 1 dari 6',
     description: needsWhatsappStep
-      ? 'Hai! Selamat datang di PeTa. Kamu bakal dibayar buat komen di internet — gampang banget.\n\nIsi nomor WhatsApp di bawah supaya admin bisa kontak kamu untuk konfirmasi payout. Lalu klik klaim bonus.'
-      : 'Hai! Selamat datang di PeTa. Bonus Rp25.000 udah siap masuk saldo kamu.\n\nKlik tombol di bawah untuk klaim, lalu lanjut ke step setup berikutnya.',
+      ? 'Selamat datang di PenghasilanTambahan.com (PeTa) — kamu sekarang bagian dari PeTa Army. Bakal dibayar buat komen di internet — gampang banget.\n\nIsi nomor WhatsApp di bawah supaya admin bisa kontak kamu untuk konfirmasi payout. Lalu klik klaim bonus.'
+      : 'Selamat datang di PenghasilanTambahan.com (PeTa) — kamu sekarang bagian dari PeTa Army. Bonus Rp25.000 udah siap masuk saldo kamu.\n\nKlik tombol di bawah untuk klaim, lalu lanjut ke step setup berikutnya.',
     buttonText: '💰 Klaim Bonus Rp25.000',
     hint: 'Bonus langsung masuk saldo setelah klaim',
     action: handleStep1,

@@ -282,9 +282,9 @@ export async function getTotalEarnings(userId: string): Promise<{ earned: number
 
 // Mask a name for privacy: "Ahmad" -> "A****", "Ahmad Rifki" -> "A**** R."
 function maskName(name?: string | null) {
-  if (!name) return 'Member';
+  if (!name) return 'PeTa Army';
   const parts = name.trim().split(/\s+/);
-  const first = parts[0] || 'Member';
+  const first = parts[0] || 'PeTa Army';
   const masked = first.length <= 1 ? first : first[0] + '*'.repeat(Math.max(2, first.length - 1));
   if (parts[1]) return `${masked} ${parts[1][0].toUpperCase()}.`;
   return masked;
