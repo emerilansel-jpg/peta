@@ -1,5 +1,5 @@
 import React from 'react';
-import { MessageCircle, Send, Copy, Share2, Check } from 'lucide-react';
+import { MessageCircle, Send, Copy, Share2, Check, Camera } from 'lucide-react';
 import { toast } from './Toast';
 
 /**
@@ -116,6 +116,73 @@ export function SocialShare({ link, title = 'Share ke teman' }: SocialShareProps
     }
   };
 
+  // Instagram doesn't support a URL-based share intent like WA / Telegram.
+  // The compliant pattern: 1) try Web Share API with the OG image as a File
+  // (mobile Safari + Android Chrome will then list Instagram in the sheet,
+  // which auto-attaches the image and pre-fills the caption); 2) otherwise
+  // copy the caption to clipboard, download the image, then deep-link into
+  // the IG mobile app or web. User pastes caption and uploads in IG.
+  const shareToInstagram = async () => {
+    const caption = shortMsg;
+    try {
+      const res = await fetch('/og.png');
+      const blob = await res.blob();
+      const file = new File([blob], 'peta-share.png', { type: 'image/png' });
+
+      // Path 1: Web Share with files (mobile)
+      if (
+        typeof navigator.canShare === 'function' &&
+        navigator.canShare({ files: [file] }) &&
+        navigator.share
+      ) {
+        await navigator.share({
+          title: 'PeTa - Dibayar cuma buat komentar',
+          text: caption,
+          files: [file],
+        });
+        return;
+      }
+
+      // Path 2: copy caption + download image, then open Instagram.
+      // Caption -> clipboard
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(caption);
+        }
+      } catch {/* non-fatal */}
+
+      // Image -> auto-download
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'peta-share.png';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+
+      toast.success('Caption tersalin + image ke-download. Buka Instagram, upload image, paste caption.');
+
+      // Open Instagram on mobile via deep link, fallback to web on desktop
+      const ua = navigator.userAgent.toLowerCase();
+      const isMobile = /android|iphone|ipad/.test(ua);
+      setTimeout(() => {
+        if (isMobile) {
+          // instagram:// app deep link, with web fallback
+          window.location.href = 'instagram://library';
+          setTimeout(() => {
+            // If the app didn't intercept, open instagram.com
+            window.open('https://www.instagram.com/', '_blank');
+          }, 1500);
+        } else {
+          window.open('https://www.instagram.com/', '_blank');
+        }
+      }, 800);
+    } catch (e) {
+      toast.error('Gagal siapin share Instagram. Coba copy link manual.');
+    }
+  };
+
   return (
     <div className="space-y-2">
       <p className="text-[11px] uppercase tracking-wide font-bold opacity-80">{title}</p>
@@ -128,13 +195,20 @@ export function SocialShare({ link, title = 'Share ke teman' }: SocialShareProps
         <MessageCircle size={18} /> WhatsApp
       </button>
 
-      {/* Secondary row — Telegram, X, Facebook */}
-      <div className="grid grid-cols-3 gap-2">
+      {/* Secondary row — Telegram, Instagram, X, Facebook */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <button
           onClick={openTelegram}
           className="flex items-center justify-center gap-1.5 bg-[#0088cc] hover:brightness-95 text-white font-bold rounded-xl px-2 py-2.5 text-xs tap-shrink shadow-sm"
         >
           <Send size={14} /> Telegram
+        </button>
+        <button
+          onClick={shareToInstagram}
+          className="flex items-center justify-center gap-1.5 text-white font-bold rounded-xl px-2 py-2.5 text-xs tap-shrink shadow-sm"
+          style={{ background: 'linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)' }}
+        >
+          <Camera size={14} /> Instagram
         </button>
         <button
           onClick={openTwitter}

@@ -221,19 +221,35 @@ export async function getPayoutHistory(userId: string) {
   return data;
 }
 
-export async function requestPayout(userId: string, amount: number) {
-  const { data, error } = await supabase
-    .from('payouts')
-    .insert({
-      user_id: userId,
-      amount,
-      status: 'pending',
-    })
-    .select()
-    .single();
-
+// Routes through SECURITY DEFINER RPC `request_payout` so the eligibility
+// gate (7-day holding period OR 5 approved tasks, plus Rp500K weekly cap)
+// runs server-side and can't be bypassed by editing client JS. The userId
+// argument is kept for backwards-compat callers but the RPC reads auth.uid()
+// for authorization.
+export async function requestPayout(_userId: string, amount: number) {
+  const { data, error } = await supabase.rpc('request_payout', { p_amount: amount });
   if (error) throw error;
   return data;
+}
+
+// Lightweight pre-check so the UI can show a friendly message
+// (or hide the request button) before the user clicks. Returns the
+// raw RPC payload: { eligible, reason?, message?, days_old, approved_tasks, weekly_total, weekly_cap }.
+export async function checkPayoutEligibility(userId: string, amount: number) {
+  const { data, error } = await supabase.rpc('validate_payout_eligibility', {
+    p_user_id: userId,
+    p_amount: amount,
+  });
+  if (error) throw error;
+  return data as {
+    eligible: boolean;
+    reason?: 'holding_period' | 'weekly_cap';
+    message?: string;
+    days_old?: number;
+    approved_tasks?: number;
+    weekly_total?: number;
+    weekly_cap?: number;
+  };
 }
 
 export async function getTotalEarnings(userId: string): Promise<{ earned: number; referral: number; total: number }> {
