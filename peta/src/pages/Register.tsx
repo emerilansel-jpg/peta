@@ -42,6 +42,19 @@ export function Register() {
     }
     setLoading(true);
     try {
+      // Pre-flight phone-uniqueness check via SECURITY DEFINER RPC. RLS
+      // blocks anon SELECT on users, so we route through `is_whatsapp_taken`
+      // which returns a boolean only (no PII leak). The Postgres UNIQUE
+      // constraint still backstops inside the handle_new_user trigger if a
+      // race condition lets a duplicate slip past this check.
+      const { data: waTaken } = await supabase.rpc('is_whatsapp_taken', {
+        p_whatsapp: cleanedWa,
+      });
+      if (waTaken === true) {
+        toast.error('Nomor WhatsApp ini sudah terdaftar di akun PeTa lain. Pakai nomor lain atau login.');
+        setLoading(false);
+        return;
+      }
       const meta: Record<string, string> = {
         full_name: fullName.trim(),
         whatsapp: cleanedWa,
@@ -80,6 +93,10 @@ export function Register() {
       const msg = error?.message || 'Registrasi gagal';
       if (/already registered|already exists/i.test(msg)) {
         toast.error('Email sudah terdaftar. Coba login aja.');
+      } else if (/database error|saving new user/i.test(msg)) {
+        // Race condition: someone took the WA number between our pre-check
+        // and the auth signup. Surface the same friendly message.
+        toast.error('Email atau nomor WhatsApp sudah terdaftar. Coba data lain atau login.');
       } else {
         toast.error(msg);
       }
