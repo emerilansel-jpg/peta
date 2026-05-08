@@ -408,6 +408,58 @@ export async function getCommunityStats() {
   return { totalMembers, totalPaid };
 }
 
+// Referral analytics — clicks/signups/conversion-rate per user.
+// trackReferralClick fires on Landing.tsx when ?ref=<code> is present.
+// Dedup is enforced server-side per (ref_code, visitor_session) so a user
+// reloading their own preview doesn't inflate the counter.
+export async function trackReferralClick(refCode: string) {
+  if (!refCode || refCode.length < 4) return;
+  const SESSION_KEY = 'peta_visitor_session';
+  let session = '';
+  try {
+    session = localStorage.getItem(SESSION_KEY) || '';
+    if (!session) {
+      session = (crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+      localStorage.setItem(SESSION_KEY, session);
+    }
+  } catch { /* private mode etc — fall back to noop session */ }
+
+  // Fire and forget — don't block UI on click tracking.
+  await supabase.rpc('track_referral_click', {
+    p_ref_code: refCode,
+    p_session: session,
+    p_user_agent: navigator.userAgent.slice(0, 500),
+  }).catch(() => null);
+}
+
+export async function getReferralAnalytics(userId: string) {
+  const { data, error } = await supabase.rpc('get_referral_analytics', { p_user_id: userId });
+  if (error) throw error;
+  return data as {
+    totalClicks: number;
+    uniqueClicks: number;
+    signups: number;
+    totalEarned: number;
+    conversionRate: number;
+  };
+}
+
+export async function adminGetReferralLeaderboard(limit = 20) {
+  const { data, error } = await supabase.rpc('admin_get_referral_leaderboard', { p_limit: limit });
+  if (error) throw error;
+  return (data as Array<{
+    user_id: string;
+    email: string;
+    full_name: string;
+    ref_code: string;
+    total_clicks: number;
+    unique_clicks: number;
+    signups: number;
+    total_earned: number;
+    conversion_rate: number;
+  }>) || [];
+}
+
 // Founding-cohort scarcity: max 100 founding members. Returns real count
 // from DB so the counter is honest (no inflation).
 export const FOUNDING_LIMIT = 100;

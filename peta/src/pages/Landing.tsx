@@ -1,10 +1,11 @@
+import React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
   Shield, Zap, Wallet, ArrowRight, Check, Lock, AlertTriangle,
   ShieldCheck, Eye, Users,
 } from 'lucide-react';
-import { getCommunityStats, getFoundingMembers } from '../lib/api';
+import { getCommunityStats, getFoundingMembers, trackReferralClick } from '../lib/api';
 import { FOUNDING_LIMIT } from '../lib/config';
 
 export function Landing() {
@@ -16,6 +17,12 @@ export function Landing() {
   const ref = searchParams.get('ref');
   const registerHref = ref ? `/register?ref=${encodeURIComponent(ref)}` : '/register';
   const goRegister = () => navigate(registerHref);
+
+  // Fire-and-forget click tracking. Server-side dedupes per visitor session
+  // so the link owner doesn't inflate their own count by previewing.
+  React.useEffect(() => {
+    if (ref) trackReferralClick(ref);
+  }, [ref]);
 
   const { data: founding } = useQuery({
     queryKey: ['foundingMembers'],

@@ -1,9 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Users, ListChecks, ClipboardCheck, Link as LinkIcon, ArrowUpRight } from 'lucide-react';
+import { Users, ListChecks, ClipboardCheck, Link as LinkIcon, ArrowUpRight, Trophy } from 'lucide-react';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
 import { supabase } from '../../lib/supabase';
+import { adminGetReferralLeaderboard } from '../../lib/api';
 
 export function AdminDashboard() {
   const { data: stats } = useQuery({
@@ -28,6 +29,12 @@ export function AdminDashboard() {
         pendingPayoutTotal,
       };
     },
+  });
+
+  const { data: leaderboard = [] } = useQuery({
+    queryKey: ['referralLeaderboard'],
+    queryFn: () => adminGetReferralLeaderboard(10),
+    refetchInterval: 60_000,
   });
 
   const cards = [
@@ -87,6 +94,57 @@ export function AdminDashboard() {
           </Link>
         ))}
       </div>
+
+      {/* Referral leaderboard — top 10 by signups */}
+      <div className="flex items-center justify-between mt-8 mb-3">
+        <h2 className="text-sm font-extrabold uppercase tracking-wide text-muted flex items-center gap-2">
+          <Trophy size={14} className="text-yellow-500" /> Top referrers
+        </h2>
+        <span className="text-[11px] text-muted">live · refresh tiap 60s</span>
+      </div>
+      {leaderboard.length === 0 ? (
+        <Card padding="sm" className="text-center text-muted text-sm">Belum ada referral activity</Card>
+      ) : (
+        <Card padding="sm" className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border text-left">
+                <th className="py-1.5 pr-2 text-[10px] uppercase font-bold text-muted">Member</th>
+                <th className="py-1.5 px-2 text-[10px] uppercase font-bold text-muted text-right">Klik</th>
+                <th className="py-1.5 px-2 text-[10px] uppercase font-bold text-muted text-right">Daftar</th>
+                <th className="py-1.5 px-2 text-[10px] uppercase font-bold text-muted text-right">CR</th>
+                <th className="py-1.5 px-2 text-[10px] uppercase font-bold text-muted text-right">Cuan</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leaderboard.map((row, i) => (
+                <tr key={row.user_id} className="border-b border-border last:border-0 hover:bg-light/50">
+                  <td className="py-2 pr-2 min-w-0">
+                    <p className="font-bold truncate">
+                      {i < 3 && <span className="mr-1">{['🥇','🥈','🥉'][i]}</span>}
+                      {row.full_name || row.email.split('@')[0]}
+                    </p>
+                    <p className="text-[10px] text-muted truncate">{row.ref_code}</p>
+                  </td>
+                  <td className="py-2 px-2 text-right tabular-nums">
+                    {row.unique_clicks}
+                    {row.total_clicks !== row.unique_clicks && (
+                      <span className="text-[10px] text-muted ml-0.5">/{row.total_clicks}</span>
+                    )}
+                  </td>
+                  <td className="py-2 px-2 text-right tabular-nums font-bold">{row.signups}</td>
+                  <td className="py-2 px-2 text-right tabular-nums">
+                    {Number(row.conversion_rate).toFixed(1)}%
+                  </td>
+                  <td className="py-2 px-2 text-right tabular-nums money font-bold text-success">
+                    Rp{Number(row.total_earned).toLocaleString('id-ID')}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Card>
+      )}
     </Layout>
   );
 }
