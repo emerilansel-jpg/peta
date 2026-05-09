@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "og": "node scripts/og.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.3",
@@ -33,6 +34,7 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.5.0",
     "postcss": "^8.5.14",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4.2.4",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.58.2",

@@ -1,35 +1,30 @@
 import { supabase } from './supabase';
-import axios from 'axios';
 import { calculateLevel } from './levels';
 
+// Reddit API blocks browser CORS — we proxy through a Supabase Edge Function
+// which fetches /user/<u>/about.json server-side with a User-Agent header.
+// Level is recomputed by a BEFORE INSERT/UPDATE trigger on reddit_accounts,
+// so the value here is for optimistic UI only.
 export async function syncRedditKarma(username: string) {
   try {
-    const response = await axios.get(`https://www.reddit.com/user/${username}/about.json`, {
-      timeout: 5000,
+    const { data, error } = await supabase.functions.invoke('sync-reddit-karma', {
+      body: { username },
     });
-    const data = response.data.data;
+    if (error) throw error;
+    if (!data?.success) throw new Error(data?.error || 'edge_function_failure');
 
-    const accountCreatedAt = new Date(data.created_utc * 1000);
-    const accountAgeDays = Math.floor((Date.now() - accountCreatedAt.getTime()) / (1000 * 60 * 60 * 24));
-    const karma = data.link_karma + data.comment_karma;
-    const level = calculateLevel(karma, accountAgeDays);
-
+    const karma = data.karma ?? 0;
+    const accountAgeDays = data.accountAgeDays ?? 0;
     return {
       karma,
       accountAgeDays,
-      level,
+      level: calculateLevel(karma, accountAgeDays),
       success: true,
+      fallback: !!data.fallback,
     };
   } catch (error) {
-    console.warn('Reddit API unreachable, using defaults:', error);
-    // Fallback: assume new account when Reddit API is unreachable (CORS/timeout/blocked)
-    return {
-      karma: 0,
-      accountAgeDays: 0,
-      level: 0,
-      success: true,
-      fallback: true,
-    };
+    console.warn('sync-reddit-karma edge fn failed, using defaults:', error);
+    return { karma: 0, accountAgeDays: 0, level: 0, success: true, fallback: true };
   }
 }
 
@@ -68,23 +63,84 @@ export async function addRedditAccount(userId: string, username: string) {
 
 export async function updateRedditAccountKarma(accountId: string, username: string) {
   const karmaData = await syncRedditKarma(username);
+  if (!karmaData.success) throw new Error('Failed to sync Reddit data');
 
-  if (!karmaData.success) {
-    throw new Error('Failed to sync Reddit data');
+  // CRITICAL: When Reddit blocks the edge function (karmaData.fallback=true),
+  // we MUST NOT overwrite stored karma with 0 — that would clobber any value
+  // an admin set manually via admin_set_karma. Only write when we got real data.
+  if (karmaData.fallback) {
+    const { data } = await supabase
+      .from('reddit_accounts')
+      .select('*')
+      .eq('id', accountId)
+      .single();
+    return { account: data, fallback: true };
   }
 
+  // DB trigger recomputes level + last_sync from karma + account_age_days.
   const { data, error } = await supabase
     .from('reddit_accounts')
     .update({
       karma: karmaData.karma,
       account_age_days: karmaData.accountAgeDays,
-      level: karmaData.level,
-      last_sync: new Date().toISOString(),
     })
     .eq('id', accountId)
     .select()
     .single();
 
+  if (error) throw error;
+  return { account: data, fallback: false };
+}
+
+// User toggle: hide the "Gabung WhatsApp" CTA on the Tasks page forever.
+// Stored on `users.wa_group_dismissed` so it persists across devices.
+export async function dismissWaGroup() {
+  const { error } = await supabase.rpc('dismiss_wa_group');
+  if (error) throw error;
+}
+
+export async function getWaDismissed(userId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('users')
+    .select('wa_group_dismissed')
+    .eq('id', userId)
+    .single();
+  return !!data?.wa_group_dismissed;
+}
+
+// Admin-only: manually set karma + age (level recomputes via DB trigger,
+// pending claim cleared at the same time).
+export async function adminSetKarma(
+  accountId: string,
+  karma: number,
+  accountAgeDays?: number,
+) {
+  const { data, error } = await supabase.rpc('admin_set_karma', {
+    p_account_id: accountId,
+    p_karma: karma,
+    p_account_age_days: accountAgeDays ?? null,
+  });
+  if (error) throw error;
+  return data;
+}
+
+// User-callable: submit a karma value the user copied from their Reddit
+// profile, queued for admin verification. Used as the fallback path when
+// the auto-sync edge function gets blocked by Reddit.
+export async function submitKarmaClaim(accountId: string, claimedKarma: number) {
+  const { data, error } = await supabase.rpc('submit_karma_claim', {
+    p_account_id: accountId,
+    p_claimed_karma: claimedKarma,
+  });
+  if (error) throw error;
+  return data;
+}
+
+// Admin-only: clear a pending claim without awarding it (e.g. user lied).
+export async function adminRejectKarmaClaim(accountId: string) {
+  const { data, error } = await supabase.rpc('admin_reject_karma_claim', {
+    p_account_id: accountId,
+  });
   if (error) throw error;
   return data;
 }
@@ -165,22 +221,55 @@ export async function getPayoutHistory(userId: string) {
   return data;
 }
 
-export async function requestPayout(userId: string, amount: number) {
-  const { data, error } = await supabase
-    .from('payouts')
-    .insert({
-      user_id: userId,
-      amount,
-      status: 'pending',
-    })
-    .select()
-    .single();
-
+// Routes through SECURITY DEFINER RPC `request_payout` so the eligibility
+// gate (7-day holding period OR 5 approved tasks, plus Rp500K weekly cap)
+// runs server-side and can't be bypassed by editing client JS. The userId
+// argument is kept for backwards-compat callers but the RPC reads auth.uid()
+// for authorization.
+export async function requestPayout(_userId: string, amount: number) {
+  const { data, error } = await supabase.rpc('request_payout', { p_amount: amount });
   if (error) throw error;
   return data;
 }
 
-export async function getTotalEarnings(userId: string) {
+// Lightweight pre-check so the UI can show a friendly message
+// (or hide the request button) before the user clicks. Returns the
+// raw RPC payload: { eligible, reason?, message?, days_old, approved_tasks, weekly_total, weekly_cap }.
+export async function checkPayoutEligibility(userId: string, amount: number) {
+  const { data, error } = await supabase.rpc('validate_payout_eligibility', {
+    p_user_id: userId,
+    p_amount: amount,
+  });
+  if (error) throw error;
+  return data as {
+    eligible: boolean;
+    reason?: 'holding_period' | 'earnings_floor' | 'weekly_cap';
+    message?: string;
+    days_old?: number;
+    approved_tasks?: number;
+    weekly_total?: number;
+    weekly_cap?: number;
+    earned_from_work?: number;
+    earnings_floor?: number;
+    task_earnings?: number;
+    signup_bonus?: number;
+  };
+}
+
+// Returns the user's saldo split four ways so the Earnings UI can
+// enforce the "Rp150K dari task + signup bonus dulu, baru bisa narik
+// referral" rule on the client (server still gates via RPC).
+//   fromWork = approved task rewards + signup_bonus credits  (counts toward floor)
+//   referral = referral_bonus_referrer + referral_bonus_referee  (locked behind floor)
+//   other    = manual_adjustment (treated like fromWork — admin discretion)
+//   earned   = fromWork + other  (everything that isn't referral)
+//   total    = earned + referral
+export async function getTotalEarnings(userId: string): Promise<{
+  earned: number;
+  referral: number;
+  fromWork: number;
+  total: number;
+}> {
   // 1) Approved task earnings (across all reddit accounts)
   const { data: accounts, error: accErr } = await supabase
     .from('reddit_accounts')
@@ -200,22 +289,40 @@ export async function getTotalEarnings(userId: string) {
     taskTotal = (data || []).reduce((sum: number, a: any) => sum + (a.tasks?.reward_amount || 0), 0);
   }
 
-  // 2) Credits (referral bonus, signup bonus, manual adjustments)
+  // 2) Credits — split by source
   const { data: credits, error: cErr } = await supabase
     .from('user_credits')
-    .select('amount')
+    .select('amount, source')
     .eq('user_id', userId);
   if (cErr) throw cErr;
-  const creditTotal = (credits || []).reduce((s: number, c: any) => s + (c.amount || 0), 0);
 
-  return taskTotal + creditTotal;
+  let signupBonus = 0;
+  let referralCredits = 0;
+  let otherCredits = 0;
+  (credits || []).forEach((c: any) => {
+    const amt = c.amount || 0;
+    if (c.source === 'signup_bonus') {
+      signupBonus += amt;
+    } else if (c.source === 'referral_bonus_referrer' || c.source === 'referral_bonus_referee') {
+      referralCredits += amt;
+    } else {
+      otherCredits += amt; // manual_adjustment, etc.
+    }
+  });
+
+  const fromWork = taskTotal + signupBonus;
+  const earned = fromWork + otherCredits;
+  const referral = referralCredits;
+  const total = earned + referral;
+
+  return { earned, referral, fromWork, total };
 }
 
 // Mask a name for privacy: "Ahmad" -> "A****", "Ahmad Rifki" -> "A**** R."
 function maskName(name?: string | null) {
-  if (!name) return 'Member';
+  if (!name) return 'PeTa Army';
   const parts = name.trim().split(/\s+/);
-  const first = parts[0] || 'Member';
+  const first = parts[0] || 'PeTa Army';
   const masked = first.length <= 1 ? first : first[0] + '*'.repeat(Math.max(2, first.length - 1));
   if (parts[1]) return `${masked} ${parts[1][0].toUpperCase()}.`;
   return masked;
@@ -251,6 +358,68 @@ export async function claimOnboardingBonus(step: OnboardingStep) {
   if (error) throw error;
 }
 
+// Karma milestone (post-onboarding "Misi Wajib #1"): awards Rp5K when the
+// user's highest reddit_accounts.karma >= 10. Server-side check + idempotent.
+export type KarmaMilestoneResult =
+  | { awarded: true;  karma: number; amount: number }
+  | { awarded: false; karma: number; reason: 'karma_below_threshold' | 'already_claimed' };
+
+export async function claimKarmaMilestone(): Promise<KarmaMilestoneResult> {
+  const { data, error } = await supabase.rpc('claim_karma_milestone');
+  if (error) throw error;
+  return data as KarmaMilestoneResult;
+}
+
+// Has the user already claimed the karma_10 milestone? (For UI state)
+export async function hasClaimedKarmaMilestone(userId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from('user_credits')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('source', 'karma_milestone')
+    .eq('description', 'karma_10')
+    .maybeSingle();
+  if (error) throw error;
+  return !!data;
+}
+
+// Highest karma across all reddit accounts for a user. Used by Karma Mission
+// progress bar without re-hitting reddit.com.
+export async function getMaxRedditKarma(userId: string): Promise<{
+  karma: number;
+  level: number;
+  accountAgeDays: number;
+  username: string | null;
+  accountId: string | null;
+  pendingKarma: number | null;
+  pendingSubmittedAt: string | null;
+}> {
+  const { data, error } = await supabase
+    .from('reddit_accounts')
+    .select('id, username, karma, level, account_age_days, pending_karma, pending_karma_submitted_at')
+    .eq('user_id', userId)
+    .order('karma', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) {
+    return {
+      karma: 0, level: 0, accountAgeDays: 0,
+      username: null, accountId: null,
+      pendingKarma: null, pendingSubmittedAt: null,
+    };
+  }
+  return {
+    karma: data.karma || 0,
+    level: data.level || 0,
+    accountAgeDays: data.account_age_days || 0,
+    username: data.username,
+    accountId: data.id,
+    pendingKarma: data.pending_karma ?? null,
+    pendingSubmittedAt: data.pending_karma_submitted_at ?? null,
+  };
+}
+
 export async function getCommunityStats() {
   const [armyCount, paidPayouts] = await Promise.all([
     supabase.from('users').select('id', { count: 'exact', head: true }).eq('role', 'army').eq('is_active', true),
@@ -259,6 +428,81 @@ export async function getCommunityStats() {
   const totalMembers = armyCount.count || 0;
   const totalPaid = (paidPayouts.data || []).reduce((s: number, p: any) => s + (p.amount || 0), 0);
   return { totalMembers, totalPaid };
+}
+
+// Referral analytics — clicks/signups/conversion-rate per user.
+// trackReferralClick fires on Landing.tsx when ?ref=<code> is present.
+// Dedup is enforced server-side per (ref_code, visitor_session) so a user
+// reloading their own preview doesn't inflate the counter.
+export async function trackReferralClick(refCode: string) {
+  if (!refCode || refCode.length < 4) return;
+  const SESSION_KEY = 'peta_visitor_session';
+  let session = '';
+  try {
+    session = localStorage.getItem(SESSION_KEY) || '';
+    if (!session) {
+      session = (crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+      localStorage.setItem(SESSION_KEY, session);
+    }
+  } catch { /* private mode etc — fall back to noop session */ }
+
+  // Fire and forget — don't block UI on click tracking.
+  try {
+    await supabase.rpc('track_referral_click', {
+      p_ref_code: refCode,
+      p_session: session,
+      p_user_agent: navigator.userAgent.slice(0, 500),
+    });
+  } catch {
+    // tracking failure is non-fatal
+  }
+}
+
+export async function getReferralAnalytics(userId: string) {
+  const { data, error } = await supabase.rpc('get_referral_analytics', { p_user_id: userId });
+  if (error) throw error;
+  return data as {
+    totalClicks: number;
+    uniqueClicks: number;
+    signups: number;
+    totalEarned: number;
+    conversionRate: number;
+  };
+}
+
+export async function adminGetReferralLeaderboard(limit = 20) {
+  const { data, error } = await supabase.rpc('admin_get_referral_leaderboard', { p_limit: limit });
+  if (error) throw error;
+  return (data as Array<{
+    user_id: string;
+    email: string;
+    full_name: string;
+    ref_code: string;
+    total_clicks: number;
+    unique_clicks: number;
+    signups: number;
+    total_earned: number;
+    conversion_rate: number;
+  }>) || [];
+}
+
+// Founding-cohort scarcity: max 100 founding members. Returns real count
+// from DB so the counter is honest (no inflation).
+export const FOUNDING_LIMIT = 100;
+export async function getFoundingMembers() {
+  const { count } = await supabase
+    .from('users')
+    .select('id', { count: 'exact', head: true })
+    .eq('role', 'army');
+  const total = count || 0;
+  const slotsLeft = Math.max(FOUNDING_LIMIT - total, 0);
+  return {
+    count: total,
+    max: FOUNDING_LIMIT,
+    slotsLeft,
+    isFull: total >= FOUNDING_LIMIT,
+    percent: Math.min((total / FOUNDING_LIMIT) * 100, 100),
+  };
 }
 
 export async function getCommunityFeed(limit = 12): Promise<CommunityEvent[]> {
@@ -327,10 +571,9 @@ export async function getReferralStats(userId: string) {
     .eq('id', userId)
     .single();
 
-  const { count } = await supabase
-    .from('users')
-    .select('id', { count: 'exact', head: true })
-    .eq('referred_by', userId);
+  // RLS blocks SELECT on other users' rows, so we use a SECURITY DEFINER RPC.
+  const { data: countData } = await supabase.rpc('get_referral_count', { p_user_id: userId });
+  const count = (countData as number) ?? 0;
 
   const { data: bonusRows } = await supabase
     .from('user_credits')
@@ -342,7 +585,7 @@ export async function getReferralStats(userId: string) {
 
   return {
     code: profile?.referral_code as string | undefined,
-    invitedCount: count || 0,
+    invitedCount: count,
     totalBonus,
   };
 }

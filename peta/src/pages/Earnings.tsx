@@ -1,16 +1,17 @@
 import React from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, X, Banknote } from 'lucide-react';
+import { TrendingUp, X, Banknote, Lock, ArrowRight } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { CardSkeleton } from '../components/Skeleton';
 import { supabase } from '../lib/supabase';
-import { getPayoutHistory, requestPayout, getTotalEarnings } from '../lib/api';
+import { getPayoutHistory, requestPayout, getTotalEarnings, getMaxRedditKarma } from '../lib/api';
 import { toast } from '../components/Toast';
 
 const MIN_PAYOUT = 150000;
+const EARNINGS_FLOOR = 150000; // Rp150K dari task + signup bonus dulu
 const PAYOUT_PRESETS = [150000, 250000, 500000, 1000000];
 
 export function Earnings() {
@@ -33,11 +34,21 @@ export function Earnings() {
     enabled: !!user?.id,
   });
 
-  const { data: totalEarnings = 0, isLoading: earningsLoading } = useQuery({
+  const { data: earningsBreakdown = { earned: 0, referral: 0, fromWork: 0, total: 0 }, isLoading: earningsLoading } = useQuery({
     queryKey: ['earnings', user?.id],
     queryFn: () => getTotalEarnings(user!.id),
     enabled: !!user?.id,
   });
+
+  // Detect "no Reddit account" state — same gate Tasks uses. Earnings page
+  // is the second-most likely place a stalled user lands ("kapan cair?"),
+  // so we surface the same setup nudge here too.
+  const { data: karmaInfo } = useQuery({
+    queryKey: ['maxKarma', user?.id],
+    queryFn: () => getMaxRedditKarma(user!.id),
+    enabled: !!user?.id,
+  });
+  const needsReddit = user?.id ? !karmaInfo?.username : false;
 
   const payoutMutation = useMutation({
     mutationFn: () => requestPayout(user.id, amount),
@@ -60,48 +71,135 @@ export function Earnings() {
 
   const totalPending = payouts.filter((p) => p.status === 'pending').reduce((s, p) => s + p.amount, 0);
   const totalPaid    = payouts.filter((p) => p.status === 'paid').reduce((s, p) => s + p.amount, 0);
-  const available    = totalEarnings - totalPending - totalPaid;
+  const available    = earningsBreakdown.total - totalPending - totalPaid;
+
+  // Earnings-floor rule: must earn ≥Rp150K from task + signup bonus
+  // BEFORE any saldo (including referral) bisa cair. Server-enforced
+  // via validate_payout_eligibility — UI mirrors the gate.
+  const floorMet = earningsBreakdown.fromWork >= EARNINGS_FLOOR;
+  const floorShortfall = Math.max(EARNINGS_FLOOR - earningsBreakdown.fromWork, 0);
+  const floorProgress = Math.min((earningsBreakdown.fromWork / EARNINGS_FLOOR) * 100, 100);
+  const canWithdraw = floorMet && available >= MIN_PAYOUT;
 
   // Milestone — first goal is min payout, then bigger targets
   const milestones = [MIN_PAYOUT, 300000, 500000, 1000000, 2000000];
-  const next = milestones.find((m) => m > totalEarnings) || milestones[milestones.length - 1];
-  const progress = Math.min((totalEarnings / next) * 100, 100);
-  const remaining = Math.max(next - totalEarnings, 0);
+  const next = milestones.find((m) => m > earningsBreakdown.total) || milestones[milestones.length - 1];
+  const progress = Math.min((earningsBreakdown.total / next) * 100, 100);
+  const remaining = Math.max(next - earningsBreakdown.total, 0);
 
   const submit = () => {
     if (amount < MIN_PAYOUT) { toast.error(`Minimum payout Rp${MIN_PAYOUT.toLocaleString('id-ID')}`); return; }
     if (amount > available) { toast.error('Saldo tidak cukup'); return; }
+    if (!floorMet) {
+      toast.error(`Butuh Rp${floorShortfall.toLocaleString('id-ID')} lagi dari task + signup bonus dulu`);
+      return;
+    }
     payoutMutation.mutate();
   };
 
   return (
     <Layout userRole="army">
+      {/* Reddit setup nudge — only shown when user has no Reddit account.
+          Without it, real task earnings are impossible, so we point them
+          back to onboarding before they wonder why their saldo is stuck. */}
+      {needsReddit && (
+        <Card className="mb-3 bg-yellow-50 ring-yellow-300">
+          <div className="flex items-start gap-3 mb-3">
+            <div className="w-10 h-10 bg-yellow-400 text-yellow-950 rounded-xl grid place-items-center shrink-0">
+              <Lock size={18} />
+            </div>
+            <div className="flex-1">
+              <p className="font-extrabold text-yellow-950">Setup Reddit dulu biar saldo bisa naik</p>
+              <p className="text-sm text-yellow-900/85 mt-0.5">
+                Task baru dibayar lewat akun Reddit kamu. Selesai 5 menit + bonus Rp10K masuk saldo.
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={() => navigate('/onboarding')}
+            variant="primary"
+            size="md"
+            fullWidth
+            className="!bg-yellow-900 hover:!bg-yellow-950 !text-white"
+          >
+            🔓 Lanjutkan Setup <ArrowRight size={14} />
+          </Button>
+        </Card>
+      )}
+
       {/* Hero saldo card */}
       <Card className="mb-4 bg-gradient-to-br from-primary to-secondary text-white border-0 ring-0">
-        <p className="text-xs opacity-80 mb-1">Saldo bisa dicairkan</p>
+        <p className="text-xs opacity-80 mb-1">Siap dicairkan</p>
         <p className="text-4xl sm:text-5xl font-extrabold money mb-3">
           Rp{available.toLocaleString('id-ID')}
         </p>
 
-        <div className="bg-white/15 backdrop-blur rounded-xl p-3 mb-4">
-          <div className="flex items-center justify-between text-xs mb-1.5">
-            <span>Goal: Rp{next.toLocaleString('id-ID')}</span>
-            <span className="font-bold">{Math.round(progress)}%</span>
+        {/* Breakdown: earned + referral */}
+        <div className="bg-white/15 backdrop-blur rounded-xl p-3 mb-4 space-y-2 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-1.5">✅ Dari task & bonus</span>
+            <span className="font-bold">Rp{earningsBreakdown.earned.toLocaleString('id-ID')}</span>
           </div>
-          <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-yellow-300 rounded-full transition-all"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          {remaining > 0 ? (
-            <p className="text-xs mt-2 opacity-90">
-              🎯 Tinggal Rp{remaining.toLocaleString('id-ID')} lagi {remaining <= 50000 && '— hampir!'}
-            </p>
-          ) : (
-            <p className="text-xs mt-2 opacity-90">🎉 Goal tercapai!</p>
+          {earningsBreakdown.referral > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5">
+                {floorMet ? '🎁' : <Lock size={13} className="opacity-80" />} Dari referral
+              </span>
+              <span className="font-bold">
+                Rp{earningsBreakdown.referral.toLocaleString('id-ID')}
+                {!floorMet && <span className="ml-1 text-[10px] opacity-80 font-normal">(locked)</span>}
+              </span>
+            </div>
           )}
+          <div className="border-t border-white/20 pt-2 flex items-center justify-between font-extrabold">
+            <span>🎯 Total</span>
+            <span>Rp{earningsBreakdown.total.toLocaleString('id-ID')}</span>
+          </div>
         </div>
+
+        {/* Earnings-floor gate — visible until cleared */}
+        {!floorMet && (
+          <div className="bg-yellow-300/95 text-dark rounded-xl p-3 mb-4">
+            <div className="flex items-center justify-between text-xs mb-1.5 font-bold">
+              <span className="flex items-center gap-1.5">
+                <Lock size={13} /> Buka cair: task + signup bonus
+              </span>
+              <span>{Math.round(floorProgress)}%</span>
+            </div>
+            <div className="w-full h-2 bg-dark/15 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-dark rounded-full transition-all"
+                style={{ width: `${floorProgress}%` }}
+              />
+            </div>
+            <p className="text-[11px] mt-1.5 leading-snug">
+              Kumpulin <b>Rp{EARNINGS_FLOOR.toLocaleString('id-ID')}</b> dari task + signup bonus dulu, baru semua saldo (termasuk referral) bisa cair.
+              Kurang <b>Rp{floorShortfall.toLocaleString('id-ID')}</b> lagi.
+            </p>
+          </div>
+        )}
+
+        {floorMet && (
+          <div className="bg-white/15 backdrop-blur rounded-xl p-3 mb-4">
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span>Goal: Rp{next.toLocaleString('id-ID')}</span>
+              <span className="font-bold">{Math.round(progress)}%</span>
+            </div>
+            <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-yellow-300 rounded-full transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            {remaining > 0 ? (
+              <p className="text-xs mt-2 opacity-90">
+                🎯 Tinggal Rp{remaining.toLocaleString('id-ID')} lagi {remaining <= 50000 && '— hampir!'}
+              </p>
+            ) : (
+              <p className="text-xs mt-2 opacity-90">🎉 Goal tercapai!</p>
+            )}
+          </div>
+        )}
 
         <Button
           onClick={() => {
@@ -111,12 +209,14 @@ export function Earnings() {
           variant="success"
           size="lg"
           fullWidth
-          disabled={available < MIN_PAYOUT}
+          disabled={!canWithdraw}
           className="!bg-yellow-300 !text-dark hover:!brightness-95 !shadow-yellow-300/30"
         >
-          <Banknote size={20} />
-          {available < MIN_PAYOUT
-            ? `Min Rp${(MIN_PAYOUT/1000).toFixed(0)}K (kurang Rp${(MIN_PAYOUT - available).toLocaleString('id-ID')})`
+          {!floorMet ? <Lock size={18} /> : <Banknote size={20} />}
+          {!floorMet
+            ? `Locked — kurang Rp${floorShortfall.toLocaleString('id-ID')} dari task`
+            : available < MIN_PAYOUT
+            ? `Min Rp${(MIN_PAYOUT/1000).toFixed(0)}K — kurang Rp${(MIN_PAYOUT - available).toLocaleString('id-ID')}`
             : 'Tarik Saldo Sekarang'}
         </Button>
       </Card>
@@ -124,8 +224,8 @@ export function Earnings() {
       {/* Quick stats */}
       <div className="grid grid-cols-3 gap-2 mb-5">
         <Card padding="sm" className="text-center">
-          <p className="text-[10px] text-muted uppercase font-bold tracking-wide">Total</p>
-          <p className="text-base font-extrabold money">Rp{(totalEarnings / 1000).toFixed(0)}K</p>
+          <p className="text-[10px] text-muted uppercase font-bold tracking-wide">Dari Task</p>
+          <p className="text-base font-extrabold money">Rp{(earningsBreakdown.earned / 1000).toFixed(0)}K</p>
         </Card>
         <Card padding="sm" className="text-center">
           <p className="text-[10px] text-muted uppercase font-bold tracking-wide">Pending</p>

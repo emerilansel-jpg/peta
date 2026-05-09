@@ -37,27 +37,15 @@ nslookup staging.penghasilantambahan.com  # should CNAME to vercel
 
 Or just visit `https://penghasilantambahan.com` in 30 min.
 
-### 2. Per-environment env vars (2 min — important)
+### 2. ~~Per-environment env vars~~ — ✅ Done via Vercel API
 
-Right now both Production and Preview deploys use the **prod** Supabase. That means staging branch will write to production DB. **Bad.**
+Production env vars now scoped to Production only. Preview env vars added pointing to staging Supabase. Staging branch redeployed and verified `READY`.
 
-Fix at https://vercel.com/n311311-6290s-projects/peta/settings/environment-variables :
-
-For each of `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`:
-1. Click the row's `⋯` menu → **Edit**
-2. Uncheck **Preview** environment (leave only Production checked)
-3. Save
-
-Then add Preview duplicates:
-1. Click **Add Environment Variable** at top
-2. Name: `VITE_SUPABASE_URL` · Value: `https://duxzxizedtvnopfihllz.supabase.co` · Env: **Preview only**
-3. Save
-4. Repeat for `VITE_SUPABASE_ANON_KEY`. Value:
-   ```
-   eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImR1eHp4aXplZHR2bm9wZmlobGx6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5NDk0NDYsImV4cCI6MjA5MzUyNTQ0Nn0.awbwCZOMtow2w0HIKTLmpO5UqSyjQVzDFC5r6Iw6y5g
-   ```
-
-Then redeploy the staging branch: **Deployments → on the latest staging build → ⋯ → Redeploy**.
+State on Vercel:
+| Var | Production | Preview |
+|---|---|---|
+| `VITE_SUPABASE_URL` | prod (`yorlsgzsawchpeeazcvi`) | staging (`duxzxizedtvnopfihllz`) |
+| `VITE_SUPABASE_ANON_KEY` | prod | staging |
 
 ### 3. Sanity check (5 min — once DNS propagates)
 

@@ -22,9 +22,12 @@ export function Login() {
       navigate('/tasks');
     } catch (error: any) {
       const msg = error?.message || 'Login gagal';
-      // Friendlier copy for the most common case
       if (/invalid login credentials/i.test(msg)) {
         toast.error('Email atau password salah. Coba lagi ya.');
+      } else if (/email not confirmed|not.+confirmed/i.test(msg)) {
+        // Should not happen now that DB auto-confirms, but just in case any
+        // legacy account is still in unconfirmed limbo.
+        toast.error('Akun masih nunggu verifikasi. Hubungi admin di grup WA ya 🙏');
       } else {
         toast.error(msg);
       }
@@ -46,8 +49,12 @@ export function Login() {
 
       <div className="flex-1 flex items-end sm:items-center justify-center px-4 pb-4 sm:pb-8">
         <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 sm:p-8 animate-slide-up">
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-primary mb-1">💰 PeTa</h1>
-          <h2 className="text-xl sm:text-2xl font-extrabold text-dark mb-1">Welcome back!</h2>
+          <img
+            src="/logo-horizontal.png"
+            alt="PeTa · PenghasilanTambahan.com"
+            className="h-16 w-auto mb-4"
+          />
+          <h2 className="text-xl sm:text-2xl font-extrabold text-dark mb-1">Welcome back, PeTa Army!</h2>
           <p className="text-sm text-muted mb-6">Lanjut earning, ambil saldonya.</p>
 
           <form onSubmit={handleLogin} className="space-y-4">

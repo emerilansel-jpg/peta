@@ -15,7 +15,7 @@ type Stage = 'preview' | 'submit' | 'done';
 export function TaskDetail() {
   const { taskId } = useParams();
   const navigate = useNavigate();
-  const [user, setUser] = React.useState<any>(null);
+  const [, setUser] = React.useState<any>(null);
   const [accounts, setAccounts] = React.useState<any[]>([]);
   const [selectedAccountId, setSelectedAccountId] = React.useState('');
   const [draftComment, setDraftComment] = React.useState('');

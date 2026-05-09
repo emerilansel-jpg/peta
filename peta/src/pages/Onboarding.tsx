@@ -8,7 +8,7 @@ import { toast } from '../components/Toast';
 import { addRedditAccount, claimOnboardingBonus, type OnboardingStep } from '../lib/api';
 import { WHATSAPP_GROUP_URL } from '../lib/config';
 import { ConfettiBurst } from '../components/Confetti';
-import { CheckCircle, Lock, ArrowRight, ExternalLink } from 'lucide-react';
+import { ArrowRight, ExternalLink } from 'lucide-react';
 
 export function Onboarding() {
   const navigate = useNavigate();
@@ -18,6 +18,7 @@ export function Onboarding() {
   const [redditUrl, setRedditUrl] = React.useState('');
   const [warpConfirmed, setWarpConfirmed] = React.useState(false);
   const [redditConfirmed, setRedditConfirmed] = React.useState(false);
+  const [hasRedditAccount, setHasRedditAccount] = React.useState(false);
   const [waGroupConfirmed, setWaGroupConfirmed] = React.useState(false);
   const [confettiActive, setConfettiActive] = React.useState(false);
   const [completedSteps, setCompletedSteps] = React.useState<number[]>([]);
@@ -149,8 +150,8 @@ export function Onboarding() {
 
   // Step 4: Reddit account
   const handleStep3 = async () => {
-    if (!redditConfirmed) {
-      toast.error('Centang konfirmasi dulu setelah daftar Reddit');
+    if (!redditConfirmed && !hasRedditAccount) {
+      toast.error('Centang konfirmasi setelah daftar — atau pilih "Saya udah punya akun"');
       return;
     }
     if (!completedSteps.includes(4)) {
@@ -160,6 +161,18 @@ export function Onboarding() {
       toast.success('+Rp5.000 masuk saldo! 🎊');
     }
     setCurrentStep(5);
+  };
+
+  // Escape hatch — user clicks "Urus Nanti" on Reddit steps. Save a flag so
+  // Tasks/Earnings can show a friendly reminder banner. Onboarding can be
+  // resumed because /onboarding still loads and short-circuits when a Reddit
+  // account exists.
+  const handleSkipReddit = () => {
+    if (user?.id) {
+      try { localStorage.setItem(`reddit_pending:${user.id}`, '1'); } catch {/* ignore */}
+    }
+    toast.success('Oke, lanjut explore dulu — Reddit bisa kamu setup nanti 👇');
+    navigate('/tasks');
   };
 
   const handleStep4 = async () => {
@@ -246,8 +259,8 @@ export function Onboarding() {
     heading: 'Selamat Datang!',
     subheading: 'Step 1 dari 6',
     description: needsWhatsappStep
-      ? 'Hai! Selamat datang di PeTa. Kamu bakal dibayar buat komen di internet — gampang banget.\n\nIsi nomor WhatsApp di bawah supaya admin bisa kontak kamu untuk konfirmasi payout. Lalu klik klaim bonus.'
-      : 'Hai! Selamat datang di PeTa. Bonus Rp25.000 udah siap masuk saldo kamu.\n\nKlik tombol di bawah untuk klaim, lalu lanjut ke step setup berikutnya.',
+      ? 'Selamat datang di PenghasilanTambahan.com (PeTa) — kamu sekarang bagian dari PeTa Army. Bakal dibayar buat komen di internet — gampang banget.\n\nIsi nomor WhatsApp di bawah supaya admin bisa kontak kamu untuk konfirmasi payout. Lalu klik klaim bonus.'
+      : 'Selamat datang di PenghasilanTambahan.com (PeTa) — kamu sekarang bagian dari PeTa Army. Bonus Rp25.000 udah siap masuk saldo kamu.\n\nKlik tombol di bawah untuk klaim, lalu lanjut ke step setup berikutnya.',
     buttonText: '💰 Klaim Bonus Rp25.000',
     hint: 'Bonus langsung masuk saldo setelah klaim',
     action: handleStep1,
@@ -269,7 +282,7 @@ export function Onboarding() {
       emoji: '💬',
       heading: 'Gabung Grup WhatsApp',
       subheading: 'Step 2 dari 6',
-      description: '🚨 WAJIB — semua update task baru, pengumuman payout, tips & trik dikirim ke grup ini.\n\nYang ga gabung = ketinggalan task yang cair duluan.\n\nBuka link, gabung, lalu balik ke sini & centang konfirmasi.',
+      description: '🚨 Task baru DROP DI GRUP — first come first served.\n\n⏰ Slot task limited. Member di grup biasanya dapat slot 5-10 menit duluan dibanding yang ga gabung. Telat = slot abis = nunggu task berikutnya.\n\n💸 Notif payout, bukti transfer, tips naikin level — semua di sana.\n\nGabung sekali, ga ada spam. Buka link → tap "Join chat" → balik sini & centang.',
       buttonText: '✅ Sudah Gabung, Lanjut',
       hint: 'Klik "Buka Grup" dulu → tap "Join chat" di WhatsApp → balik ke sini',
       action: handleStepWaGroup,
@@ -305,7 +318,7 @@ export function Onboarding() {
       emoji: '👤',
       heading: 'Buat Akun Reddit',
       subheading: 'Step 4 dari 6',
-      description: '💡 Silakan daftar Reddit dulu baru lanjut.\n\nTutup page ini sementara kalau perlu — progress tersimpan. Atau pakai device lain (HP untuk WARP+Reddit, laptop untuk PeTa).\n\nTips pilih username: jangan bot-like. Hindari angka random panjang. Pilih interest natural (animals, gaming, news, dll).',
+      description: '🚀 Tinggal 2 step lagi sebelum saldo bisa kamu earn beneran.\n\nAkun Reddit dipake buat ngirim komentar yang dibayar Rp5K-20K per task. Daftar gratis, 5 menit, sekali doang.\n\n💡 Tips pilih username: natural — bukan angka random panjang. Pilih 3-5 interest sesuai minat (gaming, news, animals, dll).\n\nTutup tab ini kalau perlu — progress aman. Atau pakai HP buat Reddit, laptop buat PeTa.',
       buttonText: '✅ Sudah Daftar, Lanjut',
       hint: 'Klik "Buka Reddit" dulu, daftar akun baru, lalu centang & klik Lanjut',
       action: handleStep3,
@@ -348,7 +361,6 @@ export function Onboarding() {
   ];
 
   const current = steps[currentStep - 1];
-  const isCompleted = completedSteps.includes(currentStep);
 
   return (
     <Layout userRole="army">
@@ -421,8 +433,28 @@ export function Onboarding() {
           </div>
         )}
 
-        {/* Checkbox untuk step 2 & 3 */}
-        {current.checkbox !== undefined && (
+        {/* Step 4 — "Sudah punya akun" shortcut. Skips the new-account flow
+            entirely so users with an existing Reddit account aren't forced
+            to register a duplicate just to clear onboarding. */}
+        {currentStep === 4 && (
+          <div className="mb-4 p-3 bg-secondary/10 rounded-lg ring-1 ring-secondary/30">
+            <label className="flex items-start gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={hasRedditAccount}
+                onChange={(e) => setHasRedditAccount(e.target.checked)}
+                className="w-5 h-5 rounded mt-0.5 shrink-0"
+              />
+              <span className="text-sm">
+                <span className="font-bold text-secondary">Aku udah punya akun Reddit lama — pake itu aja</span>
+                <span className="block text-xs text-muted mt-0.5">Skip step daftar baru → langsung paste URL profil di step berikutnya.</span>
+              </span>
+            </label>
+          </div>
+        )}
+
+        {/* Checkbox untuk step 2 & 3 (disabled on step 4 if "punya akun lama") */}
+        {current.checkbox !== undefined && !(currentStep === 4 && hasRedditAccount) && (
           <div className="mb-6 flex items-center gap-3">
             <input
               type="checkbox"
@@ -442,7 +474,7 @@ export function Onboarding() {
 
         {/* Buttons */}
         <div className="flex gap-3">
-          {current.extraAction && (
+          {current.extraAction && !(currentStep === 4 && hasRedditAccount) && (
             <Button
               onClick={current.extraAction}
               variant="outline"
@@ -460,11 +492,16 @@ export function Onboarding() {
               (currentStep === 1 && needsWhatsappStep && whatsapp.replace(/\D/g, '').length < 9) ||
               (currentStep === 2 && !waGroupConfirmed) ||
               (currentStep === 3 && !warpConfirmed) ||
-              (currentStep === 4 && !redditConfirmed) ||
+              (currentStep === 4 && !redditConfirmed && !hasRedditAccount) ||
               (currentStep === 5 && !redditUrl.trim())
             }
           >
-            {currentStep === steps.length ? (
+            {currentStep === 4 && hasRedditAccount ? (
+              <>
+                ✅ Pakai Akun Lama, Lanjut
+                <ArrowRight size={18} className="inline ml-2" />
+              </>
+            ) : currentStep === steps.length ? (
               current.buttonText
             ) : (
               <>
@@ -474,13 +511,31 @@ export function Onboarding() {
             )}
           </Button>
         </div>
+
+        {/* Reddit-step escape: "Urus Nanti" — saves a flag, sends them to /tasks
+            with a friendly nudge banner waiting for them. Reduces drop-off at the
+            steepest friction point in onboarding. */}
+        {(currentStep === 4 || currentStep === 5) && (
+          <div className="mt-4 pt-3 border-t border-black/5">
+            <button
+              type="button"
+              onClick={handleSkipReddit}
+              className="w-full text-sm text-muted hover:text-dark font-semibold py-2 underline-offset-2 hover:underline"
+            >
+              🕐 Urus Reddit nanti — explore PeTa dulu
+            </button>
+            <p className="text-[11px] text-muted text-center mt-0.5">
+              Bonus Rp10K dari step ini bisa kamu klaim kapan-kapan kamu balik
+            </p>
+          </div>
+        )}
       </Card>
 
       {/* Progress Indicator */}
       <div className="mt-12">
         <p className="text-center text-sm text-gray-600 mb-4">Progress Onboarding</p>
         <div className="flex gap-2 justify-center">
-          {steps.map((step, idx) => (
+          {steps.map((step) => (
             <button
               key={step.number}
               onClick={() => completedSteps.includes(step.number) && setCurrentStep(step.number)}

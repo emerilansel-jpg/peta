@@ -1,5 +1,3 @@
-import React from 'react';
-
 export function CardSkeleton() {
   return (
     <div className="card animate-pulse">

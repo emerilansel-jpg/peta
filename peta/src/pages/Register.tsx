@@ -42,6 +42,19 @@ export function Register() {
     }
     setLoading(true);
     try {
+      // Pre-flight phone-uniqueness check via SECURITY DEFINER RPC. RLS
+      // blocks anon SELECT on users, so we route through `is_whatsapp_taken`
+      // which returns a boolean only (no PII leak). The Postgres UNIQUE
+      // constraint still backstops inside the handle_new_user trigger if a
+      // race condition lets a duplicate slip past this check.
+      const { data: waTaken } = await supabase.rpc('is_whatsapp_taken', {
+        p_whatsapp: cleanedWa,
+      });
+      if (waTaken === true) {
+        toast.error('Nomor WhatsApp ini sudah terdaftar di akun PeTa lain. Pakai nomor lain atau login.');
+        setLoading(false);
+        return;
+      }
       const meta: Record<string, string> = {
         full_name: fullName.trim(),
         whatsapp: cleanedWa,
@@ -54,18 +67,36 @@ export function Register() {
         options: { data: meta },
       });
       if (error) throw error;
-      if (data.user) {
-        toast.success(
-          referralCode.trim()
-            ? 'Daftar berhasil! +Rp20K bonus referral 🎉'
-            : 'Daftar berhasil! Bonus Rp50K menunggu 🎉'
-        );
+      if (!data.user) throw new Error('Registrasi gagal — coba lagi');
+
+      const successMsg = referralCode.trim()
+        ? 'Daftar berhasil! +Rp20K bonus referral 🎉'
+        : 'Daftar berhasil! Bonus Rp50K menunggu 🎉';
+
+      // With the DB-level auto-confirm trigger, signUp returns a live session.
+      // Fallback: if for any reason session is null, attempt password sign-in
+      // so user lands in /onboarding instead of bouncing to /login.
+      if (data.session) {
+        toast.success(successMsg);
         navigate('/onboarding');
+      } else {
+        const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInErr) {
+          toast.success('Akun siap! Login sekali ya, terus langsung onboarding.');
+          navigate('/login');
+        } else {
+          toast.success(successMsg);
+          navigate('/onboarding');
+        }
       }
     } catch (error: any) {
       const msg = error?.message || 'Registrasi gagal';
       if (/already registered|already exists/i.test(msg)) {
         toast.error('Email sudah terdaftar. Coba login aja.');
+      } else if (/database error|saving new user/i.test(msg)) {
+        // Race condition: someone took the WA number between our pre-check
+        // and the auth signup. Surface the same friendly message.
+        toast.error('Email atau nomor WhatsApp sudah terdaftar. Coba data lain atau login.');
       } else {
         toast.error(msg);
       }
@@ -96,7 +127,12 @@ export function Register() {
             </div>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-dark mb-1">Buat akun, gratis</h1>
+          <img
+            src="/logo-horizontal.png"
+            alt="PeTa · PenghasilanTambahan.com"
+            className="h-16 w-auto mb-4"
+          />
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-dark mb-1">Gabung PeTa Army, gratis</h1>
           <p className="text-sm text-muted mb-5">Selesai dalam 30 detik.</p>
 
           <form onSubmit={handleRegister} className="space-y-4">

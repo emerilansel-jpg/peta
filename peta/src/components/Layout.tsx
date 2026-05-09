@@ -42,7 +42,13 @@ export function Layout({ children, userRole = 'army' }: LayoutProps) {
         {/* Desktop sidebar */}
         <aside className="hidden md:flex md:flex-col md:w-60 bg-white ring-1 ring-black/5 sticky top-0 h-dvh">
           <div className="p-5 border-b border-border">
-            <Link to="/admin" className="text-2xl font-extrabold text-primary">💰 PeTa</Link>
+            <Link to="/admin" className="block">
+              <img
+                src="/logo-horizontal.png"
+                alt="PeTa · PenghasilanTambahan.com"
+                className="h-12 w-auto"
+              />
+            </Link>
             <p className="text-xs text-muted mt-1">Admin Console</p>
           </div>
           <nav className="flex-1 p-3 space-y-1">
@@ -74,8 +80,11 @@ export function Layout({ children, userRole = 'army' }: LayoutProps) {
 
         {/* Mobile top bar */}
         <header className="md:hidden fixed top-0 inset-x-0 z-40 bg-white ring-1 ring-black/5 safe-top">
-          <div className="flex items-center justify-between h-14 px-4">
-            <Link to="/admin" className="text-lg font-extrabold text-primary">💰 PeTa Admin</Link>
+          <div className="flex items-center justify-between h-16 px-4">
+            <Link to="/admin" className="flex items-center gap-2">
+              <img src="/logo-horizontal.png" alt="PeTa" className="h-10 w-auto" />
+              <span className="text-xs font-bold text-muted">Admin</span>
+            </Link>
             <button
               onClick={() => setDrawerOpen(true)}
               className="p-2 -mr-2 rounded-lg hover:bg-light"
@@ -134,7 +143,7 @@ export function Layout({ children, userRole = 'army' }: LayoutProps) {
           </div>
         )}
 
-        <main className="flex-1 min-w-0 pt-14 md:pt-0">
+        <main className="flex-1 min-w-0 pt-16 md:pt-0">
           <div className="container-custom py-5 md:py-8">{children}</div>
         </main>
       </div>
@@ -146,9 +155,13 @@ export function Layout({ children, userRole = 'army' }: LayoutProps) {
     <div className="min-h-dvh bg-light flex flex-col">
       {/* Top brand bar — small on mobile, full nav on desktop */}
       <header className="bg-white ring-1 ring-black/5 sticky top-0 z-30 safe-top">
-        <div className="container-custom flex items-center justify-between h-14">
-          <Link to="/tasks" className="text-xl font-extrabold text-primary flex items-center gap-1">
-            💰 <span>PeTa</span>
+        <div className="container-custom flex items-center justify-between h-16">
+          <Link to="/tasks" className="flex items-center" aria-label="PeTa · PenghasilanTambahan.com">
+            <img
+              src="/logo-horizontal.png"
+              alt="PeTa · PenghasilanTambahan.com"
+              className="h-12 w-auto"
+            />
           </Link>
           <div className="hidden md:flex items-center gap-1">
             {armyTabs.map((t) => {

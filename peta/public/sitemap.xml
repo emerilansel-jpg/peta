@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <url>
+    <loc>https://penghasilantambahan.com/</loc>
+    <lastmod>2026-05-08</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://penghasilantambahan.com/og.png</image:loc>
+      <image:title>PeTa — Dibayar Cuma Buat Komentar</image:title>
+      <image:caption>Penghasilan tambahan online — Rp5K-Rp20K per komentar.</image:caption>
+    </image:image>
+  </url>
+  <url>
+    <loc>https://penghasilantambahan.com/login</loc>
+    <lastmod>2026-05-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://penghasilantambahan.com/register</loc>
+    <lastmod>2026-05-08</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+</urlset>

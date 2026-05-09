@@ -36,12 +36,13 @@ The current admin: `info@jetdigitalpro.com` / `peta` (4-char pwd, written direct
 
 ## Database schema (key tables)
 
-- **users** — extends `auth.users`, adds `full_name`, `whatsapp`, `referral_code` (auto-gen), `referred_by`, `role` ('army'|'admin'), `is_active`
-- **reddit_accounts** — username (UNIQUE), karma, account_age_days, level (0–5)
+- **users** — extends `auth.users`, adds `full_name`, `whatsapp` (UNIQUE), `referral_code` (auto-gen), `referred_by`, `role` ('army'|'admin'), `is_active`, `wa_group_dismissed`, `pending_karma`, `pending_karma_url`
+- **reddit_accounts** — username (UNIQUE), karma, account_age_days, level (0–5, auto-updated by `tg_set_reddit_level` trigger)
 - **tasks** — title, description, target_url, `task_type` ('comment'|'upvote'), `min_level`, max_assignments, current_assignments, reward_amount, status, created_by
 - **task_assignments** — task_id, reddit_account_id, status ('in_progress'|'submitted'|'approved'|'rejected'), draft_comment, proof_url, admin_notes
 - **payouts** — user_id, amount (min Rp150K), status ('pending'|'paid'|'cancelled'), paid_at, payment_method
 - **user_credits** — generic credit ledger; `source` IN ('signup_bonus','referral_bonus_referrer','referral_bonus_referee','manual_adjustment'). Has unique partial index `(user_id, description) WHERE source='signup_bonus'` for idempotency.
+- **referral_clicks** — `ref_code`, `referrer_user_id`, `visitor_session`, `user_agent`, `created_at`. Dedup per `(ref_code, visitor_session)`.
 - **activity_logs** — user_id, action, details JSONB
 
 ### RLS pattern
@@ -53,10 +54,25 @@ Every table has RLS enabled. Helper function `is_admin()` (SECURITY DEFINER, byp
 - `admin_create_member(email, password, whatsapp, full_name)` → uuid
 - `admin_update_member(id, full_name, whatsapp, is_active)`
 - `admin_delete_member(id)` — hard-deletes from `auth.users`, cascades
+- `is_whatsapp_taken(text)` → bool — anon-callable pre-flight check before signup
+- `dismiss_wa_group()` — sets `users.wa_group_dismissed = true` (hide-forever)
+- `compute_level(karma int)` → int — used by `tg_set_reddit_level` trigger
+- `get_referral_count(uuid)` → int
+- `submit_karma_claim(karma int, proof_url text)` — honor-system: writes `pending_karma` for admin review (Reddit data-center IPs blocked)
+- `admin_reject_karma_claim(user_id, reason)` / `admin_set_karma(user_id, karma)`
+- `request_payout(amount int)` → row — server-gated payout INSERT (eligibility runs SECURITY DEFINER)
+- `validate_payout_eligibility(user_id, amount)` → json — pre-flight; returns `{eligible, reason, message, ...}`. Reasons: `holding_period` | `earnings_floor` | `weekly_cap`
+- `track_referral_click(ref_code, session, user_agent)` — anon-callable; dedup per `(ref_code, session)`
+- `get_referral_analytics(user_id)` → json — `{totalClicks, uniqueClicks, signups, totalEarned, conversionRate}`
+- `admin_get_referral_leaderboard(limit int)` → table — top N by signups
 
 ### Triggers
-- `handle_new_user` (on `auth.users` INSERT) — creates `public.users` row, copies `full_name`+`whatsapp`+`referral_code` from `raw_user_meta_data`, awards Rp20K referral bonuses to both sides if `referral_code` matches an existing user
+- `handle_new_user` (on `auth.users` INSERT) — creates `public.users` row, copies `full_name`+`whatsapp`+`referral_code` from `raw_user_meta_data`, awards Rp20K referral bonuses to both sides if `referral_code` matches an existing user. Pre-checks WA uniqueness + RAISES Indonesian message (Supabase Auth wraps as "Database error" — Register.tsx pattern-matches as fallback).
 - `generate_referral_code` (on `public.users` BEFORE INSERT) — auto-generates 8-char hex code
+- `tg_set_reddit_level` (on `reddit_accounts` BEFORE INSERT/UPDATE) — auto-computes level from karma
+
+### Edge Functions
+- `sync-reddit-karma` — deployed but data-center IPs blocked by Reddit. Honor-system claim queue is the working path; OAuth installed-app flow planned.
 
 ## Levels & rewards
 
@@ -67,7 +83,23 @@ Upvote tasks pay Rp500–Rp2.000 regardless of level.
 Onboarding bonuses (total **Rp50.000**):
 - Signup: Rp25K · WA Group: Rp5K · WARP: Rp10K · Reddit account: Rp5K · Reddit URL: Rp5K
 
-Min payout: **Rp150.000**.
+## Payout rules
+
+Min payout: **Rp150.000** per request.
+
+**Eligibility gates (server-enforced via `validate_payout_eligibility` RPC, reasons returned as JSON):**
+
+1. **Holding period** — 7 days account age **OR** 5 approved tasks before payout opens (`reason: 'holding_period'`)
+2. **Earnings floor** — must have **Rp150K from approved task rewards + `signup_bonus` credits** before ANY payout (including referral balance) bisa cair (`reason: 'earnings_floor'`). Closes "panen referral lalu kabur" loophole.
+3. **Weekly cap** — Rp500.000 outflow per user per 7d (`reason: 'weekly_cap'`); admin override via direct UPDATE.
+
+`getTotalEarnings(userId)` returns `{earned, referral, fromWork, total}`:
+- `fromWork` = approved tasks + `signup_bonus` (counts toward floor)
+- `referral` = `referral_bonus_referrer` + `referral_bonus_referee` (locked behind floor)
+- `earned` = `fromWork` + manual adjustments
+- `total` = `earned` + `referral`
+
+Earnings.tsx mirrors the gate visually: yellow progress bar to floor, "(locked)" badge on referral bucket, CTA disabled with "Locked — kurang Rp X dari task" message until cleared.
 
 ## Onboarding flow (6 steps)
 
@@ -127,7 +159,15 @@ peta/
 │   └── index.css                ← Tailwind v4 import + design tokens + confetti keyframes
 ├── supabase/
 │   ├── config.toml              ← Local dev config
-│   └── migrations/              ← 8 timestamped .sql files (apply in order)
+│   └── migrations/              ← 13+ timestamped .sql files (apply in order)
+│       ├── ...                       (initial 8 — auth, RLS, onboarding bonuses, admin RPCs)
+│       ├── 20260507033500_karma_level_admin_referral_fixes.sql
+│       ├── 20260507040000_wa_group_dismiss_preference.sql
+│       ├── 20260507065000_karma_claim_pending.sql
+│       ├── 20260508060000_payout_eligibility_and_phone_unique.sql
+│       ├── 20260508070000_handle_new_user_friendly_wa_conflict.sql
+│       ├── 20260508080000_referral_clicks_analytics.sql
+│       └── 20260509060000_payout_earnings_floor.sql
 └── package.json
 ```
 
@@ -141,13 +181,22 @@ peta/
 
 ## Git / Deploy strategy
 
-- Repo not initialised yet (do this before deploying)
-- `main` branch → `penghasilantambahan.com`
+- Repo: `https://github.com/emerilansel-jpg/peta.git` (initialised, live)
+- `main` branch → `penghasilantambahan.com` (Vercel auto-deploy)
 - `staging` branch → `staging.penghasilantambahan.com` (or use Vercel auto preview)
-- **Always** apply migrations on staging first, test, then on prod
-- Use Supabase CLI: `supabase link --project-ref=<id>` then `supabase db push`
+- **Always** apply migrations on staging (`duxzxizedtvnopfihllz`) first, test, then on prod (`yorlsgzsawchpeeazcvi`)
+- Migrations applied via Supabase MCP `apply_migration` (NOT CLI)
+- GSC verified via Spaceship DNS TXT (Domain property)
 
 See `DEPLOYMENT.md` for the full step-by-step.
+
+## SEO / discoverability
+
+- `peta/index.html` — JSON-LD: Organization, WebSite, Service, FAQPage; OG meta → `/og.png` 1200x1200
+- `peta/public/robots.txt` — allows public, blocks `/login`, `/register`, `/onboarding`, `/account`, `/earnings`, `/admin/*`
+- `peta/public/sitemap.xml` — `/`, `/login`, `/register`
+- Target keyword: "Penghasilan Tambahan"
+- GSC TXT record at Spaceship: `google-site-verification=gDJrr2dY9Dzmxp0A1uUgBrQ7-JkUM-a2FaV4_w6cvro`
 
 ## Behavior rules learned from user
 

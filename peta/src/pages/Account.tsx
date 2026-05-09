@@ -1,13 +1,14 @@
 import React from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { RefreshCw, Plus, Trash2, X, LogOut, Copy, Share2, MessageCircle, Pencil, Check } from 'lucide-react';
+import { RefreshCw, Plus, Trash2, X, LogOut, Copy, MessageCircle, Pencil, Check } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { CardSkeleton } from '../components/Skeleton';
+import { SocialShare } from '../components/SocialShare';
 import { supabase } from '../lib/supabase';
-import { getRedditAccounts, addRedditAccount, updateRedditAccountKarma, getReferralStats } from '../lib/api';
+import { getRedditAccounts, addRedditAccount, updateRedditAccountKarma, getReferralStats, getReferralAnalytics } from '../lib/api';
 import { getLevelInfo, LEVELS } from '../lib/levels';
 import { toast } from '../components/Toast';
 
@@ -62,6 +63,13 @@ export function Account() {
     enabled: !!user?.id,
   });
 
+  const { data: refAnalytics } = useQuery({
+    queryKey: ['referralAnalytics', user?.id],
+    queryFn: () => getReferralAnalytics(user!.id),
+    enabled: !!user?.id,
+    refetchInterval: 30_000,
+  });
+
   React.useEffect(() => {
     if (profile?.whatsapp) setWaValue(profile.whatsapp);
   }, [profile?.whatsapp]);
@@ -76,10 +84,13 @@ export function Account() {
     refetchProfile();
   };
 
+  // Referral link points at the homepage so friends read the landing copy
+  // first; Landing.tsx forwards ?ref= to /register on CTA click.
   const refLink = referral?.code
-    ? `${window.location.origin}/register?ref=${referral.code}`
+    ? `${window.location.origin}/?ref=${referral.code}`
     : '';
-  const refText = `Hey! Aku nemu PeTa, app yang bayar buat komen di internet. Daftar pakai link ini, kita berdua dapat Rp20.000! 💰\n\n${refLink}`;
+  // (Old single-WhatsApp share text removed — <SocialShare> now owns
+  // the message templating across all channels.)
 
   // Robust copy that works on http://localhost too (Clipboard API needs HTTPS or localhost)
   const copyToClipboard = async (text: string) => {
@@ -112,12 +123,6 @@ export function Account() {
     else toast.error('Gagal menyalin — copy manual ya');
   };
 
-  const shareViaWhatsApp = () => {
-    if (!refLink) { toast.error('Kode referral belum siap, refresh dulu'); return; }
-    const wa = `https://wa.me/?text=${encodeURIComponent(refText)}`;
-    // Direct location change (popup blockers leave this alone, unlike window.open)
-    window.location.href = wa;
-  };
 
   const addMutation = useMutation({
     mutationFn: (username: string) => addRedditAccount(user.id, username),
@@ -247,17 +252,61 @@ export function Account() {
           <Copy size={20} className="text-primary shrink-0" />
         </button>
 
-        <div className="grid grid-cols-2 gap-2">
-          <Button onClick={copyRefLink} variant="outline" size="md" disabled={!refLink}>
-            <Copy size={16} /> Salin Link
+        {refLink ? (
+          <div className="bg-dark/90 text-white rounded-xl p-3">
+            <SocialShare link={refLink} title="Share link kamu" />
+          </div>
+        ) : (
+          <Button onClick={copyRefLink} variant="outline" size="md" disabled fullWidth>
+            <Copy size={16} /> Loading...
           </Button>
-          <Button onClick={shareViaWhatsApp} variant="primary" size="md" disabled={!refLink}>
-            <Share2 size={16} /> WhatsApp
-          </Button>
+        )}
+
+        {/* Performance dashboard — clicks / signups / CR / earned.
+            Updates every 30s. Reads from referral_clicks + users.referred_by. */}
+        <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="bg-white rounded-lg p-2.5 ring-1 ring-yellow-200/60">
+            <p className="text-[10px] uppercase font-bold text-muted leading-none">Klik</p>
+            <p className="text-lg font-extrabold tabular-nums leading-tight mt-1">
+              {refAnalytics?.uniqueClicks ?? 0}
+            </p>
+            <p className="text-[10px] text-muted leading-none">
+              {refAnalytics?.totalClicks !== undefined && refAnalytics.totalClicks !== refAnalytics.uniqueClicks
+                ? `${refAnalytics.totalClicks} total`
+                : 'unik'}
+            </p>
+          </div>
+          <div className="bg-white rounded-lg p-2.5 ring-1 ring-yellow-200/60">
+            <p className="text-[10px] uppercase font-bold text-muted leading-none">Daftar</p>
+            <p className="text-lg font-extrabold tabular-nums leading-tight mt-1">
+              {refAnalytics?.signups ?? 0}
+            </p>
+            <p className="text-[10px] text-muted leading-none">teman gabung</p>
+          </div>
+          <div className="bg-white rounded-lg p-2.5 ring-1 ring-yellow-200/60">
+            <p className="text-[10px] uppercase font-bold text-muted leading-none">Conversion</p>
+            <p className="text-lg font-extrabold tabular-nums leading-tight mt-1">
+              {(refAnalytics?.conversionRate ?? 0)}%
+            </p>
+            <p className="text-[10px] text-muted leading-none">klik → daftar</p>
+          </div>
+          <div className="bg-success/10 rounded-lg p-2.5 ring-1 ring-success/30">
+            <p className="text-[10px] uppercase font-bold text-success/80 leading-none">Cuan</p>
+            <p className="text-lg font-extrabold tabular-nums leading-tight mt-1 text-success">
+              Rp{((refAnalytics?.totalEarned ?? 0) / 1000).toLocaleString('id-ID')}K
+            </p>
+            <p className="text-[10px] text-success/80 leading-none">total bonus</p>
+          </div>
         </div>
-        {(referral?.totalBonus ?? 0) > 0 && (
+
+        {refAnalytics && refAnalytics.uniqueClicks >= 5 && refAnalytics.signups === 0 && (
+          <p className="text-xs text-warning font-semibold mt-3 text-center">
+            ⚡ Banyak klik tapi belum ada yang daftar. Coba tweak caption — soroti bonus Rp25K + scarcity.
+          </p>
+        )}
+        {refAnalytics && refAnalytics.signups > 0 && (
           <p className="text-xs text-success font-semibold text-center mt-3">
-            🎉 Total bonus referral: Rp{(referral?.totalBonus ?? 0).toLocaleString('id-ID')}
+            🎉 {refAnalytics.signups} teman udah gabung — cuan kamu Rp{(refAnalytics.totalEarned).toLocaleString('id-ID')} dari referral
           </p>
         )}
       </Card>
