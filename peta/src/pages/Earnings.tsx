@@ -1,13 +1,13 @@
 import React from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, X, Banknote, Lock } from 'lucide-react';
+import { TrendingUp, X, Banknote, Lock, ArrowRight } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { CardSkeleton } from '../components/Skeleton';
 import { supabase } from '../lib/supabase';
-import { getPayoutHistory, requestPayout, getTotalEarnings } from '../lib/api';
+import { getPayoutHistory, requestPayout, getTotalEarnings, getMaxRedditKarma } from '../lib/api';
 import { toast } from '../components/Toast';
 
 const MIN_PAYOUT = 150000;
@@ -39,6 +39,16 @@ export function Earnings() {
     queryFn: () => getTotalEarnings(user!.id),
     enabled: !!user?.id,
   });
+
+  // Detect "no Reddit account" state — same gate Tasks uses. Earnings page
+  // is the second-most likely place a stalled user lands ("kapan cair?"),
+  // so we surface the same setup nudge here too.
+  const { data: karmaInfo } = useQuery({
+    queryKey: ['maxKarma', user?.id],
+    queryFn: () => getMaxRedditKarma(user!.id),
+    enabled: !!user?.id,
+  });
+  const needsReddit = user?.id ? !karmaInfo?.username : false;
 
   const payoutMutation = useMutation({
     mutationFn: () => requestPayout(user.id, amount),
@@ -89,6 +99,34 @@ export function Earnings() {
 
   return (
     <Layout userRole="army">
+      {/* Reddit setup nudge — only shown when user has no Reddit account.
+          Without it, real task earnings are impossible, so we point them
+          back to onboarding before they wonder why their saldo is stuck. */}
+      {needsReddit && (
+        <Card className="mb-3 bg-yellow-50 ring-yellow-300">
+          <div className="flex items-start gap-3 mb-3">
+            <div className="w-10 h-10 bg-yellow-400 text-yellow-950 rounded-xl grid place-items-center shrink-0">
+              <Lock size={18} />
+            </div>
+            <div className="flex-1">
+              <p className="font-extrabold text-yellow-950">Setup Reddit dulu biar saldo bisa naik</p>
+              <p className="text-sm text-yellow-900/85 mt-0.5">
+                Task baru dibayar lewat akun Reddit kamu. Selesai 5 menit + bonus Rp10K masuk saldo.
+              </p>
+            </div>
+          </div>
+          <Button
+            onClick={() => navigate('/onboarding')}
+            variant="primary"
+            size="md"
+            fullWidth
+            className="!bg-yellow-900 hover:!bg-yellow-950 !text-white"
+          >
+            🔓 Lanjutkan Setup <ArrowRight size={14} />
+          </Button>
+        </Card>
+      )}
+
       {/* Hero saldo card */}
       <Card className="mb-4 bg-gradient-to-br from-primary to-secondary text-white border-0 ring-0">
         <p className="text-xs opacity-80 mb-1">Siap dicairkan</p>
