@@ -243,16 +243,33 @@ export async function checkPayoutEligibility(userId: string, amount: number) {
   if (error) throw error;
   return data as {
     eligible: boolean;
-    reason?: 'holding_period' | 'weekly_cap';
+    reason?: 'holding_period' | 'earnings_floor' | 'weekly_cap';
     message?: string;
     days_old?: number;
     approved_tasks?: number;
     weekly_total?: number;
     weekly_cap?: number;
+    earned_from_work?: number;
+    earnings_floor?: number;
+    task_earnings?: number;
+    signup_bonus?: number;
   };
 }
 
-export async function getTotalEarnings(userId: string): Promise<{ earned: number; referral: number; total: number }> {
+// Returns the user's saldo split four ways so the Earnings UI can
+// enforce the "Rp150K dari task + signup bonus dulu, baru bisa narik
+// referral" rule on the client (server still gates via RPC).
+//   fromWork = approved task rewards + signup_bonus credits  (counts toward floor)
+//   referral = referral_bonus_referrer + referral_bonus_referee  (locked behind floor)
+//   other    = manual_adjustment (treated like fromWork — admin discretion)
+//   earned   = fromWork + other  (everything that isn't referral)
+//   total    = earned + referral
+export async function getTotalEarnings(userId: string): Promise<{
+  earned: number;
+  referral: number;
+  fromWork: number;
+  total: number;
+}> {
   // 1) Approved task earnings (across all reddit accounts)
   const { data: accounts, error: accErr } = await supabase
     .from('reddit_accounts')
@@ -272,28 +289,33 @@ export async function getTotalEarnings(userId: string): Promise<{ earned: number
     taskTotal = (data || []).reduce((sum: number, a: any) => sum + (a.tasks?.reward_amount || 0), 0);
   }
 
-  // 2) Credits (referral bonus, signup bonus, manual adjustments)
+  // 2) Credits — split by source
   const { data: credits, error: cErr } = await supabase
     .from('user_credits')
     .select('amount, source')
     .eq('user_id', userId);
   if (cErr) throw cErr;
 
-  let earnedCredits = 0;
+  let signupBonus = 0;
   let referralCredits = 0;
+  let otherCredits = 0;
   (credits || []).forEach((c: any) => {
-    if (c.source === 'referral_bonus_referrer') {
-      referralCredits += c.amount || 0;
+    const amt = c.amount || 0;
+    if (c.source === 'signup_bonus') {
+      signupBonus += amt;
+    } else if (c.source === 'referral_bonus_referrer' || c.source === 'referral_bonus_referee') {
+      referralCredits += amt;
     } else {
-      earnedCredits += c.amount || 0;
+      otherCredits += amt; // manual_adjustment, etc.
     }
   });
 
-  const earned = taskTotal + earnedCredits;
+  const fromWork = taskTotal + signupBonus;
+  const earned = fromWork + otherCredits;
   const referral = referralCredits;
   const total = earned + referral;
 
-  return { earned, referral, total };
+  return { earned, referral, fromWork, total };
 }
 
 // Mask a name for privacy: "Ahmad" -> "A****", "Ahmad Rifki" -> "A**** R."

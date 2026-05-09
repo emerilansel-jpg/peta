@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, X, Banknote } from 'lucide-react';
+import { TrendingUp, X, Banknote, Lock } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
@@ -11,6 +11,7 @@ import { getPayoutHistory, requestPayout, getTotalEarnings } from '../lib/api';
 import { toast } from '../components/Toast';
 
 const MIN_PAYOUT = 150000;
+const EARNINGS_FLOOR = 150000; // Rp150K dari task + signup bonus dulu
 const PAYOUT_PRESETS = [150000, 250000, 500000, 1000000];
 
 export function Earnings() {
@@ -33,7 +34,7 @@ export function Earnings() {
     enabled: !!user?.id,
   });
 
-  const { data: earningsBreakdown = { earned: 0, referral: 0, total: 0 }, isLoading: earningsLoading } = useQuery({
+  const { data: earningsBreakdown = { earned: 0, referral: 0, fromWork: 0, total: 0 }, isLoading: earningsLoading } = useQuery({
     queryKey: ['earnings', user?.id],
     queryFn: () => getTotalEarnings(user!.id),
     enabled: !!user?.id,
@@ -62,9 +63,13 @@ export function Earnings() {
   const totalPaid    = payouts.filter((p) => p.status === 'paid').reduce((s, p) => s + p.amount, 0);
   const available    = earningsBreakdown.total - totalPending - totalPaid;
 
-  // Referral income doesn't count toward min 150K, but can be withdrawn together
-  const canWithdraw = earningsBreakdown.earned >= MIN_PAYOUT || earningsBreakdown.total >= MIN_PAYOUT;
-  const requirementMet = earningsBreakdown.earned >= MIN_PAYOUT;
+  // Earnings-floor rule: must earn ≥Rp150K from task + signup bonus
+  // BEFORE any saldo (including referral) bisa cair. Server-enforced
+  // via validate_payout_eligibility — UI mirrors the gate.
+  const floorMet = earningsBreakdown.fromWork >= EARNINGS_FLOOR;
+  const floorShortfall = Math.max(EARNINGS_FLOOR - earningsBreakdown.fromWork, 0);
+  const floorProgress = Math.min((earningsBreakdown.fromWork / EARNINGS_FLOOR) * 100, 100);
+  const canWithdraw = floorMet && available >= MIN_PAYOUT;
 
   // Milestone — first goal is min payout, then bigger targets
   const milestones = [MIN_PAYOUT, 300000, 500000, 1000000, 2000000];
@@ -75,9 +80,8 @@ export function Earnings() {
   const submit = () => {
     if (amount < MIN_PAYOUT) { toast.error(`Minimum payout Rp${MIN_PAYOUT.toLocaleString('id-ID')}`); return; }
     if (amount > available) { toast.error('Saldo tidak cukup'); return; }
-    if (!canWithdraw) {
-      const shortfall = MIN_PAYOUT - earningsBreakdown.earned;
-      toast.error(`Butuh Rp${shortfall.toLocaleString('id-ID')} lagi dari task (bonus referral ga dihitung)`);
+    if (!floorMet) {
+      toast.error(`Butuh Rp${floorShortfall.toLocaleString('id-ID')} lagi dari task + signup bonus dulu`);
       return;
     }
     payoutMutation.mutate();
@@ -100,8 +104,13 @@ export function Earnings() {
           </div>
           {earningsBreakdown.referral > 0 && (
             <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5">🎁 Dari referral</span>
-              <span className="font-bold">Rp{earningsBreakdown.referral.toLocaleString('id-ID')}</span>
+              <span className="flex items-center gap-1.5">
+                {floorMet ? '🎁' : <Lock size={13} className="opacity-80" />} Dari referral
+              </span>
+              <span className="font-bold">
+                Rp{earningsBreakdown.referral.toLocaleString('id-ID')}
+                {!floorMet && <span className="ml-1 text-[10px] opacity-80 font-normal">(locked)</span>}
+              </span>
             </div>
           )}
           <div className="border-t border-white/20 pt-2 flex items-center justify-between font-extrabold">
@@ -110,25 +119,49 @@ export function Earnings() {
           </div>
         </div>
 
-        <div className="bg-white/15 backdrop-blur rounded-xl p-3 mb-4">
-          <div className="flex items-center justify-between text-xs mb-1.5">
-            <span>Goal: Rp{next.toLocaleString('id-ID')}</span>
-            <span className="font-bold">{Math.round(progress)}%</span>
-          </div>
-          <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-yellow-300 rounded-full transition-all"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          {remaining > 0 ? (
-            <p className="text-xs mt-2 opacity-90">
-              🎯 Tinggal Rp{remaining.toLocaleString('id-ID')} lagi {remaining <= 50000 && '— hampir!'}
+        {/* Earnings-floor gate — visible until cleared */}
+        {!floorMet && (
+          <div className="bg-yellow-300/95 text-dark rounded-xl p-3 mb-4">
+            <div className="flex items-center justify-between text-xs mb-1.5 font-bold">
+              <span className="flex items-center gap-1.5">
+                <Lock size={13} /> Buka cair: task + signup bonus
+              </span>
+              <span>{Math.round(floorProgress)}%</span>
+            </div>
+            <div className="w-full h-2 bg-dark/15 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-dark rounded-full transition-all"
+                style={{ width: `${floorProgress}%` }}
+              />
+            </div>
+            <p className="text-[11px] mt-1.5 leading-snug">
+              Kumpulin <b>Rp{EARNINGS_FLOOR.toLocaleString('id-ID')}</b> dari task + signup bonus dulu, baru semua saldo (termasuk referral) bisa cair.
+              Kurang <b>Rp{floorShortfall.toLocaleString('id-ID')}</b> lagi.
             </p>
-          ) : (
-            <p className="text-xs mt-2 opacity-90">🎉 Goal tercapai!</p>
-          )}
-        </div>
+          </div>
+        )}
+
+        {floorMet && (
+          <div className="bg-white/15 backdrop-blur rounded-xl p-3 mb-4">
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span>Goal: Rp{next.toLocaleString('id-ID')}</span>
+              <span className="font-bold">{Math.round(progress)}%</span>
+            </div>
+            <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-yellow-300 rounded-full transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            {remaining > 0 ? (
+              <p className="text-xs mt-2 opacity-90">
+                🎯 Tinggal Rp{remaining.toLocaleString('id-ID')} lagi {remaining <= 50000 && '— hampir!'}
+              </p>
+            ) : (
+              <p className="text-xs mt-2 opacity-90">🎉 Goal tercapai!</p>
+            )}
+          </div>
+        )}
 
         <Button
           onClick={() => {
@@ -138,15 +171,15 @@ export function Earnings() {
           variant="success"
           size="lg"
           fullWidth
-          disabled={!canWithdraw || available < MIN_PAYOUT}
+          disabled={!canWithdraw}
           className="!bg-yellow-300 !text-dark hover:!brightness-95 !shadow-yellow-300/30"
         >
-          <Banknote size={20} />
-          {!requirementMet && available < MIN_PAYOUT
-            ? `Min Rp${(MIN_PAYOUT/1000).toFixed(0)}K dari task (kurang Rp${(MIN_PAYOUT - earningsBreakdown.earned).toLocaleString('id-ID')})`
-            : canWithdraw && available >= MIN_PAYOUT
-            ? 'Tarik Saldo Sekarang'
-            : `Min Rp${(MIN_PAYOUT/1000).toFixed(0)}K dari task`}
+          {!floorMet ? <Lock size={18} /> : <Banknote size={20} />}
+          {!floorMet
+            ? `Locked — kurang Rp${floorShortfall.toLocaleString('id-ID')} dari task`
+            : available < MIN_PAYOUT
+            ? `Min Rp${(MIN_PAYOUT/1000).toFixed(0)}K — kurang Rp${(MIN_PAYOUT - available).toLocaleString('id-ID')}`
+            : 'Tarik Saldo Sekarang'}
         </Button>
       </Card>
 
