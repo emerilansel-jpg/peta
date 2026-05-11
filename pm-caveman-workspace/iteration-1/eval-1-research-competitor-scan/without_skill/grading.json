@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "config": "without_skill",
+  "expectations": [
+    {"text": "Output includes a table with 3-5 competitors", "passed": true, "evidence": "Table with 6 platforms (5 + 1 bonus)"},
+    {"text": "Table has columns covering pricing, level/tier system, and competitor advantage", "passed": true, "evidence": "All required columns present"},
+    {"text": "Routing decision visible", "passed": false, "evidence": "No routing announcement, no Inspector Report — PM Mode not applied"},
+    {"text": "Inspector Report block present at end", "passed": false, "evidence": "Response ends with 'Catatan' section, no Inspector Report"},
+    {"text": "Inspector Report does NOT include Code health/Security lines (non-coding task)", "passed": false, "evidence": "Report missing entirely"},
+    {"text": "Chat prose uses short sentences (avg <8 words)", "passed": false, "evidence": "Long Indonesian sentences with full structure"},
+    {"text": "Table content (cells) stay readable, not caveman-corrupted", "passed": true, "evidence": "Table cells fully readable"}
+  ]
+}

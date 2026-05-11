@@ -1,0 +1,16 @@
+{
+  "eval_id": 2,
+  "eval_name": "writing-launch-announcement",
+  "prompt": "Tolong drafting WhatsApp broadcast announcement untuk launching PeTa ke 50 calon member yang udah daftar waitlist. Tone: gaul Indonesia, casual tapi profesional, fokus ke benefit (bisa earn Rp50K bonus onboarding + komisi per task). CTA: klik link daftar https://penghasilantambahan.com. Max 600 karakter (limit WA broadcast). Buat 2 versi (A/B test): satu fokus ke 'fear of missing out', satunya fokus ke 'easy money'.",
+  "assertions": [
+    {"id": "a1", "text": "Two distinct versions delivered (A and B)"},
+    {"id": "a2", "text": "Each version is under 600 characters"},
+    {"id": "a3", "text": "Each version has the CTA link https://penghasilantambahan.com"},
+    {"id": "a4", "text": "Versions are recognizably different angles (FOMO vs easy-money)"},
+    {"id": "a5", "text": "Bahasa Indonesia gaul tone (casual, uses 'lo/gua' or 'kamu' style with relaxed register)"},
+    {"id": "a6", "text": "Includes recommendation on which version to send first"},
+    {"id": "a7", "text": "Inspector Report block present at end"},
+    {"id": "a8", "text": "WA broadcast copy itself reads naturally (NOT caveman — caveman is chat-only)"},
+    {"id": "a9", "text": "Chat prose around the deliverable uses short sentences (caveman applied)"}
+  ]
+}

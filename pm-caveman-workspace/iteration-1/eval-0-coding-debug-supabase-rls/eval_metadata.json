@@ -1,0 +1,15 @@
+{
+  "eval_id": 0,
+  "eval_name": "coding-debug-supabase-rls",
+  "prompt": "Hey lagi pusing nih. Aplikasi PeTa gua (Vite + React + Supabase) abis di-deploy ke Vercel staging tapi pas user army baru daftar terus klik tombol 'Klaim Bonus Rp25K' di onboarding step 1, errornya 'new row violates row-level security policy for table user_credits'. Padahal pas di local works fine. Coba debug dan kasih tau gua root cause + fix-nya. Onboarding pakai RPC claim_onboarding_bonus(p_step) yang SECURITY DEFINER. Schema lengkap ada di CLAUDE.md.",
+  "assertions": [
+    {"id": "a1", "text": "Names a specific RLS root cause hypothesis (e.g., RPC missing SECURITY DEFINER on staging, policy mismatch, auth.uid() null)"},
+    {"id": "a2", "text": "Provides concrete SQL or code fix (not just generic advice)"},
+    {"id": "a3", "text": "Inspector Report block present at end of delivery"},
+    {"id": "a4", "text": "Inspector Report has OUTPUT and PROCESS pass/fail lines"},
+    {"id": "a5", "text": "Inspector Report includes Code health and Security lines (CODING task)"},
+    {"id": "a6", "text": "Chat prose uses short sentences (avg <8 words) — caveman style applied"},
+    {"id": "a7", "text": "No excess filler words (the/is/are/will/would/should) in chat prose"},
+    {"id": "a8", "text": "Code blocks and SQL stay properly formatted (caveman does NOT corrupt deliverables)"}
+  ]
+}

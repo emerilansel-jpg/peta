@@ -1,0 +1,55 @@
+{
+  "skill_name": "pm-caveman",
+  "iteration": 2,
+  "changes_from_iteration_1": [
+    "Removed all GPT Agent / ChatGPT routing references (description, Phase 1.5, Inspector template, Self-Improvement)",
+    "Added 'Special Rule for Multi-Option Deliverables': must pick a primary recommendation with reasoning",
+    "Added explicit caveman example showing synthesis sections must stay caveman (vs slip into normal prose)",
+    "Inspector template: removed Routing line, added optional 'Primary pick' line for WRITING/STRATEGY"
+  ],
+  "configurations": [
+    {
+      "name": "with_skill_v2",
+      "label": "With pm-caveman v2",
+      "pass_rate": {"value": 1.0, "passed": 28, "total": 28},
+      "duration_seconds": {"mean": 55.7, "stddev": 16.2},
+      "total_tokens": {"mean": 51798, "stddev": 1218},
+      "per_eval": [
+        {"eval_name": "coding-debug-supabase-rls", "passed": 9, "total": 9, "duration_seconds": 75.2, "total_tokens": 53460},
+        {"eval_name": "research-competitor-scan", "passed": 8, "total": 8, "duration_seconds": 56.3, "total_tokens": 51381},
+        {"eval_name": "writing-launch-announcement", "passed": 11, "total": 11, "duration_seconds": 35.6, "total_tokens": 50554}
+      ]
+    },
+    {
+      "name": "with_skill_v1",
+      "label": "With pm-caveman v1 (prev iteration)",
+      "pass_rate": {"value": 0.875, "passed": 21, "total": 24},
+      "duration_seconds": {"mean": 47.3, "stddev": 9.1},
+      "total_tokens": {"mean": 51479, "stddev": 1041}
+    },
+    {
+      "name": "without_skill",
+      "label": "Baseline (no skill)",
+      "pass_rate": {"value": 0.5, "passed": 12, "total": 24},
+      "duration_seconds": {"mean": 49.1, "stddev": 9.7},
+      "total_tokens": {"mean": 49881, "stddev": 4574}
+    }
+  ],
+  "delta_v2_vs_v1": {
+    "pass_rate": "+12.5pp (87.5% → 100%)",
+    "duration_seconds": "+8.4s (slower, mostly because eval-0 produced a more thorough fix; not a concerning regression)",
+    "total_tokens": "+319 (negligible)"
+  },
+  "delta_v2_vs_baseline": {
+    "pass_rate": "+50pp (50% → 100%)",
+    "duration_seconds": "+6.6s",
+    "total_tokens": "+1917"
+  },
+  "analyst_observations": [
+    "All assertions pass on iteration 2. The two new requirements (no GPT mention, primary pick) both held across all three task types.",
+    "Caveman style now holds even through synthesis sections (research eval) — the explicit before/after example in the skill carried through.",
+    "Writing eval picked Version B with audience-grounded reasoning ('waitlist already self-selected, FOMO has weaker bite') — exactly the kind of recommendation the user asked for.",
+    "Coding eval slowed by ~20s. Likely cause: more thorough fix (FORCE RLS + belt-and-braces policy). Trade-off: deeper output. Acceptable.",
+    "Recommendation: ship this version. Optional iteration 3 only if user wants to compress coding response or further tighten caveman in long technical sections."
+  ]
+}

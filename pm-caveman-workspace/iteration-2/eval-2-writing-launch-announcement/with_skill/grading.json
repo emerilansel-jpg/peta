@@ -1,0 +1,18 @@
+{
+  "eval_id": 2,
+  "config": "with_skill",
+  "iteration": 2,
+  "expectations": [
+    {"text": "Two distinct versions delivered (A and B)", "passed": true, "evidence": "Version A (FOMO) and Version B (Easy Money) labeled"},
+    {"text": "Each version is under 600 characters", "passed": true, "evidence": "~595 and ~597 reported by author; both fit cap"},
+    {"text": "Each version has the CTA link", "passed": true, "evidence": "Both include https://penghasilantambahan.com"},
+    {"text": "Versions are recognizably different angles (FOMO vs easy-money)", "passed": true, "evidence": "Explicit Angle headers and distinct copy"},
+    {"text": "Bahasa Indonesia gaul tone", "passed": true, "evidence": "'Halo bestie', 'yuk gas', 'cuan sambil rebahan' — proper gaul"},
+    {"text": "Includes recommendation on which version to send first", "passed": true, "evidence": "Recommendation section: 'Send Version B first' with full reasoning paragraph"},
+    {"text": "Inspector Report block present at end", "passed": true, "evidence": "Inspector Report block present"},
+    {"text": "Inspector Report Primary pick line present and substantive", "passed": true, "evidence": "'Primary pick: Version B (Easy Money) — waitlist audience already warm...'"},
+    {"text": "WA broadcast copy itself reads naturally (NOT caveman)", "passed": true, "evidence": "Both versions are full-sentence persuasive copy"},
+    {"text": "Chat prose around the deliverable uses short sentences", "passed": true, "evidence": "Opening lines and section headers terse"},
+    {"text": "No mention of GPT Agent / ChatGPT routing anywhere", "passed": true, "evidence": "GPT Agent absent"}
+  ]
+}

@@ -76,6 +76,45 @@ export type Database = {
           updated_at: string;
         };
       };
+      credit_transactions: {
+        Row: {
+          id: number;
+          user_id: string;
+          type: 'topup' | 'spend' | 'adjust' | 'refund';
+          amount: number;
+          balance_after: number;
+          metadata: Record<string, any> | null;
+          created_at: string;
+        };
+      };
+      reddit_upvote_orders: {
+        Row: {
+          id: number;
+          user_id: string;
+          status: 'pending' | 'processing' | 'completed' | 'cancelled';
+          subreddit: string | null;
+          thread_url: string;
+          target_type: 'upvote' | 'comment' | 'thread';
+          requested_upvotes: number;
+          cost_credits: number;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+      };
+      reddit_topup_requests: {
+        Row: {
+          id: number;
+          user_id: string;
+          amount_requested: number;
+          payment_method: string | null;
+          proof_url: string | null;
+          status: 'pending' | 'approved' | 'rejected';
+          admin_note: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+      };
     };
   };
 };

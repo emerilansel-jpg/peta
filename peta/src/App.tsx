@@ -13,6 +13,14 @@ import { KarmaMission } from './pages/KarmaMission';
 import { Account } from './pages/Account';
 import { Earnings } from './pages/Earnings';
 
+// Reddit Upvotes Pages
+import { RedditLanding } from './modules/reddit/pages/RedditLanding';
+import { RedditDashboard } from './modules/reddit/pages/RedditDashboard';
+import { RedditNewOrder } from './modules/reddit/pages/RedditNewOrder';
+import { RedditOrders } from './modules/reddit/pages/RedditOrders';
+import { RedditTopup } from './modules/reddit/pages/RedditTopup';
+import { RedditAdmin } from './modules/reddit/pages/RedditAdmin';
+
 // Admin Pages
 import { AdminDashboard } from './pages/admin/Dashboard';
 import { AdminRedditAccounts } from './pages/admin/RedditAccounts';
@@ -45,6 +53,14 @@ function App() {
           <Route path="/karma-mission" element={<KarmaMission />} />
           <Route path="/account" element={<Account />} />
           <Route path="/earnings" element={<Earnings />} />
+
+          {/* Reddit Upvotes Routes */}
+          <Route path="/reddit" element={<RedditLanding />} />
+          <Route path="/reddit/dashboard" element={<RedditDashboard />} />
+          <Route path="/reddit/new-order" element={<RedditNewOrder />} />
+          <Route path="/reddit/orders" element={<RedditOrders />} />
+          <Route path="/reddit/topup" element={<RedditTopup />} />
+          <Route path="/reddit/admin" element={<AdminGuard><RedditAdmin /></AdminGuard>} />
 
           {/* Admin Routes (guarded) */}
           <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />

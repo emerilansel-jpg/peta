@@ -1,0 +1,15 @@
+{
+  "eval_id": 2,
+  "config": "with_skill",
+  "expectations": [
+    {"text": "Two distinct versions delivered (A and B)", "passed": true, "evidence": "Version A (FOMO) and Version B (Easy Money) clearly labeled"},
+    {"text": "Each version is under 600 characters", "passed": true, "evidence": "Char counts shown: 438 and 419, both under 600"},
+    {"text": "Each version has the CTA link https://penghasilantambahan.com", "passed": true, "evidence": "Both versions include the CTA URL"},
+    {"text": "Versions are recognizably different angles (FOMO vs easy-money)", "passed": true, "evidence": "Version A explicitly framed as scarcity/loss aversion, Version B as low-effort cuan"},
+    {"text": "Bahasa Indonesia gaul tone", "passed": true, "evidence": "'Bestie', 'gas sekarang', 'cuan sambil rebahan', 'bro/sis' — proper gaul register"},
+    {"text": "Includes recommendation on which version to send first", "passed": false, "evidence": "Suggests 25/25 split for A/B test but does not pick a primary 'send first' winner"},
+    {"text": "Inspector Report block present at end", "passed": true, "evidence": "Inspector Report block at end with all four core lines"},
+    {"text": "WA broadcast copy itself reads naturally (NOT caveman)", "passed": true, "evidence": "Both versions are full-sentence, persuasive copy — caveman not applied to deliverable"},
+    {"text": "Chat prose around the deliverable uses short sentences (caveman applied)", "passed": true, "evidence": "Opening line 'Task type: WRITING. Hats: [RESEARCHER] → [STRATEGIST] → [EXECUTOR] → [INSPECTOR]. All Claude. No GPT routing needed.' — terse"}
+  ]
+}

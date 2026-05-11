@@ -12,6 +12,7 @@ const armyTabs = [
   { href: '/tasks',    label: 'Tugas',     icon: Home },
   { href: '/earnings', label: 'Saldo',     icon: Wallet },
   { href: '/account',  label: 'Akun',      icon: UserIcon },
+  { href: '/reddit',   label: 'Reddit',    icon: LinkIcon },
 ];
 
 const adminLinks = [
@@ -21,6 +22,7 @@ const adminLinks = [
   { href: '/admin/accounts',  label: 'Akun Reddit', icon: LinkIcon },
   { href: '/admin/team',      label: 'Tim',        icon: Users },
   { href: '/admin/payroll',   label: 'Payroll',    icon: Coins },
+  { href: '/reddit/admin',    label: 'Reddit',     icon: LinkIcon },
 ];
 
 export function Layout({ children, userRole = 'army' }: LayoutProps) {

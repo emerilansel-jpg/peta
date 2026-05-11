@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>pm-caveman — Iteration 1 Review</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 1400px; margin: 0 auto; padding: 24px; background: #fafafa; color: #1a1a1a; line-height: 1.5; }
+  h1 { margin: 0 0 4px; font-size: 28px; }
+  .sub { color: #666; margin-bottom: 24px; font-size: 14px; }
+  .tabs { display: flex; gap: 4px; border-bottom: 2px solid #e5e5e5; margin-bottom: 24px; }
+  .tab { padding: 10px 20px; cursor: pointer; border: none; background: transparent; font-size: 15px; font-weight: 500; color: #666; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+  .tab.active { color: #1a1a1a; border-bottom-color: #ff6b6b; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .bench-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px; }
+  .bench-card { background: white; border: 1px solid #e5e5e5; border-radius: 8px; padding: 20px; }
+  .bench-card h3 { margin: 0 0 12px; font-size: 16px; }
+  .metric { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #f0f0f0; }
+  .metric:last-child { border-bottom: none; }
+  .metric .lbl { color: #666; font-size: 13px; }
+  .metric .val { font-weight: 600; font-family: monospace; }
+  .delta { background: #fff8e1; padding: 12px 16px; border-radius: 6px; border-left: 3px solid #FFD93D; margin-bottom: 24px; }
+  .delta b { display: inline-block; }
+  table.per-eval { width: 100%; border-collapse: collapse; background: white; border: 1px solid #e5e5e5; border-radius: 8px; overflow: hidden; margin-bottom: 24px; }
+  table.per-eval th, table.per-eval td { padding: 10px 14px; text-align: left; border-bottom: 1px solid #f0f0f0; font-size: 13px; }
+  table.per-eval th { background: #f7f7f7; font-weight: 600; }
+  table.per-eval tr:last-child td { border-bottom: none; }
+  .observations { background: white; border: 1px solid #e5e5e5; border-radius: 8px; padding: 16px 20px; }
+  .observations h3 { margin-top: 0; }
+  .observations li { margin-bottom: 8px; }
+  .eval-nav { display: flex; gap: 8px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+  .eval-btn { padding: 8px 14px; cursor: pointer; border: 1px solid #ddd; background: white; border-radius: 4px; font-size: 13px; }
+  .eval-btn.active { background: #ff6b6b; color: white; border-color: #ff6b6b; }
+  .arrow-btn { padding: 8px 12px; background: #f0f0f0; border: 1px solid #ddd; cursor: pointer; border-radius: 4px; }
+  .prompt-box { background: #fff; border: 1px solid #e5e5e5; border-radius: 6px; padding: 14px 16px; margin-bottom: 16px; font-size: 14px; }
+  .prompt-box .lbl { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: #999; margin-bottom: 8px; }
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .output-card { background: white; border: 1px solid #e5e5e5; border-radius: 6px; overflow: hidden; }
+  .output-card.with { border-color: #06D6A0; }
+  .output-card .hdr { padding: 10px 16px; background: #f7f7f7; font-weight: 600; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+  .output-card.with .hdr { background: #e8f8f3; }
+  .output-card .body { padding: 14px 16px; max-height: 580px; overflow-y: auto; font-size: 12.5px; }
+  .output-card .body pre { white-space: pre-wrap; word-wrap: break-word; font-family: ui-monospace, 'SF Mono', Consolas, monospace; margin: 0; }
+  .grades { background: white; border: 1px solid #e5e5e5; border-radius: 6px; padding: 14px 16px; margin-bottom: 16px; font-size: 13px; }
+  .grades h4 { margin: 0 0 10px; font-size: 14px; }
+  .grade-row { display: grid; grid-template-columns: 60px 60px 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f5f5f5; align-items: start; }
+  .grade-row:last-child { border-bottom: none; }
+  .badge { display: inline-block; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; text-align: center; min-width: 44px; }
+  .badge.pass { background: #d4f4e2; color: #066f4a; }
+  .badge.fail { background: #fde2e2; color: #a02020; }
+  .feedback-box { background: white; border: 1px solid #e5e5e5; border-radius: 6px; padding: 14px 16px; margin-bottom: 16px; }
+  .feedback-box label { display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px; }
+  .feedback-box textarea { width: 100%; min-height: 100px; padding: 10px; font-family: inherit; font-size: 14px; border: 1px solid #ddd; border-radius: 4px; resize: vertical; }
+  .actions-bar { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; }
+  .submit-btn { background: #ff6b6b; color: white; border: none; padding: 12px 24px; font-size: 15px; font-weight: 600; border-radius: 6px; cursor: pointer; }
+  .submit-btn:hover { background: #ee5a5a; }
+  .save-status { color: #666; font-size: 13px; }
+</style>
+</head>
+<body>
+
+<h1>pm-caveman — Iteration 1 Review</h1>
+<div class="sub">3 test cases × 2 configurations (with-skill vs baseline). Total 6 runs. Feedback auto-saves to localStorage; click Submit to download <code>feedback.json</code>.</div>
+
+<div class="tabs">
+  <button class="tab active" data-tab="outputs">Outputs (3 evals)</button>
+  <button class="tab" data-tab="benchmark">Benchmark</button>
+</div>
+
+<div class="panel active" id="panel-outputs">
+  <div class="eval-nav">
+    <button class="arrow-btn" id="prev-btn">&larr; Prev</button>
+    <button class="eval-btn active" data-eval="0">0 &middot; coding-debug-supabase-rls</button>
+    <button class="eval-btn" data-eval="1">1 &middot; research-competitor-scan</button>
+    <button class="eval-btn" data-eval="2">2 &middot; writing-launch-announcement</button>
+    <button class="arrow-btn" id="next-btn">Next &rarr;</button>
+  </div>
+
+  <div class="prompt-box">
+    <div class="lbl">User prompt</div>
+    <div id="prompt-text"></div>
+  </div>
+
+  <div class="compare-grid">
+    <div class="output-card with">
+      <div class="hdr">With pm-caveman skill <span id="with-tok" style="font-weight:400;font-size:12px;color:#666"></span></div>
+      <div class="body"><pre id="with-out"></pre></div>
+    </div>
+    <div class="output-card">
+      <div class="hdr">Baseline (no skill) <span id="without-tok" style="font-weight:400;font-size:12px;color:#666"></span></div>
+      <div class="body"><pre id="without-out"></pre></div>
+    </div>
+  </div>
+
+  <div class="grades">
+    <h4>Assertion grades</h4>
+    <div class="grade-row" style="font-weight:600;border-bottom:2px solid #e5e5e5">
+      <div>w/ skill</div>
+      <div>baseline</div>
+      <div>Assertion</div>
+    </div>
+    <div id="grade-rows"></div>
+  </div>
+
+  <div class="feedback-box">
+    <label for="fb-text">Your feedback for this eval (auto-saves)</label>
+    <textarea id="fb-text" placeholder="Anything you'd change about either output, or about the skill itself? Empty = looks fine."></textarea>
+    <div class="save-status" id="save-status"></div>
+  </div>
+
+  <div class="actions-bar">
+    <span class="save-status" id="overall-status"></span>
+    <button class="submit-btn" id="submit-btn">Submit All Reviews &rarr; download feedback.json</button>
+  </div>
+</div>
+
+<div class="panel" id="panel-benchmark">
+  <div class="bench-grid">
+    <div class="bench-card">
+      <h3 style="color:#06D6A0">With pm-caveman skill</h3>
+      <div class="metric"><span class="lbl">Pass rate</span><span class="val">87.5% (21/24)</span></div>
+      <div class="metric"><span class="lbl">Mean duration</span><span class="val">47.3s &plusmn; 9.1</span></div>
+      <div class="metric"><span class="lbl">Mean tokens</span><span class="val">51,479 &plusmn; 1,041</span></div>
+    </div>
+    <div class="bench-card">
+      <h3 style="color:#666">Baseline (no skill)</h3>
+      <div class="metric"><span class="lbl">Pass rate</span><span class="val">50.0% (12/24)</span></div>
+      <div class="metric"><span class="lbl">Mean duration</span><span class="val">49.1s &plusmn; 9.7</span></div>
+      <div class="metric"><span class="lbl">Mean tokens</span><span class="val">49,881 &plusmn; 4,574</span></div>
+    </div>
+  </div>
+
+  <div class="delta">
+    <b>Delta (with-skill &minus; baseline):</b>
+    Pass rate <b style="color:#06D6A0">+37.5pp</b> &nbsp;&middot;&nbsp;
+    Duration <b>&minus;1.8s</b> (slightly faster) &nbsp;&middot;&nbsp;
+    Tokens <b>+1,598</b> (~3% &mdash; negligible)
+  </div>
+
+  <h3 style="margin-bottom:8px">Per-eval breakdown</h3>
+  <table class="per-eval">
+    <thead>
+      <tr><th>Eval</th><th>w/ skill pass</th><th>baseline pass</th><th>w/ time</th><th>baseline time</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>coding-debug-supabase-rls</td><td>8/8</td><td>3/8</td><td>55.2s</td><td>60.0s</td></tr>
+      <tr><td>research-competitor-scan</td><td>6/7</td><td>3/7</td><td>49.8s</td><td>48.7s</td></tr>
+      <tr><td>writing-launch-announcement</td><td>8/9</td><td>6/9</td><td>37.0s</td><td>38.5s</td></tr>
+    </tbody>
+  </table>
+
+  <div class="observations">
+    <h3>Analyst observations</h3>
+    <ul>
+      <li>Inspector Report and Caveman style are the dominant differentiators &mdash; baseline reliably misses both.</li>
+      <li>Both configurations land the deliverable content (SQL, comparison table, A/B copy). The skill's value-add is the wrapper: routing visibility, QA pass, terse chat.</li>
+      <li>One assertion fails in BOTH configs ("recommend which version to send first" on writing eval) &mdash; signal the assertion may be miscalibrated, OR the skill should explicitly require a "pick one" recommendation in writing tasks. User input wanted.</li>
+      <li>With-skill chat prose is mostly caveman but slips into normal prose in dense synthesis sections (research eval). Could tighten skill instructions on this if you want stricter caveman.</li>
+      <li>Tokens and time are roughly comparable &mdash; the skill doesn't introduce meaningful overhead.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- Embedded data: type=text/plain so browser ignores execution; we read .textContent -->
+<script type="text/plain" id="prompt-0">Hey lagi pusing nih. Aplikasi PeTa gua (Vite + React + Supabase) abis di-deploy ke Vercel staging tapi pas user army baru daftar terus klik tombol 'Klaim Bonus Rp25K' di onboarding step 1, errornya 'new row violates row-level security policy for table user_credits'. Padahal pas di local works fine. Coba debug dan kasih tau gua root cause + fix-nya. Onboarding pakai RPC claim_onboarding_bonus(p_step) yang SECURITY DEFINER. Schema lengkap ada di CLAUDE.md.</script>
+
+<script type="text/plain" id="prompt-1">Gua mau riset cepet 5 menit doang: kompetitor PeTa (platform micro-task bayar buat komen di internet, target pasar Indonesia). Cari 3-5 platform sejenis yang ada di Indonesia atau SEA, kasih tau pricing model mereka, level/tier system, sama 1 hal yang mereka lakukan lebih bagus dari PeTa. Output dalam tabel singkat.</script>
+
+<script type="text/plain" id="prompt-2">Tolong drafting WhatsApp broadcast announcement untuk launching PeTa ke 50 calon member yang udah daftar waitlist. Tone: gaul Indonesia, casual tapi profesional, fokus ke benefit (bisa earn Rp50K bonus onboarding + komisi per task). CTA: klik link daftar https://penghasilantambahan.com. Max 600 karakter (limit WA broadcast). Buat 2 versi (A/B test): satu fokus ke 'fear of missing out', satunya fokus ke 'easy money'.</script>
+
+<script type="application/json" id="grades-0">
+[
+  [
+    {"text": "Names a specific RLS root cause hypothesis", "passed": true},
+    {"text": "Provides concrete SQL or code fix (not just generic advice)", "passed": true},
+    {"text": "Inspector Report block present at end of delivery", "passed": true},
+    {"text": "Inspector Report has OUTPUT and PROCESS pass/fail lines", "passed": true},
+    {"text": "Inspector Report includes Code health and Security lines (CODING task)", "passed": true},
+    {"text": "Chat prose uses short sentences (avg <8 words)", "passed": true},
+    {"text": "No excess filler words in chat prose", "passed": true},
+    {"text": "Code blocks and SQL stay properly formatted (caveman does NOT corrupt deliverables)", "passed": true}
+  ],
+  [
+    {"text": "Names a specific RLS root cause hypothesis", "passed": true},
+    {"text": "Provides concrete SQL or code fix (not just generic advice)", "passed": true},
+    {"text": "Inspector Report block present at end of delivery", "passed": false},
+    {"text": "Inspector Report has OUTPUT and PROCESS pass/fail lines", "passed": false},
+    {"text": "Inspector Report includes Code health and Security lines (CODING task)", "passed": false},
+    {"text": "Chat prose uses short sentences (avg <8 words)", "passed": false},
+    {"text": "No excess filler words in chat prose", "passed": false},
+    {"text": "Code blocks and SQL stay properly formatted (caveman does NOT corrupt deliverables)", "passed": true}
+  ]
+]
+</script>
+
+<script type="application/json" id="grades-1">
+[
+  [
+    {"text": "Output includes a table with 3-5 competitors", "passed": true},
+    {"text": "Table has columns covering pricing, level/tier system, and competitor advantage", "passed": true},
+    {"text": "Routing decision visible (announced or noted in Inspector Report)", "passed": true},
+    {"text": "Inspector Report block present at end", "passed": true},
+    {"text": "Inspector Report does NOT include Code health/Security lines (non-coding task)", "passed": true},
+    {"text": "Chat prose uses short sentences (avg <8 words)", "passed": false},
+    {"text": "Table content stays readable, not caveman-corrupted", "passed": true}
+  ],
+  [
+    {"text": "Output includes a table with 3-5 competitors", "passed": true},
+    {"text": "Table has columns covering pricing, level/tier system, and competitor advantage", "passed": true},
+    {"text": "Routing decision visible", "passed": false},
+    {"text": "Inspector Report block present at end", "passed": false},
+    {"text": "Inspector Report does NOT include Code health/Security lines (non-coding task)", "passed": false},
+    {"text": "Chat prose uses short sentences (avg <8 words)", "passed": false},
+    {"text": "Table content stays readable", "passed": true}
+  ]
+]
+</script>
+
+<script type="application/json" id="grades-2">
+[
+  [
+    {"text": "Two distinct versions delivered (A and B)", "passed": true},
+    {"text": "Each version is under 600 characters", "passed": true},
+    {"text": "Each version has the CTA link", "passed": true},
+    {"text": "Versions are recognizably different angles (FOMO vs easy-money)", "passed": true},
+    {"text": "Bahasa Indonesia gaul tone", "passed": true},
+    {"text": "Includes recommendation on which version to send first", "passed": false},
+    {"text": "Inspector Report block present at end", "passed": true},
+    {"text": "WA broadcast copy itself reads naturally (NOT caveman)", "passed": true},
+    {"text": "Chat prose around the deliverable uses short sentences", "passed": true}
+  ],
+  [
+    {"text": "Two distinct versions delivered", "passed": true},
+    {"text": "Each version is under 600 characters", "passed": true},
+    {"text": "Each version has the CTA link", "passed": true},
+    {"text": "Versions are recognizably different angles", "passed": true},
+    {"text": "Bahasa Indonesia gaul tone", "passed": true},
+    {"text": "Includes recommendation on which version to send first", "passed": false},
+    {"text": "Inspector Report block present at end", "passed": false},
+    {"text": "WA broadcast copy itself reads naturally", "passed": true},
+    {"text": "Chat prose around the deliverable uses short sentences", "passed": false}
+  ]
+]
+</script>
+
+<!-- Markdown outputs embedded inline so file:// works without a server -->
+<script type="text/plain" id="out-0-with">CODING task. Hats: ARCHITECT → DEBUGGER → DEVELOPER → INSPECTOR. All Claude.
+
+## Root Cause
+
+Staging Supabase missing latest migration. `claim_onboarding_bonus` RPC not present (or stale version) on `duxzxizedtvnopfihllz`. Frontend falls back to direct `INSERT INTO user_credits` → blocked by RLS. Local works because local DB has migration applied; staging never got `supabase db push`.
+
+Second most likely cause: RPC exists but lacks `SECURITY DEFINER`, or owner lacks bypass on `user_credits`. Either way, INSERT runs as authenticated role, RLS denies.
+
+Third: `handle_new_user` trigger missing on staging `auth.users`, so `public.users` row never created. RPC then fails on FK lookup, frontend retries direct insert, RLS blocks.
+
+Symptom fingerprint: error names `user_credits` table, not RPC. Means INSERT ran client-side OR ran inside RPC but without DEFINER context. Both point to migration drift.
+
+## Diagnostic SQL (Run on Staging First)
+
+```sql
+-- 1. Check RPC exists and is SECURITY DEFINER
+SELECT
+  p.proname,
+  p.prosecdef AS is_security_definer,
+  r.rolname AS owner,
+  pg_get_function_identity_arguments(p.oid) AS args
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+JOIN pg_roles r ON r.oid = p.proowner
+WHERE n.nspname = 'public' AND p.proname = 'claim_onboarding_bonus';
+
+-- 2. Check RLS policies on user_credits
+SELECT polname, polcmd, polroles::regrole[], pg_get_expr(polqual, polrelid) AS using_expr,
+       pg_get_expr(polwithcheck, polrelid) AS check_expr
+FROM pg_policy WHERE polrelid = 'public.user_credits'::regclass;
+
+-- 3. Check handle_new_user trigger present
+SELECT tgname, tgrelid::regclass FROM pg_trigger WHERE tgname = 'handle_new_user';
+
+-- 4. Compare migration list
+SELECT name, executed_at FROM supabase_migrations.schema_migrations ORDER BY executed_at DESC;
+```
+
+Compare result `(4)` against local `peta/supabase/migrations/` filenames. Missing = root cause confirmed.
+
+## Fix — Step 1: Sync Migrations
+
+```bash
+cd peta
+supabase link --project-ref duxzxizedtvnopfihllz
+supabase db push
+# verify
+supabase migration list
+```
+
+If `db push` reports drift, pull first:
+```bash
+supabase db pull --schema public
+# inspect, then push
+```
+
+## Fix — Step 2: Idempotent RPC Patch (Apply on Staging Then Prod)
+
+Drop-in correct version. Handles all 5 steps, SECURITY DEFINER, search_path locked, idempotent via partial unique index, returns void.
+
+```sql
+-- File: peta/supabase/migrations/20260506_fix_claim_onboarding_bonus.sql
+
+create or replace function public.claim_onboarding_bonus(p_step text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_amount  int;
+  v_source  text;
+  v_desc    text;
+begin
+  if v_user_id is null then
+    raise exception 'not_authenticated' using errcode = '42501';
+  end if;
+
+  case p_step
+    when 'signup'         then v_amount := 25000; v_source := 'signup_bonus';        v_desc := 'Bonus pendaftaran';
+    when 'wa_group'       then v_amount := 5000;  v_source := 'signup_bonus';        v_desc := 'Bonus join WA group';
+    when 'warp'           then v_amount := 10000; v_source := 'signup_bonus';        v_desc := 'Bonus install WARP';
+    when 'reddit_account' then v_amount := 5000;  v_source := 'signup_bonus';        v_desc := 'Bonus daftar Reddit';
+    when 'reddit_url'     then v_amount := 5000;  v_source := 'signup_bonus';        v_desc := 'Bonus submit Reddit URL';
+    else raise exception 'invalid_step: %', p_step using errcode = '22023';
+  end case;
+
+  -- Idempotent: relies on unique partial index
+  -- (user_id, description) WHERE source='signup_bonus'
+  insert into public.user_credits (user_id, amount, source, description)
+  values (v_user_id, v_amount, v_source, v_desc)
+  on conflict do nothing;
+end;
+$$;
+
+-- Lock down: only authenticated users can call
+revoke all on function public.claim_onboarding_bonus(text) from public;
+grant execute on function public.claim_onboarding_bonus(text) to authenticated;
+
+-- Owner must bypass RLS. Default postgres role does.
+alter function public.claim_onboarding_bonus(text) owner to postgres;
+```
+
+## Fix — Step 3: RLS Sanity (user_credits)
+
+Army users must NOT be able to INSERT directly. Only RPC writes.
+
+```sql
+drop policy if exists "users can insert own credits" on public.user_credits;
+drop policy if exists "user_credits_insert_own" on public.user_credits;
+
+drop policy if exists "user_credits_select_own" on public.user_credits;
+create policy "user_credits_select_own"
+  on public.user_credits for select
+  to authenticated
+  using (user_id = auth.uid());
+
+drop policy if exists "user_credits_admin_all" on public.user_credits;
+create policy "user_credits_admin_all"
+  on public.user_credits for all
+  to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+```
+
+## Verify After Deploy
+
+```sql
+select public.claim_onboarding_bonus('signup');
+select * from public.user_credits where user_id = auth.uid();
+-- Run twice. Second call should not duplicate (idempotent).
+```
+
+Frontend smoke: register new user on staging.penghasilantambahan.com → click Klaim Rp25K → confetti fires, no console error, saldo = Rp25.000.
+
+## Most Likely Single Fix
+
+99% staging needs `supabase db push`. Run that first. If error persists, run RPC patch above. Done.
+
+─────────────────────────────────
+INSPECTOR REPORT
+─────────────────────────────────
+OUTPUT:  PASSED
+PROCESS: PASSED
+
+Speed note:          Skipped repo inspection — symptom alone determined root cause hierarchy. Fast.
+Process improvement: Add `supabase migration list` to staging deploy checklist. Drift caused this.
+Quality note:        SQL is copy-paste runnable.
+Routing:             All Claude. No GPT Agent needed — bounded debug task.
+
+Code health: SECURITY DEFINER + search_path locked + ON CONFLICT DO NOTHING is correct pattern. Scales fine.
+Security:    CLEAR. RPC revokes public, grants authenticated only. Owner=postgres bypasses RLS by design. No SQL injection — p_step validated via CASE.
+─────────────────────────────────
+</script>
+
+<script type="text/plain" id="out-0-without"># PeTa staging: `user_credits` RLS error pas klaim bonus signup
+
+## TL;DR
+
+Migration `20260505133314_claim_onboarding_bonus_rpc.sql` (yang bikin RPC `claim_onboarding_bonus`) kemungkinan besar **belum di-push ke staging**. Akibatnya, salah satu dari dua hal terjadi di staging:
+
+1. Frontend manggil `supabase.rpc('claim_onboarding_bonus', ...)` — function ga ada → fallback ke INSERT langsung ke `user_credits` (kalau ada path itu), atau
+2. RPC ada tapi versi lama tanpa `SECURITY DEFINER` / tanpa `GRANT EXECUTE ... TO authenticated`, jadi insert dieksekusi sebagai user `authenticated` dan kena RLS.
+
+Either way, root cause-nya: **drift migrasi antara local Postgres lo dan staging Supabase**.
+
+## Kenapa diagnosa ini paling masuk akal
+
+`user_credits` cuma punya 2 policy: SELECT own + admin ALL. Ga ada policy INSERT buat army users. Jadi army user yang nyoba INSERT PASTI kena RLS — kecuali insert-nya lewat function `SECURITY DEFINER` yang owner-nya bypass RLS.
+
+RPC lo:
+```sql
+CREATE OR REPLACE FUNCTION public.claim_onboarding_bonus(p_step text)
+RETURNS INTEGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$ ... $$;
+
+GRANT EXECUTE ON FUNCTION public.claim_onboarding_bonus(text) TO authenticated;
+```
+
+Kalau RPC ini ga ada / ga `SECURITY DEFINER` / ga di-grant ke `authenticated` di staging, error yang lo liat 100% ekspektasi.
+
+Pesan errornya juga ngomong eksplisit: "violates RLS for table `user_credits`" — bukan "function does not exist". Itu artinya INSERT-nya beneran ke-trigger, tapi dari role yang ga punya policy.
+
+- **Skenario A (paling mungkin):** RPC udah ada di staging tapi versi lama tanpa `SECURITY DEFINER`.
+- **Skenario B:** Ada code path lain yang INSERT langsung tanpa lewat RPC. Liat `peta/src/lib/api.ts`.
+
+## Cara konfirmasi (1 menit)
+
+```sql
+-- 1. Cek RPC ada dan SECURITY DEFINER?
+SELECT
+  p.proname,
+  p.prosecdef AS is_security_definer,
+  pg_get_userbyid(p.proowner) AS owner,
+  has_function_privilege('authenticated', p.oid, 'execute') AS authenticated_can_exec
+FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname = 'public' AND p.proname = 'claim_onboarding_bonus';
+
+-- 2. Cek migrasi
+SELECT version, name FROM supabase_migrations.schema_migrations ORDER BY version DESC LIMIT 10;
+
+-- 3. Cek policy
+SELECT polname, polcmd FROM pg_policy WHERE polrelid = 'public.user_credits'::regclass;
+```
+
+## Fix
+
+### Opsi 1 (recommended): push migrasi
+
+```bash
+cd peta
+npx supabase link --project-ref duxzxizedtvnopfihllz
+npx supabase db push
+npx supabase migration list --linked
+```
+
+### Opsi 2 (quick): apply manual
+
+Buka SQL Editor staging, paste body migrasi RPC, run.
+
+### Opsi 3 (kalau ternyata frontend)
+
+Cek `peta/src/lib/api.ts` cari `from('user_credits')` atau `.insert(` yang ga lewat RPC.
+
+## Cegah drift
+
+1. **CI gate:** `supabase db push --dry-run` di GH Actions, fail kalau ada migrasi pending.
+2. **Defense in depth:** policy INSERT WITH CHECK (false) untuk army.
+3. **DEPLOYMENT.md:** push staging dulu sebelum merge ke main.
+
+## File relevan
+
+- `peta/supabase/migrations/20260505133314_claim_onboarding_bonus_rpc.sql`
+- `peta/supabase/migrations/20260505114141_add_whatsapp_referral_credits_task_type.sql`
+- `peta/supabase/migrations/20260505132253_signup_bonus_idempotency_and_backfill.sql`
+- `peta/src/pages/Onboarding.tsx`
+- `peta/src/lib/api.ts`
+</script>
+
+<script type="text/plain" id="out-1-with"># Kompetitor PeTa — Quick Scan (5 menit)
+
+Scope: micro-task / paid-engagement platforms relevant ke ID/SEA. Fokus: pricing model, level/tier system, satu hal yang mereka lakukan lebih bagus dari PeTa. Akurasi: best-effort dari pengetahuan publik — verifikasi sebelum dijadikan dasar keputusan strategis.
+
+## Comparison Table
+
+| # | Platform | Region / Audience | Pricing Model (Worker Side) | Level / Tier System | 1 Hal yang Lebih Bagus dari PeTa |
+|---|---|---|---|---|---|
+| 1 | **Microworkers** | Global, banyak worker ID | Per-task USD $0.10–$5+ (tugas: comment, signup, upvote, review). Min payout ~$9 via PayPal/Skrill/wire. | "Success Rate" score (0–100%). Drop di bawah 75% = task pool mengecil. Bukan level eksplisit, tapi gating ketat. | **Anti-fraud + reputation system matang** — TTV (temporary task value) + success rate bikin spammer ke-filter sendiri. PeTa belum punya. |
+| 2 | **Picoworkers (sekarang Rapidworkers)** | Global, populer di ID/PH/BD | Per-task USD $0.05–$1. Min payout $5–$8 (PayPal, Litecoin, Airtm). | Tidak ada level. Hanya rating bintang per worker dari requester. | **Task variety + requester self-service** — siapa pun bisa post task dalam menit. PeTa masih admin-curated (lebih lambat scale). |
+| 3 | **YSense (dulu ClixSense)** | SEA-friendly, ID besar | Mix: paid surveys + micro-tasks ($0.01–$2) + referral commissions (multi-tier). Min payout $10 (PayPal/Skrill/Tango gift cards). | Tier referral 4 level (deep referral earnings up to 5+ tiers). Tidak ada level worker per se. | **Referral economy yang dalam** — multi-level referral bikin organic growth jauh lebih agresif daripada single-tier Rp20K PeTa. |
+| 4 | **Sribu / Projects.co.id** | Indonesia native | Bukan micro-task murni — freelance/contest-based (logo, copywriting, dev). Komisi platform 10–15%, fee per project Rp50K–Rp50jt. | Level seller (Newbie → Pro → Expert) berbasis completed projects + rating. Mirip Fiverr. | **Local payment rails (BCA, Mandiri, OVO, Gopay)** + escrow lokal + customer service Bahasa. PeTa harus catch up di payout UX. |
+| 5 | **Toluna / YouGov Indonesia** | Global survey, kuat di ID | Poin per survey (~Rp5K–Rp25K equivalent). Min payout Rp150K–Rp200K via GoPay/OVO/voucher Tokopedia. | Toluna: badge system (Apprentice → Expert → Master Influencer) berbasis aktivitas, bukan reward jump. | **Reward redemption variety** — bisa cair ke OVO/GoPay/voucher Tokopedia/Shopee, bukan cuma transfer bank. Friction payout jauh lebih rendah. |
+
+## Quick Synthesis (untuk PeTa)
+
+- **Gap #1 — Anti-fraud:** Microworkers' success-rate gating is battle-tested. PeTa's `min_level` + admin approval is a start, but no automated reputation decay yet.
+- **Gap #2 — Payout UX:** Sribu + Toluna pay via OVO/GoPay/Dana. PeTa min Rp150K bank transfer is the slowest option in this list.
+- **Gap #3 — Referral depth:** YSense's multi-tier referral creates compounding growth. PeTa's flat Rp20K both-sides is simpler but caps virality.
+- **PeTa's edge:** Reddit-specialized + Bahasa-first onboarding + curated task quality.
+
+## Confidence / Caveats
+
+- Pricing numbers are public-facing ranges from memory + 2024-era data. Margins, payout minimums, and feature sets shift quarterly.
+- Picoworkers rebranded to Rapidworkers around 2023; same operator.
+- Sribu/Projects.co.id are not direct PeTa competitors but compete for the same Indonesian "earn online" mindshare.
+- Toluna/YouGov are survey-only — included because their **payout rail** is the relevant benchmark.
+
+─────────────────────────────────
+INSPECTOR REPORT
+─────────────────────────────────
+OUTPUT:  PASSED
+PROCESS: PASSED
+
+Speed note:          Skipped web search — used domain knowledge. Saved ~3 min. Acceptable for "5-min cepet" brief.
+Process improvement: For higher-stakes comp scans, run 1 WebSearch pass to refresh pricing numbers.
+Quality note:        Add a "PeTa positioning angle" row next time — turn the scan into a one-line strategic takeaway.
+Routing:             All Claude. GPT Agent overkill for 5-platform scan from memory.
+─────────────────────────────────
+</script>
+
+<script type="text/plain" id="out-1-without"># Riset Cepat: Kompetitor PeTa (Indonesia / SEA)
+
+Scope: platform micro-task / paid engagement / paid-to-comment yang relevan untuk pasar Indonesia. Sumber: pengetahuan umum tentang ekosistem GPT (Get-Paid-To) & micro-task SEA per 2024-2026. Beberapa angka pricing range bisa berubah, jadi anggap ini direksional, bukan final.
+
+## Tabel Perbandingan
+
+| # | Platform | Asal / Pasar | Pricing Model (per task) | Level / Tier System | Yang Mereka Lakukan Lebih Bagus Dari PeTa |
+|---|----------|--------------|--------------------------|---------------------|-------------------------------------------|
+| 1 | **YSense** (dulu ClixSense) | Malaysia, banyak user ID | Survey & micro-task: ~Rp2K–50K per task. Payout via PayPal / e-wallet, min sekitar USD $10 (~Rp160K) | Tier "Trusted Member" (level berdasarkan tugas selesai + verifikasi ID) | **Tracking & dashboard earnings real-time** + integrasi PayPal yang super smooth. UX laporan duit jauh lebih matang dari kebanyakan competitor lokal |
+| 2 | **Microworkers** | Global, basis user ID besar | Per-task fee tetap dari requester: $0.10–$5 (Rp1.5K–80K). Mayoritas task: comment, signup, social share | Rating "Success Rate" (TSR – Temporary Success Rate); kalau drop di bawah 75% akun di-suspend dari kategori task | **Dual-sided marketplace** — siapa pun bisa post task (bukan cuma admin internal). Likuiditas task jauh lebih tinggi |
+| 3 | **Rakuten Insight / Toluna Indonesia** | JP/global, aktif di ID | Survey: Rp5K–50K/survey. Bukan komen tapi mirip "tugas ringan dibayar" | Level berdasarkan profile completeness + survey history → akses survey high-paying | **Profil/screening yang detail** sehingga task yang masuk relevan banget — minim waste effort. PeTa belum punya skill matching |
+| 4 | **Picoworkers / SproutGigs** | Global, popular di ID/PH/IN | Per-task: $0.05–$2 (Rp750–32K). Banyak job comment, upvote, review | "Level 1–3" berdasarkan jumlah task approved + approval rate. Level naik = bisa ambil task lebih mahal | **Approval queue yang transparan** — user lihat alasan reject jelas + bisa appeal. Trust loop lebih kuat |
+| 5 | **Jagel.id / Gigsmart-style lokal ID** (mis. Sribulancer micro-gigs, Projects.co.id micro) | Indonesia | Per-gig Rp10K–100K, biasanya untuk komen/review/social engagement | Reputation score (bintang) + badge verified seller | **Lokalisasi pembayaran** — DANA/OVO/GoPay/transfer bank langsung tanpa min payout tinggi. PeTa min Rp150K terasa berat |
+| 6 | *(bonus)* **TimeBucks** | Global, banyak Indo user | Komen Reddit/Twitter/TikTok: $0.05–$0.50 (Rp750–8K) per aksi + bonus harian | Level berdasarkan poin streak harian | **Daily login bonus + spin wheel** = engagement loop yang adiktif |
+
+## Insight Singkat Buat PeTa
+
+1. **Min payout Rp150K kemahalan** dibanding pemain lokal yang allow Rp25–50K via DANA/OVO. Friction gede buat user baru. Pertimbangkan cair lebih awal di milestone pertama.
+2. **Skill / kualitas matching** belum ada di PeTa — kompetitor pakai approval rate / TSR untuk filter.
+3. **Daily engagement loop** (TimeBucks, Picoworkers) = streak + spin + bonus harian. PeTa Tasks "Coming Soon" page udah kasih streak, lanjutkan ini sebagai diferensiasi.
+4. **Marketplace dua sisi** (Microworkers) = scaling tasks tanpa admin bottleneck. Long-term play, tapi worth dipikirin di roadmap.
+5. **Transparansi reject** (Picoworkers) = retention factor besar. Pastikan `admin_notes` di `task_assignments` selalu visible ke user.
+
+## Catatan
+
+Ada beberapa platform khusus "paid Reddit comment" yang grayer (RedditMoney-type services di Telegram/Discord ID), tapi gak masuk daftar karena legitimasi & sustainability-nya rendah dan langsung melanggar ToS Reddit secara terbuka. PeTa positioning lebih aman karena public-facing-nya generic ("komen di internet").
+</script>
+
+<script type="text/plain" id="out-2-with">Task type: WRITING. Hats: [RESEARCHER] → [STRATEGIST] → [EXECUTOR] → [INSPECTOR]. All Claude. No GPT routing needed.
+
+Two versions below. Both under 600 chars. Bahasa gaul, casual-pro, no Reddit mention.
+
+---
+
+## Version A — FOMO ("Slot terbatas, jangan ketinggalan")
+
+```
+Halo bestie 👋
+
+PeTa udah resmi LAUNCH hari ini — dan kamu masuk 50 orang pertama yang dikasih akses duluan.
+
+Tapi heads up: slot batch pertama TERBATAS. Yang telat daftar bakal masuk waitlist lagi.
+
+Yang kamu dapet kalau gas sekarang:
+✅ Bonus onboarding Rp50.000 (cair pas selesai 5 langkah)
+✅ Komisi per task (cuma komen di internet, dibayar)
+✅ Akses prioritas task batch awal
+
+Klaim slot kamu sebelum tutup:
+👉 https://penghasilantambahan.com
+
+Sampai ketemu di dalam 🚀
+```
+
+Char count: **438** ✅
+
+**Angle:** Scarcity + early access privilege. "50 orang pertama", "slot terbatas", "sebelum tutup". Triggers loss aversion.
+
+---
+
+## Version B — Easy Money ("Cuan gampang, ga ribet")
+
+```
+Bro/sis, kabar baik 🎉
+
+Cara nambah cuan paling santai udah dibuka: PeTa.
+
+Yang kamu lakuin? Cuma komen di internet. Itu doang. Dibayar Rp5rb–20rb per komen.
+
+Plus, bonus selamat datang Rp50.000 langsung masuk saldo cuma karena daftar + ikutin 5 langkah simpel. Belum kerja udah cuan duluan 😎
+
+Min payout Rp150rb, transfer ke rekening kamu.
+
+Daftar gratis sekarang:
+👉 https://penghasilantambahan.com
+
+Cuan sambil rebahan, kuy gas 🔥
+```
+
+Char count: **419** ✅
+
+**Angle:** Low effort, high reward. "Cuma komen", "sambil rebahan", concrete numbers. Triggers ease-of-action.
+
+---
+
+## A/B test notes
+
+| | Version A (FOMO) | Version B (Easy Money) |
+|---|---|---|
+| Hook | Scarcity / urgency | Low-effort cuan |
+| Risk it triggers | "Gw ketinggalan!" | "Gampang banget, kenapa ga?" |
+| Best for | Audience cold tapi competitive | Audience cuan-seeker, value-driven |
+| CTA verb | "Klaim slot" | "Daftar gratis" |
+
+Kirim 25 ke Version A, 25 ke Version B. Track click-through pakai utm tag (`?utm=waA` vs `?utm=waB`) atau pantau registrasi 24 jam pertama.
+
+─────────────────────────────────
+INSPECTOR REPORT
+─────────────────────────────────
+OUTPUT:  PASSED
+PROCESS: PASSED
+
+Speed note:          Drafted both versions in single pass, char-counted inline. No backtrack needed.
+Process improvement: Could have proposed UTM tracking link variants pre-baked instead of just suggesting it.
+Quality note:        Both versions stay under 600 chars with margin (438 / 419). No Reddit mention. Concrete numbers used to anchor value.
+Routing:             All Claude — single-shot copywriting, no GPT Agent needed.
+─────────────────────────────────
+</script>
+
+<script type="text/plain" id="out-2-without"># PeTa Launch — WhatsApp Broadcast Drafts (A/B Test)
+
+Halo! Berikut 2 versi broadcast WA buat 50 calon member di waitlist. Dua-duanya udah di bawah 600 karakter (limit WA broadcast), tone gaul-Indonesia tapi tetep proper, dan CTA ngarah ke link daftar.
+
+---
+
+## Versi A — FOMO ("Fear of Missing Out")
+
+> Fokus: kuota terbatas, eksklusivitas waitlist, urgency.
+
+```
+Halo gaes! Lo masuk waitlist PeTa, dan hari ini kita resmi LAUNCH.
+
+Cuma 50 orang pertama (termasuk lo) yang dibuka duluan sebelum kita open ke publik minggu depan. Slot early-bird = bonus onboarding Rp50.000 langsung cair pas selesai setup, plus akses task pertama dengan komisi tertinggi.
+
+Telat daftar = ketinggalan slot prioritas + bonus mungkin dipotong pas open public.
+
+Daftar sekarang sebelum slot lo dikasih ke yang lain:
+https://penghasilantambahan.com
+
+Sampai ketemu di dalam!
+— Tim PeTa
+```
+
+**Hitungan karakter:** ~545 (termasuk spasi & link)
+
+**Kenapa versi ini work:**
+- Triggers loss aversion ("ketinggalan slot", "dipotong pas open public")
+- Urgency tanpa overpromise (gak bilang "1 jam lagi tutup", lebih believable)
+- Eksklusivitas: "lo masuk waitlist" bikin penerima ngerasa di-treat khusus
+- CTA tunggal, gak ada distraksi
+
+---
+
+## Versi B — Easy Money ("Cuan Gampang")
+
+> Fokus: benefit konkret, gampang dijalanin, low friction.
+
+```
+Halo! PeTa udah resmi launch. Lo bisa mulai cuan dari HP doang, gak perlu skill, gak perlu modal.
+
+Cara kerjanya simpel:
+- Selesai onboarding (~5 menit) = dapet Rp50.000 bonus
+- Tiap task selesai = Rp5.000–20.000 masuk saldo
+- Cair mulai dari Rp150.000
+
+Banyak member baru udah balik modal waktu mereka di hari pertama. Lo tinggal komen di internet, kita yang bayar.
+
+Daftar di sini, langsung mulai:
+https://penghasilantambahan.com
+
+Selamat cuan, gaes!
+— Tim PeTa
+```
+
+**Hitungan karakter:** ~500 (termasuk spasi & link)
+
+**Kenapa versi ini work:**
+- Angka konkret di bullet (lebih trust drivers daripada adjective)
+- "Gak perlu skill, gak perlu modal" = kill 2 objections paling umum
+- "Komen di internet" = on-brand
+- Social proof ringan ("banyak member baru udah balik modal")
+
+---
+
+## Saran A/B Test Plan
+
+| Item | Detail |
+|---|---|
+| Split | 25 nomor → Versi A · 25 nomor → Versi B |
+| Kirim | Sama2 di jam 19.00–20.00 WIB (prime time scroll WA) |
+| Metric utama | **Klik link → daftar selesai** (track via UTM atau referral code unik per versi) |
+| Metric sekunder | Reply rate, completion onboarding 24 jam |
+| UTM contoh | `?utm_source=wa&utm_campaign=launch&utm_content=A` (vs `=B`) |
+
+## Catatan Implementasi
+
+- Sebelum kirim, double-check link `https://penghasilantambahan.com` udah live + register page bisa diakses tanpa error.
+- Pertimbangkan **personalize nama** di awal kalau lo punya nama mereka di list waitlist.
+- Karena ini broadcast (bukan group), pastikan nomor lo udah disimpen sama mereka.
+- Jangan kirim 2 versi ke nomor yang sama — bias hasil A/B-nya.
+</script>
+
+<script>
+const TOK = [
+  {with:'52,650 tok · 55.2s', without:'55,680 tok · 60.0s'},
+  {with:'51,142 tok · 49.8s', without:'47,111 tok · 48.7s'},
+  {with:'50,645 tok · 37.0s', without:'46,852 tok · 38.5s'}
+];
+
+let curr = 0;
+const NUM_EVALS = 3;
+const OUTPUTS = [];
+for (let i = 0; i < NUM_EVALS; i++) {
+  OUTPUTS.push({
+    with: document.getElementById('out-' + i + '-with').textContent,
+    without: document.getElementById('out-' + i + '-without').textContent
+  });
+}
+function loadOutputs() { render(); }
+
+document.querySelectorAll('.tab').forEach(t => {
+  t.onclick = () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('panel-' + t.dataset.tab).classList.add('active');
+  };
+});
+
+document.querySelectorAll('.eval-btn').forEach(b => {
+  b.onclick = () => { curr = parseInt(b.dataset.eval); render(); };
+});
+document.getElementById('prev-btn').onclick = () => { curr = (curr - 1 + NUM_EVALS) % NUM_EVALS; render(); };
+document.getElementById('next-btn').onclick = () => { curr = (curr + 1) % NUM_EVALS; render(); };
+
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'TEXTAREA') return;
+  if (e.key === 'ArrowLeft') { curr = (curr - 1 + NUM_EVALS) % NUM_EVALS; render(); }
+  if (e.key === 'ArrowRight') { curr = (curr + 1) % NUM_EVALS; render(); }
+});
+
+function render() {
+  document.querySelectorAll('.eval-btn').forEach((b,i) => b.classList.toggle('active', i === curr));
+  document.getElementById('prompt-text').textContent = document.getElementById('prompt-' + curr).textContent;
+  document.getElementById('with-out').textContent = OUTPUTS[curr].with || 'Loading…';
+  document.getElementById('without-out').textContent = OUTPUTS[curr].without || 'Loading…';
+  document.getElementById('with-tok').textContent = TOK[curr].with;
+  document.getElementById('without-tok').textContent = TOK[curr].without;
+
+  const grades = JSON.parse(document.getElementById('grades-' + curr).textContent);
+  const gw = grades[0]; const go = grades[1];
+  let html = '';
+  for (let i = 0; i < gw.length; i++) {
+    const wp = gw[i].passed;
+    const op = go[i] ? go[i].passed : false;
+    html += '<div class="grade-row">' +
+      '<div><span class="badge ' + (wp?'pass':'fail') + '">' + (wp?'PASS':'FAIL') + '</span></div>' +
+      '<div><span class="badge ' + (op?'pass':'fail') + '">' + (op?'PASS':'FAIL') + '</span></div>' +
+      '<div>' + gw[i].text + '</div>' +
+      '</div>';
+  }
+  document.getElementById('grade-rows').innerHTML = html;
+
+  const stored = localStorage.getItem('pm_caveman_fb_' + curr) || '';
+  document.getElementById('fb-text').value = stored;
+  document.getElementById('save-status').textContent = stored ? 'Saved.' : '';
+  updateOverallStatus();
+}
+
+const fbEl = document.getElementById('fb-text');
+fbEl.addEventListener('input', () => {
+  localStorage.setItem('pm_caveman_fb_' + curr, fbEl.value);
+  document.getElementById('save-status').textContent = 'Saved.';
+  updateOverallStatus();
+});
+
+function updateOverallStatus() {
+  let n = 0;
+  for (let i = 0; i < NUM_EVALS; i++) if ((localStorage.getItem('pm_caveman_fb_' + i) || '').trim()) n++;
+  document.getElementById('overall-status').textContent = n + '/' + NUM_EVALS + ' eval(s) have feedback. Empty = "looks fine".';
+}
+
+document.getElementById('submit-btn').onclick = () => {
+  const reviews = [];
+  for (let i = 0; i < NUM_EVALS; i++) {
+    reviews.push({
+      run_id: 'eval-' + i + '-with_skill',
+      feedback: (localStorage.getItem('pm_caveman_fb_' + i) || '').trim(),
+      timestamp: new Date().toISOString()
+    });
+  }
+  const data = { reviews: reviews, status: 'complete' };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'feedback.json'; document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+  alert('Downloaded feedback.json. Move it into the iteration-1 folder and tell Claude you are done.');
+};
+
+loadOutputs();
+</script>
+</body>
+</html>

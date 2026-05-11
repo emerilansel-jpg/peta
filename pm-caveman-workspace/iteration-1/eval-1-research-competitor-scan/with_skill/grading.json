@@ -1,0 +1,13 @@
+{
+  "eval_id": 1,
+  "config": "with_skill",
+  "expectations": [
+    {"text": "Output includes a table with 3-5 competitors", "passed": true, "evidence": "Markdown table with 5 platforms (Microworkers, Picoworkers/Rapidworkers, YSense, Sribu, Toluna)"},
+    {"text": "Table has columns covering pricing, level/tier system, and competitor advantage", "passed": true, "evidence": "Columns: Platform, Region, Pricing Model, Level/Tier System, '1 Hal yang Lebih Bagus dari PeTa'"},
+    {"text": "Routing decision visible", "passed": true, "evidence": "Inspector Report Routing line: 'All Claude. GPT Agent overkill for 5-platform scan from memory'"},
+    {"text": "Inspector Report block present at end", "passed": true, "evidence": "Inspector Report block present, with Speed/Process/Quality/Routing notes"},
+    {"text": "Inspector Report does NOT include Code health/Security lines (non-coding task)", "passed": true, "evidence": "Report ends at Routing line — no Code health/Security entries appended"},
+    {"text": "Chat prose uses short sentences (avg <8 words)", "passed": false, "evidence": "Synthesis section uses longer compound sentences ('Microworkers' success-rate gating is battle-tested. PeTa's min_level + admin approval is a start, but no automated reputation decay yet.') — not consistent caveman"},
+    {"text": "Table content (cells) stay readable, not caveman-corrupted", "passed": true, "evidence": "Table cells written in normal prose with full context"}
+  ]
+}

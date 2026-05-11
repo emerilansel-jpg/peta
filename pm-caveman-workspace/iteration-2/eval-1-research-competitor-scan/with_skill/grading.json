@@ -1,0 +1,15 @@
+{
+  "eval_id": 1,
+  "config": "with_skill",
+  "iteration": 2,
+  "expectations": [
+    {"text": "Output includes a table with 3-5 competitors", "passed": true, "evidence": "5 competitors in markdown table"},
+    {"text": "Table has columns covering pricing, level/tier system, and competitor advantage", "passed": true, "evidence": "All required columns present"},
+    {"text": "Inspector Report block present at end", "passed": true, "evidence": "Inspector Report at lines 37-48"},
+    {"text": "Inspector Report does NOT include Code health/Security lines (non-coding task)", "passed": true, "evidence": "Only Speed/Process/Quality + Primary pick lines"},
+    {"text": "Chat prose uses short sentences (avg <8 words) — caveman maintained through synthesis", "passed": true, "evidence": "Synthesis section: 'PeTa unik: reward gede per task' / 'Reputation auto-decay: belum ada' — caveman maintained through synthesis"},
+    {"text": "Table content stays readable, not caveman-corrupted", "passed": true, "evidence": "Table cells in normal Bahasa, full context"},
+    {"text": "Includes a primary pick recommendation when synthesis options are presented", "passed": true, "evidence": "'Pick: tiru loyalty checkpoint YSense dulu' with reason"},
+    {"text": "No mention of GPT Agent / ChatGPT routing anywhere", "passed": true, "evidence": "GPT Agent absent"}
+  ]
+}

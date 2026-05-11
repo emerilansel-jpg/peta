@@ -1,0 +1,62 @@
+{
+  "skill_name": "pm-caveman",
+  "iteration": 1,
+  "configurations": [
+    {
+      "name": "with_skill",
+      "label": "With pm-caveman skill",
+      "pass_rate": {
+        "value": 0.875,
+        "passed": 21,
+        "total": 24
+      },
+      "duration_seconds": {
+        "mean": 47.3,
+        "stddev": 9.1
+      },
+      "total_tokens": {
+        "mean": 51479,
+        "stddev": 1041
+      },
+      "per_eval": [
+        {"eval_name": "coding-debug-supabase-rls", "passed": 8, "total": 8, "duration_seconds": 55.2, "total_tokens": 52650},
+        {"eval_name": "research-competitor-scan", "passed": 6, "total": 7, "duration_seconds": 49.8, "total_tokens": 51142},
+        {"eval_name": "writing-launch-announcement", "passed": 8, "total": 9, "duration_seconds": 37.0, "total_tokens": 50645}
+      ]
+    },
+    {
+      "name": "without_skill",
+      "label": "Baseline (no skill)",
+      "pass_rate": {
+        "value": 0.5,
+        "passed": 12,
+        "total": 24
+      },
+      "duration_seconds": {
+        "mean": 49.1,
+        "stddev": 9.7
+      },
+      "total_tokens": {
+        "mean": 49881,
+        "stddev": 4574
+      },
+      "per_eval": [
+        {"eval_name": "coding-debug-supabase-rls", "passed": 3, "total": 8, "duration_seconds": 60.0, "total_tokens": 55680},
+        {"eval_name": "research-competitor-scan", "passed": 3, "total": 7, "duration_seconds": 48.7, "total_tokens": 47111},
+        {"eval_name": "writing-launch-announcement", "passed": 6, "total": 9, "duration_seconds": 38.5, "total_tokens": 46852}
+      ]
+    }
+  ],
+  "delta": {
+    "pass_rate": "+37.5pp",
+    "duration_seconds": "-1.8s (slightly faster)",
+    "total_tokens": "+1598 (similar)"
+  },
+  "analyst_observations": [
+    "Inspector Report and Caveman style are the dominant differentiators — baseline reliably misses both.",
+    "Both configurations land the deliverable content (SQL, table, A/B copy). The skill's value-add is the wrapper: routing visibility, QA pass, terse chat.",
+    "One assertion fails in BOTH configs (a6 'recommend which version to send first' on writing eval) — that's a signal the assertion may be miscalibrated, OR the skill should explicitly require a 'pick one' recommendation in writing tasks. Worth user input.",
+    "With-skill chat prose is mostly caveman but slips into normal prose in dense synthesis sections (research eval). Could tighten skill instructions on this.",
+    "Tokens and time are roughly comparable — the skill doesn't introduce meaningful overhead."
+  ]
+}

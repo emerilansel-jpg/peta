@@ -1,0 +1,14 @@
+{
+  "eval_id": 1,
+  "eval_name": "research-competitor-scan",
+  "prompt": "Gua mau riset cepet 5 menit doang: kompetitor PeTa (platform micro-task bayar buat komen di internet, target pasar Indonesia). Cari 3-5 platform sejenis yang ada di Indonesia atau SEA, kasih tau pricing model mereka, level/tier system, sama 1 hal yang mereka lakukan lebih bagus dari PeTa. Output dalam tabel singkat.",
+  "assertions": [
+    {"id": "a1", "text": "Output includes a table (markdown or otherwise structured) with 3-5 competitors"},
+    {"id": "a2", "text": "Table has columns covering pricing model, level/tier system, and a competitor advantage"},
+    {"id": "a3", "text": "Routing decision visible (either announced GPT Agent vs Claude plan, or noted 'all Claude' in Inspector Report)"},
+    {"id": "a4", "text": "Inspector Report block present at end"},
+    {"id": "a5", "text": "Inspector Report does NOT include Code health/Security lines (non-coding task)"},
+    {"id": "a6", "text": "Chat prose uses short sentences (avg <8 words)"},
+    {"id": "a7", "text": "Table content (cells) stay readable, not caveman-corrupted"}
+  ]
+}

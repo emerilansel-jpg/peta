@@ -1,0 +1,16 @@
+{
+  "eval_id": 0,
+  "config": "with_skill",
+  "iteration": 2,
+  "expectations": [
+    {"text": "Names a specific RLS root cause hypothesis", "passed": true, "evidence": "Function owner not BYPASSRLS as primary; migration drift + search_path hijack as runner-ups"},
+    {"text": "Provides concrete SQL or code fix (not just generic advice)", "passed": true, "evidence": "Full migration file with DROP/CREATE/ALTER OWNER/REVOKE/GRANT in BEGIN..COMMIT block"},
+    {"text": "Inspector Report block present at end of delivery", "passed": true, "evidence": "Inspector Report at lines 151-165"},
+    {"text": "Inspector Report has OUTPUT and PROCESS pass/fail lines", "passed": true, "evidence": "OUTPUT: PASSED, PROCESS: PASSED both present"},
+    {"text": "Inspector Report includes Code health and Security lines (CODING task)", "passed": true, "evidence": "Both lines present"},
+    {"text": "Chat prose uses short sentences (avg <8 words)", "passed": true, "evidence": "Most sentences 5-12 words; intro line 'Symptom: works local, fails staging.' is caveman-style"},
+    {"text": "No excess filler words in chat prose", "passed": true, "evidence": "Sparse use of articles and modals"},
+    {"text": "Code blocks and SQL stay properly formatted", "passed": true, "evidence": "All SQL fenced and properly indented"},
+    {"text": "No mention of GPT Agent / ChatGPT routing anywhere", "passed": true, "evidence": "GPT Agent fully absent from response"}
+  ]
+}

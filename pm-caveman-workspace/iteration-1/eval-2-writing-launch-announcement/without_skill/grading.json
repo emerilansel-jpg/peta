@@ -1,0 +1,15 @@
+{
+  "eval_id": 2,
+  "config": "without_skill",
+  "expectations": [
+    {"text": "Two distinct versions delivered (A and B)", "passed": true, "evidence": "Version A (FOMO) and Version B (Easy Money) labeled"},
+    {"text": "Each version is under 600 characters", "passed": true, "evidence": "Char counts shown: ~545 and ~500"},
+    {"text": "Each version has the CTA link", "passed": true, "evidence": "URL present in both"},
+    {"text": "Versions are recognizably different angles", "passed": true, "evidence": "FOMO vs Easy Money clearly differentiated"},
+    {"text": "Bahasa Indonesia gaul tone", "passed": true, "evidence": "'gaes', 'cuan', 'lo' usage; gaul register"},
+    {"text": "Includes recommendation on which version to send first", "passed": false, "evidence": "Provides A/B split plan and metrics, no first-version pick"},
+    {"text": "Inspector Report block present at end", "passed": false, "evidence": "Response ends with Catatan Implementasi section, no Inspector Report"},
+    {"text": "WA broadcast copy itself reads naturally", "passed": true, "evidence": "Full-sentence WA copy, normal style"},
+    {"text": "Chat prose around the deliverable uses short sentences (caveman applied)", "passed": false, "evidence": "Normal multi-clause Indonesian prose throughout"}
+  ]
+}
