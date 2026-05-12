@@ -79,9 +79,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       <aside className="hidden md:flex md:flex-col md:w-64 bg-slate-900 text-white sticky top-0 h-dvh">
         <div className="p-6 border-b border-slate-800">
           <Link to="/reddit/admin" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center text-white font-bold">
-              R
-            </div>
+            <img src="/straight/icon-192.png" alt="Straight Ltd" className="w-9 h-9 rounded-lg object-cover" />
             <div>
               <div className="font-bold">Straight Ltd</div>
               <div className="text-xs text-slate-400">Admin Console</div>
@@ -145,7 +143,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       <header className="md:hidden fixed top-0 inset-x-0 z-40 bg-slate-900 text-white">
         <div className="h-14 px-4 flex items-center justify-between">
           <Link to="/reddit/admin" className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-orange-500 flex items-center justify-center text-white text-sm font-bold">R</div>
+            <img src="/straight/icon-192.png" alt="Straight Ltd" className="w-8 h-8 rounded-lg object-cover" />
             <span className="font-bold">Admin</span>
           </Link>
           <div className="flex items-center gap-2">

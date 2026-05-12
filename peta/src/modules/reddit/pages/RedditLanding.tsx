@@ -40,9 +40,7 @@ export function RedditLanding() {
       <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center text-white font-bold">
-              R
-            </div>
+            <img src="/straight/icon-192.png" alt="Straight Ltd" className="w-8 h-8 rounded-lg object-cover" />
             <span className="font-bold text-lg">Straight Ltd</span>
             <span className="text-xs text-slate-500 ml-1">Pro</span>
           </div>
@@ -483,7 +481,7 @@ export function RedditLanding() {
       <footer className="py-12 border-t border-slate-200 bg-white">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-slate-600 text-sm">
-            <div className="w-6 h-6 rounded bg-orange-500 flex items-center justify-center text-white text-xs font-bold">R</div>
+            <img src="/straight/icon-192.png" alt="Straight Ltd" className="w-6 h-6 rounded object-cover" />
             <span>Straight Ltd Pro · © {new Date().getFullYear()}</span>
           </div>
           <div className="flex gap-6 text-sm text-slate-500">

@@ -137,9 +137,7 @@ export function RedditSignup() {
         <div className="bg-white rounded-2xl shadow-xl ring-1 ring-slate-200 p-8">
           {/* Logo */}
           <div className="flex items-center gap-2 mb-2">
-            <div className="w-9 h-9 rounded-lg bg-orange-500 flex items-center justify-center text-white font-bold">
-              R
-            </div>
+            <img src="/straight/icon-192.png" alt="Straight Ltd" className="w-10 h-10 rounded-lg object-cover" />
             <div>
               <div className="font-bold text-slate-900">Straight Ltd</div>
               <div className="text-xs text-slate-500">Pro Dashboard</div>
