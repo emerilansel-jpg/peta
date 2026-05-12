@@ -11,6 +11,7 @@
     "og": "node scripts/og.mjs"
   },
   "dependencies": {
+    "@paypal/react-paypal-js": "^9.2.0",
     "@supabase/supabase-js": "^2.105.3",
     "@tanstack/react-query": "^5.100.9",
     "axios": "^1.16.0",

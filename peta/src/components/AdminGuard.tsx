@@ -1,11 +1,22 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { toast } from './Toast';
 
 export function AdminGuard({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [state, setState] = React.useState<'checking' | 'allowed' | 'denied'>('checking');
+
+  const isRedditPath = location.pathname.startsWith('/reddit');
+  const loginPath = isRedditPath ? '/reddit/login' : '/login';
+  const fallbackPath = isRedditPath ? '/reddit/dashboard' : '/tasks';
+  const accessDeniedMsg = isRedditPath
+    ? 'Admin access required.'
+    : 'Halaman ini khusus admin.';
+  const loginRequiredMsg = isRedditPath
+    ? 'Please sign in as an admin.'
+    : 'Login dulu sebagai admin.';
 
   React.useEffect(() => {
     let cancelled = false;
@@ -13,8 +24,8 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         if (!cancelled) {
-          toast.error('Login dulu sebagai admin.');
-          navigate('/login');
+          toast.error(loginRequiredMsg);
+          navigate(loginPath);
         }
         return;
       }
@@ -27,13 +38,13 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
       if (profile?.role === 'admin') {
         setState('allowed');
       } else {
-        toast.error('Halaman ini khusus admin.');
-        navigate('/tasks');
+        toast.error(accessDeniedMsg);
+        navigate(fallbackPath);
         setState('denied');
       }
     })();
     return () => { cancelled = true; };
-  }, [navigate]);
+  }, [navigate, loginPath, fallbackPath, accessDeniedMsg, loginRequiredMsg]);
 
   if (state !== 'allowed') return null;
   return <>{children}</>;

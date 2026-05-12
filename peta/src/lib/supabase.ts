@@ -14,7 +14,10 @@ export type Database = {
           email: string;
           full_name: string | null;
           role: 'army' | 'admin';
+          role_title: string | null;
+          website: string | null;
           is_active: boolean;
+          credit_balance: number;
           created_at: string;
           updated_at: string;
         };
@@ -97,22 +100,96 @@ export type Database = {
           target_type: 'upvote' | 'comment' | 'thread';
           requested_upvotes: number;
           cost_credits: number;
+          delivered_upvotes: number | null;
           notes: string | null;
+          admin_notes: string | null;
+          delivery_proof_text: string | null;
+          delivery_proof_url: string | null;
           created_at: string;
           updated_at: string;
+          completed_at: string | null;
         };
       };
       reddit_topup_requests: {
         Row: {
           id: number;
           user_id: string;
-          amount_requested: number;
-          payment_method: string | null;
-          proof_url: string | null;
-          status: 'pending' | 'approved' | 'rejected';
-          admin_note: string | null;
+          amount_cents: number;
+          credits_purchased: number;
+          payment_method: string;
+          paypal_order_id: string | null;
+          paypal_capture_id: string | null;
+          payment_status: 'pending' | 'completed' | 'failed' | 'refunded';
+          metadata: Record<string, any> | null;
           created_at: string;
           updated_at: string;
+          completed_at: string | null;
+        };
+      };
+      order_tickets: {
+        Row: {
+          id: number;
+          order_id: number;
+          user_id: string;
+          subject: string | null;
+          status: 'open' | 'closed' | 'pending_user' | 'pending_admin';
+          last_message_at: string | null;
+          unread_user: number;
+          unread_admin: number;
+          created_at: string;
+          updated_at: string;
+        };
+      };
+      ticket_messages: {
+        Row: {
+          id: number;
+          ticket_id: number;
+          sender_id: string;
+          sender_role: 'user' | 'admin' | 'system';
+          body: string;
+          attachments: Record<string, any> | null;
+          read_by_user: boolean;
+          read_by_admin: boolean;
+          created_at: string;
+        };
+      };
+      reviews: {
+        Row: {
+          id: number;
+          user_id: string;
+          order_id: number | null;
+          type: 'internal' | 'trustpilot' | 'advise';
+          rating: number | null;
+          reviewer_name: string | null;
+          reviewer_role: string | null;
+          reviewer_website: string | null;
+          reviewer_profile_pic_url: string | null;
+          profile_pic_consent: boolean;
+          dofollow_link_requested: boolean;
+          dofollow_link_granted: boolean;
+          title: string | null;
+          body: string | null;
+          trustpilot_url: string | null;
+          trustpilot_screenshot_url: string | null;
+          status: 'pending' | 'approved' | 'rejected' | 'credit_awarded';
+          credit_awarded_cents: number;
+          admin_notes: string | null;
+          created_at: string;
+          reviewed_at: string | null;
+        };
+      };
+      notifications: {
+        Row: {
+          id: number;
+          user_id: string;
+          target_role: 'user' | 'admin';
+          type: 'message' | 'order_status' | 'review' | 'credit' | 'payment' | 'general';
+          title: string;
+          body: string | null;
+          link: string | null;
+          is_read: boolean;
+          metadata: Record<string, any> | null;
+          created_at: string;
         };
       };
     };

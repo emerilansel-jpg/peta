@@ -1,34 +1,35 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getTopupRequests, createTopupRequest } from '../lib/api';
+import { getTopupHistory, completePayPalTopup } from '../lib/api';
 
 export function useTopups() {
   const queryClient = useQueryClient();
 
   const { data: topups, isLoading } = useQuery({
     queryKey: ['reddit', 'topups'],
-    queryFn: getTopupRequests,
+    queryFn: () => getTopupHistory(),
   });
 
-  const createTopupMutation = useMutation({
+  const completeTopupMutation = useMutation({
     mutationFn: ({
-      amountRequested,
-      paymentMethod,
-      proofUrl,
+      amountCents,
+      paypalOrderId,
+      paypalCaptureId,
     }: {
-      amountRequested: number;
-      paymentMethod: string;
-      proofUrl: string | null;
-    }) => createTopupRequest(amountRequested, paymentMethod, proofUrl),
+      amountCents: number;
+      paypalOrderId: string;
+      paypalCaptureId: string;
+    }) => completePayPalTopup(amountCents, paypalOrderId, paypalCaptureId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reddit', 'topups'] });
+      queryClient.invalidateQueries({ queryKey: ['reddit', 'credits'] });
     },
   });
 
   return {
     topups: topups || [],
     isLoading,
-    createTopup: createTopupMutation.mutate,
-    isCreating: createTopupMutation.isPending,
-    error: createTopupMutation.error,
+    completeTopup: completeTopupMutation.mutateAsync,
+    isCompleting: completeTopupMutation.isPending,
+    error: completeTopupMutation.error,
   };
 }
