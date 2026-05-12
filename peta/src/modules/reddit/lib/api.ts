@@ -3,6 +3,24 @@ import { supabase } from '../../../lib/supabase';
 // Price per upvote in cents (USD)
 const PRICE_PER_UPVOTE_CENTS = 50; // $0.50
 
+// ============ B1G1 Beta Promo ============
+
+export interface B1G1Status {
+  user_bonus_cents: number;
+  user_remaining_cents: number;
+  unique_claimants: number;
+  max_clients: number;
+  slots_remaining: number;
+  is_active: boolean;
+  max_per_user_cents: number;
+}
+
+export async function getB1G1Status(): Promise<B1G1Status> {
+  const { data, error } = await supabase.rpc('fn_get_b1g1_status');
+  if (error) throw error;
+  return data as B1G1Status;
+}
+
 // Get user's credit balance (in cents)
 export async function getCreditsBalance() {
   const { data: { user } } = await supabase.auth.getUser();

@@ -20,19 +20,18 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     let cancelled = false;
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        if (!cancelled) {
-          toast.error(loginRequiredMsg);
-          navigate(loginPath);
-        }
+
+    const checkAccess = async (session: any) => {
+      if (cancelled) return;
+      if (!session) {
+        toast.error(loginRequiredMsg);
+        navigate(loginPath);
         return;
       }
       const { data: profile } = await supabase
         .from('users')
         .select('role')
-        .eq('id', user.id)
+        .eq('id', session.user.id)
         .maybeSingle();
       if (cancelled) return;
       if (profile?.role === 'admin') {
@@ -42,6 +41,33 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
         navigate(fallbackPath);
         setState('denied');
       }
+    };
+
+    (async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        checkAccess(session);
+        return;
+      }
+      // No session yet — wait for OAuth hash if present
+      const hasOAuthHash =
+        typeof window !== 'undefined' && window.location.hash.includes('access_token');
+      if (hasOAuthHash) {
+        const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+          if (event === 'SIGNED_IN' && s) {
+            sub.subscription.unsubscribe();
+            checkAccess(s);
+          }
+        });
+        setTimeout(() => {
+          if (!cancelled) {
+            sub.subscription.unsubscribe();
+            supabase.auth.getSession().then(({ data }) => checkAccess(data.session));
+          }
+        }, 4000);
+        return;
+      }
+      checkAccess(null);
     })();
     return () => { cancelled = true; };
   }, [navigate, loginPath, fallbackPath, accessDeniedMsg, loginRequiredMsg]);

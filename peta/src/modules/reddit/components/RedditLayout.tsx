@@ -40,24 +40,58 @@ export function RedditLayout({ children, showAdminLink = false }: RedditLayoutPr
   };
 
   useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+    let cancelled = false;
+
+    const initFromSession = async (session: any) => {
+      if (cancelled) return;
+      if (!session) {
         navigate('/reddit/login');
         return;
       }
-      setUserId(user.id);
-      setUserEmail(user.email || '');
-
+      setUserId(session.user.id);
+      setUserEmail(session.user.email || '');
       const { data: profile } = await supabase
         .from('users')
         .select('role')
-        .eq('id', user.id)
-        .single();
-
+        .eq('id', session.user.id)
+        .maybeSingle();
+      if (cancelled) return;
       setIsAdmin(profile?.role === 'admin');
       refreshBadges();
+    };
+
+    (async () => {
+      // getSession() handles URL hash from OAuth callbacks (#access_token=...)
+      // and uses the cached session, avoiding a race where getUser() runs before
+      // Supabase has parsed the hash.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        initFromSession(session);
+        return;
+      }
+      // No session yet — if URL has an OAuth hash, wait briefly for it to land.
+      const hasOAuthHash =
+        typeof window !== 'undefined' && window.location.hash.includes('access_token');
+      if (hasOAuthHash) {
+        const { data: sub } = supabase.auth.onAuthStateChange((event, s) => {
+          if (event === 'SIGNED_IN' && s) {
+            sub.subscription.unsubscribe();
+            initFromSession(s);
+          }
+        });
+        // Fallback: bail after 4s if nothing fires
+        setTimeout(() => {
+          if (!cancelled) {
+            sub.subscription.unsubscribe();
+            supabase.auth.getSession().then(({ data }) => initFromSession(data.session));
+          }
+        }, 4000);
+        return;
+      }
+      navigate('/reddit/login');
     })();
+
+    return () => { cancelled = true; };
   }, [navigate]);
 
   // Realtime instead of polling
@@ -105,7 +139,10 @@ export function RedditLayout({ children, showAdminLink = false }: RedditLayoutPr
           <Link to="/reddit" className="flex items-center gap-2">
             <img src="/straight/icon-192.png" alt="Straight Ltd" className="w-9 h-9 rounded-lg object-cover" />
             <div>
-              <div className="font-bold text-slate-900">Straight Ltd</div>
+              <div className="font-bold text-slate-900 flex items-center gap-1.5">
+                Straight Ltd
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 uppercase tracking-wider">Beta</span>
+              </div>
               <div className="text-xs text-slate-500">Pro Dashboard</div>
             </div>
           </Link>
@@ -177,7 +214,10 @@ export function RedditLayout({ children, showAdminLink = false }: RedditLayoutPr
         <div className="h-14 px-4 flex items-center justify-between">
           <Link to="/reddit" className="flex items-center gap-2">
             <img src="/straight/icon-192.png" alt="Straight Ltd" className="w-8 h-8 rounded-lg object-cover" />
-            <span className="font-bold text-slate-900">Straight Ltd</span>
+            <span className="font-bold text-slate-900 flex items-center gap-1.5">
+              Straight Ltd
+              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 uppercase tracking-wider">Beta</span>
+            </span>
           </Link>
           <div className="flex items-center gap-2">
             <Link to="/reddit/topup" className="text-sm font-semibold text-orange-600">

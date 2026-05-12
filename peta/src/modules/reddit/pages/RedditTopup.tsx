@@ -1,12 +1,12 @@
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
-import { Check, Shield, AlertCircle, Sparkles, Lock, Zap } from 'lucide-react';
+import { Check, Shield, AlertCircle, Sparkles, Lock, Zap, Gift } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { RedditLayout } from '../components/RedditLayout';
 import { useTopups } from '../hooks/useTopups';
 import { useRedditCredits } from '../hooks/useRedditCredits';
-import { formatUSD } from '../lib/api';
+import { formatUSD, getB1G1Status, type B1G1Status } from '../lib/api';
 
 const PAYPAL_CLIENT_ID = import.meta.env.VITE_PAYPAL_CLIENT_ID || 'test';
 
@@ -21,10 +21,10 @@ interface Package {
 const PACKAGES: Package[] = [
   { amount: 25, bonus: 0, label: 'Starter', description: '50 upvotes' },
   { amount: 50, bonus: 0, label: 'Growth', description: '100 upvotes' },
-  { amount: 100, bonus: 5, label: 'Operator', description: '200 upvotes', popular: true },
-  { amount: 250, bonus: 8, label: 'Studio', description: '500 upvotes' },
-  { amount: 500, bonus: 10, label: 'Agency', description: '1,000 upvotes' },
-  { amount: 1000, bonus: 15, label: 'Scale', description: '2,000 upvotes' },
+  { amount: 100, bonus: 0, label: 'Operator', description: '200 upvotes', popular: true },
+  { amount: 250, bonus: 0, label: 'Studio', description: '500 upvotes' },
+  { amount: 500, bonus: 0, label: 'Agency', description: '1,000 upvotes' },
+  { amount: 1000, bonus: 0, label: 'Scale', description: '2,000 upvotes' },
 ];
 
 export function RedditTopup() {
@@ -33,11 +33,28 @@ export function RedditTopup() {
   const { topups, completeTopup } = useTopups();
   const [selectedPkg, setSelectedPkg] = useState<Package>(PACKAGES[2]);
   const [processing, setProcessing] = useState(false);
+  const [b1g1, setB1g1] = useState<B1G1Status | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    getB1G1Status()
+      .then((s) => { if (mounted) setB1g1(s); })
+      .catch(() => {});
+    return () => { mounted = false; };
+  }, []);
 
   const finalAmount = selectedPkg.amount;
   const isValidAmount = true;
   const bonus = selectedPkg.bonus;
-  const totalCreditsCents = Math.round(finalAmount * 100 * (1 + bonus / 100));
+  const baseCents = Math.round(finalAmount * 100 * (1 + bonus / 100));
+
+  // B1G1 bonus calculation (preview — final amount comes from server)
+  const b1g1BonusCents =
+    b1g1 && b1g1.is_active && b1g1.user_remaining_cents > 0
+      ? Math.min(finalAmount * 100, b1g1.user_remaining_cents)
+      : 0;
+
+  const totalCreditsCents = baseCents + b1g1BonusCents;
 
   const handlePayPalApprove = async (data: any, actions: any) => {
     setProcessing(true);
@@ -45,13 +62,17 @@ export function RedditTopup() {
       const details = await actions.order.capture();
       const captureId = details.purchase_units?.[0]?.payments?.captures?.[0]?.id;
 
+      // amountCents = what was actually charged via PayPal (server adds B1G1 bonus on top)
       await completeTopup({
-        amountCents: totalCreditsCents,
+        amountCents: Math.round(finalAmount * 100),
         paypalOrderId: data.orderID,
         paypalCaptureId: captureId || data.orderID,
       });
 
-      toast.success(`${formatUSD(totalCreditsCents)} credit added to your account!`);
+      const bonusMsg = b1g1BonusCents > 0 ? ` (incl. ${formatUSD(b1g1BonusCents)} Beta bonus!)` : '';
+      toast.success(`${formatUSD(totalCreditsCents)} credit added${bonusMsg}`);
+      // Refresh promo status — global slots may have changed
+      getB1G1Status().then(setB1g1).catch(() => {});
       setTimeout(() => navigate('/reddit/dashboard'), 1500);
     } catch (err: any) {
       toast.error(err.message || 'Failed to process payment');
@@ -64,12 +85,47 @@ export function RedditTopup() {
     <RedditLayout>
       <div className="p-6 md:p-10 max-w-5xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-6">
           <h1 className="text-3xl font-bold text-slate-900">Top up credit</h1>
           <p className="text-slate-600 mt-1">
-            Secure PayPal checkout. Credits never expire. Bonus credit on packages $100+.
+            Secure PayPal checkout. Credits never expire.
           </p>
         </div>
+
+        {/* B1G1 Beta Promo Banner */}
+        {b1g1 && b1g1.is_active && (
+          <div className="mb-6 p-5 rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 text-white shadow-lg shadow-orange-500/20 relative overflow-hidden">
+            <div className="absolute -top-8 -right-8 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
+            <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+              <div className="flex items-start gap-3">
+                <div className="hidden md:flex w-12 h-12 rounded-xl bg-white/20 items-center justify-center shrink-0">
+                  <Gift size={22} />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-widest bg-white/25 px-2 py-0.5 rounded">Beta launch</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-orange-50">Limited offer</span>
+                  </div>
+                  <p className="font-bold text-lg md:text-xl leading-tight">
+                    🎉 Buy 1, Get 1 — every top-up matched 100%
+                  </p>
+                  <p className="text-xs md:text-sm text-orange-50 mt-1">
+                    Up to <strong className="text-white">$100 bonus per client</strong> · {b1g1.slots_remaining}/{b1g1.max_clients} client slots left
+                    {b1g1.user_bonus_cents > 0 && (
+                      <> · You've claimed <strong className="text-white">{formatUSD(b1g1.user_bonus_cents)}</strong> of {formatUSD(b1g1.max_per_user_cents)}</>
+                    )}
+                  </p>
+                </div>
+              </div>
+              {b1g1.user_remaining_cents > 0 && (
+                <div className="md:text-right shrink-0">
+                  <p className="text-[10px] uppercase tracking-wider text-orange-100 font-semibold">Your remaining bonus</p>
+                  <p className="text-2xl font-bold">{formatUSD(b1g1.user_remaining_cents)}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Balance bar */}
         <div className="mb-8 p-5 rounded-xl bg-gradient-to-r from-slate-900 to-slate-800 text-white flex items-center justify-between">
@@ -145,20 +201,29 @@ export function RedditTopup() {
 
               <div className="px-6 py-5 space-y-3">
                 <div className="flex justify-between text-sm">
-                  <span className="text-slate-600">Amount</span>
+                  <span className="text-slate-600">You pay</span>
                   <span className="font-semibold text-slate-900">${finalAmount.toFixed(2)}</span>
                 </div>
+                {b1g1BonusCents > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-orange-600 flex items-center gap-1 font-semibold">
+                      <Gift size={12} />
+                      Beta B1G1 bonus
+                    </span>
+                    <span className="font-bold text-orange-600">+{formatUSD(b1g1BonusCents)}</span>
+                  </div>
+                )}
                 {bonus > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-emerald-600 flex items-center gap-1">
                       <Sparkles size={12} />
-                      Bonus credit
+                      Volume bonus
                     </span>
                     <span className="font-semibold text-emerald-600">+${(finalAmount * bonus / 100).toFixed(2)}</span>
                   </div>
                 )}
                 <div className="pt-3 border-t border-slate-200 flex justify-between">
-                  <span className="font-bold text-slate-900">Total credit</span>
+                  <span className="font-bold text-slate-900">Credit you receive</span>
                   <span className="text-2xl font-bold text-orange-600">
                     {formatUSD(totalCreditsCents)}
                   </span>

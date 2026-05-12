@@ -36,14 +36,24 @@ export function AdminOverview() {
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
+    // Run each query independently so one failure doesn't blank the dashboard
+    const safeRun = async <T,>(fn: () => Promise<T>, fallback: T, label: string): Promise<T> => {
+      try {
+        return await fn();
+      } catch (err: any) {
+        console.error(`[AdminOverview] ${label} failed:`, err?.message || err);
+        return fallback;
+      }
+    };
+
     try {
       const [s, orders, tickets, users, reviews, frs] = await Promise.all([
-        getAdminFinanceStats(),
-        getAdminAllOrders(),
-        getAdminAllTickets(),
-        getAdminAllUsers(),
-        getAdminReviews(),
-        getAdminFeatureRequests(),
+        safeRun(getAdminFinanceStats, { todayRevenue: 0, monthlyRevenue: 0, totalRevenue: 0, totalOrders: 0, completedOrders: 0, pendingOrders: 0, totalUpvotesDelivered: 0 } as any, 'finance stats'),
+        safeRun(getAdminAllOrders, [] as any[], 'orders'),
+        safeRun(getAdminAllTickets, [] as any[], 'tickets'),
+        safeRun(getAdminAllUsers, [] as any[], 'users'),
+        safeRun(getAdminReviews, [] as any[], 'reviews'),
+        safeRun(getAdminFeatureRequests, [] as any[], 'feature requests'),
       ]);
       setStats(s);
       setRecentOrders(orders.slice(0, 5));
