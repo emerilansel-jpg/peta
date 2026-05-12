@@ -8,7 +8,8 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "og": "node scripts/og.mjs"
+    "og": "node scripts/og.mjs",
+    "brand:straight": "node scripts/brand-straight.mjs"
   },
   "dependencies": {
     "@paypal/react-paypal-js": "^9.2.0",

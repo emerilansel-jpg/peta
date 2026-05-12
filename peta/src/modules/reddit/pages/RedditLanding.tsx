@@ -43,7 +43,7 @@ export function RedditLanding() {
             <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center text-white font-bold">
               R
             </div>
-            <span className="font-bold text-lg">RedditBoost</span>
+            <span className="font-bold text-lg">Straight Ltd</span>
             <span className="text-xs text-slate-500 ml-1">Pro</span>
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
@@ -365,7 +365,7 @@ export function RedditLanding() {
                 role: 'Growth Lead, B2B SaaS Agency',
               },
               {
-                quote: "We tested 6 competitors. RedditBoost was the only one where my client's post actually stayed up. Now it's our default tool.",
+                quote: "We tested 6 competitors. Straight Ltd was the only one where my client's post actually stayed up. Now it's our default tool.",
                 name: 'Sasha P.',
                 role: 'Founder, Affiliate Marketing Studio',
               },
@@ -484,7 +484,7 @@ export function RedditLanding() {
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-slate-600 text-sm">
             <div className="w-6 h-6 rounded bg-orange-500 flex items-center justify-center text-white text-xs font-bold">R</div>
-            <span>RedditBoost Pro · © {new Date().getFullYear()}</span>
+            <span>Straight Ltd Pro · © {new Date().getFullYear()}</span>
           </div>
           <div className="flex gap-6 text-sm text-slate-500">
             <a href="#" className="hover:text-slate-900">Terms</a>

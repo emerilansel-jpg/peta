@@ -91,10 +91,10 @@ export function RedditReviews() {
             externalUrl={ADVISE_URL}
             externalLabel="advise.so Slack community"
             urlPlaceholder="Slack message permalink, screenshot, or post URL"
-            urlHelp="Paste a link to your Slack message recommending RedditBoost — OR upload a screenshot below."
+            urlHelp="Paste a link to your Slack message recommending Straight Ltd — OR upload a screenshot below."
             customCopy={{
               headline: 'Recommend us inside the advise.so community',
-              description: 'Are you an advise.so member? Share a good word about RedditBoost in their Slack (or any other forum/community where operators hang out). Submit proof here for $10 credit.',
+              description: 'Are you an advise.so member? Share a good word about Straight Ltd in their Slack (or any other forum/community where operators hang out). Submit proof here for $10 credit.',
             }}
           />
         )}
@@ -330,7 +330,7 @@ function ProofReviewTab({ type, title, reward, externalUrl, externalLabel, urlPl
           <div>
             <h2 className="text-xl font-bold">{customCopy?.headline || `Earn ${reward} credit for a ${title}`}</h2>
             <p className="text-sm text-orange-50 mt-1">
-              {customCopy?.description || `Help other operators discover RedditBoost. We add ${reward} credit to your account within 24 hours after verification.`}
+              {customCopy?.description || `Help other operators discover Straight Ltd. We add ${reward} credit to your account within 24 hours after verification.`}
             </p>
             <a
               href={externalUrl}

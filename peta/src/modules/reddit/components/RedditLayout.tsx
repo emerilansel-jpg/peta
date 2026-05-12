@@ -107,7 +107,7 @@ export function RedditLayout({ children, showAdminLink = false }: RedditLayoutPr
               R
             </div>
             <div>
-              <div className="font-bold text-slate-900">RedditBoost</div>
+              <div className="font-bold text-slate-900">Straight Ltd</div>
               <div className="text-xs text-slate-500">Pro Dashboard</div>
             </div>
           </Link>
@@ -179,7 +179,7 @@ export function RedditLayout({ children, showAdminLink = false }: RedditLayoutPr
         <div className="h-14 px-4 flex items-center justify-between">
           <Link to="/reddit" className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-orange-500 flex items-center justify-center text-white text-sm font-bold">R</div>
-            <span className="font-bold text-slate-900">RedditBoost</span>
+            <span className="font-bold text-slate-900">Straight Ltd</span>
           </Link>
           <div className="flex items-center gap-2">
             <Link to="/reddit/topup" className="text-sm font-semibold text-orange-600">

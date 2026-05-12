@@ -79,7 +79,7 @@ export function RedditLogin() {
           className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 mb-6"
         >
           <ArrowLeft size={14} />
-          Back to RedditBoost
+          Back to Straight Ltd
         </Link>
 
         <div className="bg-white rounded-2xl shadow-xl ring-1 ring-slate-200 p-8">
@@ -88,7 +88,7 @@ export function RedditLogin() {
               R
             </div>
             <div>
-              <div className="font-bold text-slate-900">RedditBoost</div>
+              <div className="font-bold text-slate-900">Straight Ltd</div>
               <div className="text-xs text-slate-500">Pro Dashboard</div>
             </div>
           </div>

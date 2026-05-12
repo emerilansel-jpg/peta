@@ -45,7 +45,7 @@ const STATUS_CONFIG: Record<string, { label: string; class: string; icon: any; d
     label: 'Completed',
     class: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
     icon: CheckCircle2,
-    desc: 'Delivery complete. Thanks for choosing RedditBoost.',
+    desc: 'Delivery complete. Thanks for choosing Straight Ltd.',
   },
   cancelled: {
     label: 'Cancelled',

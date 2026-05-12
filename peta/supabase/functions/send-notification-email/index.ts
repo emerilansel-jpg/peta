@@ -28,7 +28,7 @@ const CORS_HEADERS = {
 
 // Tailwind-like inline email styles (works in most email clients)
 function emailTemplate(payload: EmailRequest, link?: string): string {
-  const appLink = link || 'https://redditboost.pro/reddit/dashboard';
+  const appLink = link || 'https://straight.ltd/reddit/dashboard';
   const linkText = (() => {
     switch (payload.type) {
       case 'message':
@@ -40,7 +40,7 @@ function emailTemplate(payload: EmailRequest, link?: string): string {
       case 'credit':
         return 'View dashboard';
       default:
-        return 'Open RedditBoost';
+        return 'Open Straight Ltd';
     }
   })();
 
@@ -50,7 +50,7 @@ function emailTemplate(payload: EmailRequest, link?: string): string {
 <div style="background: linear-gradient(to right, #f97316, #f59e0b); padding: 24px; color: white;">
 <div style="display: flex; align-items: center; gap: 8px;">
 <div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.2); display: inline-flex; align-items: center; justify-content: center; font-weight: bold;">R</div>
-<strong style="font-size: 18px;">RedditBoost</strong>
+<strong style="font-size: 18px;">Straight Ltd</strong>
 </div>
 </div>
 <div style="padding: 32px 24px;">
@@ -59,7 +59,7 @@ function emailTemplate(payload: EmailRequest, link?: string): string {
 <a href="${appLink}" style="display: inline-block; padding: 10px 20px; background: #f97316; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">${linkText} →</a>
 </div>
 <div style="padding: 16px 24px; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 12px; text-align: center;">
-You received this because you have a RedditBoost account.<br>
+You received this because you have a Straight Ltd account.<br>
 <a href="${appLink}" style="color: #f97316;">Manage notifications</a>
 </div>
 </div>
@@ -91,7 +91,7 @@ serve(async (req: Request) => {
     // @ts-ignore - Deno env API
     const apiKey = Deno.env.get('RESEND_API_KEY');
     // @ts-ignore - Deno env API
-    const fromAddress = Deno.env.get('EMAIL_FROM') || 'RedditBoost <onboarding@resend.dev>';
+    const fromAddress = Deno.env.get('EMAIL_FROM') || 'Straight Ltd <onboarding@resend.dev>';
 
     if (!apiKey) {
       return new Response(JSON.stringify({ error: 'RESEND_API_KEY not configured' }), {

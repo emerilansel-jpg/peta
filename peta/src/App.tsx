@@ -48,7 +48,7 @@ import './index.css';
 const queryClient = new QueryClient();
 
 // Hostname-based home redirect.
-// straight.ltd is the RedditBoost product → / should go to /reddit.
+// straight.ltd is the Straight Ltd product → / should go to /reddit.
 // penghasilantambahan.com (and localhost) → / stays at PeTa landing.
 function HostnameHomeRouter() {
   const location = useLocation();

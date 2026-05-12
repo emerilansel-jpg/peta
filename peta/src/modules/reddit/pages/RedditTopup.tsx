@@ -132,7 +132,7 @@ export function RedditTopup() {
             </div>
 
             <p className="mt-3 text-xs text-slate-500 text-center">
-              Need a larger package or volume pricing? <a href="mailto:billing@redditboost.pro" className="text-orange-600 font-semibold hover:underline">Contact sales</a>
+              Need a larger package or volume pricing? <a href="mailto:billing@straight.ltd" className="text-orange-600 font-semibold hover:underline">Contact sales</a>
             </p>
           </div>
 
@@ -208,7 +208,7 @@ export function RedditTopup() {
                                 value: finalAmount.toFixed(2),
                                 currency_code: 'USD',
                               },
-                              description: `RedditBoost credit top-up: $${finalAmount.toFixed(2)}`,
+                              description: `Straight Ltd credit top-up: $${finalAmount.toFixed(2)}`,
                             },
                           ],
                         });

@@ -83,7 +83,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               R
             </div>
             <div>
-              <div className="font-bold">RedditBoost</div>
+              <div className="font-bold">Straight Ltd</div>
               <div className="text-xs text-slate-400">Admin Console</div>
             </div>
           </Link>
