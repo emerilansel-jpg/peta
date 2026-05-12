@@ -52,6 +52,9 @@ export function RedditSignup() {
   const handleGoogleSignup = async () => {
     setLoading(true);
     try {
+      // OAuth providers (Google, etc.) are Straight-only — PeTa never uses OAuth.
+      // handle_new_user trigger detects OAuth via raw_app_meta_data->>'provider'
+      // and assigns role='client' accordingly.
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
@@ -89,6 +92,7 @@ export function RedditSignup() {
         password,
         options: {
           data: {
+            product: 'straight', // marks this signup as Straight Ltd client (vs PeTa army)
             full_name: fullName.trim(),
             role_title: roleTitle || null,
             website: website.trim() || null,

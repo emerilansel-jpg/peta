@@ -198,7 +198,7 @@ export async function adminAdjustCredits(
 // ADMIN: Update user profile (name, role, active status)
 export async function adminUpdateUser(
   userId: string,
-  updates: { full_name?: string; role?: 'army' | 'admin'; is_active?: boolean }
+  updates: { full_name?: string; role?: 'army' | 'admin' | 'client'; is_active?: boolean }
 ) {
   const { data, error } = await supabase.rpc('admin_update_user_extended', {
     p_user_id: userId,

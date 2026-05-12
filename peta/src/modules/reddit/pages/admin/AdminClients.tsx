@@ -34,13 +34,14 @@ function ClientsList() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'army' | 'admin'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'client' | 'admin'>('all');
 
   const load = async () => {
     setLoading(true);
     try {
       const data = await getAdminAllUsers();
-      setUsers(data);
+      // Straight Ltd admin sees clients + admins only. PeTa army users live in /admin/team.
+      setUsers(data.filter((u: any) => u.role === 'client' || u.role === 'admin'));
     } catch {
       toast.error('Failed to load clients');
     }
@@ -87,17 +88,17 @@ function ClientsList() {
 
         <div className="bg-white rounded-xl ring-1 ring-slate-200 p-2 mb-6 flex flex-col md:flex-row gap-2">
           <div className="flex gap-1 overflow-x-auto">
-            {['all', 'army', 'admin'].map((r) => {
+            {(['all', 'client', 'admin'] as const).map((r) => {
               const count = r === 'all' ? users.length : users.filter((u) => u.role === r).length;
               return (
                 <button
                   key={r}
-                  onClick={() => setRoleFilter(r as any)}
+                  onClick={() => setRoleFilter(r)}
                   className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition whitespace-nowrap ${
                     roleFilter === r ? 'bg-slate-900 text-white' : 'text-slate-600 hover:bg-slate-100'
                   }`}
                 >
-                  {r === 'army' ? 'Clients' : r === 'admin' ? 'Admins' : 'All'}
+                  {r === 'client' ? 'Clients' : r === 'admin' ? 'Admins' : 'All'}
                   <span className="ml-1.5 text-xs opacity-70">{count}</span>
                 </button>
               );
@@ -423,7 +424,7 @@ function EditClientModal({
   onSaved: () => void;
 }) {
   const [fullName, setFullName] = useState(user.full_name || '');
-  const [role, setRole] = useState<'army' | 'admin'>(user.role);
+  const [role, setRole] = useState<'client' | 'admin'>(user.role === 'admin' ? 'admin' : 'client');
   const [isActive, setIsActive] = useState(user.is_active);
   const [saving, setSaving] = useState(false);
 
@@ -473,7 +474,7 @@ function EditClientModal({
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-1.5">Role</label>
             <div className="grid grid-cols-2 gap-2">
-              {(['army', 'admin'] as const).map((r) => (
+              {(['client', 'admin'] as const).map((r) => (
                 <button
                   key={r}
                   type="button"
@@ -482,7 +483,7 @@ function EditClientModal({
                     role === r ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
                   }`}
                 >
-                  {r === 'army' ? 'Client' : 'Admin'}
+                  {r === 'client' ? 'Client' : 'Admin'}
                 </button>
               ))}
             </div>

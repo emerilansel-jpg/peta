@@ -56,6 +56,12 @@ export function RedditLayout({ children, showAdminLink = false }: RedditLayoutPr
         .eq('id', session.user.id)
         .maybeSingle();
       if (cancelled) return;
+      // PeTa army users don't belong in the Straight Ltd dashboard.
+      // Bounce them to the PeTa tasks home so currencies + products stay separated.
+      if (profile?.role === 'army') {
+        navigate('/tasks');
+        return;
+      }
       setIsAdmin(profile?.role === 'admin');
       refreshBadges();
     };
