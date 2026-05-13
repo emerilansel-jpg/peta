@@ -18,18 +18,50 @@ import { calculateLevel } from './levels';
 // Level is recomputed by a BEFORE INSERT/UPDATE trigger on reddit_accounts,
 // so the value here is for optimistic UI only.
 
-type RedditAbout = { link_karma?: number; comment_karma?: number; created_utc?: number };
+type RedditAbout = { link_karma?: number; comment_karma?: number; created_utc?: number; is_suspended?: boolean };
 
-function parseAbout(raw: any): { karma: number; accountAgeDays: number } | null {
+export type RedditStatusFlag = 'ok' | 'suspended' | 'not_found' | 'unknown';
+
+type ProxyResult =
+  | { ok: true; karma: number; accountAgeDays: number; statusFlag: RedditStatusFlag }
+  | { ok: false; statusFlag: RedditStatusFlag };
+
+function parseAbout(raw: any): ProxyResult {
+  // Reddit returns a few distinct shapes:
+  //   active user   → { kind: "t2", data: { link_karma, comment_karma, created_utc, ... } }
+  //   suspended     → { kind: "t2", data: { is_suspended: true, ... } }   (no karma fields)
+  //   not found     → { error: 404, message: "Not Found" } or HTML fragment
+  if (!raw) return { ok: false, statusFlag: 'unknown' };
+
+  // Explicit "not found" shapes
+  const errCode = raw?.error;
+  const errMsg = (raw?.message || '').toString().toLowerCase();
+  if (errCode === 404 || errMsg.includes('not found') || errMsg.includes('user not found')) {
+    return { ok: false, statusFlag: 'not_found' };
+  }
+
   const d: RedditAbout | undefined = raw?.data ?? raw;
-  if (!d || typeof d.created_utc !== 'number') return null;
+  if (!d) return { ok: false, statusFlag: 'unknown' };
+
+  if (d.is_suspended === true) {
+    return { ok: false, statusFlag: 'suspended' };
+  }
+
+  if (typeof d.created_utc !== 'number') {
+    // Some shadowbanned / private accounts return data shells without
+    // created_utc. Treat as not_found for actionability.
+    return { ok: false, statusFlag: 'not_found' };
+  }
+
   const karma = (d.link_karma || 0) + (d.comment_karma || 0);
   const accountAgeDays = Math.floor((Date.now() - d.created_utc * 1000) / 86_400_000);
-  if (!Number.isFinite(accountAgeDays) || accountAgeDays < 0) return null;
-  return { karma, accountAgeDays };
+  if (!Number.isFinite(accountAgeDays) || accountAgeDays < 0) {
+    return { ok: false, statusFlag: 'unknown' };
+  }
+  return { ok: true, karma, accountAgeDays, statusFlag: 'ok' };
 }
 
-async function fetchViaProxy(proxyUrl: string, timeoutMs = 6000): Promise<{ karma: number; accountAgeDays: number } | null> {
+async function fetchViaProxy(proxyUrl: string, timeoutMs = 6000): Promise<ProxyResult | null> {
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -41,8 +73,10 @@ async function fetchViaProxy(proxyUrl: string, timeoutMs = 6000): Promise<{ karm
       headers: { Accept: 'application/json' },
     });
     if (!r.ok) return null;
-    const j = await r.json().catch(() => null);
-    if (!j) return null;
+    const text = await r.text();
+    if (!text) return null;
+    let j: any;
+    try { j = JSON.parse(text); } catch { return null; }
     // allorigins.win wraps response in { contents: "<json string>" }
     if (typeof j?.contents === 'string') {
       try { return parseAbout(JSON.parse(j.contents)); } catch { return null; }
@@ -55,37 +89,59 @@ async function fetchViaProxy(proxyUrl: string, timeoutMs = 6000): Promise<{ karm
   }
 }
 
-export async function syncRedditKarma(username: string) {
+export type SyncRedditResult = {
+  karma: number;
+  accountAgeDays: number;
+  level: number;
+  success: true;
+  fallback: boolean;
+  statusFlag: RedditStatusFlag;
+};
+
+export async function syncRedditKarma(username: string): Promise<SyncRedditResult> {
   // Sanitize: strip URL prefix, slashes, whitespace; keep only username chars.
   const clean = String(username || '')
     .replace(/^.*?(?:reddit\.com\/)?(?:u\/|user\/)?/i, '')
     .replace(/[^A-Za-z0-9_-]/g, '')
     .slice(0, 32);
   if (!clean) {
-    return { karma: 0, accountAgeDays: 0, level: 0, success: true, fallback: true };
+    return { karma: 0, accountAgeDays: 0, level: 0, success: true, fallback: true, statusFlag: 'unknown' };
   }
 
   const aboutUrl = `https://www.reddit.com/user/${clean}/about.json`;
   const aboutUrlEnc = encodeURIComponent(aboutUrl);
 
-  // Tier 1 — codetabs CORS proxy. User's residential IP fetches from Reddit
-  // (not blocked, unlike Supabase data-center egress). Verified 2026-05-13.
-  // Returns raw Reddit JSON. Free, no API key, ~300-500ms median.
-  // Retry 3x with backoff to handle codetabs/Reddit rate-limit flakiness.
+  // Tier 1 — codetabs CORS proxy. User's residential IP fetches from Reddit.
+  // Retry 3x with backoff for rate-limit flakiness. Bail early when we get
+  // a *definitive* suspended/not_found verdict — no point retrying those.
   const codetabsUrl = `https://api.codetabs.com/v1/proxy?quest=${aboutUrlEnc}`;
+  let lastFlag: RedditStatusFlag = 'unknown';
   for (let attempt = 0; attempt < 3; attempt++) {
     if (attempt > 0) {
       await new Promise((r) => setTimeout(r, 400 * attempt));
     }
     const result = await fetchViaProxy(codetabsUrl);
-    if (result) {
+    if (!result) continue; // network/proxy error — retry
+    if (result.ok) {
       return {
-        ...result,
+        karma: result.karma,
+        accountAgeDays: result.accountAgeDays,
         level: calculateLevel(result.karma, result.accountAgeDays),
         success: true,
         fallback: false,
+        statusFlag: result.statusFlag,
       };
     }
+    lastFlag = result.statusFlag;
+    if (result.statusFlag === 'suspended' || result.statusFlag === 'not_found') {
+      // Definitive verdict — no point retrying
+      break;
+    }
+  }
+
+  // If proxy gave us a definitive bad-account verdict, surface it.
+  if (lastFlag === 'suspended' || lastFlag === 'not_found') {
+    return { karma: 0, accountAgeDays: 0, level: 0, success: true, fallback: true, statusFlag: lastFlag };
   }
 
   // Tier 2 — edge function (OAuth path if REDDIT_CLIENT_ID set, else falls back).
@@ -102,14 +158,15 @@ export async function syncRedditKarma(username: string) {
         level: calculateLevel(karma, accountAgeDays),
         success: true,
         fallback: false,
+        statusFlag: 'ok',
       };
     }
   } catch (error) {
     console.warn('edge-function fallback also failed:', error);
   }
 
-  // Tier 3 — all paths failed. Return zeros so user can still proceed.
-  return { karma: 0, accountAgeDays: 0, level: 0, success: true, fallback: true };
+  // Tier 3 — all paths failed. Return zeros with unknown flag.
+  return { karma: 0, accountAgeDays: 0, level: 0, success: true, fallback: true, statusFlag: 'unknown' };
 }
 
 export async function getRedditAccounts(userId: string) {
@@ -137,6 +194,9 @@ export async function addRedditAccount(userId: string, username: string) {
       karma: karmaData.karma,
       account_age_days: karmaData.accountAgeDays,
       level: karmaData.level,
+      status_flag: karmaData.statusFlag,
+      flagged_at: karmaData.statusFlag === 'suspended' || karmaData.statusFlag === 'not_found'
+        ? new Date().toISOString() : null,
     })
     .select()
     .single();
@@ -149,10 +209,13 @@ export async function updateRedditAccountKarma(accountId: string, username: stri
   const karmaData = await syncRedditKarma(username);
   if (!karmaData.success) throw new Error('Failed to sync Reddit data');
 
-  // CRITICAL: When Reddit blocks the edge function (karmaData.fallback=true),
-  // we MUST NOT overwrite stored karma with 0 — that would clobber any value
-  // an admin set manually via admin_set_karma. Only write when we got real data.
-  if (karmaData.fallback) {
+  const isBadAccount = karmaData.statusFlag === 'suspended' || karmaData.statusFlag === 'not_found';
+
+  // CRITICAL: When proxy/Reddit returns "unknown" (network flake), we MUST
+  // NOT overwrite stored karma with 0 — that would clobber admin-set values.
+  // BUT for definitive verdicts (suspended/not_found), we DO want to flag
+  // the row so admin + user see it.
+  if (karmaData.fallback && !isBadAccount) {
     const { data } = await supabase
       .from('reddit_accounts')
       .select('*')
@@ -161,19 +224,27 @@ export async function updateRedditAccountKarma(accountId: string, username: stri
     return { account: data, fallback: true };
   }
 
-  // DB trigger recomputes level + last_sync from karma + account_age_days.
+  const updates: Record<string, unknown> = {
+    status_flag: karmaData.statusFlag,
+    flagged_at: isBadAccount ? new Date().toISOString() : null,
+  };
+  if (!isBadAccount) {
+    // Healthy sync — persist real karma + age. DB trigger recomputes level.
+    updates.karma = karmaData.karma;
+    updates.account_age_days = karmaData.accountAgeDays;
+  }
+  // If banned/not_found, intentionally leave karma+age untouched so admin
+  // can see last-good values while the flag highlights the issue.
+
   const { data, error } = await supabase
     .from('reddit_accounts')
-    .update({
-      karma: karmaData.karma,
-      account_age_days: karmaData.accountAgeDays,
-    })
+    .update(updates)
     .eq('id', accountId)
     .select()
     .single();
 
   if (error) throw error;
-  return { account: data, fallback: false };
+  return { account: data, fallback: karmaData.fallback, statusFlag: karmaData.statusFlag };
 }
 
 // User toggle: hide the "Gabung WhatsApp" CTA on the Tasks page forever.
@@ -469,7 +540,9 @@ export async function hasClaimedKarmaMilestone(userId: string): Promise<boolean>
 }
 
 // Highest karma across all reddit accounts for a user. Used by Karma Mission
-// progress bar without re-hitting reddit.com.
+// progress bar without re-hitting reddit.com. Also surfaces status_flag so
+// Tasks/Earnings/Account pages can show a "your Reddit account got banned —
+// fix it" banner without re-running the sync.
 export async function getMaxRedditKarma(userId: string): Promise<{
   karma: number;
   level: number;
@@ -478,30 +551,45 @@ export async function getMaxRedditKarma(userId: string): Promise<{
   accountId: string | null;
   pendingKarma: number | null;
   pendingSubmittedAt: string | null;
+  statusFlag: RedditStatusFlag;
+  flaggedAt: string | null;
+  hasFlaggedAccount: boolean;
 }> {
   const { data, error } = await supabase
     .from('reddit_accounts')
-    .select('id, username, karma, level, account_age_days, pending_karma, pending_karma_submitted_at')
+    .select('id, username, karma, level, account_age_days, pending_karma, pending_karma_submitted_at, status_flag, flagged_at')
     .eq('user_id', userId)
-    .order('karma', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .order('karma', { ascending: false });
   if (error) throw error;
-  if (!data) {
+  const rows = (data || []) as Array<{
+    id: string; username: string; karma: number; level: number; account_age_days: number;
+    pending_karma: number | null; pending_karma_submitted_at: string | null;
+    status_flag: RedditStatusFlag; flagged_at: string | null;
+  }>;
+  if (rows.length === 0) {
     return {
       karma: 0, level: 0, accountAgeDays: 0,
       username: null, accountId: null,
       pendingKarma: null, pendingSubmittedAt: null,
+      statusFlag: 'unknown', flaggedAt: null,
+      hasFlaggedAccount: false,
     };
   }
+  const top = rows[0];
+  const hasFlaggedAccount = rows.some(
+    (r) => r.status_flag === 'suspended' || r.status_flag === 'not_found'
+  );
   return {
-    karma: data.karma || 0,
-    level: data.level || 0,
-    accountAgeDays: data.account_age_days || 0,
-    username: data.username,
-    accountId: data.id,
-    pendingKarma: data.pending_karma ?? null,
-    pendingSubmittedAt: data.pending_karma_submitted_at ?? null,
+    karma: top.karma || 0,
+    level: top.level || 0,
+    accountAgeDays: top.account_age_days || 0,
+    username: top.username,
+    accountId: top.id,
+    pendingKarma: top.pending_karma ?? null,
+    pendingSubmittedAt: top.pending_karma_submitted_at ?? null,
+    statusFlag: (top.status_flag || 'unknown') as RedditStatusFlag,
+    flaggedAt: top.flagged_at,
+    hasFlaggedAccount,
   };
 }
 

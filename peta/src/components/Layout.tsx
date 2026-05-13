@@ -97,6 +97,12 @@ export function Layout({ children, userRole = 'army' }: LayoutProps) {
               );
             })}
           </nav>
+          <Link
+            to="/tasks"
+            className="mx-3 mt-2 flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold text-secondary ring-1 ring-secondary/40 hover:bg-secondary/10"
+          >
+            <Home size={18} /> Lihat Sisi Army
+          </Link>
           <button
             onClick={handleLogout}
             className="m-3 flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold text-muted hover:bg-light"
@@ -160,6 +166,13 @@ export function Layout({ children, userRole = 'army' }: LayoutProps) {
                   );
                 })}
               </nav>
+              <Link
+                to="/tasks"
+                onClick={() => setDrawerOpen(false)}
+                className="mx-3 mt-2 flex items-center gap-2 px-3 py-3 rounded-lg text-base font-semibold text-secondary ring-1 ring-secondary/40 hover:bg-secondary/10"
+              >
+                <Home size={20} /> Lihat Sisi Army
+              </Link>
               <button
                 onClick={handleLogout}
                 className="m-3 flex items-center gap-2 px-3 py-3 rounded-lg text-base font-semibold text-muted hover:bg-light"

@@ -4,7 +4,7 @@ import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
-import { Send, Mail, MessageCircle, ExternalLink, Check, AlertTriangle, RotateCcw, Megaphone } from 'lucide-react';
+import { Send, Mail, MessageCircle, ExternalLink, Check, AlertTriangle, RotateCcw, Megaphone, Zap, Copy } from 'lucide-react';
 import {
   createBroadcast,
   listBroadcasts,
@@ -250,12 +250,74 @@ export function AdminBroadcast() {
               {/* WhatsApp distribution panel — manual click-through */}
               {waRecipients.length > 0 && (
                 <div className="mb-6">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                     <h3 className="text-sm font-extrabold flex items-center gap-1.5">
                       <MessageCircle size={16} className="text-success" /> WhatsApp ({waPending} pending)
                     </h3>
-                    <p className="text-[11px] text-muted">Klik tombol → WA terbuka → kirim → balik & klik ✓</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <button
+                        onClick={async () => {
+                          const message = `*${selectedBroadcast.subject}*\n\n${selectedBroadcast.body}\n\n— PeTa Team\nhttps://www.penghasilantambahan.com`;
+                          const pending = waRecipients.filter((r) => r.status === 'pending' && r.whatsapp_snapshot).slice(0, 5);
+                          if (pending.length === 0) { toast.error('Tidak ada pending'); return; }
+                          if (!confirm(`Open ${pending.length} WhatsApp chat sekaligus + tandai sent? Pastikan popup browser tidak diblokir.`)) return;
+                          let opened = 0;
+                          for (const r of pending) {
+                            const link = buildWhatsappLink(r.whatsapp_snapshot!, message);
+                            const w = window.open(link, '_blank', 'noopener,noreferrer');
+                            if (w) opened++;
+                            await markRecipientSent(r.id);
+                            // 250ms breathing room helps avoid the browser popup blocker
+                            // ditching subsequent windows.
+                            await new Promise((res) => setTimeout(res, 250));
+                          }
+                          queryClient.invalidateQueries({ queryKey: ['broadcast-recipients', selectedBroadcastId] });
+                          queryClient.invalidateQueries({ queryKey: ['broadcasts'] });
+                          toast.success(`${opened} WA dibuka${opened < pending.length ? ' (popup blocker?)' : ''}`);
+                        }}
+                        className="text-xs font-bold bg-success text-white px-3 py-1.5 rounded-full flex items-center gap-1 hover:brightness-110"
+                      >
+                        <Zap size={12} /> Buka 5 WA Sekaligus
+                      </button>
+                      <button
+                        onClick={async () => {
+                          const phones = waRecipients
+                            .filter((r) => r.status === 'pending' && r.whatsapp_snapshot)
+                            .map((r) => {
+                              let p = (r.whatsapp_snapshot || '').replace(/[^0-9]/g, '');
+                              if (p.startsWith('0')) p = '62' + p.slice(1);
+                              return p;
+                            })
+                            .filter((p) => p.length >= 8);
+                          if (phones.length === 0) { toast.error('Tidak ada nomor pending'); return; }
+                          try {
+                            await navigator.clipboard.writeText(phones.join(', '));
+                            toast.success(`${phones.length} nomor disalin (62...)`);
+                          } catch {
+                            toast.error('Browser block clipboard');
+                          }
+                        }}
+                        className="text-xs font-bold bg-light text-dark px-3 py-1.5 rounded-full flex items-center gap-1 ring-1 ring-border hover:ring-primary"
+                      >
+                        <Copy size={12} /> Copy Nomor
+                      </button>
+                      <button
+                        onClick={async () => {
+                          const message = `*${selectedBroadcast.subject}*\n\n${selectedBroadcast.body}\n\n— PeTa Team\nhttps://www.penghasilantambahan.com`;
+                          try {
+                            await navigator.clipboard.writeText(message);
+                            toast.success('Pesan disalin');
+                          } catch { toast.error('Browser block clipboard'); }
+                        }}
+                        className="text-xs font-bold bg-light text-dark px-3 py-1.5 rounded-full flex items-center gap-1 ring-1 ring-border hover:ring-primary"
+                      >
+                        <Copy size={12} /> Copy Pesan
+                      </button>
+                    </div>
                   </div>
+                  <p className="text-[11px] text-muted mb-2 leading-snug">
+                    💡 Opsi: <b>"Buka 5 WA Sekaligus"</b> = otomatis open 5 chat baru + tandai sent (allow popup di browser settings dulu). <b>"Copy Nomor"</b> = paste ke WA Business Broadcast List buat blast bareng. <b>"Open WA"</b> per row = 1-by-1 manual.
+                  </p>
                   <div className="space-y-1.5 max-h-[420px] overflow-y-auto">
                     {waRecipients.map((r) => {
                       const message = `*${selectedBroadcast.subject}*\n\n${selectedBroadcast.body}\n\n— PeTa Team\nhttps://www.penghasilantambahan.com`;

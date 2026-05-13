@@ -186,6 +186,42 @@ export function Tasks() {
         )}
 
         {/* ============================================================
+            REDDIT ACCOUNT FLAGGED BANNER — shown when the user HAS a
+            Reddit account but our most-recent sync detected it as
+            suspended or not_found. Different visual from the setup
+            banner: red tone, urgency copy, link to /account so they
+            can attach a new working username.
+        ============================================================= */}
+        {!needsReddit && karmaInfo?.hasFlaggedAccount && (
+          <Card className="mb-3 bg-danger/5 ring-2 ring-danger/40">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="w-10 h-10 bg-danger text-white rounded-xl grid place-items-center shrink-0 text-lg">
+                ⛔
+              </div>
+              <div className="flex-1">
+                <p className="font-extrabold text-danger">
+                  {karmaInfo.statusFlag === 'suspended'
+                    ? 'Akun Reddit kamu kena suspend'
+                    : 'Akun Reddit kamu tidak bisa ditemukan'}
+                </p>
+                <p className="text-sm text-danger/85 mt-0.5">
+                  Tanpa akun Reddit aktif, task PeTa nggak bisa dikerjain. Daftar akun baru di Reddit, lalu tambahkan ke PeTa lewat halaman Akun.
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={() => navigate('/account')}
+              variant="primary"
+              size="md"
+              fullWidth
+              className="!bg-danger hover:!brightness-110 !text-white"
+            >
+              🛠️ Fix Akun Reddit Sekarang
+            </Button>
+          </Card>
+        )}
+
+        {/* ============================================================
             PRIORITY #1 — REFERRAL HERO
             Highest CRO leverage: every share compounds. Big, friendly,
             with social-proof counters (already-earned + already-invited)

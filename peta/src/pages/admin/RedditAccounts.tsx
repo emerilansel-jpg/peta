@@ -6,12 +6,15 @@ import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
 import { getLevelInfo } from '../../lib/levels';
-import { adminSetKarma, adminRejectKarmaClaim, updateRedditAccountKarma } from '../../lib/api';
+import { adminSetKarma, adminRejectKarmaClaim, updateRedditAccountKarma, buildWhatsappLink } from '../../lib/api';
 import { toast } from '../../components/Toast';
-import { Pencil, RefreshCw, Check, X, ExternalLink, ShieldCheck, Trash2, Zap } from 'lucide-react';
+import { Pencil, RefreshCw, Check, X, ExternalLink, ShieldCheck, Trash2, Zap, MessageCircle, AlertTriangle } from 'lucide-react';
+
+type StatusFlag = 'ok' | 'suspended' | 'not_found' | 'unknown';
 
 type Row = {
   id: string;
+  user_id: string;
   username: string;
   karma: number;
   level: number;
@@ -19,7 +22,18 @@ type Row = {
   last_sync: string;
   pending_karma: number | null;
   pending_karma_submitted_at: string | null;
-  users?: { email?: string; full_name?: string };
+  status_flag: StatusFlag;
+  flagged_at: string | null;
+  last_sync_error: string | null;
+  users?: { email?: string; full_name?: string; whatsapp?: string };
+};
+
+// Status-flag badge config — drives the inline pill + the row outline color.
+const FLAG_INFO: Record<StatusFlag, { label: string; cls: string; emoji: string }> = {
+  ok:        { label: 'OK',          cls: 'bg-success/10 text-success',        emoji: '✅' },
+  suspended: { label: 'Suspended',   cls: 'bg-danger/10 text-danger',          emoji: '⛔' },
+  not_found: { label: 'Not Found',   cls: 'bg-danger/10 text-danger',          emoji: '❓' },
+  unknown:   { label: 'Belum sync',  cls: 'bg-warning/10 text-warning',        emoji: '⏳' },
 };
 
 export function AdminRedditAccounts() {
@@ -28,17 +42,48 @@ export function AdminRedditAccounts() {
   // Bulk sync state — single in-flight loop, throttled to avoid hammering
   // the codetabs proxy (free tier, may rate-limit). 500ms gap = ~2 req/sec.
   const [bulkSync, setBulkSync] = useState<{ running: boolean; current: number; total: number; updated: number; failed: number; lastUser: string } | null>(null);
+  const [showProblemOnly, setShowProblemOnly] = useState(false);
 
   const { data: accounts = [], isLoading } = useQuery<Row[]>({
     queryKey: ['allRedditAccounts'],
     queryFn: async () => {
       const { data } = await supabase
         .from('reddit_accounts')
-        .select('*, users(email, full_name)')
+        .select('*, users(email, full_name, whatsapp)')
         .order('karma', { ascending: false });
       return (data || []) as Row[];
     },
   });
+
+  const problemCount = accounts.filter(
+    (a) => a.status_flag === 'suspended' || a.status_flag === 'not_found'
+  ).length;
+
+  const visibleAccounts = showProblemOnly
+    ? accounts.filter((a) => a.status_flag === 'suspended' || a.status_flag === 'not_found')
+    : accounts;
+
+  // Build a WhatsApp "fix your Reddit account" message for the owner of a
+  // flagged account. Admin clicks → wa.me opens prefilled, admin hits send.
+  const buildFixMessage = (a: Row): string => {
+    const flagText = a.status_flag === 'suspended'
+      ? 'kena suspend Reddit'
+      : a.status_flag === 'not_found'
+      ? 'tidak bisa ditemukan / dihapus'
+      : 'bermasalah';
+    return [
+      `Halo *${a.users?.full_name || 'kak'}*,`,
+      ``,
+      `Akun Reddit kamu *u/${a.username}* lagi ${flagText}.`,
+      ``,
+      `Bisa di-cek di profile Reddit kamu. Kalau memang suspended, daftar akun baru → balik ke PeTa → /account → "Tambah akun Reddit".`,
+      ``,
+      `Tanpa akun Reddit aktif, kamu nggak bisa kerjain task PeTa. Yuk fix sekarang biar saldo bisa lanjut naik!`,
+      ``,
+      `— PeTa Team`,
+      `https://www.penghasilantambahan.com/account`,
+    ].join('\n');
+  };
 
   const setKarmaMutation = useMutation({
     mutationFn: ({ id, karma, age }: { id: string; karma: number; age: number }) =>
@@ -160,7 +205,19 @@ export function AdminRedditAccounts() {
           <p className="text-sm text-muted">{accounts.length} akun terdaftar — ✏️ set manual · 🔄 sync per-akun · ⚡ sync semua</p>
         </div>
         {accounts.length > 0 && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {problemCount > 0 && (
+              <button
+                onClick={() => setShowProblemOnly((s) => !s)}
+                className={`px-3 py-1.5 rounded-full text-xs font-bold flex items-center gap-1.5 transition ${
+                  showProblemOnly
+                    ? 'bg-danger text-white'
+                    : 'bg-danger/10 text-danger hover:bg-danger/20'
+                }`}
+              >
+                <AlertTriangle size={14} /> {problemCount} bermasalah {showProblemOnly && '· tampil ✓'}
+              </button>
+            )}
             {bulkSync?.running ? (
               <>
                 <Button onClick={cancelBulkSync} variant="outline" size="sm" className="!border-danger !text-danger hover:!bg-danger hover:!text-white">
@@ -287,15 +344,33 @@ export function AdminRedditAccounts() {
         <>
           {/* Mobile cards */}
           <div className="md:hidden space-y-2">
-            {accounts.map((a) => {
+            {visibleAccounts.map((a) => {
               const lvl = getLevelInfo(a.level);
               const isEdit = editing?.id === a.id;
+              const flag = FLAG_INFO[a.status_flag || 'unknown'];
+              const isProblem = a.status_flag === 'suspended' || a.status_flag === 'not_found';
+              const fixWaLink = a.users?.whatsapp ? buildWhatsappLink(a.users.whatsapp, buildFixMessage(a)) : null;
               return (
-                <Card key={a.id} padding="sm">
+                <Card key={a.id} padding="sm" className={isProblem ? 'ring-2 ring-danger/40' : ''}>
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div className="min-w-0">
-                      <p className="font-bold truncate">u/{a.username}</p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="font-bold truncate">u/{a.username}</p>
+                        <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${flag.cls}`}>
+                          {flag.emoji} {flag.label}
+                        </span>
+                      </div>
                       <p className="text-xs text-muted truncate">{a.users?.email}</p>
+                      {isProblem && fixWaLink && (
+                        <a
+                          href={fixWaLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-success hover:underline mt-1"
+                        >
+                          <MessageCircle size={12} /> WA fix-reminder
+                        </a>
+                      )}
                     </div>
                     {isEdit ? (
                       <input
@@ -341,12 +416,13 @@ export function AdminRedditAccounts() {
                         <Button size="sm" variant="ghost" onClick={() => startEdit(a)} aria-label="Edit karma">
                           <Pencil className="w-4 h-4" />
                         </Button>
-                        <Button size="sm" variant="ghost"
+                        <Button size="sm" variant="outline"
                           onClick={() => syncMutation.mutate({ id: a.id, username: a.username })}
                           disabled={syncMutation.isPending}
                           aria-label="Sync from Reddit"
+                          title="Sync this account from Reddit"
                         >
-                          <RefreshCw className={`w-4 h-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+                          <RefreshCw className={`w-4 h-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} /> Sync
                         </Button>
                       </div>
                     )}
@@ -363,6 +439,7 @@ export function AdminRedditAccounts() {
                 <tr className="border-b border-border text-left">
                   <th className="px-2 py-2 font-semibold text-muted">Username</th>
                   <th className="px-2 py-2 font-semibold text-muted">Owner</th>
+                  <th className="px-2 py-2 font-semibold text-muted">Status</th>
                   <th className="px-2 py-2 font-semibold text-muted">Karma</th>
                   <th className="px-2 py-2 font-semibold text-muted">Age (days)</th>
                   <th className="px-2 py-2 font-semibold text-muted">Level</th>
@@ -371,13 +448,31 @@ export function AdminRedditAccounts() {
                 </tr>
               </thead>
               <tbody>
-                {accounts.map((a) => {
+                {visibleAccounts.map((a) => {
                   const lvl = getLevelInfo(a.level);
                   const isEdit = editing?.id === a.id;
+                  const flag = FLAG_INFO[a.status_flag || 'unknown'];
+                  const isProblem = a.status_flag === 'suspended' || a.status_flag === 'not_found';
+                  const fixWaLink = a.users?.whatsapp ? buildWhatsappLink(a.users.whatsapp, buildFixMessage(a)) : null;
                   return (
-                    <tr key={a.id} className="border-b border-border last:border-0 hover:bg-light">
+                    <tr key={a.id} className={`border-b border-border last:border-0 hover:bg-light ${isProblem ? 'bg-danger/5' : ''}`}>
                       <td className="px-2 py-3 font-bold">u/{a.username}</td>
                       <td className="px-2 py-3 text-muted">{a.users?.email}</td>
+                      <td className="px-2 py-3">
+                        <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${flag.cls}`}>
+                          {flag.emoji} {flag.label}
+                        </span>
+                        {isProblem && fixWaLink && (
+                          <a
+                            href={fixWaLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="ml-2 inline-flex items-center gap-1 text-[10px] font-bold text-success hover:underline"
+                          >
+                            <MessageCircle size={11} /> WA
+                          </a>
+                        )}
+                      </td>
                       <td className="px-2 py-3 money font-semibold">
                         {isEdit ? (
                           <input type="number" min={0}
@@ -423,12 +518,13 @@ export function AdminRedditAccounts() {
                             <Button size="sm" variant="ghost" onClick={() => startEdit(a)} aria-label="Edit karma">
                               <Pencil className="w-4 h-4" />
                             </Button>
-                            <Button size="sm" variant="ghost" className="ml-1"
+                            <Button size="sm" variant="outline" className="ml-1"
                               onClick={() => syncMutation.mutate({ id: a.id, username: a.username })}
                               disabled={syncMutation.isPending}
                               aria-label="Sync from Reddit"
+                              title="Sync this account from Reddit"
                             >
-                              <RefreshCw className={`w-4 h-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} />
+                              <RefreshCw className={`w-4 h-4 ${syncMutation.isPending ? 'animate-spin' : ''}`} /> Sync
                             </Button>
                           </>
                         )}
