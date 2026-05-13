@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { RedditLayout } from '../components/RedditLayout';
+import { EmailWhitelistNotice } from '../components/EmailWhitelistNotice';
 import { useRedditCredits } from '../hooks/useRedditCredits';
 import { useRedditOrders } from '../hooks/useRedditOrders';
 import { calculateCost, formatUSD, getPricePerUpvoteUSD, submitFeatureRequest } from '../lib/api';
@@ -258,6 +259,8 @@ function RedditUpvoteOrderForm({ onBack }: { onBack: () => void }) {
   const [upvotes, setUpvotes] = useState(50);
   const [notes, setNotes] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [newOrderInfo, setNewOrderInfo] = useState<{ id?: number; cost: number } | null>(null);
 
   const cost = calculateCost(upvotes);
   const hasEnoughCredit = balance >= cost;
@@ -291,10 +294,13 @@ function RedditUpvoteOrderForm({ onBack }: { onBack: () => void }) {
         notes: notes.trim() || null,
       },
       {
-        onSuccess: () => {
+        onSuccess: (order: any) => {
           toast.success(`Order placed. ${formatUSD(cost)} deducted from credit.`);
           setShowConfirm(false);
-          setTimeout(() => navigate('/reddit/orders'), 1200);
+          // Show whitelist/spam-folder education modal so order updates actually reach inbox.
+          // Modal blocks navigation until dismissed (high-attention moment).
+          setNewOrderInfo({ id: order?.id, cost });
+          setShowSuccessModal(true);
         },
         onError: (err: any) => {
           toast.error(err.message || 'Failed to create order');
@@ -306,6 +312,19 @@ function RedditUpvoteOrderForm({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="p-6 md:p-10 max-w-3xl mx-auto">
+      {showSuccessModal && (
+        <EmailWhitelistNotice
+          variant="modal"
+          headline="Order placed — now watch your inbox"
+          context={newOrderInfo?.id ? `for order #${newOrderInfo.id}` : undefined}
+          primaryLabel="Got it — show me my orders"
+          onDismiss={() => {
+            setShowSuccessModal(false);
+            navigate(newOrderInfo?.id ? `/reddit/orders/${newOrderInfo.id}` : '/reddit/orders');
+          }}
+        />
+      )}
+
       <button
         onClick={onBack}
         className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 mb-4"

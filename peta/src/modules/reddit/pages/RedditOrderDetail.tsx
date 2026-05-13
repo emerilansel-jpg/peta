@@ -26,6 +26,7 @@ import {
 } from '../lib/api';
 import { MessageBubble } from './admin/AdminTickets';
 import { ReviewRequestModal } from '../components/ReviewRequestModal';
+import { EmailWhitelistNotice } from '../components/EmailWhitelistNotice';
 import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 
 const STATUS_CONFIG: Record<string, { label: string; class: string; icon: any; desc: string }> = {
@@ -62,6 +63,9 @@ export function RedditOrderDetail() {
   const [ticket, setTicket] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  // Show the email-deliverability banner once after the client sends a message — the moment they
+  // most care about getting our reply, and the moment our reply is most likely to land in Spam.
+  const [showEmailNotice, setShowEmailNotice] = useState(false);
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
@@ -134,6 +138,7 @@ export function RedditOrderDetail() {
       await sendTicketMessage(ticket.id, body.trim(), false);
       setBody('');
       await load();
+      setShowEmailNotice(true);
     } catch (err: any) {
       toast.error(err.message || 'Failed to send');
     } finally {
@@ -291,7 +296,15 @@ export function RedditOrderDetail() {
               <div ref={messagesEndRef} />
             </div>
 
-            <form onSubmit={handleSend} className="p-4 border-t border-slate-200 bg-slate-50">
+            <form onSubmit={handleSend} className="p-4 border-t border-slate-200 bg-slate-50 space-y-3">
+              {showEmailNotice && (
+                <EmailWhitelistNotice
+                  variant="banner"
+                  headline="Message sent — our reply will come by email too"
+                  context="(plus you'll see it here in the dashboard)"
+                  onDismiss={() => setShowEmailNotice(false)}
+                />
+              )}
               <div className="flex gap-2 items-end">
                 <textarea
                   value={body}
@@ -313,7 +326,7 @@ export function RedditOrderDetail() {
                   {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                 </button>
               </div>
-              <p className="text-xs text-slate-500 mt-2">Ctrl/Cmd + Enter to send. We typically reply within 90 minutes during business hours.</p>
+              <p className="text-xs text-slate-500">Ctrl/Cmd + Enter to send. We typically reply within 90 minutes during business hours. Email updates come from <strong className="text-slate-700">care@straight.ltd</strong> — save us to skip Spam.</p>
             </form>
           </div>
 
