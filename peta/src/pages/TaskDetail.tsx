@@ -1,13 +1,13 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { ArrowLeft, ExternalLink, Lightbulb, Check } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Lightbulb, Check, Camera, Link as LinkIcon, X, Upload } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { CardSkeleton } from '../components/Skeleton';
 import { supabase } from '../lib/supabase';
-import { createTaskAssignment, updateTaskAssignment } from '../lib/api';
+import { createTaskAssignment, updateTaskAssignment, uploadTaskProofImage } from '../lib/api';
 import { toast } from '../components/Toast';
 
 type Stage = 'preview' | 'submit' | 'done';
@@ -19,6 +19,9 @@ export function TaskDetail() {
   const [accounts, setAccounts] = React.useState<any[]>([]);
   const [selectedAccountId, setSelectedAccountId] = React.useState('');
   const [draftComment, setDraftComment] = React.useState('');
+  const [proofUrl, setProofUrl] = React.useState('');
+  const [proofImageUrl, setProofImageUrl] = React.useState<string | null>(null);
+  const [uploadingProof, setUploadingProof] = React.useState(false);
   const [stage, setStage] = React.useState<Stage>('preview');
   const [assignmentId, setAssignmentId] = React.useState<string>('');
 
@@ -57,7 +60,8 @@ export function TaskDetail() {
 
   const submitMutation = useMutation({
     mutationFn: () => updateTaskAssignment(assignmentId, {
-      draft_comment: draftComment,
+      draft_comment: draftComment || null,
+      proof_url: proofUrl || proofImageUrl || null,
       status: 'submitted',
     }),
     onSuccess: () => {
@@ -67,6 +71,30 @@ export function TaskDetail() {
     },
     onError: (e: any) => toast.error(e?.message || 'Gagal submit task'),
   });
+
+  // Upload a screenshot file from <input type=file capture> (mobile camera
+  // or gallery picker). Public URL gets saved to assignment.proof_url on
+  // submit. We upload immediately on file-select so admin sees the preview
+  // while user is still composing the comment.
+  const handleProofFile = async (file: File | null | undefined) => {
+    if (!file) return;
+    if (file.size > 5_000_000) {
+      toast.error('Foto > 5MB. Kompres dulu atau pilih yang lebih kecil.');
+      return;
+    }
+    setUploadingProof(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Auth required');
+      const url = await uploadTaskProofImage({ userId: user.id, taskId: taskId!, file });
+      setProofImageUrl(url);
+      toast.success('Screenshot ter-upload ✅');
+    } catch (e: any) {
+      toast.error(`Upload gagal: ${e.message || e}`);
+    } finally {
+      setUploadingProof(false);
+    }
+  };
 
   if (taskLoading) {
     return <Layout userRole="army"><CardSkeleton /></Layout>;
@@ -188,37 +216,113 @@ export function TaskDetail() {
               <div className="flex gap-3">
                 <Lightbulb size={20} className="text-blue-600 shrink-0 mt-0.5" />
                 <div className="text-sm text-blue-900">
-                  <p className="font-bold mb-1">Tips komentar yang lolos approval:</p>
+                  <p className="font-bold mb-1">Cara submit (paling gampang dari HP):</p>
                   <ul className="space-y-1 list-disc pl-4 text-blue-800/90">
-                    <li>Baca thread dulu, balas yang relevan.</li>
-                    <li>Natural & sopan, jangan spammy.</li>
-                    <li>Min 2 kalimat. No copy-paste.</li>
+                    <li><b>📸 Foto bukti</b> (paling cepat): klik tombol → buka kamera/galeri → pilih screenshot.</li>
+                    <li>Atau <b>🔗 paste URL</b> komentar/post yang sudah kamu submit.</li>
+                    <li>Bisa keduanya buat percepat approval.</li>
                   </ul>
                 </div>
               </div>
             </Card>
             <Card>
-              <p className="text-xs uppercase font-bold tracking-wide text-muted mb-2">Step 2 / 2</p>
-              <h2 className="text-lg font-extrabold mb-3">Tulis komentar kamu</h2>
+              <p className="text-xs uppercase font-bold tracking-wide text-muted mb-2">Step 2 / 2 — Bukti task</p>
+
+              {/* SCREENSHOT UPLOAD — primary input, mobile-camera-friendly */}
+              <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
+                📸 Upload screenshot bukti
+              </p>
+              {proofImageUrl ? (
+                <div className="relative mb-3">
+                  <img
+                    src={proofImageUrl}
+                    alt="Bukti task"
+                    className="w-full max-h-[300px] object-contain rounded-xl ring-1 ring-success/40 bg-light"
+                  />
+                  <button
+                    onClick={() => setProofImageUrl(null)}
+                    className="absolute top-2 right-2 bg-white/95 text-danger rounded-full p-1.5 shadow hover:bg-white"
+                    aria-label="Hapus screenshot"
+                  >
+                    <X size={16} />
+                  </button>
+                  <span className="absolute bottom-2 left-2 text-[10px] font-bold bg-success text-white px-2 py-0.5 rounded-full">
+                    ✓ Terupload
+                  </span>
+                </div>
+              ) : (
+                <label className="block mb-3 cursor-pointer">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    onChange={(e) => handleProofFile(e.target.files?.[0])}
+                    disabled={uploadingProof}
+                    className="sr-only"
+                  />
+                  <div className={`flex flex-col items-center justify-center gap-2 px-4 py-8 rounded-xl border-2 border-dashed transition ${
+                    uploadingProof ? 'border-primary/50 bg-primary/5' : 'border-border bg-light hover:border-primary/40 hover:bg-primary/5'
+                  }`}>
+                    {uploadingProof ? (
+                      <>
+                        <Upload size={28} className="text-primary animate-pulse" />
+                        <p className="text-sm font-bold text-primary">Uploading…</p>
+                      </>
+                    ) : (
+                      <>
+                        <Camera size={32} className="text-primary" />
+                        <p className="text-sm font-bold text-dark">Tap untuk foto / pilih dari galeri</p>
+                        <p className="text-[11px] text-muted">JPG, PNG, WEBP — max 5 MB</p>
+                      </>
+                    )}
+                  </div>
+                </label>
+              )}
+
+              {/* URL PASTE — alternative or supplement */}
+              <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
+                🔗 ATAU paste URL komentar/post
+              </p>
+              <div className="relative mb-3">
+                <LinkIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                <input
+                  type="url"
+                  value={proofUrl}
+                  onChange={(e) => setProofUrl(e.target.value)}
+                  placeholder="https://reddit.com/r/.../comments/..."
+                  className="w-full pl-10 pr-3 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm"
+                />
+              </div>
+
+              {/* Optional comment text — useful for admin context */}
+              <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
+                💬 Catatan/komentar (opsional)
+              </p>
               <textarea
                 value={draftComment}
                 onChange={(e) => setDraftComment(e.target.value)}
-                placeholder="Tulis komentar yang natural dan relevan dengan thread…"
-                className="w-full px-4 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition resize-none text-base"
-                rows={7}
+                placeholder="Optional: tulis komentar atau catatan buat admin…"
+                className="w-full px-4 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition resize-none text-sm"
+                rows={4}
               />
               <p className="text-xs text-muted mt-1.5">{draftComment.length} karakter</p>
+
               <div className="hidden sm:block mt-5">
                 <Button
                   onClick={() => submitMutation.mutate()}
                   variant="success"
                   size="lg"
                   loading={submitMutation.isPending}
-                  disabled={!draftComment.trim()}
+                  disabled={!proofImageUrl && !proofUrl.trim() && !draftComment.trim()}
                   fullWidth
                 >
                   ✅ Submit untuk Approval
                 </Button>
+                {!proofImageUrl && !proofUrl.trim() && !draftComment.trim() && (
+                  <p className="text-[11px] text-muted text-center mt-2">
+                    Submit setelah upload screenshot, paste URL, atau tulis komentar.
+                  </p>
+                )}
               </div>
             </Card>
 
@@ -229,7 +333,7 @@ export function TaskDetail() {
                 variant="success"
                 size="lg"
                 loading={submitMutation.isPending}
-                disabled={!draftComment.trim()}
+                disabled={!proofImageUrl && !proofUrl.trim() && !draftComment.trim()}
                 fullWidth
               >
                 ✅ Submit untuk Approval

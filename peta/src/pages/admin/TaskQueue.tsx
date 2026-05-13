@@ -26,20 +26,13 @@ function localInputToIso(s: string): string | null {
 
 const COMMENT_PRESETS = [5000, 8000, 11000, 14000, 17000, 20000];
 const UPVOTE_PRESETS  = [500, 1000, 1500, 2000];
-const LEVEL_OPTIONS = [
-  { v: 0, label: '🥚 Pemula (semua)' },
-  { v: 1, label: '🦴 Bocil+' },
-  { v: 2, label: '🔥 Aktif+' },
-  { v: 3, label: '⚔️ Pejuang+' },
-  { v: 4, label: '🏙️ Senior+' },
-  { v: 5, label: '👑 Legend' },
-];
+// LEVEL_OPTIONS removed — gates now use min_karma + min_age directly.
 
 export function AdminTaskQueue() {
   const queryClient = useQueryClient();
   const [user, setUser] = React.useState<any>(null);
   const [showSheet, setShowSheet] = React.useState(false);
-  const [filter, setFilter] = React.useState<'all' | 'active' | 'paused'>('all');
+  const [filter, setFilter] = React.useState<'all' | 'draft' | 'active' | 'paused'>('all');
   const [bulkImporting, setBulkImporting] = React.useState(false);
   // Edit-sheet state — pre-populated when admin clicks "Edit" on a task row.
   const [editingTask, setEditingTask] = React.useState<any | null>(null);
@@ -47,23 +40,27 @@ export function AdminTaskQueue() {
     title: '',
     description: '',
     target_url: '',
-    task_type: 'comment' as 'comment' | 'upvote',
+    task_category: 'reddit_comment' as 'reddit_upvote' | 'reddit_comment' | 'reddit_post_thread',
     reward_amount: 0,
     max_assignments: 1,
-    min_level: 0,
+    per_account_limit: 1,
+    min_karma: 0,
+    min_account_age_days: 0,
     start_at: '',
     end_at: '',
-    status: 'paused' as 'active' | 'paused' | 'completed',
+    status: 'draft' as 'draft' | 'active' | 'paused' | 'completed',
   });
 
   const [form, setForm] = React.useState({
     title: '',
     description: '',
     target_url: '',
-    task_type: 'comment' as 'comment' | 'upvote',
+    task_category: 'reddit_comment' as 'reddit_upvote' | 'reddit_comment' | 'reddit_post_thread',
     reward_amount: 8000,
     max_assignments: 5,
-    min_level: 0,
+    per_account_limit: 1,
+    min_karma: 0,
+    min_account_age_days: 0,
   });
 
   React.useEffect(() => {
@@ -78,18 +75,30 @@ export function AdminTaskQueue() {
     },
   });
 
+  // Map task_category back to legacy task_type column (kept for compat).
+  const categoryToType = (c: string): 'upvote' | 'comment' => c === 'reddit_upvote' ? 'upvote' : 'comment';
+
   const create = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (publishStatus: 'draft' | 'active') => {
       const { error } = await supabase.from('tasks').insert({
-        ...form,
+        title: form.title,
+        description: form.description,
+        target_url: form.target_url,
+        task_category: form.task_category,
+        task_type: categoryToType(form.task_category),
+        reward_amount: form.reward_amount,
+        max_assignments: form.max_assignments,
+        per_account_limit: form.per_account_limit,
+        min_karma: form.min_karma,
+        min_account_age_days: form.min_account_age_days,
         created_by: user?.id,
-        status: 'active',
+        status: publishStatus,
       });
       if (error) throw error;
     },
-    onSuccess: () => {
-      toast.success('Task dibuat ✅');
-      setForm({ title: '', description: '', target_url: '', task_type: 'comment', reward_amount: 8000, max_assignments: 5, min_level: 0 });
+    onSuccess: (_data, publishStatus) => {
+      toast.success(publishStatus === 'draft' ? 'Disimpan sebagai draft 📝' : 'Task aktif & visible buat army ✅');
+      setForm({ title: '', description: '', target_url: '', task_category: 'reddit_comment', reward_amount: 8000, max_assignments: 5, per_account_limit: 1, min_karma: 0, min_account_age_days: 0 });
       setShowSheet(false);
       refetch();
     },
@@ -128,13 +137,16 @@ export function AdminTaskQueue() {
       title: t.title || '',
       description: t.description || '',
       target_url: t.target_url || '',
-      task_type: t.task_type || 'comment',
+      task_category: (t.task_category ||
+        (t.task_type === 'upvote' ? 'reddit_upvote' : 'reddit_comment')) as any,
       reward_amount: t.reward_amount || 0,
       max_assignments: t.max_assignments || 1,
-      min_level: t.min_level || 0,
+      per_account_limit: t.per_account_limit || 1,
+      min_karma: t.min_karma || 0,
+      min_account_age_days: t.min_account_age_days || 0,
       start_at: isoToLocalInput(t.start_at),
       end_at: isoToLocalInput(t.end_at),
-      status: t.status || 'paused',
+      status: t.status || 'draft',
     });
     setEditingTask(t);
   };
@@ -145,10 +157,12 @@ export function AdminTaskQueue() {
       title: editForm.title,
       description: editForm.description,
       target_url: editForm.target_url,
-      task_type: editForm.task_type,
+      task_category: editForm.task_category,
       reward_amount: editForm.reward_amount,
       max_assignments: editForm.max_assignments,
-      min_level: editForm.min_level,
+      per_account_limit: editForm.per_account_limit,
+      min_karma: editForm.min_karma,
+      min_account_age_days: editForm.min_account_age_days,
       start_at: localInputToIso(editForm.start_at),
       end_at: localInputToIso(editForm.end_at),
       status: editForm.status,
@@ -268,8 +282,9 @@ export function AdminTaskQueue() {
       {/* Filter */}
       <div className="flex gap-2 overflow-x-auto no-scrollbar mb-4">
         {[
-          ['all',     'Semua', tasks.length],
-          ['active',  'Aktif', tasks.filter(t => t.status === 'active').length],
+          ['all',     'Semua',  tasks.length],
+          ['draft',   'Draft',  tasks.filter(t => t.status === 'draft').length],
+          ['active',  'Aktif',  tasks.filter(t => t.status === 'active').length],
           ['paused',  'Paused', tasks.filter(t => t.status === 'paused').length],
         ].map(([k, l, n]) => (
           <button
@@ -367,32 +382,27 @@ export function AdminTaskQueue() {
               </div>
 
               <div className="space-y-3">
-                <Field label="Jenis Task">
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setForm({ ...form, task_type: 'comment', reward_amount: 8000 })}
-                      className={`tap-shrink min-h-[60px] rounded-xl px-3 py-2 text-left ${
-                        form.task_type === 'comment'
-                          ? 'bg-primary text-white shadow-md shadow-primary/30'
-                          : 'bg-light ring-1 ring-border'
-                      }`}
-                    >
-                      <p className="font-extrabold flex items-center gap-1">💬 Komentar</p>
-                      <p className={`text-[11px] ${form.task_type === 'comment' ? 'text-white/80' : 'text-muted'}`}>Rp5K–20K</p>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setForm({ ...form, task_type: 'upvote', reward_amount: 1000 })}
-                      className={`tap-shrink min-h-[60px] rounded-xl px-3 py-2 text-left ${
-                        form.task_type === 'upvote'
-                          ? 'bg-primary text-white shadow-md shadow-primary/30'
-                          : 'bg-light ring-1 ring-border'
-                      }`}
-                    >
-                      <p className="font-extrabold flex items-center gap-1">👍 Upvote/Like</p>
-                      <p className={`text-[11px] ${form.task_type === 'upvote' ? 'text-white/80' : 'text-muted'}`}>Rp500–2K</p>
-                    </button>
+                <Field label="Kategori Task">
+                  <div className="grid grid-cols-3 gap-2">
+                    {([
+                      ['reddit_upvote',      '👍 Upvote',  'Rp500–2K',  1000],
+                      ['reddit_comment',     '💬 Comment', 'Rp5K–20K',  8000],
+                      ['reddit_post_thread', '📝 Post',    'Rp10K–25K', 15000],
+                    ] as const).map(([cat, label, range, defaultReward]) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setForm({ ...form, task_category: cat, reward_amount: defaultReward })}
+                        className={`tap-shrink min-h-[68px] rounded-xl px-2 py-2 text-left ${
+                          form.task_category === cat
+                            ? 'bg-primary text-white shadow-md shadow-primary/30'
+                            : 'bg-light ring-1 ring-border'
+                        }`}
+                      >
+                        <p className="font-extrabold text-sm leading-tight">{label}</p>
+                        <p className={`text-[10px] ${form.task_category === cat ? 'text-white/80' : 'text-muted'}`}>{range}</p>
+                      </button>
+                    ))}
                   </div>
                 </Field>
 
@@ -401,7 +411,7 @@ export function AdminTaskQueue() {
                     type="text"
                     value={form.title}
                     onChange={(e) => setForm({ ...form, title: e.target.value })}
-                    placeholder={form.task_type === 'upvote' ? 'Contoh: Upvote thread tentang AI' : 'Contoh: Comment di r/Indonesia tentang AI'}
+                    placeholder={form.task_category === 'reddit_upvote' ? 'Contoh: Upvote thread tentang AI' : form.task_category === 'reddit_post_thread' ? 'Contoh: Post thread baru di r/Indonesia' : 'Contoh: Comment di r/Indonesia tentang AI'}
                     className={inputCls}
                   />
                 </Field>
@@ -426,17 +436,15 @@ export function AdminTaskQueue() {
                   />
                 </Field>
 
-                <Field label="Reward (Rp)">
-                  <div className={`grid ${form.task_type === 'upvote' ? 'grid-cols-4' : 'grid-cols-3'} gap-2 mb-2`}>
-                    {(form.task_type === 'upvote' ? UPVOTE_PRESETS : COMMENT_PRESETS).map((v) => (
+                <Field label="Reward per task (Rp)">
+                  <div className={`grid ${form.task_category === 'reddit_upvote' ? 'grid-cols-4' : 'grid-cols-3'} gap-2 mb-2`}>
+                    {(form.task_category === 'reddit_upvote' ? UPVOTE_PRESETS : COMMENT_PRESETS).map((v) => (
                       <button
                         key={v}
                         type="button"
                         onClick={() => setForm({ ...form, reward_amount: v })}
                         className={`tap-shrink min-h-[40px] rounded-lg text-sm font-bold ${
-                          form.reward_amount === v
-                            ? 'bg-primary text-white'
-                            : 'bg-light text-dark ring-1 ring-border'
+                          form.reward_amount === v ? 'bg-primary text-white' : 'bg-light text-dark ring-1 ring-border'
                         }`}
                       >
                         {v >= 1000 ? `${(v / 1000).toFixed(v % 1000 ? 1 : 0)}K` : v}
@@ -452,7 +460,7 @@ export function AdminTaskQueue() {
                 </Field>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Max Slot">
+                  <Field label="Max Total Slot">
                     <input
                       type="number"
                       value={form.max_assignments}
@@ -461,31 +469,69 @@ export function AdminTaskQueue() {
                       className={inputCls}
                     />
                   </Field>
-                  <Field label="Min Level">
-                    <select
-                      value={form.min_level}
-                      onChange={(e) => setForm({ ...form, min_level: parseInt(e.target.value) })}
+                  <Field label="Per akun Reddit (default 1)">
+                    <input
+                      type="number"
+                      value={form.per_account_limit}
+                      onChange={(e) => setForm({ ...form, per_account_limit: parseInt(e.target.value) || 1 })}
+                      min={1}
                       className={inputCls}
-                    >
-                      {LEVEL_OPTIONS.map((o) => (
-                        <option key={o.v} value={o.v}>{o.label}</option>
-                      ))}
-                    </select>
+                    />
                   </Field>
                 </div>
 
-                <Button
-                  onClick={() => {
-                    if (!form.title.trim()) { toast.error('Judul wajib diisi'); return; }
-                    create.mutate();
-                  }}
-                  variant="primary"
-                  size="lg"
-                  loading={create.isPending}
-                  fullWidth
-                >
-                  ✅ Publish Task
-                </Button>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Min Karma">
+                    <input
+                      type="number"
+                      value={form.min_karma}
+                      onChange={(e) => setForm({ ...form, min_karma: parseInt(e.target.value) || 0 })}
+                      min={0}
+                      className={inputCls}
+                      placeholder="0 = semua"
+                    />
+                  </Field>
+                  <Field label="Min Age (hari)">
+                    <input
+                      type="number"
+                      value={form.min_account_age_days}
+                      onChange={(e) => setForm({ ...form, min_account_age_days: parseInt(e.target.value) || 0 })}
+                      min={0}
+                      className={inputCls}
+                      placeholder="0 = semua"
+                    />
+                  </Field>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    onClick={() => {
+                      if (!form.title.trim()) { toast.error('Judul wajib diisi'); return; }
+                      create.mutate('draft');
+                    }}
+                    variant="outline"
+                    size="lg"
+                    loading={create.isPending}
+                    fullWidth
+                  >
+                    📝 Save Draft
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      if (!form.title.trim()) { toast.error('Judul wajib diisi'); return; }
+                      create.mutate('active');
+                    }}
+                    variant="primary"
+                    size="lg"
+                    loading={create.isPending}
+                    fullWidth
+                  >
+                    ✅ Publish Active
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted text-center">
+                  Draft tidak terlihat oleh army. Publish Active = langsung visible buat army yang memenuhi min karma/age.
+                </p>
               </div>
             </div>
           </div>
@@ -512,19 +558,44 @@ export function AdminTaskQueue() {
 
               <div className="space-y-3">
                 <Field label="Status">
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['paused', 'active', 'completed'] as const).map((s) => (
+                  <div className="grid grid-cols-4 gap-2">
+                    {(['draft', 'paused', 'active', 'completed'] as const).map((s) => (
                       <button
                         key={s}
                         type="button"
                         onClick={() => setEditForm({ ...editForm, status: s })}
-                        className={`tap-shrink min-h-[44px] rounded-xl text-sm font-bold capitalize ${
+                        className={`tap-shrink min-h-[44px] rounded-xl text-xs font-bold ${
                           editForm.status === s
-                            ? s === 'active' ? 'bg-success text-white' : s === 'paused' ? 'bg-warning text-white' : 'bg-light text-dark ring-1 ring-border'
+                            ? s === 'active' ? 'bg-success text-white'
+                              : s === 'paused' ? 'bg-warning text-white'
+                              : s === 'draft' ? 'bg-muted text-white'
+                              : 'bg-light text-dark ring-1 ring-border'
                             : 'bg-light text-dark ring-1 ring-border'
                         }`}
                       >
-                        {s === 'paused' ? '⏸ Paused' : s === 'active' ? '▶ Active' : '✓ Done'}
+                        {s === 'draft' ? '📝 Draft' : s === 'paused' ? '⏸ Pause' : s === 'active' ? '▶ Active' : '✓ Done'}
+                      </button>
+                    ))}
+                  </div>
+                </Field>
+
+                <Field label="Kategori">
+                  <div className="grid grid-cols-3 gap-2">
+                    {([
+                      ['reddit_upvote',      '👍 Upvote'],
+                      ['reddit_comment',     '💬 Comment'],
+                      ['reddit_post_thread', '📝 Post'],
+                    ] as const).map(([cat, label]) => (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => setEditForm({ ...editForm, task_category: cat })}
+                        className={`tap-shrink min-h-[44px] rounded-xl text-xs font-bold ${
+                          editForm.task_category === cat
+                            ? 'bg-primary text-white' : 'bg-light text-dark ring-1 ring-border'
+                        }`}
+                      >
+                        {label}
                       </button>
                     ))}
                   </div>
@@ -557,9 +628,9 @@ export function AdminTaskQueue() {
                   />
                 </Field>
 
-                <Field label="Reward (Rp)">
-                  <div className={`grid ${editForm.task_type === 'upvote' ? 'grid-cols-4' : 'grid-cols-3'} gap-2 mb-2`}>
-                    {(editForm.task_type === 'upvote' ? UPVOTE_PRESETS : COMMENT_PRESETS).map((v) => (
+                <Field label="Reward per task (Rp)">
+                  <div className={`grid ${editForm.task_category === 'reddit_upvote' ? 'grid-cols-4' : 'grid-cols-3'} gap-2 mb-2`}>
+                    {(editForm.task_category === 'reddit_upvote' ? UPVOTE_PRESETS : COMMENT_PRESETS).map((v) => (
                       <button
                         key={v}
                         type="button"
@@ -581,7 +652,7 @@ export function AdminTaskQueue() {
                 </Field>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Max Army Slot">
+                  <Field label="Max Total Slot">
                     <input
                       type="number"
                       value={editForm.max_assignments}
@@ -590,16 +661,35 @@ export function AdminTaskQueue() {
                       className={inputCls}
                     />
                   </Field>
-                  <Field label="Min Level">
-                    <select
-                      value={editForm.min_level}
-                      onChange={(e) => setEditForm({ ...editForm, min_level: parseInt(e.target.value) })}
+                  <Field label="Per akun Reddit">
+                    <input
+                      type="number"
+                      value={editForm.per_account_limit}
+                      onChange={(e) => setEditForm({ ...editForm, per_account_limit: parseInt(e.target.value) || 1 })}
+                      min={1}
                       className={inputCls}
-                    >
-                      {LEVEL_OPTIONS.map((o) => (
-                        <option key={o.v} value={o.v}>{o.label}</option>
-                      ))}
-                    </select>
+                    />
+                  </Field>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <Field label="Min Karma">
+                    <input
+                      type="number"
+                      value={editForm.min_karma}
+                      onChange={(e) => setEditForm({ ...editForm, min_karma: parseInt(e.target.value) || 0 })}
+                      min={0}
+                      className={inputCls}
+                    />
+                  </Field>
+                  <Field label="Min Age (hari)">
+                    <input
+                      type="number"
+                      value={editForm.min_account_age_days}
+                      onChange={(e) => setEditForm({ ...editForm, min_account_age_days: parseInt(e.target.value) || 0 })}
+                      min={0}
+                      className={inputCls}
+                    />
                   </Field>
                 </div>
 

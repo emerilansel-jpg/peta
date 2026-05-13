@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Lock, Flame, Bell, Users, MessageCircle,
@@ -16,7 +16,7 @@ import { WHATSAPP_GROUP_URL, FOUNDING_LIMIT } from '../lib/config';
 import {
   getCommunityFeed, type CommunityEvent,
   getMaxRedditKarma, getReferralStats, getWaDismissed, dismissWaGroup,
-  getFoundingMembers,
+  getFoundingMembers, listEligibleTasksForUser, type EligibleTask,
 } from '../lib/api';
 import { LEVELS, getLevelInfo } from '../lib/levels';
 import { toast } from '../components/Toast';
@@ -127,6 +127,16 @@ export function Tasks() {
     enabled: !!user?.id,
   });
 
+  // Real active tasks the user can claim right now — server-side filtered
+  // by karma/age/category/per-account-limit/window. Empty when admin has
+  // nothing active or user doesn't meet gates.
+  const { data: eligibleTasks = [], isLoading: tasksLoading } = useQuery<EligibleTask[]>({
+    queryKey: ['eligibleTasks', user?.id],
+    queryFn: () => listEligibleTasksForUser(),
+    enabled: !!user?.id && !!karmaInfo?.username,
+    refetchInterval: 30_000,
+  });
+
   const { data: waDismissed = false } = useQuery({
     queryKey: ['waDismissed', user?.id],
     queryFn: () => getWaDismissed(user!.id),
@@ -218,6 +228,78 @@ export function Tasks() {
             >
               🛠️ Fix Akun Reddit Sekarang
             </Button>
+          </Card>
+        )}
+
+        {/* ============================================================
+            ACTIVE TASKS — real tasks the user can claim RIGHT NOW.
+            Server-side filtered by karma/age/category/per-account-limit.
+            Sits above everything because cash-in-hand beats CRO.
+        ============================================================= */}
+        {!needsReddit && eligibleTasks.length > 0 && (
+          <div className="mb-5">
+            <div className="flex items-baseline justify-between mb-2">
+              <h2 className="text-lg sm:text-xl font-extrabold flex items-center gap-2">
+                🔥 Task aktif buat kamu
+              </h2>
+              <span className="text-xs font-bold text-success bg-success/10 px-2 py-0.5 rounded-full">
+                {eligibleTasks.length} tersedia
+              </span>
+            </div>
+            <div className="space-y-2">
+              {eligibleTasks.map((t) => {
+                const categoryLabel =
+                  t.task_category === 'reddit_upvote' ? '👍 Reddit Upvote' :
+                  t.task_category === 'reddit_post_thread' ? '📝 Reddit Post' :
+                  '💬 Reddit Comment';
+                const slotsLeft = Math.max(t.max_assignments - t.current_assignments, 0);
+                return (
+                  <Card
+                    key={t.id}
+                    padding="sm"
+                    className="ring-1 ring-success/30 hover:ring-success/60 cursor-pointer transition tap-shrink"
+                  >
+                    <Link to={`/task/${t.id}`} className="block">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className="text-[10px] font-bold uppercase tracking-wide text-muted">
+                              {categoryLabel}
+                            </span>
+                            <span className="text-[10px] font-bold uppercase tracking-wide bg-success/10 text-success px-1.5 py-0.5 rounded-full">
+                              {slotsLeft} slot
+                            </span>
+                          </div>
+                          <p className="font-bold text-sm sm:text-base leading-snug">
+                            {t.title}
+                          </p>
+                          <p className="text-xs text-muted line-clamp-1 mt-0.5">
+                            {t.description}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-lg sm:text-2xl font-extrabold text-primary money leading-none">
+                            Rp{t.reward_amount.toLocaleString('id-ID')}
+                          </p>
+                          <p className="text-[10px] text-muted">/task</p>
+                        </div>
+                      </div>
+                    </Link>
+                  </Card>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Empty state — Reddit setup OK but no eligible tasks right now. */}
+        {!needsReddit && !tasksLoading && eligibleTasks.length === 0 && (
+          <Card className="mb-5 text-center py-6" padding="sm">
+            <div className="text-3xl mb-1">⏳</div>
+            <p className="font-bold text-sm">Belum ada task aktif buat kamu</p>
+            <p className="text-xs text-muted mt-1">
+              Admin lagi siapin task baru. Pantau grup WA biar dapat duluan.
+            </p>
           </Card>
         )}
 

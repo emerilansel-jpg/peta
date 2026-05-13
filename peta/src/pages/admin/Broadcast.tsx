@@ -11,11 +11,13 @@ import {
   getBroadcastRecipients,
   markRecipientSent,
   sendBroadcastEmails,
+  sendBroadcastWhatsapp,
   sendTestBroadcast,
+  deleteBroadcast,
   buildWhatsappLink,
 } from '../../lib/api';
 import type { BroadcastChannel } from '../../lib/api';
-import { Beaker } from 'lucide-react';
+import { Beaker, Trash2 } from 'lucide-react';
 import { toast } from '../../components/Toast';
 
 export function AdminBroadcast() {
@@ -121,6 +123,32 @@ export function AdminBroadcast() {
     onSuccess: (res) => {
       toast.success(`Email retry: ${res.sent} sent · ${res.failed} failed · ${res.skipped} skipped`);
       queryClient.invalidateQueries({ queryKey: ['broadcast-recipients', selectedBroadcastId] });
+      queryClient.invalidateQueries({ queryKey: ['broadcasts'] });
+    },
+    onError: (e: any) => toast.error(e.message || String(e)),
+  });
+
+  // Background WhatsApp blast via Fonnte gateway. No popups, no manual
+  // click-through — runs server-side via edge function.
+  const blastWaMutation = useMutation({
+    mutationFn: (broadcastId: string) => sendBroadcastWhatsapp(broadcastId),
+    onSuccess: (res) => {
+      if (res.status === 'not_configured') {
+        toast.error('Fonnte belum di-setup. Lihat docs/Fonnte handoff.');
+      } else {
+        toast.success(`WA blast selesai: ${res.sent} sent · ${res.failed} failed · ${res.skipped} skipped`);
+      }
+      queryClient.invalidateQueries({ queryKey: ['broadcast-recipients', selectedBroadcastId] });
+      queryClient.invalidateQueries({ queryKey: ['broadcasts'] });
+    },
+    onError: (e: any) => toast.error(e.message || String(e)),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (broadcastId: string) => deleteBroadcast(broadcastId),
+    onSuccess: () => {
+      toast.success('Broadcast dihapus');
+      if (selectedBroadcastId) setSelectedBroadcastId(null);
       queryClient.invalidateQueries({ queryKey: ['broadcasts'] });
     },
     onError: (e: any) => toast.error(e.message || String(e)),
@@ -268,33 +296,49 @@ export function AdminBroadcast() {
                   <Card
                     key={b.id}
                     padding="sm"
-                    className={`cursor-pointer transition ${isSelected ? 'ring-2 ring-primary' : 'hover:ring-1 hover:ring-primary/40'}`}
+                    className={`transition ${isSelected ? 'ring-2 ring-primary' : 'hover:ring-1 hover:ring-primary/40'}`}
                   >
-                    <button
-                      onClick={() => setSelectedBroadcastId(isSelected ? null : b.id)}
-                      className="block text-left w-full"
-                    >
-                      <div className="flex items-start justify-between gap-2 mb-1">
-                        <p className="font-extrabold text-sm flex-1 truncate">{b.subject}</p>
-                        <p className="text-[11px] text-muted shrink-0">
-                          {new Date(b.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
-                        </p>
-                      </div>
-                      <p className="text-xs text-muted line-clamp-2 mb-2">{b.body}</p>
-                      <div className="flex items-center gap-2 text-[11px] flex-wrap">
-                        <span className="text-muted">{b.total_targets} targets</span>
-                        {b.channels.includes('email') && (
-                          <span className="bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full">
-                            📧 {b.email_sent}/{b.email_sent + b.email_failed}
-                          </span>
-                        )}
-                        {b.channels.includes('whatsapp') && (
-                          <span className="bg-success/10 text-success font-bold px-2 py-0.5 rounded-full">
-                            💬 {b.wa_sent} sent
-                          </span>
-                        )}
-                      </div>
-                    </button>
+                    <div className="flex items-start gap-2">
+                      <button
+                        onClick={() => setSelectedBroadcastId(isSelected ? null : b.id)}
+                        className="block text-left flex-1 min-w-0 cursor-pointer"
+                      >
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <p className="font-extrabold text-sm flex-1 truncate">{b.subject}</p>
+                          <p className="text-[11px] text-muted shrink-0">
+                            {new Date(b.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                          </p>
+                        </div>
+                        <p className="text-xs text-muted line-clamp-2 mb-2">{b.body}</p>
+                        <div className="flex items-center gap-2 text-[11px] flex-wrap">
+                          <span className="text-muted">{b.total_targets} targets</span>
+                          {b.channels.includes('email') && (
+                            <span className="bg-primary/10 text-primary font-bold px-2 py-0.5 rounded-full">
+                              📧 {b.email_sent}/{b.email_sent + b.email_failed}
+                            </span>
+                          )}
+                          {b.channels.includes('whatsapp') && (
+                            <span className="bg-success/10 text-success font-bold px-2 py-0.5 rounded-full">
+                              💬 {b.wa_sent} sent
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Hapus broadcast "${b.subject}"?\nIni juga akan hapus semua recipient records.`)) {
+                            deleteMutation.mutate(b.id);
+                          }
+                        }}
+                        disabled={deleteMutation.isPending}
+                        className="p-1.5 text-muted hover:text-danger hover:bg-danger/10 rounded-lg shrink-0"
+                        aria-label="Hapus broadcast"
+                        title="Hapus broadcast"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </Card>
                 );
               })}
@@ -340,88 +384,44 @@ export function AdminBroadcast() {
                       <MessageCircle size={16} className="text-success" /> WhatsApp ({waPending} pending)
                     </h3>
                     <div className="flex items-center gap-2 flex-wrap">
-                      <button
-                        onClick={async () => {
-                          const message = `*${selectedBroadcast.subject}*\n\n${selectedBroadcast.body}\n\n— PeTa Team\nhttps://www.penghasilantambahan.com`;
-                          const pending = waRecipients.filter((r) => r.status === 'pending' && r.whatsapp_snapshot);
-                          if (pending.length === 0) { toast.error('Tidak ada pending'); return; }
-                          const limit = pending.length;
-                          if (!confirm(`Buka ${limit} WhatsApp chat sekaligus + tandai sent?\n\n💡 Pertama kali, browser akan minta izin "Allow popups". Klik Allow, lalu klik tombol ini lagi.\n\nKalau jumlah besar (>30), browser mungkin batasi popup — pakai "Open Batch 10" gantian.`)) return;
-                          let opened = 0;
-                          for (const r of pending) {
-                            const link = buildWhatsappLink(r.whatsapp_snapshot!, message);
-                            const w = window.open(link, '_blank', 'noopener,noreferrer');
-                            if (w) opened++;
-                            await markRecipientSent(r.id);
-                            await new Promise((res) => setTimeout(res, 200));
-                          }
-                          queryClient.invalidateQueries({ queryKey: ['broadcast-recipients', selectedBroadcastId] });
-                          queryClient.invalidateQueries({ queryKey: ['broadcasts'] });
-                          toast.success(`${opened}/${pending.length} WA dibuka${opened < pending.length ? ' (sisa diblok popup — coba batch lebih kecil)' : ''}`);
-                        }}
-                        className="text-xs font-bold bg-success text-white px-3 py-1.5 rounded-full flex items-center gap-1 hover:brightness-110"
+                      <Button
+                        onClick={() => blastWaMutation.mutate(selectedBroadcast.id)}
+                        loading={blastWaMutation.isPending}
+                        variant="success"
+                        size="sm"
                       >
-                        <Zap size={12} /> Buka SEMUA ({waPending})
-                      </button>
+                        <Zap size={14} /> Blast via Fonnte (background)
+                      </Button>
                       <button
                         onClick={async () => {
-                          const message = `*${selectedBroadcast.subject}*\n\n${selectedBroadcast.body}\n\n— PeTa Team\nhttps://www.penghasilantambahan.com`;
-                          const pending = waRecipients.filter((r) => r.status === 'pending' && r.whatsapp_snapshot).slice(0, 10);
-                          if (pending.length === 0) { toast.error('Tidak ada pending'); return; }
-                          let opened = 0;
-                          for (const r of pending) {
-                            const link = buildWhatsappLink(r.whatsapp_snapshot!, message);
-                            const w = window.open(link, '_blank', 'noopener,noreferrer');
-                            if (w) opened++;
-                            await markRecipientSent(r.id);
-                            await new Promise((res) => setTimeout(res, 200));
+                          // CSV: phone,name,message — admin pastes into any
+                          // bulk-WA tool (e.g. WA Business Broadcast, Wablas)
+                          const message = `*${selectedBroadcast.subject}*\n\n${selectedBroadcast.body}\n\n— PeTa Team`;
+                          const escaped = (s: string) => `"${(s || '').replace(/"/g, '""')}"`;
+                          const rows = ['phone,name,message'];
+                          for (const r of waRecipients) {
+                            if (r.status !== 'pending' || !r.whatsapp_snapshot) continue;
+                            let p = r.whatsapp_snapshot.replace(/[^0-9]/g, '');
+                            if (p.startsWith('0')) p = '62' + p.slice(1);
+                            if (p.length < 8) continue;
+                            rows.push(`${p},${escaped(r.full_name || '')},${escaped(message)}`);
                           }
-                          queryClient.invalidateQueries({ queryKey: ['broadcast-recipients', selectedBroadcastId] });
-                          queryClient.invalidateQueries({ queryKey: ['broadcasts'] });
-                          toast.success(`${opened}/${pending.length} WA dibuka`);
-                        }}
-                        className="text-xs font-bold bg-success/15 text-success px-3 py-1.5 rounded-full flex items-center gap-1 ring-1 ring-success/40 hover:bg-success/25"
-                      >
-                        <Zap size={12} /> Batch 10
-                      </button>
-                      <button
-                        onClick={async () => {
-                          const phones = waRecipients
-                            .filter((r) => r.status === 'pending' && r.whatsapp_snapshot)
-                            .map((r) => {
-                              let p = (r.whatsapp_snapshot || '').replace(/[^0-9]/g, '');
-                              if (p.startsWith('0')) p = '62' + p.slice(1);
-                              return p;
-                            })
-                            .filter((p) => p.length >= 8);
-                          if (phones.length === 0) { toast.error('Tidak ada nomor pending'); return; }
+                          if (rows.length === 1) { toast.error('Tidak ada nomor pending'); return; }
                           try {
-                            await navigator.clipboard.writeText(phones.join(', '));
-                            toast.success(`${phones.length} nomor disalin (62...)`);
-                          } catch {
-                            toast.error('Browser block clipboard');
-                          }
-                        }}
-                        className="text-xs font-bold bg-light text-dark px-3 py-1.5 rounded-full flex items-center gap-1 ring-1 ring-border hover:ring-primary"
-                      >
-                        <Copy size={12} /> Copy Nomor
-                      </button>
-                      <button
-                        onClick={async () => {
-                          const message = `*${selectedBroadcast.subject}*\n\n${selectedBroadcast.body}\n\n— PeTa Team\nhttps://www.penghasilantambahan.com`;
-                          try {
-                            await navigator.clipboard.writeText(message);
-                            toast.success('Pesan disalin');
+                            await navigator.clipboard.writeText(rows.join('\n'));
+                            toast.success(`${rows.length - 1} baris CSV disalin`);
                           } catch { toast.error('Browser block clipboard'); }
                         }}
                         className="text-xs font-bold bg-light text-dark px-3 py-1.5 rounded-full flex items-center gap-1 ring-1 ring-border hover:ring-primary"
                       >
-                        <Copy size={12} /> Copy Pesan
+                        <Copy size={12} /> Copy CSV
                       </button>
                     </div>
                   </div>
-                  <p className="text-[11px] text-muted mb-2 leading-snug">
-                    💡 Opsi: <b>"Buka 5 WA Sekaligus"</b> = otomatis open 5 chat baru + tandai sent (allow popup di browser settings dulu). <b>"Copy Nomor"</b> = paste ke WA Business Broadcast List buat blast bareng. <b>"Open WA"</b> per row = 1-by-1 manual.
+                  <p className="text-[11px] text-muted mb-3 leading-snug">
+                    💡 <b>Fonnte</b> blast jalan di background — no popups, no tab spam. Setup sekali: signup di fonnte.com, scan QR, paste token jadi <code>FONNTE_TOKEN</code> di Supabase secrets.
+                    <br/>
+                    Alt: <b>Copy CSV</b> → paste ke WA Business Broadcast List atau tool lain. Per row tetap bisa click-through manual.
                   </p>
                   <div className="space-y-1.5 max-h-[420px] overflow-y-auto">
                     {waRecipients.map((r) => {

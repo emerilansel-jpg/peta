@@ -841,6 +841,23 @@ export async function sendBroadcastEmails(broadcastId: string): Promise<{
   return data;
 }
 
+// Trigger WhatsApp blast via Fonnte gateway (background, no popups).
+// Falls back gracefully with status='not_configured' if FONNTE_TOKEN unset.
+export async function sendBroadcastWhatsapp(broadcastId: string): Promise<{
+  success: boolean;
+  sent: number;
+  failed: number;
+  skipped: number;
+  status: 'ok' | 'not_configured';
+  message?: string;
+}> {
+  const { data, error } = await supabase.functions.invoke('send-broadcast-whatsapp', {
+    body: { broadcast_id: broadcastId },
+  });
+  if (error) throw error;
+  return data;
+}
+
 // Build a wa.me deeplink for a single recipient. Normalizes Indonesian
 // numbers (08… → 628…) and URL-encodes the message body.
 export function buildWhatsappLink(phone: string, message: string): string {
@@ -888,18 +905,23 @@ export async function importRedditOrder(opts: {
   return data;
 }
 
+export type TaskCategory = 'reddit_upvote' | 'reddit_comment' | 'reddit_post_thread';
+export type TaskStatus = 'draft' | 'active' | 'paused' | 'completed';
+
 export type AdminTaskUpdate = {
   taskId: string;
   title?: string;
   description?: string;
   target_url?: string;
-  task_type?: 'comment' | 'upvote';
+  task_category?: TaskCategory;
   reward_amount?: number;
   max_assignments?: number;
-  min_level?: number;
+  per_account_limit?: number;
+  min_karma?: number;
+  min_account_age_days?: number;
   start_at?: string | null;
   end_at?: string | null;
-  status?: 'active' | 'paused' | 'completed';
+  status?: TaskStatus;
 };
 
 export async function adminUpdateTask(u: AdminTaskUpdate): Promise<string> {
@@ -908,16 +930,70 @@ export async function adminUpdateTask(u: AdminTaskUpdate): Promise<string> {
     p_title: u.title ?? null,
     p_description: u.description ?? null,
     p_target_url: u.target_url ?? null,
-    p_task_type: u.task_type ?? null,
+    p_task_category: u.task_category ?? null,
     p_reward_amount: u.reward_amount ?? null,
     p_max_assignments: u.max_assignments ?? null,
-    p_min_level: u.min_level ?? null,
+    p_per_account_limit: u.per_account_limit ?? null,
+    p_min_karma: u.min_karma ?? null,
+    p_min_account_age_days: u.min_account_age_days ?? null,
     p_start_at: u.start_at ?? null,
     p_end_at: u.end_at ?? null,
     p_status: u.status ?? null,
   });
   if (error) throw error;
   return data as string;
+}
+
+// Army-side: list tasks this user can actually do right now (filtered server-side).
+export type EligibleTask = {
+  id: string;
+  title: string;
+  description: string;
+  target_url: string;
+  task_type: 'comment' | 'upvote';
+  task_category: TaskCategory;
+  reward_amount: number;
+  max_assignments: number;
+  current_assignments: number;
+  min_karma: number;
+  min_account_age_days: number;
+  per_account_limit: number;
+  status: string;
+  start_at: string | null;
+  end_at: string | null;
+  created_at: string;
+  can_do_with_account_id: string;
+};
+
+export async function listEligibleTasksForUser(): Promise<EligibleTask[]> {
+  const { data, error } = await supabase.rpc('list_eligible_tasks_for_user');
+  if (error) throw error;
+  return (data || []) as EligibleTask[];
+}
+
+// Delete a broadcast (admin only). Cascade deletes recipients.
+export async function deleteBroadcast(broadcastId: string): Promise<void> {
+  const { error } = await supabase.from('broadcasts').delete().eq('id', broadcastId);
+  if (error) throw error;
+}
+
+// Upload a task-proof screenshot to Supabase Storage. Returns public URL.
+// File path pattern: <userId>/<taskId>-<timestamp>.<ext>
+export async function uploadTaskProofImage(opts: {
+  userId: string;
+  taskId: string;
+  file: File;
+}): Promise<string> {
+  const ext = (opts.file.name.split('.').pop() || 'jpg').toLowerCase();
+  const path = `${opts.userId}/${opts.taskId}-${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from('task-proofs').upload(path, opts.file, {
+    cacheControl: '3600',
+    upsert: false,
+    contentType: opts.file.type || `image/${ext}`,
+  });
+  if (error) throw error;
+  const { data: publicUrl } = supabase.storage.from('task-proofs').getPublicUrl(path);
+  return publicUrl.publicUrl;
 }
 
 // Send a TEST broadcast to a single recipient (typically the admin themselves)
