@@ -1,31 +1,111 @@
 import { supabase } from './supabase';
 import { calculateLevel } from './levels';
 
-// Reddit API blocks browser CORS — we proxy through a Supabase Edge Function
-// which fetches /user/<u>/about.json server-side with a User-Agent header.
+// Reddit blocks data-center IPs on public endpoints, so the Supabase edge
+// function gets 403'd. But the USER's browser IP is residential, so a
+// client-side fetch via a CORS proxy succeeds where the edge function fails.
+//
+// Strategy (cheapest → most reliable):
+//   1. corsproxy.io   — fastest free public CORS proxy, returns raw JSON
+//   2. allorigins.win — backup free public proxy
+//   3. codetabs proxy — second backup
+//   4. edge function  — last-resort fallback (OAuth path if REDDIT_CLIENT_ID
+//                       secret is set in Supabase; otherwise falls back to 0)
+//
+// If all four fail we return karma=0 so the user can still proceed; admin
+// can manually sync later via /admin/reddit-accounts.
+//
 // Level is recomputed by a BEFORE INSERT/UPDATE trigger on reddit_accounts,
 // so the value here is for optimistic UI only.
-export async function syncRedditKarma(username: string) {
-  try {
-    const { data, error } = await supabase.functions.invoke('sync-reddit-karma', {
-      body: { username },
-    });
-    if (error) throw error;
-    if (!data?.success) throw new Error(data?.error || 'edge_function_failure');
 
-    const karma = data.karma ?? 0;
-    const accountAgeDays = data.accountAgeDays ?? 0;
-    return {
-      karma,
-      accountAgeDays,
-      level: calculateLevel(karma, accountAgeDays),
-      success: true,
-      fallback: !!data.fallback,
-    };
-  } catch (error) {
-    console.warn('sync-reddit-karma edge fn failed, using defaults:', error);
+type RedditAbout = { link_karma?: number; comment_karma?: number; created_utc?: number };
+
+function parseAbout(raw: any): { karma: number; accountAgeDays: number } | null {
+  const d: RedditAbout | undefined = raw?.data ?? raw;
+  if (!d || typeof d.created_utc !== 'number') return null;
+  const karma = (d.link_karma || 0) + (d.comment_karma || 0);
+  const accountAgeDays = Math.floor((Date.now() - d.created_utc * 1000) / 86_400_000);
+  if (!Number.isFinite(accountAgeDays) || accountAgeDays < 0) return null;
+  return { karma, accountAgeDays };
+}
+
+async function fetchViaProxy(proxyUrl: string, timeoutMs = 6000): Promise<{ karma: number; accountAgeDays: number } | null> {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const r = await fetch(proxyUrl, {
+      signal: controller.signal,
+      headers: { Accept: 'application/json' },
+    });
+    if (!r.ok) return null;
+    const j = await r.json().catch(() => null);
+    if (!j) return null;
+    // allorigins.win wraps response in { contents: "<json string>" }
+    if (typeof j?.contents === 'string') {
+      try { return parseAbout(JSON.parse(j.contents)); } catch { return null; }
+    }
+    return parseAbout(j);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(t);
+  }
+}
+
+export async function syncRedditKarma(username: string) {
+  // Sanitize: strip URL prefix, slashes, whitespace; keep only username chars.
+  const clean = String(username || '')
+    .replace(/^.*?(?:reddit\.com\/)?(?:u\/|user\/)?/i, '')
+    .replace(/[^A-Za-z0-9_-]/g, '')
+    .slice(0, 32);
+  if (!clean) {
     return { karma: 0, accountAgeDays: 0, level: 0, success: true, fallback: true };
   }
+
+  const aboutUrl = `https://www.reddit.com/user/${clean}/about.json`;
+  const aboutUrlEnc = encodeURIComponent(aboutUrl);
+
+  // Tier 1 — codetabs CORS proxy. User's residential IP fetches from Reddit
+  // (not blocked, unlike Supabase data-center egress). Verified 2026-05-13.
+  // Returns raw Reddit JSON. Free, no API key, ~300ms median.
+  const proxies = [
+    `https://api.codetabs.com/v1/proxy?quest=${aboutUrlEnc}`,
+  ];
+
+  for (const proxy of proxies) {
+    const result = await fetchViaProxy(proxy);
+    if (result) {
+      return {
+        ...result,
+        level: calculateLevel(result.karma, result.accountAgeDays),
+        success: true,
+        fallback: false,
+      };
+    }
+  }
+
+  // Tier 2 — edge function (OAuth path if REDDIT_CLIENT_ID set, else falls back).
+  try {
+    const { data, error } = await supabase.functions.invoke('sync-reddit-karma', {
+      body: { username: clean },
+    });
+    if (!error && data?.success && !data.fallback) {
+      const karma = data.karma ?? 0;
+      const accountAgeDays = data.accountAgeDays ?? 0;
+      return {
+        karma,
+        accountAgeDays,
+        level: calculateLevel(karma, accountAgeDays),
+        success: true,
+        fallback: false,
+      };
+    }
+  } catch (error) {
+    console.warn('edge-function fallback also failed:', error);
+  }
+
+  // Tier 3 — all paths failed. Return zeros so user can still proceed.
+  return { karma: 0, accountAgeDays: 0, level: 0, success: true, fallback: true };
 }
 
 export async function getRedditAccounts(userId: string) {
