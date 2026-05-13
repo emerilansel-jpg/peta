@@ -1,0 +1,5 @@
+version: STSv1
+mode: enforce
+mx: mx1.spacemail.com
+mx: mx2.spacemail.com
+max_age: 604800
