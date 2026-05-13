@@ -17,7 +17,7 @@ import {
   buildWhatsappLink,
 } from '../../lib/api';
 import type { BroadcastChannel } from '../../lib/api';
-import { Beaker, Trash2 } from 'lucide-react';
+import { Beaker, Trash2, Settings as SettingsIcon } from 'lucide-react';
 import { toast } from '../../components/Toast';
 
 export function AdminBroadcast() {
@@ -167,9 +167,96 @@ export function AdminBroadcast() {
           <Megaphone size={28} className="text-primary" /> Kirim Pesan
         </h1>
         <p className="text-sm text-muted">
-          Pesan terdistribusi ke email (otomatis via Resend) + WhatsApp (manual per recipient via wa.me).
+          Email otomatis via Resend/Spacemail. WhatsApp background blast via Fonnte.
         </p>
       </div>
+
+      {/* Setup instructions panel — renders the same content as the .md handoff doc
+          but inline so admin can read it without opening any files. Collapsed by
+          default to keep the page clean. */}
+      <details className="mb-5">
+        <summary className="cursor-pointer bg-white ring-1 ring-border hover:ring-primary/40 rounded-xl px-4 py-3 flex items-center gap-2 list-none">
+          <SettingsIcon size={16} className="text-primary" />
+          <span className="font-bold text-sm">📖 Cara setup Email + WhatsApp (klik untuk buka)</span>
+          <span className="ml-auto text-xs text-muted">setup sekali, dipakai selamanya</span>
+        </summary>
+        <Card className="mt-2">
+          <h3 className="font-extrabold text-base mb-3">📧 Setup Email — pilih SATU provider</h3>
+
+          <details open className="mb-3">
+            <summary className="cursor-pointer text-sm font-bold text-primary hover:underline list-none">
+              ▸ Opsi A: Spacemail (recommended — sama seperti Straight Ltd)
+            </summary>
+            <div className="mt-2 pl-3 border-l-2 border-primary/30 space-y-2 text-sm">
+              <ol className="list-decimal pl-5 space-y-1.5">
+                <li>Login ke <a href="https://www.spaceship.com" target="_blank" rel="noopener noreferrer" className="text-primary font-bold hover:underline">spaceship.com</a> → <b>Mail</b> → klik domain <code>penghasilantambahan.com</code></li>
+                <li>Bikin inbox baru: <code>peta@penghasilantambahan.com</code></li>
+                <li>Set password yang kuat — catat dulu</li>
+                <li>Catat SMTP info Spacemail kasih:
+                  <div className="bg-light rounded-lg p-2.5 mt-1.5 text-xs space-y-0.5 font-mono">
+                    <div>Host: <b>mail.spacemail.com</b></div>
+                    <div>SSL Port: <b>465</b></div>
+                    <div>User: <b>peta@penghasilantambahan.com</b></div>
+                    <div>Pass: <i>(password yang baru set)</i></div>
+                  </div>
+                </li>
+                <li>Paste kredensial di chat (Claude) — saya set Supabase secrets via MCP dalam 30 detik.</li>
+              </ol>
+              <p className="text-xs text-muted mt-2">
+                💡 Atau set sendiri di Supabase Dashboard → Edge Functions → Manage Secrets dengan key:<br/>
+                <code className="text-[11px]">SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, BROADCAST_FROM</code>
+              </p>
+            </div>
+          </details>
+
+          <details className="mb-4">
+            <summary className="cursor-pointer text-sm font-bold text-primary hover:underline list-none">
+              ▸ Opsi B: Resend (kalo Spacemail ribet)
+            </summary>
+            <div className="mt-2 pl-3 border-l-2 border-primary/30 space-y-2 text-sm">
+              <p>Akun sudah dibuat:</p>
+              <div className="bg-light rounded-lg p-2.5 text-xs font-mono">
+                <div>URL: <a href="https://resend.com/login" target="_blank" rel="noopener noreferrer" className="text-primary">resend.com/login</a></div>
+                <div>Email: <b>n311311@gmail.com</b></div>
+                <div>Password: <b>PetaResend!2026SecurePwd</b></div>
+              </div>
+              <ol className="list-decimal pl-5 space-y-1">
+                <li>Login → API keys → Create → name "PeTa Prod" → Full access → copy <code>re_...</code> key</li>
+                <li>Domains → Add → <code>penghasilantambahan.com</code> → screenshot 3 DNS records</li>
+                <li>Paste key + screenshot di chat — saya set semuanya</li>
+              </ol>
+            </div>
+          </details>
+
+          <hr className="my-4 border-border" />
+
+          <h3 className="font-extrabold text-base mb-3">💬 Setup WhatsApp — Fonnte</h3>
+          <ol className="list-decimal pl-5 space-y-1.5 text-sm">
+            <li>Signup di <a href="https://fonnte.com" target="_blank" rel="noopener noreferrer" className="text-primary font-bold hover:underline">fonnte.com</a> (gratis, ~100 pesan/hari)</li>
+            <li>Dashboard → <b>Add Device</b> → scan QR pakai WhatsApp di HP yang mau jadi sender PeTa
+              <br/><span className="text-xs text-muted">(saran: pakai akun WA khusus admin, bukan personal)</span>
+            </li>
+            <li>Copy <b>device API token</b> (string panjang)</li>
+            <li>Paste di chat → saya set <code>FONNTE_TOKEN</code> di Supabase staging + prod</li>
+          </ol>
+
+          <hr className="my-4 border-border" />
+
+          <h3 className="font-extrabold text-base mb-2">🧪 Tes habis setup</h3>
+          <ol className="list-decimal pl-5 space-y-1 text-sm">
+            <li>Klik <b>"Test ke Saya Dulu"</b> (tombol orange di atas)</li>
+            <li>Cek inbox + spam folder dalam 30 detik</li>
+            <li>Buka broadcast detail → klik <b>"Blast via Fonnte"</b> untuk test WA</li>
+          </ol>
+
+          <div className="bg-primary/5 ring-1 ring-primary/20 rounded-xl p-3 mt-4">
+            <p className="text-xs font-bold text-primary mb-1">💡 Rekomendasi saya:</p>
+            <p className="text-xs leading-snug">
+              Pakai <b>Spacemail</b> untuk email — domain sudah di Spaceship, no DNS baru perlu di-set, sama seperti Straight Ltd. Pakai <b>Fonnte</b> untuk WhatsApp — Indonesian, free tier cukup, background blast tanpa popup.
+            </p>
+          </div>
+        </Card>
+      </details>
 
       <div className="grid lg:grid-cols-2 gap-5">
         {/* Compose */}

@@ -336,6 +336,19 @@ export function AdminTaskQueue() {
                     {t.title}
                   </p>
                   <p className="text-xs text-muted line-clamp-1">{t.description}</p>
+                  {t.brief && t.brief.trim() && (
+                    // Brief preview — collapsible details so admin can scan + expand to verify
+                    // what army members are seeing. Important for comment/post tasks where
+                    // instructions need to be exactly right.
+                    <details className="mt-1.5">
+                      <summary className="text-[11px] font-bold text-warning bg-warning/10 px-2 py-0.5 rounded-full inline-flex items-center gap-1 cursor-pointer hover:bg-warning/20 list-none">
+                        📋 Brief lengkap (klik buka)
+                      </summary>
+                      <div className="mt-2 p-2.5 bg-yellow-50 ring-1 ring-yellow-200 rounded-lg text-xs whitespace-pre-line leading-relaxed text-yellow-950">
+                        {t.brief}
+                      </div>
+                    </details>
+                  )}
                 </div>
                 <p className="text-lg font-extrabold text-primary money shrink-0">
                   Rp{t.reward_amount.toLocaleString('id-ID')}
