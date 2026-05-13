@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
@@ -8,7 +8,7 @@ import { supabase } from '../../lib/supabase';
 import { getLevelInfo } from '../../lib/levels';
 import { adminSetKarma, adminRejectKarmaClaim, updateRedditAccountKarma } from '../../lib/api';
 import { toast } from '../../components/Toast';
-import { Pencil, RefreshCw, Check, X, ExternalLink, ShieldCheck, Trash2 } from 'lucide-react';
+import { Pencil, RefreshCw, Check, X, ExternalLink, ShieldCheck, Trash2, Zap } from 'lucide-react';
 
 type Row = {
   id: string;
@@ -25,6 +25,9 @@ type Row = {
 export function AdminRedditAccounts() {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<{ id: string; karma: string; age: string } | null>(null);
+  // Bulk sync state — single in-flight loop, throttled to avoid hammering
+  // the codetabs proxy (free tier, may rate-limit). 500ms gap = ~2 req/sec.
+  const [bulkSync, setBulkSync] = useState<{ running: boolean; current: number; total: number; updated: number; failed: number; lastUser: string } | null>(null);
 
   const { data: accounts = [], isLoading } = useQuery<Row[]>({
     queryKey: ['allRedditAccounts'],
@@ -101,6 +104,44 @@ export function AdminRedditAccounts() {
   const startEdit = (a: Row) =>
     setEditing({ id: a.id, karma: String(a.karma), age: String(a.account_age_days) });
 
+  // Bulk re-sync: iterate every account through the same single-account
+  // sync path (updateRedditAccountKarma). Throttled to 500ms between
+  // requests so we don't blow through the free codetabs proxy quota.
+  // Cancel flag — useRef so mutations inside the closure are visible without re-renders.
+  const bulkCancelRef = useRef(false);
+  const startBulkSync = async () => {
+    if (bulkSync?.running) return;
+    if (!confirm(`Sync ${accounts.length} akun dari Reddit? Estimasi ${Math.ceil(accounts.length * 0.7)} detik.`)) return;
+    bulkCancelRef.current = false;
+    setBulkSync({ running: true, current: 0, total: accounts.length, updated: 0, failed: 0, lastUser: '' });
+    let updated = 0, failed = 0;
+    for (let i = 0; i < accounts.length; i++) {
+      if (bulkCancelRef.current) break;
+      const a = accounts[i];
+      setBulkSync((s) => s && { ...s, current: i + 1, lastUser: a.username });
+      try {
+        const res = await updateRedditAccountKarma(a.id, a.username);
+        if (res?.fallback) failed++;
+        else updated++;
+      } catch {
+        failed++;
+      }
+      setBulkSync((s) => s && { ...s, updated, failed });
+      if (i < accounts.length - 1) await new Promise((r) => setTimeout(r, 500));
+    }
+    setBulkSync((s) => s && { ...s, running: false });
+    queryClient.invalidateQueries({ queryKey: ['allRedditAccounts'] });
+    if (bulkCancelRef.current) {
+      toast.success(`Dibatalkan: ${updated} updated · ${failed} fallback`);
+    } else {
+      toast.success(`Sync selesai: ${updated} updated · ${failed} fallback`);
+    }
+  };
+
+  const cancelBulkSync = () => {
+    bulkCancelRef.current = true;
+  };
+
   const saveEdit = () => {
     if (!editing) return;
     const karma = parseInt(editing.karma, 10);
@@ -112,11 +153,50 @@ export function AdminRedditAccounts() {
 
   return (
     <Layout userRole="admin">
-      <div className="mb-5">
-        <p className="text-xs uppercase tracking-wide font-bold text-muted">Admin Console</p>
-        <h1 className="text-2xl sm:text-3xl font-extrabold">Akun Reddit</h1>
-        <p className="text-sm text-muted">{accounts.length} akun terdaftar — klik ✏️ untuk set karma manual, 🔄 untuk sync dari Reddit</p>
+      <div className="mb-5 flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <p className="text-xs uppercase tracking-wide font-bold text-muted">Admin Console</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold">Akun Reddit</h1>
+          <p className="text-sm text-muted">{accounts.length} akun terdaftar — ✏️ set manual · 🔄 sync per-akun · ⚡ sync semua</p>
+        </div>
+        {accounts.length > 0 && (
+          <div className="flex items-center gap-2">
+            {bulkSync?.running ? (
+              <>
+                <Button onClick={cancelBulkSync} variant="outline" size="sm" className="!border-danger !text-danger hover:!bg-danger hover:!text-white">
+                  <X size={14} /> Cancel
+                </Button>
+                <span className="text-xs font-bold tabular-nums text-muted">
+                  {bulkSync.current}/{bulkSync.total} · ✅{bulkSync.updated} ⚠️{bulkSync.failed}
+                </span>
+              </>
+            ) : (
+              <Button onClick={startBulkSync} variant="primary" size="sm" loading={false}>
+                <Zap size={14} /> Sync Semua ({accounts.length})
+              </Button>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Bulk sync progress indicator — only visible while running */}
+      {bulkSync?.running && (
+        <Card padding="sm" className="mb-4 bg-primary/5 ring-primary/20">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-primary uppercase tracking-wide">Sync Berjalan</span>
+            <span className="text-xs text-muted tabular-nums">u/{bulkSync.lastUser}</span>
+          </div>
+          <div className="w-full h-2 bg-primary/10 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary rounded-full transition-all"
+              style={{ width: `${(bulkSync.current / bulkSync.total) * 100}%` }}
+            />
+          </div>
+          <p className="text-[11px] text-muted mt-1.5">
+            {bulkSync.current} dari {bulkSync.total} · {bulkSync.updated} updated · {bulkSync.failed} fallback. Jangan tutup tab.
+          </p>
+        </Card>
+      )}
 
       {/* PENDING KARMA CLAIMS — honor-system submissions waiting on
           admin verification. Highest-priority work. */}

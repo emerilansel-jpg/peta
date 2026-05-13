@@ -40,6 +40,7 @@ import { AdminTaskQueue } from './pages/admin/TaskQueue';
 import { AdminApprovalQueue } from './pages/admin/ApprovalQueue';
 import { AdminTeam } from './pages/admin/Team';
 import { AdminPayroll } from './pages/admin/Payroll';
+import { AdminBroadcast } from './pages/admin/Broadcast';
 import { AdminGuard } from './components/AdminGuard';
 
 import './App.css';
@@ -118,6 +119,7 @@ function App() {
           <Route path="/admin/approval" element={<AdminGuard><AdminApprovalQueue /></AdminGuard>} />
           <Route path="/admin/team" element={<AdminGuard><AdminTeam /></AdminGuard>} />
           <Route path="/admin/payroll" element={<AdminGuard><AdminPayroll /></AdminGuard>} />
+          <Route path="/admin/broadcast" element={<AdminGuard><AdminBroadcast /></AdminGuard>} />
 
           {/* Catch all */}
           <Route path="*" element={<Navigate to="/" replace />} />

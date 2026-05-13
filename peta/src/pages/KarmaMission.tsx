@@ -18,7 +18,7 @@ import {
 import { WHATSAPP_GROUP_URL } from '../lib/config';
 import { toast } from '../components/Toast';
 
-const KARMA_GOAL = 10;
+const KARMA_GOAL = 100;
 
 const SUBREDDIT_LINKS = [
   { name: 'r/dogs',          url: 'https://www.reddit.com/r/dogs/',         tag: '🐶 anabul' },

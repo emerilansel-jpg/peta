@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Home, Wallet, User as UserIcon, Menu, X, BarChart3, Users, ListChecks, ClipboardCheck, Coins, Link as LinkIcon } from 'lucide-react';
+import { LogOut, Home, Wallet, User as UserIcon, Menu, X, BarChart3, Users, ListChecks, ClipboardCheck, Coins, Link as LinkIcon, ShieldCheck, Megaphone } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface LayoutProps {
@@ -8,27 +8,52 @@ interface LayoutProps {
   userRole?: 'army' | 'admin';
 }
 
+// Army-facing nav tabs. Deliberately NO /reddit (Straight Ltd surface) and NO
+// admin links here — workers should never see how the platform is sold or
+// administered. Admin gets a separate jump-link at the top when their role
+// hits the public client area (see <AdminJumpLink/>).
 const armyTabs = [
   { href: '/tasks',    label: 'Tugas',     icon: Home },
   { href: '/earnings', label: 'Saldo',     icon: Wallet },
   { href: '/account',  label: 'Akun',      icon: UserIcon },
-  { href: '/reddit',   label: 'Reddit',    icon: LinkIcon },
 ];
 
 const adminLinks = [
-  { href: '/admin',           label: 'Dashboard', icon: BarChart3 },
-  { href: '/admin/tasks',     label: 'Task Queue', icon: ListChecks },
-  { href: '/admin/approval',  label: 'Approval',   icon: ClipboardCheck },
+  { href: '/admin',           label: 'Dashboard',   icon: BarChart3 },
+  { href: '/admin/tasks',     label: 'Task Queue',  icon: ListChecks },
+  { href: '/admin/approval',  label: 'Approval',    icon: ClipboardCheck },
   { href: '/admin/accounts',  label: 'Akun Reddit', icon: LinkIcon },
-  { href: '/admin/team',      label: 'Tim',        icon: Users },
-  { href: '/admin/payroll',   label: 'Payroll',    icon: Coins },
-  { href: '/reddit/admin',    label: 'Reddit',     icon: LinkIcon },
+  { href: '/admin/broadcast', label: 'Kirim Pesan', icon: Megaphone },
+  { href: '/admin/team',      label: 'Tim',         icon: Users },
+  { href: '/admin/payroll',   label: 'Payroll',     icon: Coins },
+  { href: '/reddit/admin',    label: 'Reddit B2B',  icon: LinkIcon },
 ];
 
 export function Layout({ children, userRole = 'army' }: LayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = React.useState(false);
+  // Detect admin role so we can surface a jump-link when admins land in the
+  // army area (they can navigate the worker UX but always get one click back
+  // to /admin without searching for it).
+  const [isAdminUser, setIsAdminUser] = React.useState(false);
+
+  React.useEffect(() => {
+    let mounted = true;
+    if (userRole === 'army') {
+      (async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user || !mounted) return;
+        const { data } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', user.id)
+          .maybeSingle();
+        if (mounted && data?.role === 'admin') setIsAdminUser(true);
+      })();
+    }
+    return () => { mounted = false; };
+  }, [userRole]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -180,6 +205,14 @@ export function Layout({ children, userRole = 'army' }: LayoutProps) {
                 </Link>
               );
             })}
+            {isAdminUser && (
+              <Link
+                to="/admin"
+                className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-primary ring-1 ring-primary/40 hover:bg-primary/10"
+              >
+                <ShieldCheck size={18} /> Admin
+              </Link>
+            )}
             <button
               onClick={handleLogout}
               className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold text-muted hover:bg-light"
@@ -187,13 +220,25 @@ export function Layout({ children, userRole = 'army' }: LayoutProps) {
               <LogOut size={18} /> Logout
             </button>
           </div>
-          <button
-            onClick={handleLogout}
-            className="md:hidden p-2 -mr-2 rounded-lg text-muted hover:bg-light"
-            aria-label="Logout"
-          >
-            <LogOut size={20} />
-          </button>
+          <div className="md:hidden flex items-center gap-1">
+            {isAdminUser && (
+              <Link
+                to="/admin"
+                className="p-2 rounded-lg text-primary hover:bg-primary/10"
+                aria-label="Buka Admin Console"
+                title="Admin Console"
+              >
+                <ShieldCheck size={22} />
+              </Link>
+            )}
+            <button
+              onClick={handleLogout}
+              className="p-2 -mr-2 rounded-lg text-muted hover:bg-light"
+              aria-label="Logout"
+            >
+              <LogOut size={20} />
+            </button>
+          </div>
         </div>
       </header>
 

@@ -454,14 +454,15 @@ export async function claimKarmaMilestone(): Promise<KarmaMilestoneResult> {
   return data as KarmaMilestoneResult;
 }
 
-// Has the user already claimed the karma_10 milestone? (For UI state)
+// Has the user already claimed the karma milestone? (For UI state)
+// Description was 'karma_10' before 2026-05-13, then bumped to 'karma_100'.
+// Unique index is now per (user_id, source='karma_milestone') so any row counts.
 export async function hasClaimedKarmaMilestone(userId: string): Promise<boolean> {
   const { data, error } = await supabase
     .from('user_credits')
     .select('id')
     .eq('user_id', userId)
     .eq('source', 'karma_milestone')
-    .eq('description', 'karma_10')
     .maybeSingle();
   if (error) throw error;
   return !!data;
@@ -672,4 +673,129 @@ export async function getReferralStats(userId: string) {
     invitedCount: count,
     totalBonus,
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin broadcast messaging — email + WhatsApp
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type BroadcastChannel = 'email' | 'whatsapp';
+export type BroadcastSummary = {
+  id: string;
+  subject: string;
+  body: string;
+  channels: BroadcastChannel[];
+  created_at: string;
+  total_targets: number;
+  email_sent: number;
+  email_failed: number;
+  wa_sent: number;
+  wa_failed: number;
+};
+
+export type BroadcastRecipientStatus = 'pending' | 'sent' | 'failed' | 'skipped' | 'manual_pending';
+export type BroadcastRecipient = {
+  id: string;
+  user_id: string;
+  channel: BroadcastChannel;
+  email_snapshot: string | null;
+  whatsapp_snapshot: string | null;
+  status: BroadcastRecipientStatus;
+  error: string | null;
+  sent_at: string | null;
+  full_name: string | null;
+};
+
+export async function createBroadcast(
+  subject: string,
+  body: string,
+  channels: BroadcastChannel[] = ['email', 'whatsapp']
+): Promise<string> {
+  const { data, error } = await supabase.rpc('admin_create_broadcast', {
+    p_subject: subject,
+    p_body: body,
+    p_channels: channels,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
+export async function listBroadcasts(limit = 50): Promise<BroadcastSummary[]> {
+  const { data, error } = await supabase.rpc('admin_list_broadcasts', { p_limit: limit });
+  if (error) throw error;
+  return (data || []) as BroadcastSummary[];
+}
+
+export async function getBroadcastRecipients(broadcastId: string): Promise<BroadcastRecipient[]> {
+  const { data, error } = await supabase.rpc('admin_broadcast_recipients', { p_broadcast_id: broadcastId });
+  if (error) throw error;
+  return (data || []) as BroadcastRecipient[];
+}
+
+export async function markRecipientSent(recipientId: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_mark_recipient_sent', { p_recipient_id: recipientId });
+  if (error) throw error;
+}
+
+// Trigger the actual email send via edge function. Returns counts + whether
+// Resend is configured (so the UI can prompt admin to set it up if not).
+export async function sendBroadcastEmails(broadcastId: string): Promise<{
+  success: boolean;
+  sent: number;
+  failed: number;
+  skipped: number;
+  resend_configured: boolean;
+}> {
+  const { data, error } = await supabase.functions.invoke('send-broadcast-emails', {
+    body: { broadcast_id: broadcastId },
+  });
+  if (error) throw error;
+  return data;
+}
+
+// Build a wa.me deeplink for a single recipient. Normalizes Indonesian
+// numbers (08… → 628…) and URL-encodes the message body.
+export function buildWhatsappLink(phone: string, message: string): string {
+  let p = (phone || '').replace(/[^0-9]/g, '');
+  if (p.startsWith('0')) p = '62' + p.slice(1);
+  // Most Indo numbers should start with 62 after normalization
+  return `https://wa.me/${p}?text=${encodeURIComponent(message)}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Straight Ltd order → PeTa task sync (admin-only)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type PendingRedditOrder = {
+  id: number;
+  status: string;
+  subreddit: string | null;
+  thread_url: string;
+  target_type: 'upvote' | 'comment' | 'thread';
+  requested_upvotes: number;
+  notes: string | null;
+  created_at: string;
+  client_email: string | null;
+};
+
+export async function listPendingRedditOrders(): Promise<PendingRedditOrder[]> {
+  const { data, error } = await supabase.rpc('admin_list_pending_reddit_orders');
+  if (error) throw error;
+  return (data || []) as PendingRedditOrder[];
+}
+
+export async function importRedditOrder(opts: {
+  orderId: number;
+  rewardAmount?: number;
+  minLevel?: number;
+  titleOverride?: string;
+}): Promise<{ task_id: string; order_id: number; task_type: string }> {
+  const { data, error } = await supabase.rpc('admin_import_reddit_order', {
+    p_order_id: opts.orderId,
+    p_reward_amount: opts.rewardAmount ?? null,
+    p_min_level: opts.minLevel ?? 0,
+    p_title_override: opts.titleOverride ?? null,
+  });
+  if (error) throw error;
+  return data;
 }

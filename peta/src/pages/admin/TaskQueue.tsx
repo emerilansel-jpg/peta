@@ -1,12 +1,13 @@
 import React from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { Plus, X } from 'lucide-react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { Plus, X, Download, ExternalLink, Zap } from 'lucide-react';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
 import { toast } from '../../components/Toast';
+import { listPendingRedditOrders, importRedditOrder } from '../../lib/api';
 
 const COMMENT_PRESETS = [5000, 8000, 11000, 14000, 17000, 20000];
 const UPVOTE_PRESETS  = [500, 1000, 1500, 2000];
@@ -20,9 +21,11 @@ const LEVEL_OPTIONS = [
 ];
 
 export function AdminTaskQueue() {
+  const queryClient = useQueryClient();
   const [user, setUser] = React.useState<any>(null);
   const [showSheet, setShowSheet] = React.useState(false);
   const [filter, setFilter] = React.useState<'all' | 'active' | 'paused'>('all');
+  const [bulkImporting, setBulkImporting] = React.useState(false);
 
   const [form, setForm] = React.useState({
     title: '',
@@ -72,6 +75,44 @@ export function AdminTaskQueue() {
     onSuccess: () => { toast.success('Status diupdate'); refetch(); },
   });
 
+  // Straight Ltd order queue → import into PeTa tasks. The list shows
+  // pending orders that haven't been imported yet; admin can one-click
+  // import each, or batch-import all at once.
+  const { data: pendingOrders = [], isLoading: ordersLoading } = useQuery({
+    queryKey: ['pendingRedditOrders'],
+    queryFn: listPendingRedditOrders,
+  });
+
+  const importOrderMutation = useMutation({
+    mutationFn: (orderId: number) => importRedditOrder({ orderId }),
+    onSuccess: () => {
+      toast.success('Order di-import sebagai task ✅');
+      queryClient.invalidateQueries({ queryKey: ['pendingRedditOrders'] });
+      queryClient.invalidateQueries({ queryKey: ['adminTasks'] });
+    },
+    onError: (e: any) => toast.error(`Import gagal: ${e.message || e}`),
+  });
+
+  const importAll = async () => {
+    if (bulkImporting) return;
+    if (pendingOrders.length === 0) return;
+    if (!confirm(`Import ${pendingOrders.length} order jadi PeTa task?`)) return;
+    setBulkImporting(true);
+    let ok = 0, fail = 0;
+    for (const order of pendingOrders) {
+      try {
+        await importRedditOrder({ orderId: order.id });
+        ok++;
+      } catch {
+        fail++;
+      }
+    }
+    setBulkImporting(false);
+    queryClient.invalidateQueries({ queryKey: ['pendingRedditOrders'] });
+    queryClient.invalidateQueries({ queryKey: ['adminTasks'] });
+    toast.success(`Import selesai: ${ok} sukses · ${fail} gagal`);
+  };
+
   const filtered = tasks.filter((t) => filter === 'all' || t.status === filter);
 
   return (
@@ -85,6 +126,76 @@ export function AdminTaskQueue() {
           <Plus size={18} /> Task Baru
         </Button>
       </div>
+
+      {/* Straight Ltd order queue — import-as-task panel. Only shown when
+          there are pending orders so it doesn't add visual noise. */}
+      {!ordersLoading && pendingOrders.length > 0 && (
+        <Card className="mb-5 bg-warning/5 ring-warning/30">
+          <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
+            <div>
+              <p className="text-xs uppercase tracking-wide font-bold text-warning">Order Queue · Straight Ltd</p>
+              <h2 className="text-lg sm:text-xl font-extrabold">
+                {pendingOrders.length} order belum di-import
+              </h2>
+              <p className="text-xs text-muted">
+                Order dari client B2B yang masih nunggu task PeTa dibuat. Klik "Import" buat copy jadi task otomatis.
+              </p>
+            </div>
+            <Button
+              onClick={importAll}
+              loading={bulkImporting}
+              disabled={pendingOrders.length === 0}
+              variant="primary"
+              size="sm"
+            >
+              <Zap size={14} /> Import Semua ({pendingOrders.length})
+            </Button>
+          </div>
+
+          <div className="space-y-2">
+            {pendingOrders.map((o) => (
+              <div
+                key={o.id}
+                className="bg-white rounded-xl ring-1 ring-warning/30 p-3 flex items-start justify-between gap-3 flex-wrap"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="text-[10px] uppercase font-bold bg-warning/10 text-warning px-2 py-0.5 rounded-full">
+                      #{o.id}
+                    </span>
+                    <span className="text-[10px] uppercase font-bold bg-light text-muted px-2 py-0.5 rounded-full">
+                      {o.target_type}
+                    </span>
+                    {o.subreddit && (
+                      <span className="text-xs text-muted">r/{o.subreddit}</span>
+                    )}
+                    <span className="text-xs font-bold">×{o.requested_upvotes}</span>
+                  </div>
+                  <a
+                    href={o.thread_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-primary hover:underline truncate flex items-center gap-1"
+                  >
+                    {o.thread_url.replace(/^https?:\/\//, '').slice(0, 70)} <ExternalLink size={11} />
+                  </a>
+                  {o.client_email && (
+                    <p className="text-[11px] text-muted truncate">Client: {o.client_email}</p>
+                  )}
+                </div>
+                <Button
+                  onClick={() => importOrderMutation.mutate(o.id)}
+                  loading={importOrderMutation.isPending && importOrderMutation.variables === o.id}
+                  variant="primary"
+                  size="sm"
+                >
+                  <Download size={14} /> Import
+                </Button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {/* Filter */}
       <div className="flex gap-2 overflow-x-auto no-scrollbar mb-4">
