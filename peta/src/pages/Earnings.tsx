@@ -53,7 +53,7 @@ export function Earnings() {
   const payoutMutation = useMutation({
     mutationFn: () => requestPayout(user.id, amount),
     onSuccess: () => {
-      toast.success('Payout request terkirim! 24 jam max ✅');
+      toast.success('Payout request terkirim! 24 jam max ✅ Cek inbox + spam folder buat konfirmasi (peta@penghasilantambahan.com)');
       setAmount(50000);
       setShowSheet(false);
       refetch();
@@ -99,6 +99,35 @@ export function Earnings() {
 
   return (
     <Layout userRole="army">
+      {/* Email-deliverability nudge — payout confirmations + admin pesan dikirim
+          via email. Tetap shown until user has dismissed (localStorage flag) so
+          first-time payout requesters don't miss admin reply in Spam folder. */}
+      {!localStorage.getItem(`peta_email_save_dismissed:${user?.id || ''}`) && (
+        <Card className="mb-3 bg-orange-50 ring-orange-200 relative">
+          <button
+            onClick={() => {
+              localStorage.setItem(`peta_email_save_dismissed:${user.id}`, '1');
+              // Force re-render
+              setUser({ ...user });
+            }}
+            className="absolute top-2 right-2 p-1 text-orange-700 hover:text-orange-900"
+            aria-label="Tutup notifikasi"
+          >
+            <X size={16} />
+          </button>
+          <div className="flex items-start gap-2.5 pr-6">
+            <div className="text-xl shrink-0">📬</div>
+            <div className="flex-1">
+              <p className="font-extrabold text-orange-950 text-sm">Simpan email PeTa di kontak kamu</p>
+              <p className="text-xs text-orange-900/85 mt-0.5 leading-snug">
+                Konfirmasi payout + update task dikirim dari <b>peta@penghasilantambahan.com</b>.
+                Sering masuk <b>folder Spam / Promotions</b> — save ke contacts biar nggak ketinggalan.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
       {/* Reddit setup nudge — only shown when user has no Reddit account.
           Without it, real task earnings are impossible, so we point them
           back to onboarding before they wonder why their saldo is stuck. */}

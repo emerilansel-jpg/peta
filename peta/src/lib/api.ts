@@ -887,3 +887,76 @@ export async function importRedditOrder(opts: {
   if (error) throw error;
   return data;
 }
+
+export type AdminTaskUpdate = {
+  taskId: string;
+  title?: string;
+  description?: string;
+  target_url?: string;
+  task_type?: 'comment' | 'upvote';
+  reward_amount?: number;
+  max_assignments?: number;
+  min_level?: number;
+  start_at?: string | null;
+  end_at?: string | null;
+  status?: 'active' | 'paused' | 'completed';
+};
+
+export async function adminUpdateTask(u: AdminTaskUpdate): Promise<string> {
+  const { data, error } = await supabase.rpc('admin_update_task', {
+    p_task_id: u.taskId,
+    p_title: u.title ?? null,
+    p_description: u.description ?? null,
+    p_target_url: u.target_url ?? null,
+    p_task_type: u.task_type ?? null,
+    p_reward_amount: u.reward_amount ?? null,
+    p_max_assignments: u.max_assignments ?? null,
+    p_min_level: u.min_level ?? null,
+    p_start_at: u.start_at ?? null,
+    p_end_at: u.end_at ?? null,
+    p_status: u.status ?? null,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
+// Send a TEST broadcast to a single recipient (typically the admin themselves)
+// before blasting to the full audience. Returns whether the email actually
+// went out via Resend.
+export async function sendTestBroadcast(opts: {
+  subject: string;
+  body: string;
+  channels: BroadcastChannel[];
+  testEmail?: string | null;
+  testWhatsapp?: string | null;
+}): Promise<{
+  broadcast_id: string;
+  email_test?: { sent: boolean; error?: string };
+  whatsapp_test?: { link: string };
+}> {
+  // Reuse createBroadcast + edge function by calling a thin RPC that
+  // inserts a one-recipient broadcast for the admin themselves.
+  const { data, error } = await supabase.rpc('admin_send_test_broadcast', {
+    p_subject: opts.subject,
+    p_body: opts.body,
+    p_channels: opts.channels,
+    p_test_email: opts.testEmail ?? null,
+    p_test_whatsapp: opts.testWhatsapp ?? null,
+  });
+  if (error) throw error;
+  const broadcastId = data as string;
+  const out: any = { broadcast_id: broadcastId };
+  if (opts.channels.includes('email')) {
+    try {
+      const res = await sendBroadcastEmails(broadcastId);
+      out.email_test = { sent: res.sent > 0, error: res.failed > 0 ? `${res.failed} failed` : undefined };
+    } catch (e: any) {
+      out.email_test = { sent: false, error: e.message || String(e) };
+    }
+  }
+  if (opts.channels.includes('whatsapp') && opts.testWhatsapp) {
+    const message = `*${opts.subject}*\n\n${opts.body}\n\n— PeTa Team (TEST)\nhttps://www.penghasilantambahan.com`;
+    out.whatsapp_test = { link: buildWhatsappLink(opts.testWhatsapp, message) };
+  }
+  return out;
+}

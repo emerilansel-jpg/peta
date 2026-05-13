@@ -11,9 +11,11 @@ import {
   getBroadcastRecipients,
   markRecipientSent,
   sendBroadcastEmails,
+  sendTestBroadcast,
   buildWhatsappLink,
 } from '../../lib/api';
 import type { BroadcastChannel } from '../../lib/api';
+import { Beaker } from 'lucide-react';
 import { toast } from '../../components/Toast';
 
 export function AdminBroadcast() {
@@ -23,6 +25,11 @@ export function AdminBroadcast() {
   const [sendEmail, setSendEmail] = useState(true);
   const [sendWA, setSendWA] = useState(true);
   const [selectedBroadcastId, setSelectedBroadcastId] = useState<string | null>(null);
+  // Test broadcast — admin can override which email/phone receives the test
+  // (defaults to whatever's on their user row server-side).
+  const [testEmail, setTestEmail] = useState('');
+  const [testWhatsapp, setTestWhatsapp] = useState('');
+  const [showTestOverride, setShowTestOverride] = useState(false);
 
   const { data: broadcasts = [], isLoading: listLoading } = useQuery({
     queryKey: ['broadcasts'],
@@ -75,6 +82,38 @@ export function AdminBroadcast() {
       queryClient.invalidateQueries({ queryKey: ['broadcasts'] });
     },
     onError: (e: any) => toast.error(e.message || String(e)),
+  });
+
+  // Test-send to the admin's own email + WA. Shows the WA link in a toast
+  // so admin can click and immediately verify the message in WhatsApp.
+  const testMutation = useMutation({
+    mutationFn: async () => {
+      const channels: BroadcastChannel[] = [];
+      if (sendEmail) channels.push('email');
+      if (sendWA) channels.push('whatsapp');
+      if (channels.length === 0) throw new Error('Pilih minimal 1 channel');
+      const res = await sendTestBroadcast({
+        subject: subject.trim(),
+        body: body.trim(),
+        channels,
+        testEmail: testEmail.trim() || null,
+        testWhatsapp: testWhatsapp.trim() || null,
+      });
+      return res;
+    },
+    onSuccess: (res) => {
+      const lines = ['Test terkirim ✅'];
+      if (res.email_test) {
+        lines.push(res.email_test.sent ? '· Email: sent' : `· Email: ${res.email_test.error || 'gagal'}`);
+      }
+      if (res.whatsapp_test?.link) {
+        lines.push('· WhatsApp: buka link');
+        window.open(res.whatsapp_test.link, '_blank', 'noopener,noreferrer');
+      }
+      toast.success(lines.join(' '));
+      queryClient.invalidateQueries({ queryKey: ['broadcasts'] });
+    },
+    onError: (e: any) => toast.error(`Test gagal: ${e.message || e}`),
   });
 
   const retryEmailMutation = useMutation({
@@ -149,6 +188,52 @@ export function AdminBroadcast() {
             </label>
           </div>
 
+          {/* TEST FIRST — high-value safety net before blasting to N members.
+              Sends the same message to admin's own email + WA so layout/typos
+              get caught before the real audience sees them. */}
+          <div className="mb-2 p-3 bg-warning/5 ring-1 ring-warning/30 rounded-xl">
+            <div className="flex items-center justify-between mb-2 flex-wrap gap-1.5">
+              <span className="text-xs font-bold text-warning flex items-center gap-1.5">
+                <Beaker size={14} /> Test dulu sebelum blast
+              </span>
+              <button
+                onClick={() => setShowTestOverride((s) => !s)}
+                className="text-[11px] text-muted hover:text-dark underline"
+              >
+                {showTestOverride ? '× hide' : 'Kirim ke alamat lain →'}
+              </button>
+            </div>
+            {showTestOverride && (
+              <div className="grid sm:grid-cols-2 gap-2 mb-2">
+                <input
+                  type="email"
+                  value={testEmail}
+                  onChange={(e) => setTestEmail(e.target.value)}
+                  placeholder="Email test (kosong = email saya)"
+                  className="w-full min-h-[40px] px-3 py-2 text-sm bg-white border border-warning/40 rounded-lg focus:outline-none focus:border-warning"
+                />
+                <input
+                  type="tel"
+                  value={testWhatsapp}
+                  onChange={(e) => setTestWhatsapp(e.target.value)}
+                  placeholder="WA test (kosong = WA saya)"
+                  className="w-full min-h-[40px] px-3 py-2 text-sm bg-white border border-warning/40 rounded-lg focus:outline-none focus:border-warning"
+                />
+              </div>
+            )}
+            <Button
+              onClick={() => testMutation.mutate()}
+              disabled={!subject.trim() || !body.trim() || (!sendEmail && !sendWA)}
+              loading={testMutation.isPending}
+              variant="outline"
+              size="md"
+              fullWidth
+              className="!border-warning !text-warning hover:!bg-warning hover:!text-white"
+            >
+              <Beaker size={16} /> Test ke Saya Dulu
+            </Button>
+          </div>
+
           <Button
             onClick={() => createMutation.mutate()}
             disabled={!subject.trim() || !body.trim() || (!sendEmail && !sendWA)}
@@ -160,7 +245,7 @@ export function AdminBroadcast() {
             <Send size={18} /> Kirim ke Semua Member Aktif
           </Button>
           <p className="text-[11px] text-muted mt-2 text-center">
-            Pesan akan otomatis tersimpan di history. Email dikirim langsung. WA muncul list link buat di-klik admin.
+            Pesan otomatis tersimpan di history. Email dikirim langsung. WA: bisa "Open All in Tabs" sekaligus (allow popup di browser dulu) atau click-through per row.
           </p>
         </Card>
 
@@ -258,26 +343,46 @@ export function AdminBroadcast() {
                       <button
                         onClick={async () => {
                           const message = `*${selectedBroadcast.subject}*\n\n${selectedBroadcast.body}\n\n— PeTa Team\nhttps://www.penghasilantambahan.com`;
-                          const pending = waRecipients.filter((r) => r.status === 'pending' && r.whatsapp_snapshot).slice(0, 5);
+                          const pending = waRecipients.filter((r) => r.status === 'pending' && r.whatsapp_snapshot);
                           if (pending.length === 0) { toast.error('Tidak ada pending'); return; }
-                          if (!confirm(`Open ${pending.length} WhatsApp chat sekaligus + tandai sent? Pastikan popup browser tidak diblokir.`)) return;
+                          const limit = pending.length;
+                          if (!confirm(`Buka ${limit} WhatsApp chat sekaligus + tandai sent?\n\n💡 Pertama kali, browser akan minta izin "Allow popups". Klik Allow, lalu klik tombol ini lagi.\n\nKalau jumlah besar (>30), browser mungkin batasi popup — pakai "Open Batch 10" gantian.`)) return;
                           let opened = 0;
                           for (const r of pending) {
                             const link = buildWhatsappLink(r.whatsapp_snapshot!, message);
                             const w = window.open(link, '_blank', 'noopener,noreferrer');
                             if (w) opened++;
                             await markRecipientSent(r.id);
-                            // 250ms breathing room helps avoid the browser popup blocker
-                            // ditching subsequent windows.
-                            await new Promise((res) => setTimeout(res, 250));
+                            await new Promise((res) => setTimeout(res, 200));
                           }
                           queryClient.invalidateQueries({ queryKey: ['broadcast-recipients', selectedBroadcastId] });
                           queryClient.invalidateQueries({ queryKey: ['broadcasts'] });
-                          toast.success(`${opened} WA dibuka${opened < pending.length ? ' (popup blocker?)' : ''}`);
+                          toast.success(`${opened}/${pending.length} WA dibuka${opened < pending.length ? ' (sisa diblok popup — coba batch lebih kecil)' : ''}`);
                         }}
                         className="text-xs font-bold bg-success text-white px-3 py-1.5 rounded-full flex items-center gap-1 hover:brightness-110"
                       >
-                        <Zap size={12} /> Buka 5 WA Sekaligus
+                        <Zap size={12} /> Buka SEMUA ({waPending})
+                      </button>
+                      <button
+                        onClick={async () => {
+                          const message = `*${selectedBroadcast.subject}*\n\n${selectedBroadcast.body}\n\n— PeTa Team\nhttps://www.penghasilantambahan.com`;
+                          const pending = waRecipients.filter((r) => r.status === 'pending' && r.whatsapp_snapshot).slice(0, 10);
+                          if (pending.length === 0) { toast.error('Tidak ada pending'); return; }
+                          let opened = 0;
+                          for (const r of pending) {
+                            const link = buildWhatsappLink(r.whatsapp_snapshot!, message);
+                            const w = window.open(link, '_blank', 'noopener,noreferrer');
+                            if (w) opened++;
+                            await markRecipientSent(r.id);
+                            await new Promise((res) => setTimeout(res, 200));
+                          }
+                          queryClient.invalidateQueries({ queryKey: ['broadcast-recipients', selectedBroadcastId] });
+                          queryClient.invalidateQueries({ queryKey: ['broadcasts'] });
+                          toast.success(`${opened}/${pending.length} WA dibuka`);
+                        }}
+                        className="text-xs font-bold bg-success/15 text-success px-3 py-1.5 rounded-full flex items-center gap-1 ring-1 ring-success/40 hover:bg-success/25"
+                      >
+                        <Zap size={12} /> Batch 10
                       </button>
                       <button
                         onClick={async () => {
