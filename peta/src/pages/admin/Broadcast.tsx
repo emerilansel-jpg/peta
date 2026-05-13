@@ -108,15 +108,21 @@ export function AdminBroadcast() {
       return res;
     },
     onSuccess: (res) => {
-      const lines = ['Test terkirim ✅'];
+      const lines: string[] = [];
+      const emailOk = res.email_test?.sent;
+      const waOk = res.whatsapp_test?.sent;
       if (res.email_test) {
-        lines.push(res.email_test.sent ? '· Email: sent' : `· Email: ${res.email_test.error || 'gagal'}`);
+        lines.push(emailOk ? '📧 Email: terkirim' : `📧 Email: ${res.email_test.error || 'gagal'}`);
       }
-      if (res.whatsapp_test?.link) {
-        lines.push('· WhatsApp: buka link');
-        window.open(res.whatsapp_test.link, '_blank', 'noopener,noreferrer');
+      if (res.whatsapp_test) {
+        lines.push(waOk ? '💬 WA: terkirim via Fonnte' : `💬 WA: ${res.whatsapp_test.error || 'gagal'}`);
       }
-      toast.success(lines.join(' '));
+      const allOk = (!res.email_test || emailOk) && (!res.whatsapp_test || waOk);
+      if (allOk) {
+        toast.success(`Test terkirim ✅\n${lines.join('\n')}`);
+      } else {
+        toast.error(`Test ada yang gagal:\n${lines.join('\n')}`);
+      }
       queryClient.invalidateQueries({ queryKey: ['broadcasts'] });
     },
     onError: (e: any) => toast.error(`Test gagal: ${e.message || e}`),

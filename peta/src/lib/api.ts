@@ -1011,10 +1011,8 @@ export async function sendTestBroadcast(opts: {
 }): Promise<{
   broadcast_id: string;
   email_test?: { sent: boolean; error?: string };
-  whatsapp_test?: { link: string };
+  whatsapp_test?: { sent: boolean; error?: string; link?: string };
 }> {
-  // Reuse createBroadcast + edge function by calling a thin RPC that
-  // inserts a one-recipient broadcast for the admin themselves.
   const { data, error } = await supabase.rpc('admin_send_test_broadcast', {
     p_subject: opts.subject,
     p_body: opts.body,
@@ -1025,17 +1023,35 @@ export async function sendTestBroadcast(opts: {
   if (error) throw error;
   const broadcastId = data as string;
   const out: any = { broadcast_id: broadcastId };
+
   if (opts.channels.includes('email')) {
     try {
       const res = await sendBroadcastEmails(broadcastId);
-      out.email_test = { sent: res.sent > 0, error: res.failed > 0 ? `${res.failed} failed` : undefined };
+      out.email_test = {
+        sent: res.sent > 0,
+        error: res.failed > 0 ? `${res.failed} failed` : (res.sent === 0 ? 'no_provider' : undefined),
+      };
     } catch (e: any) {
       out.email_test = { sent: false, error: e.message || String(e) };
     }
   }
-  if (opts.channels.includes('whatsapp') && opts.testWhatsapp) {
-    const message = `*${opts.subject}*\n\n${opts.body}\n\n— PeTa Team (TEST)\nhttps://www.penghasilantambahan.com`;
-    out.whatsapp_test = { link: buildWhatsappLink(opts.testWhatsapp, message) };
+
+  if (opts.channels.includes('whatsapp')) {
+    try {
+      const res = await sendBroadcastWhatsapp(broadcastId);
+      out.whatsapp_test = {
+        sent: res.sent > 0,
+        error: res.status === 'not_configured'
+          ? 'FONNTE_TOKEN belum di-setup'
+          : (res.failed > 0 ? `${res.failed} failed` : undefined),
+      };
+    } catch (e: any) {
+      out.whatsapp_test = { sent: false, error: e.message || String(e) };
+    }
+    if (opts.testWhatsapp) {
+      const message = `*${opts.subject}*\n\n${opts.body}\n\n— PeTa Team (TEST)\nhttps://www.penghasilantambahan.com`;
+      out.whatsapp_test.link = buildWhatsappLink(opts.testWhatsapp, message);
+    }
   }
   return out;
 }
