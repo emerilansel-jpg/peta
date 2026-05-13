@@ -1,71 +1,91 @@
-# Resend Setup — Handoff
+# Resend Setup — Handoff (UPDATED 2026-05-13)
 
-## What's Done
+## What's Done in Code
 
-**Resend account created and verified** — you can log in right now.
+Edge function `send-broadcast-emails` (v2) is deployed on staging + prod with:
 
-| Field | Value |
+- **Default `FROM`**: `PeTa <peta@penghasilantambahan.com>` (overridable via `BROADCAST_FROM` secret)
+- **Spam-folder reminder**: Every email body now ends with a prominent yellow callout asking recipients to save the sender to their contacts. Plain-text fallback too.
+- **Test endpoint**: `/admin/broadcast` page has "Test ke Saya Dulu" button — sends test to admin's own email + WA before blasting full audience.
+
+## What's Done in Resend
+
+| Item | Status |
 |---|---|
-| URL | https://resend.com/login |
-| Email | n311311@gmail.com |
-| Password | `PetaResend!2026SecurePwd` |
+| Account created | ✅ |
 | Email verified | ✅ |
-| API key created | ❌ — dashboard stuck on "Loading..." in browser automation |
-| Domain verified | ❌ — needs DNS records (see below) |
+| Login | https://resend.com/login |
+| Email | `n311311@gmail.com` |
+| Password | `PetaResend!2026SecurePwd` |
+| API key | ❌ — Resend dashboard hangs on "Loading..." in browser automation context |
+| Domain `penghasilantambahan.com` | ❌ — needs to be added after API key |
 
-> **Why I stopped:** The Resend dashboard kept hanging on "Loading…" in Nell's Computer browser (likely a Chrome-extension ↔ Resend React-app state collision). I burned 8+ attempts before stopping. The account itself works fine when you log in manually — the issue is purely the automation context.
+> **Why the dashboard hangs:** Resend's React app is stuck on a perpetual "Loading…" state in Nell's Computer browser. Likely conflict between Resend's hydration logic and the Chrome extension that drives automation. The account itself works fine — log in manually in a regular browser tab and everything renders normally. Burned 10+ attempts before stopping.
 
-## What You Need to Do (≈ 90 seconds total)
+## What You Need to Do (≈ 5 min total)
 
-### 1. Get the API key (30 seconds)
+### Step 1: Get the API key (30 sec)
 
-1. Log in: https://resend.com/login (creds above)
-2. Click **"API keys"** in left sidebar
-3. Click **"Create API key"** (top right)
-4. Name: `PeTa Production`
-5. Permission: **Full access** (or Sending access — your call)
-6. Domain: leave **All domains**
-7. Click **Add**
-8. **Copy the key** (starts with `re_…`) — it's only shown once
+1. Open a NORMAL browser tab (not driven by extensions) → https://resend.com/login
+2. Login with creds above
+3. Click **"API keys"** in left sidebar → **Create API key**
+4. Name: `PeTa Production` · Permission: **Full access** · Domain: **All domains**
+5. Click **Add** → **copy the key** (`re_...`) — only shown once
+6. **Paste in chat**, I'll set both Supabase secrets via MCP in 2 seconds
 
-### 2. Set the secret in Supabase (30 seconds)
-
-Two ways, pick one:
-
-**A. Dashboard (easier):**
-- Staging: https://supabase.com/dashboard/project/duxzxizedtvnopfihllz/settings/functions → Edge Function Secrets → Add `RESEND_API_KEY=re_xxxxx`
-- Prod: https://supabase.com/dashboard/project/yorlsgzsawchpeeazcvi/settings/functions → same path
-
-**B. Tell me the key in chat:** I'll set both secrets via Supabase MCP in 2 seconds and report back. No need to expose it in the UI.
-
-### 3. Verify domain (≈ 5 min, one-time, optional but recommended)
-
-Without domain verification, Resend's free tier only lets you send emails **to** the same email as the account (n311311@gmail.com). To send to all PeTa members, you need to verify `penghasilantambahan.com`:
+### Step 2: Add domain at Resend (1 min)
 
 1. In Resend dashboard → **Domains** → **Add Domain**
 2. Enter `penghasilantambahan.com`
-3. Resend gives you 3 DNS records (SPF, DKIM, DMARC)
-4. Add them to Spaceship.com DNS for the domain (same place you set up the existing A records)
-5. Click **Verify** in Resend — propagation usually 5-30 min
+3. Resend gives you 3 records:
+   - SPF: `TXT @ "v=spf1 include:_spf.resend.com ~all"` (or similar)
+   - DKIM: `TXT resend._domainkey "p=..."` (long key)
+   - DMARC: `TXT _dmarc "v=DMARC1; p=none;..."`
+4. **Screenshot the records** and paste in chat — I'll guide DNS step OR you can do it directly.
 
-Once verified, the `BROADCAST_FROM` secret should be set in Supabase too:
+### Step 3: Add DNS records at Spaceship (3 min)
+
+1. Login: https://www.spaceship.com → Launchpad → Domains → `penghasilantambahan.com` → Advanced DNS
+2. Add each TXT record from step 2
+3. Save. Propagation: usually 5-30 min.
+
+### Step 4: Verify + Set `peta@` mailbox (auto-routed)
+
+1. Back at Resend → **Domains** → click your domain → click **Verify** (after DNS propagates)
+2. Once verified, Resend can send emails FROM `peta@penghasilantambahan.com` (any prefix on your domain works without inbox creation)
+3. **Important:** `peta@penghasilantambahan.com` doesn't receive replies unless you also set up MX records for an inbox. Out of scope for sending broadcasts.
+
+### Step 5: Optionally set BROADCAST_FROM secret
+
+If you want to change the From display name:
+
 ```
-BROADCAST_FROM="PeTa <noreply@penghasilantambahan.com>"
+BROADCAST_FROM="PeTa Indonesia <peta@penghasilantambahan.com>"
 ```
 
-## After Setup — Test It
+Set in Supabase staging + prod via Settings → Edge Functions → Manage Secrets.
 
-1. Log in as admin at https://www.penghasilantambahan.com/admin
-2. Open `/admin/broadcast`
-3. Compose a test: subject "Test", body "Halo dari PeTa"
-4. Uncheck WhatsApp, check only Email
-5. Send to all active members
-6. Open the broadcast detail card — Email section should show `X sent · 0 failed`
+(Default already uses `peta@penghasilantambahan.com` if `BROADCAST_FROM` is unset.)
 
-If you see `X skipped` with error `RESEND_API_KEY not configured`, the secret didn't propagate yet — wait 30 seconds and click **Retry Email**.
+## After Setup — Smoke Test
 
-## Notes
+1. Login as admin → `/admin/broadcast`
+2. Compose: subject "Test from PeTa", body "Halo, ini test broadcast."
+3. Click **"Test ke Saya Dulu"** (orange button)
+4. Open email → should arrive from `peta@penghasilantambahan.com`
+5. Check that the spam-folder reminder is visible at the bottom
+6. If it works, click **"Kirim ke Semua Member Aktif"** for real blast
 
-- The email-sending edge function `send-broadcast-emails` is deployed on both staging + prod Supabase. It reads the `RESEND_API_KEY` secret on each invocation, so no redeploy needed after you set the key.
-- WhatsApp distribution still works perfectly WITHOUT any Resend setup — that's pure click-through using `wa.me` links, no third-party.
-- Password above is strong enough but feel free to rotate it via Resend → Settings → Profile.
+## Auto-Notifications Already Wired
+
+Once API key + domain are configured, these fire automatically:
+
+- **Reddit account flagged** (suspended / not_found) → email + WA queued for that user
+- **Future**: Easy to add — payout approved, signup welcome, etc. — just call `admin_create_broadcast` from any RPC or trigger
+
+## WhatsApp Status (works WITHOUT Resend)
+
+- One-click blast via `wa.me` links ("Buka SEMUA" button in `/admin/broadcast`)
+- Batch 10 button for popup-blocker-safe mode
+- Per-recipient manual click-through (sent status tracked)
+- No third-party WhatsApp API account needed
