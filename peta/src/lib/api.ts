@@ -70,13 +70,14 @@ export async function syncRedditKarma(username: string) {
 
   // Tier 1 — codetabs CORS proxy. User's residential IP fetches from Reddit
   // (not blocked, unlike Supabase data-center egress). Verified 2026-05-13.
-  // Returns raw Reddit JSON. Free, no API key, ~300ms median.
-  const proxies = [
-    `https://api.codetabs.com/v1/proxy?quest=${aboutUrlEnc}`,
-  ];
-
-  for (const proxy of proxies) {
-    const result = await fetchViaProxy(proxy);
+  // Returns raw Reddit JSON. Free, no API key, ~300-500ms median.
+  // Retry 3x with backoff to handle codetabs/Reddit rate-limit flakiness.
+  const codetabsUrl = `https://api.codetabs.com/v1/proxy?quest=${aboutUrlEnc}`;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) {
+      await new Promise((r) => setTimeout(r, 400 * attempt));
+    }
+    const result = await fetchViaProxy(codetabsUrl);
     if (result) {
       return {
         ...result,
