@@ -33,8 +33,11 @@ async function fetchViaProxy(proxyUrl: string, timeoutMs = 6000): Promise<{ karm
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), timeoutMs);
   try {
+    // cache: 'no-store' is critical — without it, a failed CORS preflight on
+    // the first request gets cached as an empty 200, poisoning all retries.
     const r = await fetch(proxyUrl, {
       signal: controller.signal,
+      cache: 'no-store',
       headers: { Accept: 'application/json' },
     });
     if (!r.ok) return null;
