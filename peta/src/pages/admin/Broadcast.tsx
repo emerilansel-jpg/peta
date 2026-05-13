@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
@@ -27,11 +27,15 @@ export function AdminBroadcast() {
   const [sendEmail, setSendEmail] = useState(true);
   const [sendWA, setSendWA] = useState(true);
   const [selectedBroadcastId, setSelectedBroadcastId] = useState<string | null>(null);
-  // Test broadcast — admin can override which email/phone receives the test
-  // (defaults to whatever's on their user row server-side).
-  const [testEmail, setTestEmail] = useState('');
-  const [testWhatsapp, setTestWhatsapp] = useState('');
-  const [showTestOverride, setShowTestOverride] = useState(false);
+  const [testEmail, setTestEmail] = useState(() =>
+    localStorage.getItem('peta_test_email') ?? 'n311311@gmail.com'
+  );
+  const [testWhatsapp, setTestWhatsapp] = useState(() =>
+    localStorage.getItem('peta_test_whatsapp') ?? '081290401240'
+  );
+
+  useEffect(() => { localStorage.setItem('peta_test_email', testEmail); }, [testEmail]);
+  useEffect(() => { localStorage.setItem('peta_test_whatsapp', testWhatsapp); }, [testWhatsapp]);
 
   const { data: broadcasts = [], isLoading: listLoading } = useQuery({
     queryKey: ['broadcasts'],
@@ -311,31 +315,24 @@ export function AdminBroadcast() {
               <span className="text-xs font-bold text-warning flex items-center gap-1.5">
                 <Beaker size={14} /> Test dulu sebelum blast
               </span>
-              <button
-                onClick={() => setShowTestOverride((s) => !s)}
-                className="text-[11px] text-muted hover:text-dark underline"
-              >
-                {showTestOverride ? '× hide' : 'Kirim ke alamat lain →'}
-              </button>
+              <span className="text-[11px] text-muted">auto-saved</span>
             </div>
-            {showTestOverride && (
-              <div className="grid sm:grid-cols-2 gap-2 mb-2">
-                <input
-                  type="email"
-                  value={testEmail}
-                  onChange={(e) => setTestEmail(e.target.value)}
-                  placeholder="Email test (kosong = email saya)"
-                  className="w-full min-h-[40px] px-3 py-2 text-sm bg-white border border-warning/40 rounded-lg focus:outline-none focus:border-warning"
-                />
-                <input
-                  type="tel"
-                  value={testWhatsapp}
-                  onChange={(e) => setTestWhatsapp(e.target.value)}
-                  placeholder="WA test (kosong = WA saya)"
-                  className="w-full min-h-[40px] px-3 py-2 text-sm bg-white border border-warning/40 rounded-lg focus:outline-none focus:border-warning"
-                />
-              </div>
-            )}
+            <div className="grid sm:grid-cols-2 gap-2 mb-2">
+              <input
+                type="email"
+                value={testEmail}
+                onChange={(e) => setTestEmail(e.target.value)}
+                placeholder="Email test"
+                className="w-full min-h-[40px] px-3 py-2 text-sm bg-white border border-warning/40 rounded-lg focus:outline-none focus:border-warning"
+              />
+              <input
+                type="tel"
+                value={testWhatsapp}
+                onChange={(e) => setTestWhatsapp(e.target.value)}
+                placeholder="WA test"
+                className="w-full min-h-[40px] px-3 py-2 text-sm bg-white border border-warning/40 rounded-lg focus:outline-none focus:border-warning"
+              />
+            </div>
             <Button
               onClick={() => testMutation.mutate()}
               disabled={!subject.trim() || !body.trim() || (!sendEmail && !sendWA)}
