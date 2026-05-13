@@ -4,6 +4,52 @@ Chronological log of all work sessions on this monorepo (PeTa = Indonesian micro
 
 ---
 
+## 2026-05-13 (later) — Live-site security tightening: PayPal exploit + DMARC + DNSSEC
+
+**Status:** ✅ SHIPPED (interim) — final PayPal verification edge function pending user-supplied Client Secret
+**Trigger:** "Ok kalo kita lakukan itu semua, bisa? karena websitenya udah live, dan menerima real visitors"
+
+### Critical finding + interim fix
+
+`fn_complete_paypal_topup` trusted client-provided `paypal_order_id` + `paypal_capture_id` with **no server-side PayPal API verification**. On a live site with real visitors and PayPal Live credentials, anyone could call:
+```js
+supabase.rpc('fn_complete_paypal_topup', {p_amount_cents: 100000, p_paypal_order_id: 'fake', p_paypal_capture_id: 'fake'})
+```
+and receive $1000 in credit + $100 B1G1 bonus → 22 free upvote orders.
+
+**Interim hardening shipped (migration `paypal_topup_interim_hardening`):**
+- Per-topup hard cap: $500 (5000 cents)
+- Per-user rate limit: max 3 completions per 10 minutes
+- Topups ≤ $50 → auto-complete; topups $50–$500 → `payment_status='pending_review'` until admin manually verifies in PayPal dashboard and calls `fn_admin_approve_topup(p_topup_id)`
+- Every completion attempt logged to `admin_audit_log` with order_id + amount + recent_count
+- New trigger `trg_notify_admin_on_pending_topup` — admin gets notification + email when a pending_review topup arrives
+- Reduces blast radius from $unlimited to $50 auto + $500 admin-confirmed cap
+
+**Final fix (deferred — needs user's PayPal Live Client Secret):** Edge function `paypal-capture` will GET `/v2/checkout/orders/{order_id}` from PayPal API to verify capture status + authoritative amount before calling RPC. Until then interim limits apply.
+
+### Email hardening (DMARC tightening)
+
+`_dmarc TXT` updated:
+- before: `v=DMARC1; p=none; rua=...`
+- after: `v=DMARC1; p=quarantine; pct=25; rua=...; ruf=...; fo=1; adkim=r; aspf=r; sp=quarantine`
+- 25% of emails failing DKIM+SPF alignment go to spam; subdomain policy = quarantine
+- Verified via DNS query (`dns.google/resolve?name=_dmarc.straight.ltd&type=TXT`)
+- Tighten to `pct=100` then `p=reject` after 7-day report monitoring
+
+### Verified already on
+- DNSSEC: enabled by Spaceship automatically (DS records managed by registrar)
+- HTTP security headers: all 7 live (HSTS preload, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, COOP)
+- DKIM + SPF: published
+
+### Blocked / user action required
+- **PayPal Live Client Secret** — needed to ship edge function with PayPal API verification. Currently interim caps protect, but real verification is the proper fix.
+- **CAA + MTA-STS DNS records + apex A record + HSTS preload submission** — Spaceship Advanced DNS UI silently rejected validation on 4 attempted records (CAA `0 issue letsencrypt.org`, `_mta-sts TXT v=STSv1; id=2026051301`, `_smtp._tls TXT v=TLSRPTv1; rua=mailto:care@straight.ltd`, `mta-sts CNAME cname.vercel-dns.com`, apex `@ A 76.76.21.21`). Chrome MCP can't reliably interact with Spaceship form UI after first interaction. **User must add via dashboard manually** (Spaceship → Manage → DNS Records → Add record, ~30 sec per record). After apex A is live, submit `straight.ltd` at https://hstspreload.org/ for HSTS preload list.
+
+### Notes
+- HSTS preload submission attempted but hstspreload.org's resolver returned "no such host" for apex straight.ltd — because apex has no A record (only www does). Adding apex A 76.76.21.21 fixes both: hstspreload eligibility AND users typing `straight.ltd` without www.
+
+---
+
 ## 2026-05-13 (late) — Security hardening: headers, RLS, MTA-STS, audit log
 
 **Status:** ✅ SHIPPED
