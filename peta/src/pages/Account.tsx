@@ -314,12 +314,20 @@ export function Account() {
       {/* Reddit Accounts */}
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-lg font-extrabold">Akun Reddit</h2>
-        <button
-          onClick={() => setShowSheet(true)}
-          className="tap-shrink text-primary text-sm font-bold flex items-center gap-1 hover:underline"
-        >
-          <Plus size={16} /> Tambah
-        </button>
+        {/* Limit: 1 reddit account per PeTa user. Hide "Tambah" once linked. */}
+        {accounts.length === 0 && (
+          <button
+            onClick={() => setShowSheet(true)}
+            className="tap-shrink text-primary text-sm font-bold flex items-center gap-1 hover:underline"
+          >
+            <Plus size={16} /> Tambah
+          </button>
+        )}
+        {accounts.length > 0 && (
+          <span className="text-[11px] text-muted font-bold bg-light px-2 py-0.5 rounded-full">
+            1 akun max
+          </span>
+        )}
       </div>
 
       {accounts.length === 0 ? (

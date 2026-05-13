@@ -912,6 +912,7 @@ export type AdminTaskUpdate = {
   taskId: string;
   title?: string;
   description?: string;
+  brief?: string;
   target_url?: string;
   task_category?: TaskCategory;
   reward_amount?: number;
@@ -929,6 +930,7 @@ export async function adminUpdateTask(u: AdminTaskUpdate): Promise<string> {
     p_task_id: u.taskId,
     p_title: u.title ?? null,
     p_description: u.description ?? null,
+    p_brief: u.brief ?? null,
     p_target_url: u.target_url ?? null,
     p_task_category: u.task_category ?? null,
     p_reward_amount: u.reward_amount ?? null,
@@ -949,6 +951,7 @@ export type EligibleTask = {
   id: string;
   title: string;
   description: string;
+  brief: string | null;
   target_url: string;
   task_type: 'comment' | 'upvote';
   task_category: TaskCategory;

@@ -39,28 +39,32 @@ export function AdminTaskQueue() {
   const [editForm, setEditForm] = React.useState({
     title: '',
     description: '',
+    brief: '',
     target_url: '',
     task_category: 'reddit_comment' as 'reddit_upvote' | 'reddit_comment' | 'reddit_post_thread',
-    reward_amount: 0,
-    max_assignments: 1,
-    per_account_limit: 1,
-    min_karma: 0,
-    min_account_age_days: 0,
+    reward_amount: '0',
+    max_assignments: '1',
+    per_account_limit: '1',
+    min_karma: '',
+    min_account_age_days: '',
     start_at: '',
     end_at: '',
     status: 'draft' as 'draft' | 'active' | 'paused' | 'completed',
   });
 
+  // Use string state for number inputs so users on mobile can delete the
+  // leading 0 and type freely. Parsed to int on submit. Empty = 0.
   const [form, setForm] = React.useState({
     title: '',
     description: '',
+    brief: '',
     target_url: '',
     task_category: 'reddit_comment' as 'reddit_upvote' | 'reddit_comment' | 'reddit_post_thread',
-    reward_amount: 8000,
-    max_assignments: 5,
-    per_account_limit: 1,
-    min_karma: 0,
-    min_account_age_days: 0,
+    reward_amount: '8000',
+    max_assignments: '5',
+    per_account_limit: '1',
+    min_karma: '',
+    min_account_age_days: '',
   });
 
   React.useEffect(() => {
@@ -78,19 +82,30 @@ export function AdminTaskQueue() {
   // Map task_category back to legacy task_type column (kept for compat).
   const categoryToType = (c: string): 'upvote' | 'comment' => c === 'reddit_upvote' ? 'upvote' : 'comment';
 
+  // Parse string state → int with sensible defaults. Empty = 0.
+  const parseInt0 = (s: string) => {
+    const n = parseInt(s, 10);
+    return Number.isNaN(n) ? 0 : n;
+  };
+  const parseInt1 = (s: string) => {
+    const n = parseInt(s, 10);
+    return Number.isNaN(n) || n < 1 ? 1 : n;
+  };
+
   const create = useMutation({
     mutationFn: async (publishStatus: 'draft' | 'active') => {
       const { error } = await supabase.from('tasks').insert({
         title: form.title,
         description: form.description,
+        brief: form.brief,
         target_url: form.target_url,
         task_category: form.task_category,
         task_type: categoryToType(form.task_category),
-        reward_amount: form.reward_amount,
-        max_assignments: form.max_assignments,
-        per_account_limit: form.per_account_limit,
-        min_karma: form.min_karma,
-        min_account_age_days: form.min_account_age_days,
+        reward_amount: parseInt0(form.reward_amount),
+        max_assignments: parseInt1(form.max_assignments),
+        per_account_limit: parseInt1(form.per_account_limit),
+        min_karma: parseInt0(form.min_karma),
+        min_account_age_days: parseInt0(form.min_account_age_days),
         created_by: user?.id,
         status: publishStatus,
       });
@@ -98,7 +113,7 @@ export function AdminTaskQueue() {
     },
     onSuccess: (_data, publishStatus) => {
       toast.success(publishStatus === 'draft' ? 'Disimpan sebagai draft 📝' : 'Task aktif & visible buat army ✅');
-      setForm({ title: '', description: '', target_url: '', task_category: 'reddit_comment', reward_amount: 8000, max_assignments: 5, per_account_limit: 1, min_karma: 0, min_account_age_days: 0 });
+      setForm({ title: '', description: '', brief: '', target_url: '', task_category: 'reddit_comment', reward_amount: '8000', max_assignments: '5', per_account_limit: '1', min_karma: '', min_account_age_days: '' });
       setShowSheet(false);
       refetch();
     },
@@ -136,14 +151,16 @@ export function AdminTaskQueue() {
     setEditForm({
       title: t.title || '',
       description: t.description || '',
+      brief: t.brief || '',
       target_url: t.target_url || '',
       task_category: (t.task_category ||
         (t.task_type === 'upvote' ? 'reddit_upvote' : 'reddit_comment')) as any,
-      reward_amount: t.reward_amount || 0,
-      max_assignments: t.max_assignments || 1,
-      per_account_limit: t.per_account_limit || 1,
-      min_karma: t.min_karma || 0,
-      min_account_age_days: t.min_account_age_days || 0,
+      reward_amount: String(t.reward_amount ?? 0),
+      max_assignments: String(t.max_assignments ?? 1),
+      per_account_limit: String(t.per_account_limit ?? 1),
+      // Empty string when 0 so user can clearly type from scratch.
+      min_karma: t.min_karma ? String(t.min_karma) : '',
+      min_account_age_days: t.min_account_age_days ? String(t.min_account_age_days) : '',
       start_at: isoToLocalInput(t.start_at),
       end_at: isoToLocalInput(t.end_at),
       status: t.status || 'draft',
@@ -156,13 +173,14 @@ export function AdminTaskQueue() {
       taskId: editingTask.id,
       title: editForm.title,
       description: editForm.description,
+      brief: editForm.brief,
       target_url: editForm.target_url,
       task_category: editForm.task_category,
-      reward_amount: editForm.reward_amount,
-      max_assignments: editForm.max_assignments,
-      per_account_limit: editForm.per_account_limit,
-      min_karma: editForm.min_karma,
-      min_account_age_days: editForm.min_account_age_days,
+      reward_amount: parseInt0(editForm.reward_amount),
+      max_assignments: parseInt1(editForm.max_assignments),
+      per_account_limit: parseInt1(editForm.per_account_limit),
+      min_karma: parseInt0(editForm.min_karma),
+      min_account_age_days: parseInt0(editForm.min_account_age_days),
       start_at: localInputToIso(editForm.start_at),
       end_at: localInputToIso(editForm.end_at),
       status: editForm.status,
@@ -392,7 +410,7 @@ export function AdminTaskQueue() {
                       <button
                         key={cat}
                         type="button"
-                        onClick={() => setForm({ ...form, task_category: cat, reward_amount: defaultReward })}
+                        onClick={() => setForm({ ...form, task_category: cat, reward_amount: String(defaultReward) })}
                         className={`tap-shrink min-h-[68px] rounded-xl px-2 py-2 text-left ${
                           form.task_category === cat
                             ? 'bg-primary text-white shadow-md shadow-primary/30'
@@ -436,69 +454,88 @@ export function AdminTaskQueue() {
                   />
                 </Field>
 
+                <Field label="Brief Lengkap (komen/post yang harus army tulis)">
+                  <textarea
+                    value={form.brief}
+                    onChange={(e) => setForm({ ...form, brief: e.target.value })}
+                    placeholder={form.task_category === 'reddit_upvote'
+                      ? 'Untuk upvote: cukup link thread di atas. Brief opsional.'
+                      : 'Tulis instruksi lengkap. Contoh:\n\n"Komentar harus bahas pengalaman pribadi pakai produk X. Min 3 kalimat. Sebutkan keyword Y secara natural. Hindari kata Z. Contoh tone: ramah tapi tidak salesy."'}
+                    className={inputCls + ' min-h-[110px] resize-y'}
+                    rows={5}
+                  />
+                </Field>
+
                 <Field label="Reward per task (Rp)">
                   <div className={`grid ${form.task_category === 'reddit_upvote' ? 'grid-cols-4' : 'grid-cols-3'} gap-2 mb-2`}>
                     {(form.task_category === 'reddit_upvote' ? UPVOTE_PRESETS : COMMENT_PRESETS).map((v) => (
                       <button
                         key={v}
                         type="button"
-                        onClick={() => setForm({ ...form, reward_amount: v })}
+                        onClick={() => setForm({ ...form, reward_amount: String(v) })}
                         className={`tap-shrink min-h-[40px] rounded-lg text-sm font-bold ${
-                          form.reward_amount === v ? 'bg-primary text-white' : 'bg-light text-dark ring-1 ring-border'
+                          parseInt0(form.reward_amount) === v ? 'bg-primary text-white' : 'bg-light text-dark ring-1 ring-border'
                         }`}
                       >
-                        {v >= 1000 ? `${(v / 1000).toFixed(v % 1000 ? 1 : 0)}K` : v}
+                        Rp{v >= 1000 ? `${(v / 1000).toFixed(v % 1000 ? 1 : 0)}K` : v}
                       </button>
                     ))}
                   </div>
-                  <input
-                    type="number"
-                    value={form.reward_amount}
-                    onChange={(e) => setForm({ ...form, reward_amount: parseInt(e.target.value) || 0 })}
-                    className={inputCls}
-                  />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted">Rp</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={form.reward_amount}
+                      onChange={(e) => setForm({ ...form, reward_amount: e.target.value.replace(/[^0-9]/g, '') })}
+                      className={inputCls + ' pl-10'}
+                      placeholder="0"
+                    />
+                  </div>
                 </Field>
 
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Max Total Slot">
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       value={form.max_assignments}
-                      onChange={(e) => setForm({ ...form, max_assignments: parseInt(e.target.value) || 1 })}
-                      min={1}
+                      onChange={(e) => setForm({ ...form, max_assignments: e.target.value.replace(/[^0-9]/g, '') })}
                       className={inputCls}
+                      placeholder="1"
                     />
                   </Field>
                   <Field label="Per akun Reddit (default 1)">
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       value={form.per_account_limit}
-                      onChange={(e) => setForm({ ...form, per_account_limit: parseInt(e.target.value) || 1 })}
-                      min={1}
+                      onChange={(e) => setForm({ ...form, per_account_limit: e.target.value.replace(/[^0-9]/g, '') })}
                       className={inputCls}
+                      placeholder="1"
                     />
                   </Field>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Min Karma">
+                  <Field label="Min Karma (kosong = semua)">
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       value={form.min_karma}
-                      onChange={(e) => setForm({ ...form, min_karma: parseInt(e.target.value) || 0 })}
-                      min={0}
+                      onChange={(e) => setForm({ ...form, min_karma: e.target.value.replace(/[^0-9]/g, '') })}
                       className={inputCls}
-                      placeholder="0 = semua"
+                      placeholder="kosong = semua"
                     />
                   </Field>
-                  <Field label="Min Age (hari)">
+                  <Field label="Min Age hari (kosong = semua)">
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       value={form.min_account_age_days}
-                      onChange={(e) => setForm({ ...form, min_account_age_days: parseInt(e.target.value) || 0 })}
-                      min={0}
+                      onChange={(e) => setForm({ ...form, min_account_age_days: e.target.value.replace(/[^0-9]/g, '') })}
                       className={inputCls}
-                      placeholder="0 = semua"
+                      placeholder="kosong = semua"
                     />
                   </Field>
                 </div>
@@ -628,67 +665,85 @@ export function AdminTaskQueue() {
                   />
                 </Field>
 
+                <Field label="Brief Lengkap (komen/post yang harus army tulis)">
+                  <textarea
+                    value={editForm.brief}
+                    onChange={(e) => setEditForm({ ...editForm, brief: e.target.value })}
+                    placeholder={editForm.task_category === 'reddit_upvote'
+                      ? 'Untuk upvote: cukup link thread. Brief opsional.'
+                      : 'Tulis instruksi lengkap untuk army…'}
+                    className={inputCls + ' min-h-[110px] resize-y'}
+                    rows={5}
+                  />
+                </Field>
+
                 <Field label="Reward per task (Rp)">
                   <div className={`grid ${editForm.task_category === 'reddit_upvote' ? 'grid-cols-4' : 'grid-cols-3'} gap-2 mb-2`}>
                     {(editForm.task_category === 'reddit_upvote' ? UPVOTE_PRESETS : COMMENT_PRESETS).map((v) => (
                       <button
                         key={v}
                         type="button"
-                        onClick={() => setEditForm({ ...editForm, reward_amount: v })}
+                        onClick={() => setEditForm({ ...editForm, reward_amount: String(v) })}
                         className={`tap-shrink min-h-[40px] rounded-lg text-sm font-bold ${
-                          editForm.reward_amount === v ? 'bg-primary text-white' : 'bg-light text-dark ring-1 ring-border'
+                          parseInt0(editForm.reward_amount) === v ? 'bg-primary text-white' : 'bg-light text-dark ring-1 ring-border'
                         }`}
                       >
-                        {v >= 1000 ? `${(v / 1000).toFixed(v % 1000 ? 1 : 0)}K` : v}
+                        Rp{v >= 1000 ? `${(v / 1000).toFixed(v % 1000 ? 1 : 0)}K` : v}
                       </button>
                     ))}
                   </div>
-                  <input
-                    type="number"
-                    value={editForm.reward_amount}
-                    onChange={(e) => setEditForm({ ...editForm, reward_amount: parseInt(e.target.value) || 0 })}
-                    className={inputCls}
-                  />
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted">Rp</span>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={editForm.reward_amount}
+                      onChange={(e) => setEditForm({ ...editForm, reward_amount: e.target.value.replace(/[^0-9]/g, '') })}
+                      className={inputCls + ' pl-10'}
+                    />
+                  </div>
                 </Field>
 
                 <div className="grid grid-cols-2 gap-3">
                   <Field label="Max Total Slot">
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       value={editForm.max_assignments}
-                      onChange={(e) => setEditForm({ ...editForm, max_assignments: parseInt(e.target.value) || 1 })}
-                      min={1}
+                      onChange={(e) => setEditForm({ ...editForm, max_assignments: e.target.value.replace(/[^0-9]/g, '') })}
                       className={inputCls}
                     />
                   </Field>
                   <Field label="Per akun Reddit">
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       value={editForm.per_account_limit}
-                      onChange={(e) => setEditForm({ ...editForm, per_account_limit: parseInt(e.target.value) || 1 })}
-                      min={1}
+                      onChange={(e) => setEditForm({ ...editForm, per_account_limit: e.target.value.replace(/[^0-9]/g, '') })}
                       className={inputCls}
                     />
                   </Field>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
-                  <Field label="Min Karma">
+                  <Field label="Min Karma (kosong = semua)">
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       value={editForm.min_karma}
-                      onChange={(e) => setEditForm({ ...editForm, min_karma: parseInt(e.target.value) || 0 })}
-                      min={0}
+                      onChange={(e) => setEditForm({ ...editForm, min_karma: e.target.value.replace(/[^0-9]/g, '') })}
                       className={inputCls}
+                      placeholder="kosong = semua"
                     />
                   </Field>
-                  <Field label="Min Age (hari)">
+                  <Field label="Min Age hari (kosong = semua)">
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       value={editForm.min_account_age_days}
-                      onChange={(e) => setEditForm({ ...editForm, min_account_age_days: parseInt(e.target.value) || 0 })}
-                      min={0}
+                      onChange={(e) => setEditForm({ ...editForm, min_account_age_days: e.target.value.replace(/[^0-9]/g, '') })}
                       className={inputCls}
+                      placeholder="kosong = semua"
                     />
                   </Field>
                 </div>

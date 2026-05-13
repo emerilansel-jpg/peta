@@ -112,6 +112,9 @@ export function TaskDetail() {
   }
 
   const minutes = task.reward_amount > 15000 ? '5–10' : '3–5';
+  // Upvote tasks: proof must be screenshot; URL paste makes no sense
+  // (a 1-click upvote doesn't generate a permalink the user can grab).
+  const isUpvote = (task.task_category || task.task_type) === 'reddit_upvote' || task.task_type === 'upvote';
 
   return (
     <Layout userRole="army">
@@ -157,6 +160,20 @@ export function TaskDetail() {
             </a>
           )}
         </Card>
+
+        {/* Brief — full instructions admin wrote for this task. Shown
+            prominently above the submit form because army needs to follow
+            this exactly. Only renders if admin actually wrote something. */}
+        {task.brief && task.brief.trim() && (
+          <Card className="mb-4 bg-yellow-50 ring-yellow-300">
+            <p className="text-xs uppercase font-bold tracking-wide text-yellow-900 mb-2 flex items-center gap-1.5">
+              📋 Brief — Ikutin instruksi ini
+            </p>
+            <p className="text-sm text-yellow-950 whitespace-pre-line leading-relaxed">
+              {task.brief}
+            </p>
+          </Card>
+        )}
 
         {/* Stage content */}
         {accounts.length === 0 ? (
@@ -279,33 +296,42 @@ export function TaskDetail() {
                 </label>
               )}
 
-              {/* URL PASTE — alternative or supplement */}
-              <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
-                🔗 ATAU paste URL komentar/post
-              </p>
-              <div className="relative mb-3">
-                <LinkIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
-                <input
-                  type="url"
-                  value={proofUrl}
-                  onChange={(e) => setProofUrl(e.target.value)}
-                  placeholder="https://reddit.com/r/.../comments/..."
-                  className="w-full pl-10 pr-3 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm"
-                />
-              </div>
+              {/* URL PASTE — only for comment/post tasks. Upvote has no
+                  unique permalink to paste, so screenshot is mandatory. */}
+              {!isUpvote && (
+                <>
+                  <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
+                    🔗 ATAU paste URL komentar/post
+                  </p>
+                  <div className="relative mb-3">
+                    <LinkIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                    <input
+                      type="url"
+                      value={proofUrl}
+                      onChange={(e) => setProofUrl(e.target.value)}
+                      placeholder="https://reddit.com/r/.../comments/..."
+                      className="w-full pl-10 pr-3 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm"
+                    />
+                  </div>
 
-              {/* Optional comment text — useful for admin context */}
-              <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
-                💬 Catatan/komentar (opsional)
-              </p>
-              <textarea
-                value={draftComment}
-                onChange={(e) => setDraftComment(e.target.value)}
-                placeholder="Optional: tulis komentar atau catatan buat admin…"
-                className="w-full px-4 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition resize-none text-sm"
-                rows={4}
-              />
-              <p className="text-xs text-muted mt-1.5">{draftComment.length} karakter</p>
+                  <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
+                    💬 Catatan/komentar (opsional)
+                  </p>
+                  <textarea
+                    value={draftComment}
+                    onChange={(e) => setDraftComment(e.target.value)}
+                    placeholder="Optional: tulis komentar atau catatan buat admin…"
+                    className="w-full px-4 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition resize-none text-sm"
+                    rows={4}
+                  />
+                  <p className="text-xs text-muted mt-1.5">{draftComment.length} karakter</p>
+                </>
+              )}
+              {isUpvote && (
+                <p className="text-xs text-warning bg-warning/10 px-3 py-2 rounded-lg mt-2">
+                  📸 Upvote task: <b>screenshot wajib</b>. Pastikan terlihat tombol upvote sudah orange/aktif.
+                </p>
+              )}
 
               <div className="hidden sm:block mt-5">
                 <Button
@@ -313,14 +339,14 @@ export function TaskDetail() {
                   variant="success"
                   size="lg"
                   loading={submitMutation.isPending}
-                  disabled={!proofImageUrl && !proofUrl.trim() && !draftComment.trim()}
+                  disabled={isUpvote ? !proofImageUrl : (!proofImageUrl && !proofUrl.trim() && !draftComment.trim())}
                   fullWidth
                 >
                   ✅ Submit untuk Approval
                 </Button>
                 {!proofImageUrl && !proofUrl.trim() && !draftComment.trim() && (
                   <p className="text-[11px] text-muted text-center mt-2">
-                    Submit setelah upload screenshot, paste URL, atau tulis komentar.
+                    {isUpvote ? 'Upload screenshot dulu untuk submit.' : 'Submit setelah upload screenshot, paste URL, atau tulis komentar.'}
                   </p>
                 )}
               </div>
@@ -333,7 +359,7 @@ export function TaskDetail() {
                 variant="success"
                 size="lg"
                 loading={submitMutation.isPending}
-                disabled={!proofImageUrl && !proofUrl.trim() && !draftComment.trim()}
+                disabled={isUpvote ? !proofImageUrl : (!proofImageUrl && !proofUrl.trim() && !draftComment.trim())}
                 fullWidth
               >
                 ✅ Submit untuk Approval
