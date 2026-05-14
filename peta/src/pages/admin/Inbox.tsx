@@ -2,10 +2,9 @@ import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Mail, MessageCircle, Send, Inbox as InboxIcon, Archive, Plus,
-  ArrowLeft, Filter, Check, X, AlertCircle, Clock, User, RefreshCw,
+  ArrowLeft, Check, X, AlertCircle, Clock, User, RefreshCw,
 } from 'lucide-react';
 import { Layout } from '../../components/Layout';
-import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { toast } from '../../components/Toast';
 import {
