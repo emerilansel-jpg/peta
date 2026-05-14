@@ -106,20 +106,31 @@ export async function getTopupHistory() {
   return data || [];
 }
 
-// Complete PayPal topup (called after successful PayPal capture)
+// Complete PayPal topup — calls the paypal-capture edge function which:
+//   1. Verifies the order with PayPal's API server-side (authoritative amount)
+//   2. Grants credit via SECURITY DEFINER RPC with service role
+//
+// We deliberately do NOT send amount from client anymore — server gets it from PayPal directly.
+// This closes the "fake order_id with $1000" exploit. The paypalCaptureId arg is kept for
+// backwards-compatibility with the call site but ignored server-side.
 export async function completePayPalTopup(
-  amountCents: number,
+  _amountCents: number,
   paypalOrderId: string,
-  paypalCaptureId: string
+  _paypalCaptureId: string
 ) {
-  const { data, error } = await supabase.rpc('fn_complete_paypal_topup', {
-    p_amount_cents: amountCents,
-    p_paypal_order_id: paypalOrderId,
-    p_paypal_capture_id: paypalCaptureId,
+  const { data, error } = await supabase.functions.invoke('paypal-capture', {
+    body: { paypal_order_id: paypalOrderId },
   });
 
-  if (error) throw error;
-  return data;
+  if (error) {
+    // Surface PayPal-side error (e.g. "PayPal order not completed") to caller
+    const detail = (data && (data as any).error) || error.message || 'topup failed';
+    throw new Error(detail);
+  }
+  if (data && (data as any).error) {
+    throw new Error((data as any).error);
+  }
+  return (data as any)?.topup;
 }
 
 // Helper: enrich rows with user data via separate fetch

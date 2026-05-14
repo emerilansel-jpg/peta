@@ -144,9 +144,11 @@ export function AdminBroadcast() {
     mutationFn: (broadcastId: string) => sendBroadcastWhatsapp(broadcastId),
     onSuccess: (res) => {
       if (res.status === 'not_configured') {
-        toast.error('Fonnte belum di-setup. Lihat docs/Fonnte handoff.');
+        toast.error('Fonnte belum di-setup — FONNTE_TOKEN kosong.');
+      } else if (res.status === 'no_recipients') {
+        toast.error('Tidak ada penerima WA yang pending.');
       } else {
-        toast.success(`WA blast selesai: ${res.sent} sent · ${res.failed} failed · ${res.skipped} skipped`);
+        toast.success(`WA blast selesai: ${res.sent} terkirim${res.failed ? ` · ${res.failed} gagal` : ''}`);
       }
       queryClient.invalidateQueries({ queryKey: ['broadcast-recipients', selectedBroadcastId] });
       queryClient.invalidateQueries({ queryKey: ['broadcasts'] });
