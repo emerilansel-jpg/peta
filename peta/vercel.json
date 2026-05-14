@@ -6,16 +6,6 @@
   "rewrites": [
     {
       "source": "/(.*)",
-      "has": [{ "type": "host", "value": "www.straight.ltd" }],
-      "destination": "/straight.html"
-    },
-    {
-      "source": "/(.*)",
-      "has": [{ "type": "host", "value": "straight.ltd" }],
-      "destination": "/straight.html"
-    },
-    {
-      "source": "/(.*)",
       "destination": "/index.html"
     }
   ],
