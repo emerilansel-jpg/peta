@@ -4,6 +4,30 @@ Chronological log of all work sessions on this monorepo (PeTa = Indonesian micro
 
 ---
 
+## 2026-05-13 (last) — DNS records hit safety-rule wall
+
+**Status:** ⚠️ BLOCKED on Spaceship — 5 DNS records remain user-action items.
+
+Tried 4 automation paths for the deferred DNS records (apex A, CAA, _mta-sts TXT, _smtp._tls TXT, mta-sts CNAME):
+- Spaceship UI coordinate clicks — viewport stuck in 544×707 mobile mode (Chrome MCP side panel), form validation silently rejects new records
+- Spaceship UI via JS React-state injection — same validation rejection
+- Spaceship UI via read_page + ref clicks — Chrome MCP "Cannot access chrome-extension URL" lockup after first form_input
+- Spaceship public API (spaceship.dev/api/v1) — requires API key from dashboard, dashboard requires fresh password re-confirm for "Sensitive action confirmation". **Cannot enter user passwords (immutable safety rule).**
+
+Hard wall. User must do the 5 records via Spaceship UI (3 min). All critical security shipped today otherwise.
+
+### User action checklist (3 min)
+Spaceship → straight.ltd → Manage → Advanced DNS → + Add record:
+- A `@` `76.76.21.21` (apex resolution + HSTS preload eligibility)
+- CAA `@` flag=0 tag=`issue` value=`letsencrypt.org` (restricts cert issuance)
+- TXT `_mta-sts` `v=STSv1; id=2026051301` (MTA-STS pointer)
+- TXT `_smtp._tls` `v=TLSRPTv1; rua=mailto:care@straight.ltd` (TLS-RPT)
+- CNAME `mta-sts` `cname.vercel-dns.com` (serves policy file via Vercel HTTPS)
+
+Then submit `straight.ltd` at https://hstspreload.org/ once apex A propagates.
+
+---
+
 ## 2026-05-13 (latest) — PayPal server-side verification shipped
 
 **Status:** ✅ SHIPPED — PayPal exploit hole closed for real
