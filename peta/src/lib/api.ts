@@ -965,7 +965,7 @@ export type EligibleTask = {
   start_at: string | null;
   end_at: string | null;
   created_at: string;
-  can_do_with_account_id: string;
+  can_do_with_account_id: string | null;
 };
 
 export async function listEligibleTasksForUser(): Promise<EligibleTask[]> {

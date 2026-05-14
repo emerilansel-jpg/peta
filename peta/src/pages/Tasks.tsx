@@ -127,13 +127,23 @@ export function Tasks() {
     enabled: !!user?.id,
   });
 
+  const { data: userProfile } = useQuery({
+    queryKey: ['userProfile', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase.from('users').select('role').eq('id', user!.id).single();
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+  const isAdmin = userProfile?.role === 'admin';
+
   // Real active tasks the user can claim right now — server-side filtered
   // by karma/age/category/per-account-limit/window. Empty when admin has
   // nothing active or user doesn't meet gates.
   const { data: eligibleTasks = [], isLoading: tasksLoading } = useQuery<EligibleTask[]>({
     queryKey: ['eligibleTasks', user?.id],
     queryFn: () => listEligibleTasksForUser(),
-    enabled: !!user?.id && !!karmaInfo?.username,
+    enabled: !!user?.id && (isAdmin || !!karmaInfo?.username),
     refetchInterval: 30_000,
   });
 
@@ -147,7 +157,7 @@ export function Tasks() {
   // step 4/5 of onboarding (or clicked "Urus Nanti"), karmaInfo.username is
   // null. Show a top-of-page nudge banner + flip the per-card lock label so
   // they understand exactly what's blocking them.
-  const needsReddit = user?.id ? !karmaInfo?.username : false;
+  const needsReddit = isAdmin ? false : (user?.id ? !karmaInfo?.username : false);
   const explicitlyDeferred = React.useMemo(() => {
     if (!user?.id) return false;
     try { return localStorage.getItem(`reddit_pending:${user.id}`) === '1'; }
