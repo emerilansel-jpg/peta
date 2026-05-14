@@ -4,6 +4,42 @@ Chronological log of all work sessions on this monorepo (PeTa = Indonesian micro
 
 ---
 
+## 2026-05-14 — OG leak regression fix + Edge Middleware
+
+**Status:** ✅ SHIPPED — host-based HTML routing now reliable
+**Trigger:** Live audit detected www.straight.ltd was serving PeTa-branded HTML to bot crawlers AGAIN despite earlier fix
+
+### Root cause
+
+vercel.json `rewrites` with `has.host` matchers worked inconsistently because Vercel's CDN cache (when `X-Vercel-Enable-Rewrite-Caching: 1`) keys responses by URL path only. First request to `/` from any host populated the cache; subsequent requests from other hosts served the cached version regardless of host condition.
+
+Result: Facebook scraper hitting www.straight.ltd received `<title>Penghasilan Tambahan Online | PeTa</title>` + og:url `https://penghasilantambahan.com/` — leaking PeTa to Straight Ltd clients.
+
+### Fix
+
+Replaced vercel.json `rewrites` with **Vercel Edge Middleware** (`peta/middleware.ts`):
+- Runs at the edge for every HTML page request
+- Reads `Host` header at runtime (so cache key is implicitly host-scoped)
+- `straight.ltd` / `www.straight.ltd` → rewrite to `/straight.html`
+- Other hosts → `next()` (default SPA behavior, serves index.html)
+- Matcher excludes static assets, API routes, /.well-known, /straight/*, etc.
+- Added `@vercel/edge` dep
+
+### Verified live
+- `curl -H 'User-Agent: facebookexternalhit/1.1' https://www.straight.ltd/` → Straight Ltd HTML ✓
+- `curl https://www.penghasilantambahan.com/` → PeTa HTML ✓
+- `curl https://www.straight.ltd/.well-known/security.txt` → still works ✓
+
+### Side-fixes shipped
+- `peta/src/pages/admin/Secrets.tsx` line 110: useMutation mutationFn was returning `PromiseLike<void>` — wrapped in async to convert to Promise
+- `peta/src/pages/admin/Inbox.tsx`: removed unused `Filter` + `Card` imports (TS6133)
+- `peta/src/pages/admin/Secrets.tsx`: removed unused `RefreshCw` import
+- `peta/src/lib/api.ts updateRedditAccountKarma`: added `karma` to return type for both fallback and success paths (KarmaMission.tsx reads res.karma)
+
+These TS errors had broken the Vercel build for ~25 min, blocking the cache flush. Fixed first, then Edge Middleware shipped.
+
+---
+
 ## 2026-05-13 (last) — DNS records hit safety-rule wall
 
 **Status:** ⚠️ BLOCKED on Spaceship — 5 DNS records remain user-action items.
