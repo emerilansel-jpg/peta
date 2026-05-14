@@ -6,7 +6,19 @@ import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
+import { adminRejectAssignment } from '../../lib/api';
 import { toast } from '../../components/Toast';
+
+// Pre-baked rejection reasons for fast admin triage — covers ~90% of why
+// upvote/comment proofs get rejected. Admin can override with custom text.
+const REJECT_PRESETS = [
+  'Screenshot blur / kepotong — upload yang jelas dan full thread terlihat.',
+  'Panah upvote belum aktif (masih abu-abu). Pastikan kamu sudah klik panah ke atas, terus screenshot.',
+  'Akun Reddit di screenshot beda dengan akun terdaftar. Pakai akun yang udah connect ke PeTa.',
+  'Komentar terlalu pendek / generik. Komen yang nambah value (1-2 kalimat).',
+  'Komentar kena auto-remove sama Reddit. Coba di subreddit lain atau pakai akun karma lebih tinggi.',
+  'Bukan thread yang diminta. Cek URL target di brief task.',
+];
 
 // Format like "Sen, 13 Mei 2026 · 17:42" (Bahasa Indonesia day + 24h time).
 function formatSubmittedAt(iso: string | null | undefined): string {
@@ -26,6 +38,10 @@ export function AdminApprovalQueue() {
   // Lightbox state — opens an in-page modal so admin doesn't lose their
   // place in the approval queue every time they want to inspect proof.
   const [lightbox, setLightbox] = useState<{ src: string; caption?: string } | null>(null);
+  // Reject reason modal — opens when admin clicks reject. Forces them to
+  // provide a reason so the army member knows what to fix when they retry.
+  const [rejectTarget, setRejectTarget] = useState<{ id: string; title: string; username: string } | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   const { data: assignments = [], isLoading, refetch } = useQuery({
     queryKey: ['pendingApprovals'],
@@ -39,17 +55,34 @@ export function AdminApprovalQueue() {
     },
   });
 
-  const updateStatus = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: 'approved' | 'rejected' }) => {
-      const { error } = await supabase.from('task_assignments').update({ status }).eq('id', id);
+  const approveMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase.from('task_assignments').update({ status: 'approved' }).eq('id', id);
       if (error) throw error;
     },
-    onSuccess: (_, vars) => {
-      toast.success(vars.status === 'approved' ? 'Approved ✅' : 'Rejected');
+    onSuccess: () => { toast.success('Approved ✅'); refetch(); },
+    onError: () => toast.error('Gagal approve'),
+  });
+
+  const rejectMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) => adminRejectAssignment(id, reason),
+    onSuccess: () => {
+      toast.success('Rejected dengan alasan');
+      setRejectTarget(null);
+      setRejectReason('');
       refetch();
     },
-    onError: () => toast.error('Gagal update'),
+    onError: (e: any) => toast.error(`Gagal reject: ${e.message || e}`),
   });
+
+  const openRejectModal = (a: any) => {
+    setRejectReason('');
+    setRejectTarget({
+      id: a.id,
+      title: a.tasks?.title || 'Task',
+      username: a.reddit_accounts?.username || '?',
+    });
+  };
 
   return (
     <Layout userRole="admin">
@@ -150,18 +183,18 @@ export function AdminApprovalQueue() {
                       <td className="px-2 py-3 align-top text-right whitespace-nowrap">
                         <div className="flex justify-end gap-1">
                           <Button
-                            onClick={() => updateStatus.mutate({ id: a.id, status: 'approved' })}
+                            onClick={() => approveMutation.mutate(a.id)}
                             variant="success"
                             size="sm"
-                            disabled={updateStatus.isPending}
+                            disabled={approveMutation.isPending}
                           >
                             <Check size={14} />
                           </Button>
                           <Button
-                            onClick={() => updateStatus.mutate({ id: a.id, status: 'rejected' })}
+                            onClick={() => openRejectModal(a)}
                             variant="outline"
                             size="sm"
-                            disabled={updateStatus.isPending}
+                            disabled={rejectMutation.isPending}
                             className="!border-danger !text-danger hover:!bg-danger hover:!text-white"
                           >
                             <X size={14} />
@@ -240,19 +273,19 @@ export function AdminApprovalQueue() {
 
                   <div className="flex gap-2 mt-3">
                     <Button
-                      onClick={() => updateStatus.mutate({ id: a.id, status: 'approved' })}
+                      onClick={() => approveMutation.mutate(a.id)}
                       variant="success"
                       size="sm"
-                      loading={updateStatus.isPending}
+                      loading={approveMutation.isPending}
                       fullWidth
                     >
                       <Check size={14} /> Approve
                     </Button>
                     <Button
-                      onClick={() => updateStatus.mutate({ id: a.id, status: 'rejected' })}
+                      onClick={() => openRejectModal(a)}
                       variant="outline"
                       size="sm"
-                      loading={updateStatus.isPending}
+                      loading={rejectMutation.isPending}
                       className="!border-danger !text-danger hover:!bg-danger hover:!text-white"
                     >
                       <X size={14} /> Reject
@@ -263,6 +296,87 @@ export function AdminApprovalQueue() {
             })}
           </div>
         </>
+      )}
+
+      {/* Reject reason modal — admin must provide reason so user knows what
+          to fix when they hit "Coba lagi" on the Tasks page. */}
+      {rejectTarget && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setRejectTarget(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-extrabold flex items-center gap-2 text-danger">
+                <X size={20} /> Reject Task
+              </h3>
+              <button onClick={() => setRejectTarget(null)} className="p-1 text-muted hover:text-dark">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-sm text-muted mb-1">
+              <b className="text-dark">{rejectTarget.title}</b> · u/{rejectTarget.username}
+            </p>
+            <p className="text-xs text-muted mb-3">
+              Alasan reject akan ditampilkan ke army member supaya mereka tau apa yang harus diperbaiki.
+            </p>
+
+            <p className="text-xs uppercase font-bold tracking-wide text-muted mb-1.5">
+              Quick pick:
+            </p>
+            <div className="flex flex-wrap gap-1.5 mb-3">
+              {REJECT_PRESETS.map((preset, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setRejectReason(preset)}
+                  className="text-[11px] bg-light hover:bg-danger/10 text-dark hover:text-danger rounded-full px-2.5 py-1 ring-1 ring-black/5 tap-shrink text-left max-w-full truncate"
+                  title={preset}
+                >
+                  {preset.length > 50 ? preset.slice(0, 50) + '…' : preset}
+                </button>
+              ))}
+            </div>
+
+            <p className="text-xs uppercase font-bold tracking-wide text-muted mb-1.5">
+              Alasan (wajib):
+            </p>
+            <textarea
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Tulis alasan rejection (min 10 huruf). Yang dilihat army member."
+              rows={4}
+              autoFocus
+              className="w-full px-3 py-2.5 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-danger focus:bg-white transition text-sm mb-3"
+            />
+
+            <div className="flex gap-2">
+              <Button
+                onClick={() => setRejectTarget(null)}
+                variant="outline"
+                size="md"
+                fullWidth
+              >
+                Batal
+              </Button>
+              <Button
+                onClick={() => rejectMutation.mutate({ id: rejectTarget.id, reason: rejectReason })}
+                loading={rejectMutation.isPending}
+                disabled={rejectReason.trim().length < 10}
+                variant="primary"
+                size="md"
+                fullWidth
+                className="!bg-danger hover:!brightness-110"
+              >
+                <X size={16} /> Reject + Kirim Alasan
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Image lightbox modal — Esc/backdrop click closes. Stays in-page so admin keeps queue scroll position. */}

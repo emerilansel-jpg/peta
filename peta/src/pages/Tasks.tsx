@@ -17,6 +17,7 @@ import {
   getCommunityFeed, type CommunityEvent,
   getMaxRedditKarma, getReferralStats, getWaDismissed, dismissWaGroup,
   getFoundingMembers, listEligibleTasksForUser, type EligibleTask,
+  getMyPendingAssignments, retryRejectedAssignment, type MyAssignmentRow,
 } from '../lib/api';
 import { LEVELS, getLevelInfo } from '../lib/levels';
 import { toast } from '../components/Toast';
@@ -147,6 +148,32 @@ export function Tasks() {
     refetchInterval: 30_000,
   });
 
+  // Own submitted / rejected task assignments. Shown ABOVE the active task
+  // list because if a user just submitted work, the most important thing
+  // they want to see is "yes admin got it" — followed by their pending value.
+  const { data: myAssignments = [] } = useQuery<MyAssignmentRow[]>({
+    queryKey: ['myAssignments', user?.id],
+    queryFn: () => getMyPendingAssignments(),
+    enabled: !!user?.id,
+    refetchInterval: 30_000,
+  });
+  const pendingAssignments = myAssignments.filter((a) => a.status === 'submitted');
+  const rejectedAssignments = myAssignments.filter((a) => a.status === 'rejected');
+  const pendingValue = pendingAssignments.reduce((sum, a) => sum + (a.task_reward || 0), 0);
+
+  const retryMutation = useMutation({
+    mutationFn: retryRejectedAssignment,
+    onSuccess: (_, assignmentId) => {
+      const assignment = myAssignments.find((a) => a.id === assignmentId);
+      toast.success('OK — coba lagi 🔄');
+      queryClient.invalidateQueries({ queryKey: ['myAssignments', user?.id] });
+      if (assignment) {
+        navigate(`/task/${assignment.task_id}`);
+      }
+    },
+    onError: (e: any) => toast.error(`Gagal: ${e.message || e}`),
+  });
+
   const { data: waDismissed = false } = useQuery({
     queryKey: ['waDismissed', user?.id],
     queryFn: () => getWaDismissed(user!.id),
@@ -239,6 +266,100 @@ export function Tasks() {
               🛠️ Fix Akun Reddit Sekarang
             </Button>
           </Card>
+        )}
+
+        {/* ============================================================
+            REJECTED ASSIGNMENTS — admin said redo. Surface above pending
+            and active so user can fix-and-retry FAST. Each row shows the
+            admin's reason + a one-tap retry that wipes proof and routes
+            back to the task detail flow.
+        ============================================================= */}
+        {rejectedAssignments.length > 0 && (
+          <div className="mb-4">
+            <h2 className="text-base sm:text-lg font-extrabold flex items-center gap-1.5 mb-2">
+              ⚠️ Perlu submit ulang
+              <span className="text-xs font-bold text-danger bg-danger/10 px-2 py-0.5 rounded-full">
+                {rejectedAssignments.length}
+              </span>
+            </h2>
+            <div className="space-y-2">
+              {rejectedAssignments.map((a) => (
+                <Card key={a.id} padding="sm" className="ring-2 ring-danger/30 bg-danger/5">
+                  <div className="flex items-start justify-between gap-2 mb-1.5">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-sm leading-snug">{a.task_title}</p>
+                      <p className="text-[11px] text-muted">
+                        Direview: {new Date(a.updated_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                    <p className="text-sm sm:text-base font-extrabold text-primary money shrink-0">
+                      Rp{a.task_reward.toLocaleString('id-ID')}
+                    </p>
+                  </div>
+                  {a.admin_notes && (
+                    <div className="bg-white ring-1 ring-danger/30 rounded-lg p-2 mb-2">
+                      <p className="text-[10px] uppercase font-bold tracking-wide text-danger mb-0.5">
+                        Alasan ditolak
+                      </p>
+                      <p className="text-xs text-dark leading-snug whitespace-pre-wrap">{a.admin_notes}</p>
+                    </div>
+                  )}
+                  <Button
+                    onClick={() => retryMutation.mutate(a.id)}
+                    loading={retryMutation.isPending}
+                    variant="primary"
+                    size="sm"
+                    fullWidth
+                    className="!bg-danger hover:!brightness-110"
+                  >
+                    🔄 Coba Lagi (upload bukti baru)
+                  </Button>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================
+            PENDING APPROVAL — submitted task_assignments waiting on admin
+            review. Shows the value at risk so user knows their effort
+            isn't lost. Updates every 30s.
+        ============================================================= */}
+        {pendingAssignments.length > 0 && (
+          <div className="mb-4">
+            <div className="flex items-baseline justify-between mb-2">
+              <h2 className="text-base sm:text-lg font-extrabold flex items-center gap-1.5">
+                ⏳ Lagi diverify admin
+                <span className="text-xs font-bold text-warning bg-warning/10 px-2 py-0.5 rounded-full">
+                  {pendingAssignments.length}
+                </span>
+              </h2>
+              <p className="text-sm font-extrabold text-warning money">
+                +Rp{pendingValue.toLocaleString('id-ID')}
+              </p>
+            </div>
+            <Card padding="sm" className="bg-warning/5 ring-warning/30">
+              <p className="text-[11px] text-warning/90 mb-2 leading-snug">
+                Admin verify dalam max 3 hari kerja (biasanya {`< 24 jam`}).
+                Approved otomatis cair ke saldo kamu.
+              </p>
+              <div className="space-y-1.5">
+                {pendingAssignments.map((a) => (
+                  <div key={a.id} className="flex items-center justify-between gap-2 bg-white rounded-lg p-2 ring-1 ring-black/5">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold leading-snug truncate">{a.task_title}</p>
+                      <p className="text-[10px] text-muted">
+                        Submitted {new Date(a.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                    <p className="text-xs font-extrabold text-primary money shrink-0">
+                      Rp{a.task_reward.toLocaleString('id-ID')}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          </div>
         )}
 
         {/* ============================================================

@@ -7,7 +7,7 @@ import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { CardSkeleton } from '../components/Skeleton';
 import { supabase } from '../lib/supabase';
-import { getPayoutHistory, requestPayout, getTotalEarnings, getMaxRedditKarma } from '../lib/api';
+import { getPayoutHistory, requestPayout, getTotalEarnings, getMaxRedditKarma, getMyPendingAssignments } from '../lib/api';
 import { toast } from '../components/Toast';
 
 const MIN_PAYOUT = 150000;
@@ -39,6 +39,21 @@ export function Earnings() {
     queryFn: () => getTotalEarnings(user!.id),
     enabled: !!user?.id,
   });
+
+  // Task assignments awaiting admin review — value at risk. Distinct from
+  // pending PAYOUTS (which are payout requests in queue). User confusion
+  // here was: "I did 2 tasks and the page says I'm owed Rp0" — because the
+  // value sits in submitted task_assignments, not user_credits yet.
+  const { data: myAssignments = [] } = useQuery({
+    queryKey: ['myAssignments', user?.id],
+    queryFn: () => getMyPendingAssignments(),
+    enabled: !!user?.id,
+    refetchInterval: 30_000,
+  });
+  const pendingApprovalValue = myAssignments
+    .filter((a) => a.status === 'submitted')
+    .reduce((sum, a) => sum + (a.task_reward || 0), 0);
+  const pendingApprovalCount = myAssignments.filter((a) => a.status === 'submitted').length;
 
   // Detect "no Reddit account" state — same gate Tasks uses. Earnings page
   // is the second-most likely place a stalled user lands ("kapan cair?"),
@@ -250,21 +265,57 @@ export function Earnings() {
         </Button>
       </Card>
 
-      {/* Quick stats */}
+      {/* Pending approval banner — shown when user has submitted tasks
+          waiting on admin. Closes the gap between "I did the work" and
+          "saldo masih Rp0" by surfacing the value at risk explicitly. */}
+      {pendingApprovalCount > 0 && (
+        <Card className="mb-3 bg-warning/10 ring-warning/30" padding="sm">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-9 h-9 bg-warning/20 text-warning rounded-lg grid place-items-center shrink-0 text-base">⏳</div>
+              <div className="min-w-0">
+                <p className="font-extrabold text-sm leading-tight">
+                  {pendingApprovalCount} task lagi diverify admin
+                </p>
+                <p className="text-[11px] text-warning/90 leading-snug">
+                  Max 3 hari kerja. Approved otomatis cair ke saldo.
+                </p>
+              </div>
+            </div>
+            <p className="text-base font-extrabold text-warning money shrink-0">
+              +Rp{(pendingApprovalValue / 1000).toFixed(1)}K
+            </p>
+          </div>
+        </Card>
+      )}
+
+      {/* Quick stats — Dari Task / Verify-pending / Cair */}
       <div className="grid grid-cols-3 gap-2 mb-5">
         <Card padding="sm" className="text-center">
           <p className="text-[10px] text-muted uppercase font-bold tracking-wide">Dari Task</p>
           <p className="text-base font-extrabold money">Rp{(earningsBreakdown.earned / 1000).toFixed(0)}K</p>
         </Card>
         <Card padding="sm" className="text-center">
-          <p className="text-[10px] text-muted uppercase font-bold tracking-wide">Pending</p>
-          <p className="text-base font-extrabold money text-warning">Rp{(totalPending / 1000).toFixed(0)}K</p>
+          <p className="text-[10px] text-muted uppercase font-bold tracking-wide" title="Task selesai, lagi diverify admin">Verify</p>
+          <p className="text-base font-extrabold money text-warning">
+            Rp{(pendingApprovalValue / 1000).toFixed(0)}K
+          </p>
         </Card>
         <Card padding="sm" className="text-center">
           <p className="text-[10px] text-muted uppercase font-bold tracking-wide">Cair</p>
           <p className="text-base font-extrabold money text-success">Rp{(totalPaid / 1000).toFixed(0)}K</p>
         </Card>
       </div>
+
+      {/* Payout-pending stat — only show when there's something there */}
+      {totalPending > 0 && (
+        <Card padding="sm" className="mb-5 bg-primary/5 ring-primary/30 flex items-center justify-between">
+          <p className="text-xs text-muted">
+            💸 Payout request lagi diproses: <b className="text-dark">Rp{totalPending.toLocaleString('id-ID')}</b>
+          </p>
+          <p className="text-[10px] text-muted">max 24h</p>
+        </Card>
+      )}
 
       {/* History */}
       <h2 className="text-lg font-extrabold mb-3">Riwayat Payout</h2>

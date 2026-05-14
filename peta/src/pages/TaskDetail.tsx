@@ -389,7 +389,7 @@ export function TaskDetail() {
           active={threadOpened}
           title={isUpvote ? 'Klik tombol upvote (▲)' : 'Tulis komentar di thread'}
           subtitle={isUpvote
-            ? 'Pastikan panah upvote berubah jadi ORANGE — tanda upvote sukses.'
+            ? 'Pastikan panah upvote berubah jadi warna terang (orange/merah) — tanda upvote sukses.'
             : 'Tulis komentar yang natural & helpful — jangan iklan / spam.'
           }
         >
@@ -498,7 +498,7 @@ export function TaskDetail() {
 
           {isUpvote && (
             <p className="text-xs text-warning bg-warning/10 px-3 py-2 rounded-lg mt-2">
-              📸 Upvote task: <b>screenshot wajib</b>. Pastikan panah upvote orange/aktif kelihatan.
+              📸 Upvote task: <b>screenshot wajib</b>. Pastikan panah upvote berwarna terang (aktif) — bisa orange atau merah, tergantung tema Reddit kamu.
             </p>
           )}
 
@@ -642,7 +642,7 @@ function ExampleScreenshot({ isUpvote }: { isUpvote: boolean }) {
       </div>
       <p className="text-[11px] text-muted mt-2 text-center leading-snug">
         {isUpvote
-          ? '↑ Panah harus ORANGE & angka karma naik. Sertakan URL bar juga biar admin verify.'
+          ? '↑ Panah harus berwarna terang (orange/merah, tergantung tema). Sertakan URL bar juga biar admin verify.'
           : '↑ Komentar dari u/akun kamu harus kelihatan. Termasuk waktu post.'
         }
       </p>

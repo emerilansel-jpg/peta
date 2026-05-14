@@ -29,7 +29,6 @@ const adminLinks = [
   { href: '/admin/secrets',   label: 'Secrets',     icon: Key },
   { href: '/admin/team',      label: 'Tim',         icon: Users },
   { href: '/admin/payroll',   label: 'Payroll',     icon: Coins },
-  { href: '/reddit/admin',    label: 'Reddit B2B',  icon: LinkIcon },
 ];
 
 export function Layout({ children, userRole = 'army' }: LayoutProps) {

@@ -981,6 +981,46 @@ export async function listEligibleTasksForUser(): Promise<EligibleTask[]> {
   return (data || []) as EligibleTask[];
 }
 
+// Army-side: own task assignments awaiting approval / rejected. Used by
+// Tasks.tsx to surface "still being reviewed" + "rejected — try again"
+// rows so users always know where their work stands.
+export type MyAssignmentRow = {
+  id: string;
+  task_id: string;
+  status: 'submitted' | 'rejected' | 'in_progress' | 'approved';
+  admin_notes: string | null;
+  proof_url: string | null;
+  draft_comment: string | null;
+  created_at: string;
+  updated_at: string;
+  task_title: string;
+  task_category: TaskCategory;
+  task_reward: number;
+  task_target_url: string | null;
+};
+
+export async function getMyPendingAssignments(): Promise<MyAssignmentRow[]> {
+  const { data, error } = await supabase.rpc('get_my_pending_assignments');
+  if (error) throw error;
+  return (data || []) as MyAssignmentRow[];
+}
+
+// Reset a rejected assignment back to in_progress so the user can re-upload
+// proof. Frontend navigates them to /task/:taskId after success.
+export async function retryRejectedAssignment(assignmentId: string): Promise<void> {
+  const { error } = await supabase.rpc('retry_rejected_assignment', { p_assignment_id: assignmentId });
+  if (error) throw error;
+}
+
+// Admin: reject WITH reason in one transaction.
+export async function adminRejectAssignment(assignmentId: string, reason: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_reject_assignment', {
+    p_assignment_id: assignmentId,
+    p_reason: reason,
+  });
+  if (error) throw error;
+}
+
 // Delete a broadcast (admin only). Cascade deletes recipients.
 export async function deleteBroadcast(broadcastId: string): Promise<void> {
   const { error } = await supabase.from('broadcasts').delete().eq('id', broadcastId);
