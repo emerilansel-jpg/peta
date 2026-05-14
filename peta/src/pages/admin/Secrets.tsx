@@ -2,7 +2,7 @@ import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Key, Plus, Trash2, X, Eye, EyeOff, Save, AlertCircle, ExternalLink,
-  Shield, RefreshCw, Check, Info,
+  Shield, Check, Info,
 } from 'lucide-react';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
@@ -107,9 +107,10 @@ export function AdminSecrets() {
   const unsetSuggestions = SUGGESTED_NEW_KEYS.filter((k) => !existingKeys.has(k));
 
   const deleteMutation = useMutation({
-    mutationFn: (key: string) => supabase.rpc('admin_delete_secret', { p_key: key }).then((r) => {
-      if (r.error) throw r.error;
-    }),
+    mutationFn: async (key: string) => {
+      const { error } = await supabase.rpc('admin_delete_secret', { p_key: key });
+      if (error) throw error;
+    },
     onSuccess: () => {
       toast.success('Dihapus');
       queryClient.invalidateQueries({ queryKey: ['admin-secrets'] });

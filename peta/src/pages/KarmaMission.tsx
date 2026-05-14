@@ -119,14 +119,17 @@ export function KarmaMission() {
       if (res.fallback) {
         setSyncFallback(true);
         toast.error('Reddit memblokir auto-sync — minta admin verify manual');
-      } else if (res.karma > beforeKarma) {
-        const delta = res.karma - beforeKarma;
-        setConfettiActive(true);
-        toast.success(`🎉 Karma +${delta} — total ${res.karma}!`);
-      } else if (res.karma < beforeKarma) {
-        toast.success(`Karma diupdate: ${res.karma} (turun dari ${beforeKarma})`);
       } else {
-        toast.success('Karma sama, belum nambah. Komen 2-3 thread lagi yuk!');
+        const afterKarma = (res.account?.karma as number | undefined) ?? beforeKarma;
+        if (afterKarma > beforeKarma) {
+          const delta = afterKarma - beforeKarma;
+          setConfettiActive(true);
+          toast.success(`🎉 Karma +${delta} — total ${afterKarma}!`);
+        } else if (afterKarma < beforeKarma) {
+          toast.success(`Karma diupdate: ${afterKarma} (turun dari ${beforeKarma})`);
+        } else {
+          toast.success('Karma sama, belum nambah. Komen 2-3 thread lagi yuk!');
+        }
       }
     } catch (e: any) {
       setSyncFallback(true);
