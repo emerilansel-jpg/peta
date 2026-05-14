@@ -4,7 +4,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import {
   ArrowLeft, Target, TrendingUp, Sparkles, Lock, Unlock, RefreshCw,
   AlertTriangle, ExternalLink, Trophy, Heart, Camera, MessageSquare, Film,
-  ShieldQuestion, Clock, Send,
+  ShieldQuestion, Clock, Send, Shield, Check, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
@@ -109,14 +109,24 @@ export function KarmaMission() {
     }
     setRefreshing(true);
     setSyncFallback(false);
+    // Capture pre-sync karma so we can detect a delta and celebrate the win.
+    // Confetti + toast fires only when karma actually increases — flat sync
+    // gets a quiet "no change" toast instead.
+    const beforeKarma = karma;
     try {
       const res = await updateRedditAccountKarma(accountId, username);
       await refetchKarma();
       if (res.fallback) {
         setSyncFallback(true);
         toast.error('Reddit memblokir auto-sync — minta admin verify manual');
+      } else if (res.karma > beforeKarma) {
+        const delta = res.karma - beforeKarma;
+        setConfettiActive(true);
+        toast.success(`🎉 Karma +${delta} — total ${res.karma}!`);
+      } else if (res.karma < beforeKarma) {
+        toast.success(`Karma diupdate: ${res.karma} (turun dari ${beforeKarma})`);
       } else {
-        toast.success('Karma di-refresh ✅');
+        toast.success('Karma sama, belum nambah. Komen 2-3 thread lagi yuk!');
       }
     } catch (e: any) {
       setSyncFallback(true);
@@ -124,6 +134,23 @@ export function KarmaMission() {
     } finally {
       setRefreshing(false);
     }
+  };
+
+  // Step 0 — Cloudflare WARP. Persists "dismissed" flag in localStorage so
+  // users who already installed don't keep seeing the nudge. Shown as the
+  // very first action because Reddit blocks many Indo ISP ranges, and
+  // unblocking takes 5 min — biggest unlock-vs-effort ratio on this page.
+  const [warpDismissed, setWarpDismissed] = React.useState<boolean>(() => {
+    try { return localStorage.getItem('peta_warp_installed') === '1'; }
+    catch { return false; }
+  });
+  const [warpExpanded, setWarpExpanded] = React.useState<boolean>(!warpDismissed);
+  const handleMarkWarpDone = () => {
+    try { localStorage.setItem('peta_warp_installed', '1'); } catch {}
+    setWarpDismissed(true);
+    setWarpExpanded(false);
+    setConfettiActive(true);
+    toast.success('🎉 Beres! Sekarang Reddit kebuka. Lanjut bangun karma 👇');
   };
 
   const adminWaMessage = (() => {
@@ -181,6 +208,102 @@ export function KarmaMission() {
         >
           <ArrowLeft size={16} /> Kembali
         </button>
+
+        {/* STEP 0 — CLOUDFLARE WARP
+            First action above everything else. Reddit blocks many Indo ISPs;
+            WARP routes traffic via Cloudflare so Reddit pages load reliably.
+            Collapsible so people who already installed don't get nagged. */}
+        <Card
+          className={`mb-3 ${warpDismissed
+            ? 'bg-success/5 ring-success/30'
+            : 'bg-gradient-to-br from-blue-50 to-cyan-50 ring-cyan-300'
+          }`}
+          padding="md"
+        >
+          <button
+            onClick={() => setWarpExpanded((v) => !v)}
+            className="w-full flex items-center gap-3 text-left tap-shrink"
+          >
+            <div className={`w-10 h-10 rounded-xl grid place-items-center shrink-0 ${
+              warpDismissed ? 'bg-success/20 text-success' : 'bg-cyan-500 text-white'
+            }`}>
+              {warpDismissed ? <Check size={20} /> : <Shield size={20} />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] uppercase font-bold tracking-wide text-muted">
+                Step 0 — Wajib dulu
+              </p>
+              <p className="font-extrabold text-base leading-tight">
+                {warpDismissed
+                  ? 'WARP terpasang ✓ — Reddit kebuka'
+                  : 'Pasang Cloudflare WARP (5 menit, gratis)'}
+              </p>
+            </div>
+            {warpExpanded
+              ? <ChevronUp size={18} className="text-muted shrink-0" />
+              : <ChevronDown size={18} className="text-muted shrink-0" />
+            }
+          </button>
+
+          {warpExpanded && (
+            <div className="mt-3 pt-3 border-t border-cyan-200">
+              <p className="text-sm text-dark/80 mb-3">
+                Reddit suka blokir IP Indonesia (Indihome / Telkomsel / dll).
+                <b> Cloudflare WARP</b> ngubah rute internet kamu lewat server Cloudflare
+                yang gratis & cepat → Reddit kebuka & karma bisa nambah.
+              </p>
+
+              <div className="bg-white rounded-xl p-3 mb-3 ring-1 ring-cyan-200">
+                <p className="text-xs uppercase font-bold tracking-wide text-muted mb-2">
+                  3 langkah aja:
+                </p>
+                <ol className="space-y-2 text-sm">
+                  <li className="flex gap-2">
+                    <span className="w-5 h-5 bg-cyan-500 text-white rounded-full grid place-items-center text-[10px] font-extrabold shrink-0 mt-0.5">1</span>
+                    <span>
+                      Download <b>"1.1.1.1 Cloudflare WARP"</b> di{' '}
+                      <a href="https://1.1.1.1/" target="_blank" rel="noopener noreferrer" className="text-primary font-bold underline">
+                        1.1.1.1
+                      </a>{' '}
+                      (Android / iOS / desktop).
+                    </span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="w-5 h-5 bg-cyan-500 text-white rounded-full grid place-items-center text-[10px] font-extrabold shrink-0 mt-0.5">2</span>
+                    <span>Buka app → geser toggle ke <b>ON</b>. Selesai — udah aktif.</span>
+                  </li>
+                  <li className="flex gap-2">
+                    <span className="w-5 h-5 bg-cyan-500 text-white rounded-full grid place-items-center text-[10px] font-extrabold shrink-0 mt-0.5">3</span>
+                    <span>Buka <b>reddit.com</b> — sekarang harus kebuka tanpa error.</span>
+                  </li>
+                </ol>
+              </div>
+
+              <div className="flex gap-2">
+                <a
+                  href="https://1.1.1.1/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 bg-cyan-500 hover:bg-cyan-600 text-white font-bold text-sm rounded-xl py-2.5 px-3 text-center flex items-center justify-center gap-1.5 tap-shrink"
+                >
+                  <ExternalLink size={14} /> Download WARP
+                </a>
+                <Button
+                  onClick={handleMarkWarpDone}
+                  variant={warpDismissed ? 'outline' : 'success'}
+                  size="md"
+                >
+                  <Check size={14} /> {warpDismissed ? 'Done' : 'Sudah pasang'}
+                </Button>
+              </div>
+              {!warpDismissed && (
+                <p className="text-[11px] text-muted mt-2 text-center">
+                  Klik "Sudah pasang" kalau WARP udah ON di HP/laptop kamu.
+                </p>
+              )}
+            </div>
+          )}
+        </Card>
 
         {/* HERO — status + progress */}
         <Card className="mb-3 bg-gradient-to-br from-primary via-[#FF8B6B] to-secondary text-white border-0 ring-0 overflow-hidden relative">

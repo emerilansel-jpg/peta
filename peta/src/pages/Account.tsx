@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { RefreshCw, Plus, Trash2, X, LogOut, Copy, MessageCircle, Pencil, Check } from 'lucide-react';
+import { RefreshCw, Plus, Trash2, X, LogOut, Copy, MessageCircle, Pencil, Check, AlertTriangle, Target } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
@@ -142,11 +142,37 @@ export function Account() {
     },
   });
 
+  // Track per-account sync result so we can show a "Reddit blocked, lapor
+  // manual" banner when auto-sync hits Reddit's bot wall. The banner links
+  // to /karma-mission where the honor-system claim form lives.
+  const [syncFailedFor, setSyncFailedFor] = React.useState<string | null>(null);
   const syncMutation = useMutation({
-    mutationFn: (id: string) =>
-      updateRedditAccountKarma(id, accounts.find((a) => a.id === id)?.username),
-    onSuccess: () => { toast.success('Karma disync 📊'); refetch(); },
-    onError: () => toast.error('Gagal sync karma'),
+    mutationFn: async (id: string) => {
+      const account = accounts.find((a) => a.id === id);
+      const beforeKarma = account?.karma ?? 0;
+      const result = await updateRedditAccountKarma(id, account?.username);
+      return { id, beforeKarma, ...result };
+    },
+    onSuccess: (data: any) => {
+      refetch();
+      if (data.fallback) {
+        setSyncFailedFor(data.id);
+        toast.error('Reddit memblokir auto-sync — lapor manual di tab Karma');
+      } else if (data.karma > data.beforeKarma) {
+        setSyncFailedFor(null);
+        toast.success(`Karma +${data.karma - data.beforeKarma} 🎉`);
+      } else if (data.karma === data.beforeKarma) {
+        setSyncFailedFor(null);
+        toast.success('Sync OK — karma tidak berubah');
+      } else {
+        setSyncFailedFor(null);
+        toast.success('Karma disync 📊');
+      }
+    },
+    onError: (_e, id) => {
+      setSyncFailedFor(id);
+      toast.error('Gagal sync — Reddit memblokir. Lapor manual.');
+    },
   });
 
   const deleteMutation = useMutation({
@@ -389,6 +415,33 @@ export function Account() {
                     </p>
                   </div>
                 </div>
+
+                {/* Reddit-blocked fallback — shown when the most recent sync
+                    hit Reddit's bot wall. Points to /karma-mission where the
+                    honor-system claim form lives. Also auto-shown when karma
+                    is stuck at 0 (likely never successfully synced). */}
+                {(syncFailedFor === account.id || account.karma === 0) && (
+                  <div className="mb-3 bg-warning/10 ring-1 ring-warning/40 rounded-xl p-3">
+                    <div className="flex items-start gap-2 mb-2">
+                      <AlertTriangle size={16} className="text-warning shrink-0 mt-0.5" />
+                      <div className="text-xs">
+                        <p className="font-extrabold text-warning">Reddit memblokir auto-sync</p>
+                        <p className="text-warning/80 mt-0.5">
+                          Bukan salah kamu — Reddit anti-bot ke server. Lapor karma manual, admin verify dalam &lt; 24 jam.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => navigate('/karma-mission')}
+                      variant="primary"
+                      size="sm"
+                      fullWidth
+                      className="!bg-warning hover:!brightness-110"
+                    >
+                      <Target size={14} /> Lapor Karma Manual
+                    </Button>
+                  </div>
+                )}
 
                 <div className="flex gap-2">
                   <Button

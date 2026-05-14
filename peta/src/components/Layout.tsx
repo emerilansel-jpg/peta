@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Home, Wallet, User as UserIcon, Menu, X, BarChart3, Users, ListChecks, ClipboardCheck, Coins, Link as LinkIcon, ShieldCheck, Megaphone } from 'lucide-react';
+import { LogOut, Home, Wallet, User as UserIcon, Menu, X, BarChart3, Users, ListChecks, ClipboardCheck, Coins, Link as LinkIcon, ShieldCheck, Megaphone, Target, Inbox } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface LayoutProps {
@@ -13,9 +13,10 @@ interface LayoutProps {
 // administered. Admin gets a separate jump-link at the top when their role
 // hits the public client area (see <AdminJumpLink/>).
 const armyTabs = [
-  { href: '/tasks',    label: 'Tugas',     icon: Home },
-  { href: '/earnings', label: 'Saldo',     icon: Wallet },
-  { href: '/account',  label: 'Akun',      icon: UserIcon },
+  { href: '/tasks',         label: 'Tugas', icon: Home },
+  { href: '/karma-mission', label: 'Karma', icon: Target },
+  { href: '/earnings',      label: 'Saldo', icon: Wallet },
+  { href: '/account',       label: 'Akun',  icon: UserIcon },
 ];
 
 const adminLinks = [
@@ -24,6 +25,7 @@ const adminLinks = [
   { href: '/admin/approval',  label: 'Approval',    icon: ClipboardCheck },
   { href: '/admin/accounts',  label: 'Akun Reddit', icon: LinkIcon },
   { href: '/admin/broadcast', label: 'Kirim Pesan', icon: Megaphone },
+  { href: '/admin/inbox',     label: 'Inbox',       icon: Inbox },
   { href: '/admin/team',      label: 'Tim',         icon: Users },
   { href: '/admin/payroll',   label: 'Payroll',     icon: Coins },
   { href: '/reddit/admin',    label: 'Reddit B2B',  icon: LinkIcon },
@@ -261,7 +263,7 @@ export function Layout({ children, userRole = 'army' }: LayoutProps) {
 
       {/* Bottom tab nav — mobile only */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-border safe-bottom">
-        <div className="grid grid-cols-3 h-16">
+        <div className="grid grid-cols-4 h-16">
           {armyTabs.map((t) => {
             const Icon = t.icon;
             const active = isActive(t.href);

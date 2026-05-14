@@ -111,37 +111,40 @@ export async function syncRedditKarma(username: string): Promise<SyncRedditResul
   const aboutUrl = `https://www.reddit.com/user/${clean}/about.json`;
   const aboutUrlEnc = encodeURIComponent(aboutUrl);
 
-  // Tier 1 — codetabs CORS proxy. User's residential IP fetches from Reddit.
-  // Retry 3x with backoff for rate-limit flakiness. Bail early when we get
-  // a *definitive* suspended/not_found verdict — no point retrying those.
-  const codetabsUrl = `https://api.codetabs.com/v1/proxy?quest=${aboutUrlEnc}`;
-  let lastFlag: RedditStatusFlag = 'unknown';
-  for (let attempt = 0; attempt < 3; attempt++) {
-    if (attempt > 0) {
-      await new Promise((r) => setTimeout(r, 400 * attempt));
-    }
-    const result = await fetchViaProxy(codetabsUrl);
-    if (!result) continue; // network/proxy error — retry
-    if (result.ok) {
-      return {
-        karma: result.karma,
-        accountAgeDays: result.accountAgeDays,
-        level: calculateLevel(result.karma, result.accountAgeDays),
-        success: true,
-        fallback: false,
-        statusFlag: result.statusFlag,
-      };
-    }
-    lastFlag = result.statusFlag;
-    if (result.statusFlag === 'suspended' || result.statusFlag === 'not_found') {
-      // Definitive verdict — no point retrying
-      break;
-    }
-  }
+  // Multi-tier CORS proxy chain. User's residential IP fetches Reddit's
+  // public JSON endpoint. We race three free proxies — whichever returns
+  // first wins. Definitive suspended/not_found verdicts short-circuit early.
+  const proxyUrls: string[] = [
+    `https://corsproxy.io/?${aboutUrlEnc}`,
+    `https://api.allorigins.win/get?url=${aboutUrlEnc}`,
+    `https://api.codetabs.com/v1/proxy?quest=${aboutUrlEnc}`,
+  ];
 
-  // If proxy gave us a definitive bad-account verdict, surface it.
-  if (lastFlag === 'suspended' || lastFlag === 'not_found') {
-    return { karma: 0, accountAgeDays: 0, level: 0, success: true, fallback: true, statusFlag: lastFlag };
+  let lastFlag: RedditStatusFlag = 'unknown';
+  for (const proxyUrl of proxyUrls) {
+    // 2 attempts per proxy with light backoff
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) {
+        await new Promise((r) => setTimeout(r, 350));
+      }
+      const result = await fetchViaProxy(proxyUrl);
+      if (!result) continue; // network/proxy error — try next attempt or proxy
+      if (result.ok) {
+        return {
+          karma: result.karma,
+          accountAgeDays: result.accountAgeDays,
+          level: calculateLevel(result.karma, result.accountAgeDays),
+          success: true,
+          fallback: false,
+          statusFlag: result.statusFlag,
+        };
+      }
+      lastFlag = result.statusFlag;
+      if (result.statusFlag === 'suspended' || result.statusFlag === 'not_found') {
+        // Definitive verdict — no point retrying or trying other proxies
+        return { karma: 0, accountAgeDays: 0, level: 0, success: true, fallback: true, statusFlag: lastFlag };
+      }
+    }
   }
 
   // Tier 2 — edge function (OAuth path if REDDIT_CLIENT_ID set, else falls back).
@@ -977,6 +980,129 @@ export async function listEligibleTasksForUser(): Promise<EligibleTask[]> {
 export async function deleteBroadcast(broadcastId: string): Promise<void> {
   const { error } = await supabase.from('broadcasts').delete().eq('id', broadcastId);
   if (error) throw error;
+}
+
+// ============================================================
+// ADMIN INBOX — unified email + WhatsApp conversations.
+//
+// Inbound: webhooks (Fonnte for WA, email forwarder for SMTP) insert into
+// inbox_messages via service_role. Frontend just reads.
+// Outbound: admin types reply → admin_send_inbox_reply RPC inserts a
+// pending row → frontend invokes inbox-send-reply edge fn → fn dispatches
+// via Spacemail SMTP (email) or Fonnte (WA) and marks status=sent/failed.
+// ============================================================
+export type InboxChannel = 'email' | 'whatsapp';
+export type InboxDirection = 'inbound' | 'outbound';
+export type InboxDeliveryStatus = 'pending' | 'sent' | 'delivered' | 'failed';
+
+export type InboxThreadRow = {
+  id: string;
+  channel: InboxChannel;
+  participant_email: string | null;
+  participant_phone: string | null;
+  participant_name: string | null;
+  user_id: string | null;
+  subject: string | null;
+  last_message_at: string;
+  last_message_preview: string | null;
+  last_message_direction: InboxDirection | null;
+  unread_count: number;
+  is_archived: boolean;
+  matched_user_name: string | null;
+};
+
+export type InboxMessageRow = {
+  id: string;
+  direction: InboxDirection;
+  body: string;
+  subject: string | null;
+  external_message_id: string | null;
+  delivery_status: InboxDeliveryStatus;
+  delivery_error: string | null;
+  created_at: string;
+  sent_by_name: string | null;
+};
+
+export async function listInboxThreads(opts?: { channel?: InboxChannel; includeArchived?: boolean; limit?: number; }): Promise<InboxThreadRow[]> {
+  const { data, error } = await supabase.rpc('admin_list_inbox_threads', {
+    p_limit: opts?.limit ?? 100,
+    p_channel: opts?.channel ?? null,
+    p_include_archived: opts?.includeArchived ?? false,
+  });
+  if (error) throw error;
+  return (data || []) as InboxThreadRow[];
+}
+
+export async function getThreadMessages(threadId: string): Promise<InboxMessageRow[]> {
+  const { data, error } = await supabase.rpc('admin_get_thread_messages', { p_thread_id: threadId });
+  if (error) throw error;
+  return (data || []) as InboxMessageRow[];
+}
+
+export async function sendInboxReply(threadId: string, body: string, subject?: string): Promise<{ messageId: string; sendResult: any; }> {
+  // Step 1 — queue the message in DB
+  const { data: messageId, error } = await supabase.rpc('admin_send_inbox_reply', {
+    p_thread_id: threadId,
+    p_body: body,
+    p_subject: subject ?? null,
+  });
+  if (error) throw error;
+
+  // Step 2 — kick off the edge function to actually dispatch via SMTP/Fonnte
+  const { data: sendResult, error: invokeErr } = await supabase.functions.invoke('inbox-send-reply', {
+    body: { message_id: messageId },
+  });
+  if (invokeErr) {
+    // The DB row remains in 'pending' — admin can retry. Surface the error.
+    throw new Error(invokeErr.message || 'send failed');
+  }
+  return { messageId: messageId as string, sendResult };
+}
+
+export async function createInboxThread(opts: {
+  channel: InboxChannel;
+  email?: string | null;
+  phone?: string | null;
+  name?: string | null;
+  subject?: string | null;
+}): Promise<string> {
+  const { data, error } = await supabase.rpc('admin_create_inbox_thread', {
+    p_channel: opts.channel,
+    p_email: opts.email ?? null,
+    p_phone: opts.phone ?? null,
+    p_name: opts.name ?? null,
+    p_subject: opts.subject ?? null,
+  });
+  if (error) throw error;
+  return data as string;
+}
+
+export async function archiveInboxThread(threadId: string, archived = true): Promise<void> {
+  const { error } = await supabase.rpc('admin_archive_inbox_thread', {
+    p_thread_id: threadId,
+    p_archived: archived,
+  });
+  if (error) throw error;
+}
+
+export async function logInboundMessage(opts: {
+  channel: InboxChannel;
+  email?: string | null;
+  phone?: string | null;
+  name?: string | null;
+  subject?: string | null;
+  body: string;
+}): Promise<string> {
+  const { data, error } = await supabase.rpc('admin_log_inbound_message', {
+    p_channel: opts.channel,
+    p_email: opts.email ?? null,
+    p_phone: opts.phone ?? null,
+    p_name: opts.name ?? null,
+    p_subject: opts.subject ?? null,
+    p_body: opts.body,
+  });
+  if (error) throw error;
+  return data as string;
 }
 
 // Upload a task-proof screenshot to Supabase Storage. Returns public URL.
