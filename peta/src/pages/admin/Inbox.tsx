@@ -10,7 +10,7 @@ import { Button } from '../../components/Button';
 import { toast } from '../../components/Toast';
 import {
   listInboxThreads, getThreadMessages, sendInboxReply, createInboxThread,
-  archiveInboxThread, logInboundMessage,
+  archiveInboxThread, logInboundMessage, pollInboxEmail,
   type InboxThreadRow, type InboxMessageRow, type InboxChannel,
 } from '../../lib/api';
 
@@ -94,6 +94,36 @@ export function AdminInbox() {
     onError: () => toast.error('Gagal mengarsipkan'),
   });
 
+  // Poll Spacemail IMAP for new emails. Runs on demand via the inbox icon
+  // button + auto every 60s when the page is mounted (so admin sees inbound
+  // mail without manually refreshing). WhatsApp uses webhook push, doesn't
+  // need polling.
+  const pollMutation = useMutation({
+    mutationFn: () => pollInboxEmail(),
+    onSuccess: (r) => {
+      if (r.error || !r.ok) {
+        toast.error(`IMAP fetch gagal: ${r.error || (r.errors[0] || 'unknown')}`);
+      } else if (r.processed > 0) {
+        toast.success(`+${r.processed} email baru${r.skipped ? ` (${r.skipped} skip)` : ''}`);
+      } else if (r.skipped > 0) {
+        // Silent — bounces/auto-replies filtered out
+      }
+      // Silent on 0/0 to avoid noise on every auto-poll
+      queryClient.invalidateQueries({ queryKey: ['inbox-threads'] });
+    },
+    onError: (e: any) => toast.error(`Poll failed: ${e.message || e}`),
+  });
+
+  React.useEffect(() => {
+    // Trigger immediately on mount, then every 60s.
+    if (filter === 'all' || filter === 'email') {
+      pollMutation.mutate();
+      const id = setInterval(() => pollMutation.mutate(), 60_000);
+      return () => clearInterval(id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
+
   return (
     <Layout userRole="admin">
       <div className="flex flex-col h-[calc(100dvh-80px)] md:h-[calc(100dvh-64px)] -mx-2 md:-mx-0">
@@ -110,8 +140,16 @@ export function AdminInbox() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button
+              onClick={() => pollMutation.mutate()}
+              disabled={pollMutation.isPending}
+              title="Fetch dari Spacemail (IMAP)"
+              className="p-2 rounded-lg text-muted hover:bg-light tap-shrink disabled:opacity-50"
+            >
+              <Mail size={16} className={pollMutation.isPending ? 'animate-pulse text-primary' : ''} />
+            </button>
+            <button
               onClick={() => threadsQuery.refetch()}
-              title="Refresh"
+              title="Refresh list"
               className="p-2 rounded-lg text-muted hover:bg-light tap-shrink"
             >
               <RefreshCw size={16} className={threadsQuery.isFetching ? 'animate-spin' : ''} />
@@ -121,7 +159,7 @@ export function AdminInbox() {
               title="Log inbound manual"
               className="p-2 rounded-lg text-muted hover:bg-light tap-shrink"
             >
-              <Mail size={16} />
+              <Plus size={16} />
             </button>
             <Button onClick={() => setShowNewModal(true)} variant="primary" size="sm">
               <Plus size={14} /> Thread Baru

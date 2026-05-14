@@ -1110,6 +1110,16 @@ export async function logInboundMessage(opts: {
   return data as string;
 }
 
+// Poll Spacemail IMAP for new inbound emails and ingest them into the
+// inbox. Returns { processed, skipped, errors }. Skipped = bounces / auto
+// replies. Called on demand by the admin Inbox UI, and (optionally) on a
+// pg_cron schedule for true background polling.
+export async function pollInboxEmail(): Promise<{ ok: boolean; processed: number; skipped: number; errors: string[]; error?: string; }> {
+  const { data, error } = await supabase.functions.invoke('inbox-poll-email', { body: {} });
+  if (error) return { ok: false, processed: 0, skipped: 0, errors: [error.message || String(error)] };
+  return { ok: data?.ok ?? false, processed: data?.processed ?? 0, skipped: data?.skipped ?? 0, errors: data?.errors ?? [], error: data?.error };
+}
+
 // Upload a task-proof screenshot to Supabase Storage. Returns public URL.
 // File path pattern: <userId>/<taskId>-<timestamp>.<ext>
 export async function uploadTaskProofImage(opts: {
