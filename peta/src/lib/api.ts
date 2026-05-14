@@ -229,7 +229,7 @@ export async function updateRedditAccountKarma(accountId: string, username: stri
       .select('*')
       .eq('id', accountId)
       .single();
-    return { account: data, fallback: true };
+    return { account: data, fallback: true, karma: (data?.karma as number) ?? 0 };
   }
 
   const updates: Record<string, unknown> = {
@@ -252,7 +252,7 @@ export async function updateRedditAccountKarma(accountId: string, username: stri
     .single();
 
   if (error) throw error;
-  return { account: data, fallback: karmaData.fallback, statusFlag: karmaData.statusFlag };
+  return { account: data, fallback: karmaData.fallback, statusFlag: karmaData.statusFlag, karma: (data?.karma as number) ?? 0 };
 }
 
 // User toggle: hide the "Gabung WhatsApp" CTA on the Tasks page forever.
