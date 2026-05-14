@@ -989,6 +989,7 @@ export type MyAssignmentRow = {
   task_id: string;
   status: 'submitted' | 'rejected' | 'in_progress' | 'approved';
   admin_notes: string | null;
+  can_retry: boolean;
   proof_url: string | null;
   draft_comment: string | null;
   created_at: string;
@@ -1012,11 +1013,13 @@ export async function retryRejectedAssignment(assignmentId: string): Promise<voi
   if (error) throw error;
 }
 
-// Admin: reject WITH reason in one transaction.
-export async function adminRejectAssignment(assignmentId: string, reason: string): Promise<void> {
+// Admin: reject WITH reason + retry flag. allow_retry=true (default) lets
+// the army member re-upload proof. false = final reject, no retry.
+export async function adminRejectAssignment(assignmentId: string, reason: string, allowRetry = true): Promise<void> {
   const { error } = await supabase.rpc('admin_reject_assignment', {
     p_assignment_id: assignmentId,
     p_reason: reason,
+    p_can_retry: allowRetry,
   });
   if (error) throw error;
 }

@@ -1,6 +1,8 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { LogOut, Home, Wallet, User as UserIcon, Menu, X, BarChart3, Users, ListChecks, ClipboardCheck, Coins, Link as LinkIcon, ShieldCheck, Megaphone, Target, Inbox, Key } from 'lucide-react';
+import { getMyPendingAssignments } from '../lib/api';
 import { supabase } from '../lib/supabase';
 
 interface LayoutProps {
@@ -56,6 +58,20 @@ export function Layout({ children, userRole = 'army' }: LayoutProps) {
     }
     return () => { mounted = false; };
   }, [userRole]);
+
+  // Pending task count for the notification dot on the "Tugas" tab. Army
+  // users sometimes can't find their own submitted-but-not-approved work,
+  // so the badge points them straight at /tasks where the pending list
+  // sits above active tasks.
+  const { data: pendingAssignments = [] } = useQuery({
+    queryKey: ['layoutPendingCount'],
+    queryFn: getMyPendingAssignments,
+    enabled: userRole === 'army',
+    refetchInterval: 60_000,
+  });
+  const pendingCount = pendingAssignments.filter((a) => a.status === 'submitted').length;
+  const rejectedCount = pendingAssignments.filter((a) => a.status === 'rejected').length;
+  const tasksBadgeCount = pendingCount + rejectedCount;
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -267,15 +283,25 @@ export function Layout({ children, userRole = 'army' }: LayoutProps) {
           {armyTabs.map((t) => {
             const Icon = t.icon;
             const active = isActive(t.href);
+            const showBadge = t.href === '/tasks' && tasksBadgeCount > 0;
             return (
               <Link
                 key={t.href}
                 to={t.href}
-                className={`flex flex-col items-center justify-center gap-1 tap-shrink ${
+                className={`relative flex flex-col items-center justify-center gap-1 tap-shrink ${
                   active ? 'text-primary' : 'text-muted'
                 }`}
               >
-                <Icon size={22} strokeWidth={active ? 2.4 : 2} />
+                <div className="relative">
+                  <Icon size={22} strokeWidth={active ? 2.4 : 2} />
+                  {showBadge && (
+                    <span className={`absolute -top-1 -right-2 min-w-[16px] h-[16px] grid place-items-center text-[9px] font-extrabold text-white rounded-full px-1 ${
+                      rejectedCount > 0 ? 'bg-danger' : 'bg-warning'
+                    }`}>
+                      {tasksBadgeCount > 9 ? '9+' : tasksBadgeCount}
+                    </span>
+                  )}
+                </div>
                 <span className={`text-[11px] ${active ? 'font-bold' : 'font-medium'}`}>
                   {t.label}
                 </span>

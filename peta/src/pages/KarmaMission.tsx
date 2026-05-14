@@ -118,7 +118,14 @@ export function KarmaMission() {
       await refetchKarma();
       if (res.fallback) {
         setSyncFallback(true);
-        toast.error('Reddit memblokir auto-sync — minta admin verify manual');
+        // Distinguish: account doesn't exist vs Reddit-blocked vs suspended
+        if ((res as any).statusFlag === 'not_found') {
+          toast.error('❌ Username Reddit tidak ditemukan. Cek typo di tab Akun.');
+        } else if ((res as any).statusFlag === 'suspended') {
+          toast.error('⛔ Akun Reddit di-suspend. Buat akun baru di reddit.com.');
+        } else {
+          toast.error('🌐 Reddit memblokir auto-sync — lapor manual di bawah.');
+        }
       } else {
         const afterKarma = (res.account?.karma as number | undefined) ?? beforeKarma;
         if (afterKarma > beforeKarma) {

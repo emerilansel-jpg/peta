@@ -65,9 +65,10 @@ export function AdminApprovalQueue() {
   });
 
   const rejectMutation = useMutation({
-    mutationFn: ({ id, reason }: { id: string; reason: string }) => adminRejectAssignment(id, reason),
-    onSuccess: () => {
-      toast.success('Rejected dengan alasan');
+    mutationFn: ({ id, reason, allowRetry }: { id: string; reason: string; allowRetry: boolean }) =>
+      adminRejectAssignment(id, reason, allowRetry),
+    onSuccess: (_, vars) => {
+      toast.success(vars.allowRetry ? 'Rejected — army bisa coba lagi' : 'Rejected FINAL — no retry');
       setRejectTarget(null);
       setRejectReason('');
       refetch();
@@ -354,27 +355,47 @@ export function AdminApprovalQueue() {
               className="w-full px-3 py-2.5 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-danger focus:bg-white transition text-sm mb-3"
             />
 
-            <div className="flex gap-2">
+            <p className="text-[11px] uppercase font-bold tracking-wide text-muted mb-2">
+              Pilih jenis rejection:
+            </p>
+            <div className="space-y-2">
               <Button
-                onClick={() => setRejectTarget(null)}
-                variant="outline"
-                size="md"
-                fullWidth
-              >
-                Batal
-              </Button>
-              <Button
-                onClick={() => rejectMutation.mutate({ id: rejectTarget.id, reason: rejectReason })}
-                loading={rejectMutation.isPending}
-                disabled={rejectReason.trim().length < 10}
+                onClick={() => rejectMutation.mutate({ id: rejectTarget.id, reason: rejectReason, allowRetry: true })}
+                loading={rejectMutation.isPending && rejectMutation.variables?.allowRetry === true}
+                disabled={rejectReason.trim().length < 10 || rejectMutation.isPending}
                 variant="primary"
                 size="md"
                 fullWidth
-                className="!bg-danger hover:!brightness-110"
+                className="!bg-warning hover:!brightness-110"
               >
-                <X size={16} /> Reject + Kirim Alasan
+                🔄 Reject + Kasih Kesempatan Coba Lagi
               </Button>
+              <Button
+                onClick={() => {
+                  if (!confirm('Yakin reject FINAL? Army member tidak bisa coba lagi untuk task ini. Pakai jika curang / cheating / berkali-kali gagal.')) return;
+                  rejectMutation.mutate({ id: rejectTarget.id, reason: rejectReason, allowRetry: false });
+                }}
+                loading={rejectMutation.isPending && rejectMutation.variables?.allowRetry === false}
+                disabled={rejectReason.trim().length < 10 || rejectMutation.isPending}
+                variant="outline"
+                size="md"
+                fullWidth
+                className="!border-danger !text-danger hover:!bg-danger hover:!text-white"
+              >
+                ⛔ Reject FINAL (tidak bisa coba lagi)
+              </Button>
+              <button
+                onClick={() => setRejectTarget(null)}
+                disabled={rejectMutation.isPending}
+                className="w-full text-xs text-muted hover:text-dark font-semibold py-2 disabled:opacity-50"
+              >
+                Batal
+              </button>
             </div>
+            <p className="text-[10px] text-muted/80 mt-3 leading-snug">
+              💡 <b>Coba lagi</b>: typical case, user lupa screenshot bagus / salah klik. <br />
+              💡 <b>Final</b>: kalau jelas cheating (screenshot palsu, akun bukan punya sendiri, atau berkali-kali submit asal).
+            </p>
           </div>
         </div>
       )}

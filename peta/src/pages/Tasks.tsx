@@ -269,53 +269,74 @@ export function Tasks() {
         )}
 
         {/* ============================================================
-            REJECTED ASSIGNMENTS — admin said redo. Surface above pending
-            and active so user can fix-and-retry FAST. Each row shows the
-            admin's reason + a one-tap retry that wipes proof and routes
-            back to the task detail flow.
+            REJECTED ASSIGNMENTS — admin said redo (or rejected FINAL).
+            Surface above pending and active so user can fix-and-retry
+            FAST. Each row shows the admin's reason. Final rejections
+            (can_retry=false) get a different "no retry" treatment.
         ============================================================= */}
         {rejectedAssignments.length > 0 && (
           <div className="mb-4">
             <h2 className="text-base sm:text-lg font-extrabold flex items-center gap-1.5 mb-2">
-              ⚠️ Perlu submit ulang
+              ⚠️ Task ditolak
               <span className="text-xs font-bold text-danger bg-danger/10 px-2 py-0.5 rounded-full">
                 {rejectedAssignments.length}
               </span>
             </h2>
             <div className="space-y-2">
-              {rejectedAssignments.map((a) => (
-                <Card key={a.id} padding="sm" className="ring-2 ring-danger/30 bg-danger/5">
-                  <div className="flex items-start justify-between gap-2 mb-1.5">
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-sm leading-snug">{a.task_title}</p>
-                      <p className="text-[11px] text-muted">
-                        Direview: {new Date(a.updated_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+              {rejectedAssignments.map((a) => {
+                const isFinal = !a.can_retry;
+                return (
+                  <Card key={a.id} padding="sm" className={`ring-2 ${isFinal ? 'ring-danger/60 bg-danger/10' : 'ring-danger/30 bg-danger/5'}`}>
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                          <p className="font-bold text-sm leading-snug">{a.task_title}</p>
+                          {isFinal && (
+                            <span className="text-[9px] font-extrabold uppercase tracking-wide bg-danger text-white px-1.5 py-0.5 rounded">
+                              FINAL
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[11px] text-muted">
+                          Direview: {new Date(a.updated_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                      <p className="text-sm sm:text-base font-extrabold text-muted money shrink-0 line-through">
+                        Rp{a.task_reward.toLocaleString('id-ID')}
                       </p>
                     </div>
-                    <p className="text-sm sm:text-base font-extrabold text-primary money shrink-0">
-                      Rp{a.task_reward.toLocaleString('id-ID')}
-                    </p>
-                  </div>
-                  {a.admin_notes && (
-                    <div className="bg-white ring-1 ring-danger/30 rounded-lg p-2 mb-2">
-                      <p className="text-[10px] uppercase font-bold tracking-wide text-danger mb-0.5">
-                        Alasan ditolak
-                      </p>
-                      <p className="text-xs text-dark leading-snug whitespace-pre-wrap">{a.admin_notes}</p>
-                    </div>
-                  )}
-                  <Button
-                    onClick={() => retryMutation.mutate(a.id)}
-                    loading={retryMutation.isPending}
-                    variant="primary"
-                    size="sm"
-                    fullWidth
-                    className="!bg-danger hover:!brightness-110"
-                  >
-                    🔄 Coba Lagi (upload bukti baru)
-                  </Button>
-                </Card>
-              ))}
+                    {a.admin_notes && (
+                      <div className="bg-white ring-1 ring-danger/30 rounded-lg p-2 mb-2">
+                        <p className="text-[10px] uppercase font-bold tracking-wide text-danger mb-0.5">
+                          Alasan ditolak
+                        </p>
+                        <p className="text-xs text-dark leading-snug whitespace-pre-wrap">{a.admin_notes}</p>
+                      </div>
+                    )}
+                    {isFinal ? (
+                      <div className="bg-white ring-1 ring-danger/20 rounded-lg p-2 text-center">
+                        <p className="text-xs font-bold text-danger">
+                          ⛔ Reject final — task ini tidak bisa di-submit ulang
+                        </p>
+                        <p className="text-[10px] text-muted mt-0.5">
+                          Lakuin task lain di bawah untuk earn dari ulang.
+                        </p>
+                      </div>
+                    ) : (
+                      <Button
+                        onClick={() => retryMutation.mutate(a.id)}
+                        loading={retryMutation.isPending}
+                        variant="primary"
+                        size="sm"
+                        fullWidth
+                        className="!bg-danger hover:!brightness-110"
+                      >
+                        🔄 Coba Lagi (upload bukti baru)
+                      </Button>
+                    )}
+                  </Card>
+                );
+              })}
             </div>
           </div>
         )}

@@ -155,13 +155,21 @@ export function Account() {
     },
     onSuccess: (data: any) => {
       refetch();
+      const newKarma = data.account?.karma ?? data.karma ?? data.beforeKarma;
       if (data.fallback) {
         setSyncFailedFor(data.id);
-        toast.error('Reddit memblokir auto-sync — lapor manual di tab Karma');
-      } else if (data.karma > data.beforeKarma) {
+        // Distinguish: account doesn't exist / suspended / proxy-blocked
+        if (data.statusFlag === 'not_found') {
+          toast.error('❌ Username Reddit tidak ditemukan. Cek typo atau akun mungkin udah dihapus.');
+        } else if (data.statusFlag === 'suspended') {
+          toast.error('⛔ Akun Reddit kamu kena suspend. Daftar akun baru di reddit.com.');
+        } else {
+          toast.error('🌐 Reddit memblokir auto-sync — lapor karma manual di tab Karma.');
+        }
+      } else if (newKarma > data.beforeKarma) {
         setSyncFailedFor(null);
-        toast.success(`Karma +${data.karma - data.beforeKarma} 🎉`);
-      } else if (data.karma === data.beforeKarma) {
+        toast.success(`Karma +${newKarma - data.beforeKarma} 🎉`);
+      } else if (newKarma === data.beforeKarma) {
         setSyncFailedFor(null);
         toast.success('Sync OK — karma tidak berubah');
       } else {
@@ -416,30 +424,55 @@ export function Account() {
                   </div>
                 </div>
 
-                {/* Reddit-blocked fallback — shown when the most recent sync
-                    hit Reddit's bot wall. Points to /karma-mission where the
-                    honor-system claim form lives. Also auto-shown when karma
-                    is stuck at 0 (likely never successfully synced). */}
-                {(syncFailedFor === account.id || account.karma === 0) && (
-                  <div className="mb-3 bg-warning/10 ring-1 ring-warning/40 rounded-xl p-3">
+                {/* Sync-failed / karma=0 banner — message depends on the
+                    actual reason (not_found / suspended / blocked). Points
+                    user to the right next action for each case. */}
+                {(syncFailedFor === account.id || account.karma === 0 || account.status_flag === 'not_found' || account.status_flag === 'suspended') && (
+                  <div className={`mb-3 rounded-xl p-3 ring-1 ${
+                    account.status_flag === 'not_found' || account.status_flag === 'suspended'
+                      ? 'bg-danger/10 ring-danger/40'
+                      : 'bg-warning/10 ring-warning/40'
+                  }`}>
                     <div className="flex items-start gap-2 mb-2">
-                      <AlertTriangle size={16} className="text-warning shrink-0 mt-0.5" />
+                      <AlertTriangle size={16} className={`shrink-0 mt-0.5 ${
+                        account.status_flag === 'not_found' || account.status_flag === 'suspended' ? 'text-danger' : 'text-warning'
+                      }`} />
                       <div className="text-xs">
-                        <p className="font-extrabold text-warning">Reddit memblokir auto-sync</p>
-                        <p className="text-warning/80 mt-0.5">
-                          Bukan salah kamu — Reddit anti-bot ke server. Lapor karma manual, admin verify dalam &lt; 24 jam.
-                        </p>
+                        {account.status_flag === 'not_found' ? (
+                          <>
+                            <p className="font-extrabold text-danger">Username Reddit tidak ditemukan</p>
+                            <p className="text-danger/80 mt-0.5">
+                              <code className="bg-white/60 px-1 rounded">u/{account.username}</code> tidak terdaftar di Reddit. Cek typo, atau akun mungkin sudah dihapus / di-shadowban. Hapus akun ini lalu tambah username yang benar.
+                            </p>
+                          </>
+                        ) : account.status_flag === 'suspended' ? (
+                          <>
+                            <p className="font-extrabold text-danger">Akun Reddit kena suspend</p>
+                            <p className="text-danger/80 mt-0.5">
+                              <code className="bg-white/60 px-1 rounded">u/{account.username}</code> di-suspend Reddit. Buat akun baru dulu, hapus yang ini, terus tambah username yang baru.
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="font-extrabold text-warning">Reddit memblokir auto-sync</p>
+                            <p className="text-warning/80 mt-0.5">
+                              Bukan salah kamu — Reddit anti-bot ke server. Lapor karma manual, admin verify dalam &lt; 24 jam.
+                            </p>
+                          </>
+                        )}
                       </div>
                     </div>
-                    <Button
-                      onClick={() => navigate('/karma-mission')}
-                      variant="primary"
-                      size="sm"
-                      fullWidth
-                      className="!bg-warning hover:!brightness-110"
-                    >
-                      <Target size={14} /> Lapor Karma Manual
-                    </Button>
+                    {account.status_flag !== 'not_found' && account.status_flag !== 'suspended' && (
+                      <Button
+                        onClick={() => navigate('/karma-mission')}
+                        variant="primary"
+                        size="sm"
+                        fullWidth
+                        className="!bg-warning hover:!brightness-110"
+                      >
+                        <Target size={14} /> Lapor Karma Manual
+                      </Button>
+                    )}
                   </div>
                 )}
 
