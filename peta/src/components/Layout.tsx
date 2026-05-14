@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LogOut, Home, Wallet, User as UserIcon, Menu, X, BarChart3, Users, ListChecks, ClipboardCheck, Coins, Link as LinkIcon, ShieldCheck, Megaphone, Target, Inbox } from 'lucide-react';
+import { LogOut, Home, Wallet, User as UserIcon, Menu, X, BarChart3, Users, ListChecks, ClipboardCheck, Coins, Link as LinkIcon, ShieldCheck, Megaphone, Target, Inbox, Key } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 interface LayoutProps {
@@ -26,6 +26,7 @@ const adminLinks = [
   { href: '/admin/accounts',  label: 'Akun Reddit', icon: LinkIcon },
   { href: '/admin/broadcast', label: 'Kirim Pesan', icon: Megaphone },
   { href: '/admin/inbox',     label: 'Inbox',       icon: Inbox },
+  { href: '/admin/secrets',   label: 'Secrets',     icon: Key },
   { href: '/admin/team',      label: 'Tim',         icon: Users },
   { href: '/admin/payroll',   label: 'Payroll',     icon: Coins },
   { href: '/reddit/admin',    label: 'Reddit B2B',  icon: LinkIcon },
