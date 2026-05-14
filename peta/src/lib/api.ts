@@ -112,12 +112,17 @@ export async function syncRedditKarma(username: string): Promise<SyncRedditResul
   const aboutUrlEnc = encodeURIComponent(aboutUrl);
 
   // Multi-tier CORS proxy chain. User's residential IP fetches Reddit's
-  // public JSON endpoint. We race three free proxies — whichever returns
-  // first wins. Definitive suspended/not_found verdicts short-circuit early.
+  // public JSON endpoint via these proxies because reddit.com doesn't set
+  // CORS headers on its JSON API.
+  //
+  // 2026-05-14 audit: corsproxy.io now paywalled, allorigins.win flaky/dead,
+  // codetabs REQUIRES trailing slash (/v1/proxy/?quest=) — without it returns
+  // a 301 that fetch doesn't follow cleanly. Order below reflects which
+  // proxies actually return valid JSON today.
   const proxyUrls: string[] = [
+    `https://api.codetabs.com/v1/proxy/?quest=${aboutUrlEnc}`,
+    `https://api.allorigins.win/raw?url=${aboutUrlEnc}`,
     `https://corsproxy.io/?${aboutUrlEnc}`,
-    `https://api.allorigins.win/get?url=${aboutUrlEnc}`,
-    `https://api.codetabs.com/v1/proxy?quest=${aboutUrlEnc}`,
   ];
 
   let lastFlag: RedditStatusFlag = 'unknown';
