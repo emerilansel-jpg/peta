@@ -4,6 +4,56 @@ Chronological log of all work sessions on this monorepo (PeTa = Indonesian micro
 
 ---
 
+## 2026-05-13 (latest) — PayPal server-side verification shipped
+
+**Status:** ✅ SHIPPED — PayPal exploit hole closed for real
+**Trigger:** User provided PayPal Live Client Secret
+
+### Pipeline now (server-verified)
+
+```
+Browser PayPal SDK ─► PayPal payment ─► returns orderID
+       │
+       ▼  POST { paypal_order_id }, with user JWT
+paypal-capture (Edge Function, verify_jwt=true)
+       │  uses PAYPAL_CLIENT_ID + PAYPAL_CLIENT_SECRET
+       │  GET /v1/oauth2/token → access_token
+       │  GET /v2/checkout/orders/{order_id} → status, amount, currency, capture_id, payer
+       │  validates status COMPLETED|APPROVED, currency USD, amount 1-10000 USD
+       │
+       ▼  with service_role key
+fn_complete_paypal_topup_verified RPC (SECURITY DEFINER, service_role-only)
+       │  idempotent on paypal_order_id
+       │  grants base credit + B1G1 bonus
+       │  stores PayPal response in metadata
+       │
+       ▼
+users.credit_balance ↑, credit_transactions row, B1G1 row
+```
+
+### Shipped
+- Secrets set on Supabase: PAYPAL_CLIENT_ID, PAYPAL_CLIENT_SECRET, PAYPAL_API_BASE (https://api-m.paypal.com)
+- Migration `paypal_verified_topup_rpc`: new SECURITY DEFINER RPC `fn_complete_paypal_topup_verified` with explicit service_role-only grants
+- Edge function `paypal-capture` v1 deployed, verify_jwt=true (only authenticated users can call)
+- Client `completePayPalTopup()` rewired to `supabase.functions.invoke('paypal-capture', ...)`. Client no longer sends amount — server pulls it from PayPal API.
+- Migration `lock_old_paypal_rpc`: REVOKE'd old client-trusted `fn_complete_paypal_topup` from authenticated; only service_role retains EXECUTE for admin tooling.
+
+### What this closes
+**Before:** client controlled `amount_cents`. Attacker could send fake order_id with $1000 amount → instant $1000 credit + $100 B1G1 = $1100 of free upvote orders.
+**After:** amount comes from PayPal API only. Fake order_id fails at PayPal API lookup. Genuine order_id returns actual paid amount. Idempotent so replay does nothing.
+
+### Still pending user action (DNS — Spaceship UI rejects automation)
+- `@ A 76.76.21.21` — needed for apex resolution + HSTS preload eligibility
+- `@ CAA 0 issue "letsencrypt.org"` — restricts SSL cert issuance
+- `_mta-sts TXT v=STSv1; id=2026051301` — MTA-STS DNS pointer
+- `_smtp._tls TXT v=TLSRPTv1; rua=mailto:care@straight.ltd` — TLS-RPT
+- `mta-sts CNAME cname.vercel-dns.com` — for /.well-known/mta-sts.txt over HTTPS
+- HSTS preload submission at https://hstspreload.org/ after apex A is live
+
+User can add via Spaceship → straight.ltd → Manage → DNS Records → Add record (~30 sec each).
+
+---
+
 ## 2026-05-13 (later) — Live-site security tightening: PayPal exploit + DMARC + DNSSEC
 
 **Status:** ✅ SHIPPED (interim) — final PayPal verification edge function pending user-supplied Client Secret

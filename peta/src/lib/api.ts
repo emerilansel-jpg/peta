@@ -844,12 +844,11 @@ export async function sendBroadcastEmails(broadcastId: string): Promise<{
 // Trigger WhatsApp blast via Fonnte gateway (background, no popups).
 // Falls back gracefully with status='not_configured' if FONNTE_TOKEN unset.
 export async function sendBroadcastWhatsapp(broadcastId: string): Promise<{
-  success: boolean;
   sent: number;
   failed: number;
-  skipped: number;
-  status: 'ok' | 'not_configured';
+  status: 'done' | 'not_configured' | 'no_recipients';
   message?: string;
+  errors?: string[];
 }> {
   const { data, error } = await supabase.functions.invoke('send-broadcast-whatsapp', {
     body: { broadcast_id: broadcastId },
