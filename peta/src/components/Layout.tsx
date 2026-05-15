@@ -67,7 +67,7 @@ export function Layout({ children, userRole = 'army' }: LayoutProps) {
     queryKey: ['layoutPendingCount'],
     queryFn: getMyPendingAssignments,
     enabled: userRole === 'army',
-    refetchInterval: 60_000,
+    refetchInterval: 180_000,
   });
   const pendingCount = pendingAssignments.filter((a) => a.status === 'submitted').length;
   const rejectedCount = pendingAssignments.filter((a) => a.status === 'rejected').length;

@@ -67,7 +67,7 @@ export function Account() {
     queryKey: ['referralAnalytics', user?.id],
     queryFn: () => getReferralAnalytics(user!.id),
     enabled: !!user?.id,
-    refetchInterval: 30_000,
+    refetchInterval: 180_000,
   });
 
   React.useEffect(() => {

@@ -27,13 +27,13 @@ export function Landing() {
   const { data: founding } = useQuery({
     queryKey: ['foundingMembers'],
     queryFn: getFoundingMembers,
-    refetchInterval: 30_000,
+    refetchInterval: 300_000,
   });
 
   const { data: stats } = useQuery({
     queryKey: ['communityStats'],
     queryFn: getCommunityStats,
-    refetchInterval: 60_000,
+    refetchInterval: 300_000,
   });
 
   const foundingCount = founding?.count ?? 0;

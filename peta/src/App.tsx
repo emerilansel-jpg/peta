@@ -48,7 +48,28 @@ import { AdminGuard } from './components/AdminGuard';
 import './App.css';
 import './index.css';
 
-const queryClient = new QueryClient();
+// QueryClient defaults tuned to reduce Vercel Edge Request volume.
+// Before: every page navigation refetched all queries from scratch +
+// window-focus triggered another round. With ~100 army users polling
+// 4 queries every 30s, this hit 2.6M edge requests / month on Hobby
+// tier (3x over limit).
+//
+// New defaults:
+// - staleTime 60s: same query across pages dedupes for 1min
+// - gcTime 5min: keep cache alive across navigation
+// - refetchOnWindowFocus false: stop spurious refetches on tab switch
+// - retry 2: keep retries low to avoid amplification on outage
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60_000,
+      gcTime: 5 * 60_000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: 'always',
+      retry: 2,
+    },
+  },
+});
 
 // Hostname-based home redirect.
 // straight.ltd is the Straight Ltd product → / should go to /reddit.

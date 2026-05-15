@@ -107,7 +107,7 @@ export function Tasks() {
   const { data: feed = [] } = useQuery({
     queryKey: ['communityFeed'],
     queryFn: () => getCommunityFeed(8),
-    refetchInterval: 60_000,
+    refetchInterval: 300_000,
   });
 
   const { data: referralStats } = useQuery({
@@ -119,7 +119,7 @@ export function Tasks() {
   const { data: founding } = useQuery({
     queryKey: ['foundingMembers'],
     queryFn: getFoundingMembers,
-    refetchInterval: 60_000,
+    refetchInterval: 300_000,
   });
 
   const { data: karmaInfo } = useQuery({
@@ -145,7 +145,7 @@ export function Tasks() {
     queryKey: ['eligibleTasks', user?.id],
     queryFn: () => listEligibleTasksForUser(),
     enabled: !!user?.id && (isAdmin || !!karmaInfo?.username),
-    refetchInterval: 30_000,
+    refetchInterval: 120_000,
   });
 
   // Own submitted / rejected task assignments. Shown ABOVE the active task
@@ -155,7 +155,7 @@ export function Tasks() {
     queryKey: ['myAssignments', user?.id],
     queryFn: () => getMyPendingAssignments(),
     enabled: !!user?.id,
-    refetchInterval: 30_000,
+    refetchInterval: 120_000,
   });
   const pendingAssignments = myAssignments.filter((a) => a.status === 'submitted');
   const rejectedAssignments = myAssignments.filter((a) => a.status === 'rejected');

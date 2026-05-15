@@ -48,7 +48,7 @@ export function Earnings() {
     queryKey: ['myAssignments', user?.id],
     queryFn: () => getMyPendingAssignments(),
     enabled: !!user?.id,
-    refetchInterval: 30_000,
+    refetchInterval: 120_000,
   });
   const pendingApprovalValue = myAssignments
     .filter((a) => a.status === 'submitted')
