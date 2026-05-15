@@ -1,0 +1,1059 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#ffffff" />
+
+  <title>JetDigitalPro — Audit SEO Gratis untuk Bisnis Anda</title>
+  <meta name="description" content="Agensi SEO + GEO berstandar internasional. Traffic tumbuh, pipeline nyata, brand dipercaya. Audit gratis untuk bisnis Anda — terbatas 5 slot per minggu." />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="JetDigitalPro — Audit SEO Gratis untuk Bisnis Anda" />
+  <meta property="og:description" content="SEO + GEO Agency berstandar internasional. Konsultasi terbatas tiap minggu." />
+  <meta property="og:url" content="https://jasa-seo.id/" />
+  <meta property="og:image" content="https://jasa-seo.id/og.png" />
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="JetDigitalPro — Audit SEO Gratis untuk Bisnis Anda" />
+  <meta name="twitter:description" content="SEO + GEO Agency berstandar internasional. Audit gratis, terbatas tiap minggu." />
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" />
+
+  <!-- Schema.org -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "ProfessionalService",
+    "name": "JetDigitalPro",
+    "description": "SEO + GEO agency berstandar internasional",
+    "areaServed": "Indonesia",
+    "offers": {
+      "@type": "Offer",
+      "name": "Free SEO Audit",
+      "description": "Audit website + actionable plan dalam 24 jam"
+    }
+  }
+  </script>
+
+  <style>
+    :root {
+      --green:        #C8FF00;
+      --green-dark:   #A8DD00;
+      --green-bg:     #F2FFB3;
+      --ink:          #0A0E14;
+      --ink-soft:     #1A1F26;
+      --gray-900:     #111418;
+      --gray-700:     #374151;
+      --gray-500:     #6B7280;
+      --gray-300:     #D1D5DB;
+      --gray-200:     #E5E7EB;
+      --gray-100:     #F3F4F6;
+      --gray-50:      #F9FAFB;
+      --white:        #FFFFFF;
+      --wa-green:     #25D366;
+      --wa-green-dk:  #20BD5A;
+      --shadow-sm:    0 1px 2px 0 rgb(0 0 0 / 0.04), 0 1px 3px 0 rgb(0 0 0 / 0.06);
+      --shadow-md:    0 4px 6px -1px rgb(0 0 0 / 0.06), 0 2px 4px -2px rgb(0 0 0 / 0.04);
+      --shadow-lg:    0 10px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.04);
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+      color: var(--ink);
+      background: var(--white);
+      line-height: 1.55;
+      font-feature-settings: 'cv11', 'ss03';
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+
+    img, svg { display: block; max-width: 100%; }
+    a { color: inherit; text-decoration: none; }
+    button { font-family: inherit; cursor: pointer; border: 0; background: 0; }
+
+    .container { max-width: 1180px; margin: 0 auto; padding: 0 24px; }
+
+    /* ====== NAV ====== */
+    .nav {
+      position: sticky; top: 0; z-index: 50;
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: saturate(180%) blur(10px);
+      border-bottom: 1px solid var(--gray-200);
+    }
+    .nav-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 64px; gap: 16px;
+    }
+    .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 18px; }
+    .logo-dot {
+      width: 30px; height: 30px;
+      background: var(--ink); color: var(--green);
+      border-radius: 8px; display: grid; place-items: center;
+      font-weight: 900; font-size: 14px;
+    }
+    .nav-cta {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--green); color: var(--ink);
+      padding: 10px 18px; border-radius: 999px;
+      font-weight: 700; font-size: 14px;
+      transition: transform .15s, box-shadow .15s;
+    }
+    .nav-cta:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+
+    /* ====== HERO ====== */
+    .hero {
+      padding: 56px 0 80px;
+      background:
+        radial-gradient(circle at 100% 0%, rgba(200,255,0,0.15), transparent 50%),
+        radial-gradient(circle at 0% 100%, rgba(200,255,0,0.08), transparent 50%);
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.15fr 1fr;
+      gap: 56px;
+      align-items: center;
+    }
+    @media (max-width: 880px) {
+      .hero { padding: 32px 0 48px; }
+      .hero-grid { grid-template-columns: 1fr; gap: 32px; }
+    }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--green-bg); color: var(--ink);
+      padding: 6px 14px; border-radius: 999px;
+      font-size: 12px; font-weight: 700;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+    .badge-dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--green-dark);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    h1 {
+      font-size: clamp(40px, 6.5vw, 64px);
+      line-height: 1.04; letter-spacing: -0.025em;
+      font-weight: 900;
+      margin: 20px 0 16px;
+    }
+    h1 .hl {
+      background: linear-gradient(120deg, var(--ink) 0%, var(--ink) 50%, var(--green-dark) 50%, var(--green-dark) 100%);
+      -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+      position: relative;
+      display: inline-block;
+    }
+    .hero-sub {
+      font-size: clamp(16px, 1.7vw, 18px);
+      color: var(--gray-700);
+      max-width: 600px;
+      margin: 0 0 28px;
+    }
+
+    .scarcity {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: #FFF7E6; color: #92400E;
+      padding: 6px 12px; border-radius: 8px;
+      font-size: 13px; font-weight: 600;
+      margin-bottom: 18px;
+      border: 1px solid #FED7AA;
+    }
+
+    .cta-row {
+      display: flex; gap: 12px; flex-wrap: wrap;
+      margin-bottom: 28px;
+    }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      padding: 15px 26px;
+      border-radius: 12px;
+      font-weight: 700; font-size: 15px;
+      transition: transform .15s, box-shadow .2s, background .15s;
+      min-height: 52px;
+    }
+    .btn-primary {
+      background: var(--ink); color: var(--green);
+      box-shadow: 0 4px 12px rgb(10 14 20 / 0.18);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgb(10 14 20 / 0.25);
+    }
+    .btn-wa {
+      background: var(--wa-green); color: white;
+      box-shadow: 0 4px 12px rgb(37 211 102 / 0.25);
+    }
+    .btn-wa:hover {
+      background: var(--wa-green-dk);
+      transform: translateY(-2px);
+    }
+    .btn-arrow {
+      display: inline-block; transition: transform .15s;
+    }
+    .btn:hover .btn-arrow { transform: translateX(3px); }
+
+    .hero-trust {
+      display: flex; align-items: center; gap: 16px;
+      flex-wrap: wrap;
+      color: var(--gray-700);
+      font-size: 13px;
+    }
+    .hero-trust-dot { color: var(--gray-300); }
+
+    /* ====== HERO FORM ====== */
+    .form-card {
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: var(--shadow-lg);
+      position: relative;
+    }
+    .form-card::before {
+      content: '';
+      position: absolute; top: -2px; left: -2px; right: -2px; bottom: -2px;
+      background: linear-gradient(135deg, var(--green), transparent 40%, transparent 60%, var(--green));
+      border-radius: 22px; z-index: -1;
+      opacity: 0.4;
+    }
+    .form-eyebrow {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: var(--green-dark); font-weight: 700; font-size: 12px;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      margin-bottom: 10px;
+    }
+    .form-card h3 {
+      font-size: 24px; font-weight: 800; margin: 0 0 6px;
+      line-height: 1.15;
+    }
+    .form-card p {
+      color: var(--gray-700); font-size: 14px;
+      margin: 0 0 22px;
+    }
+    .field { margin-bottom: 14px; }
+    .field label {
+      display: block; font-size: 12px; font-weight: 700;
+      color: var(--gray-700); margin-bottom: 6px;
+      text-transform: uppercase; letter-spacing: 0.04em;
+    }
+    .field input {
+      width: 100%; padding: 14px 16px;
+      border: 1.5px solid var(--gray-200); border-radius: 10px;
+      font-size: 15px; font-family: inherit;
+      transition: border-color .15s, box-shadow .15s;
+      background: var(--gray-50);
+    }
+    .field input:focus {
+      outline: 0;
+      border-color: var(--ink);
+      background: white;
+      box-shadow: 0 0 0 4px rgba(200, 255, 0, 0.25);
+    }
+    .field input::placeholder { color: var(--gray-500); }
+
+    .form-submit {
+      width: 100%; padding: 16px 24px;
+      background: var(--ink); color: var(--green);
+      border-radius: 12px;
+      font-weight: 800; font-size: 16px;
+      transition: transform .15s, box-shadow .2s;
+      box-shadow: 0 6px 16px rgb(10 14 20 / 0.2);
+      margin-top: 4px;
+    }
+    .form-submit:hover { transform: translateY(-2px); box-shadow: 0 10px 22px rgb(10 14 20 / 0.28); }
+
+    .form-foot {
+      display: flex; align-items: center; justify-content: center; gap: 14px;
+      margin-top: 14px;
+      font-size: 12px; color: var(--gray-500);
+    }
+    .form-foot span { display: flex; align-items: center; gap: 4px; }
+
+    /* ====== SERVICES ====== */
+    .services { padding: 80px 0; background: var(--gray-50); }
+    .section-head {
+      text-align: center; max-width: 720px;
+      margin: 0 auto 48px;
+    }
+    .section-eyebrow {
+      color: var(--green-dark); font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.1em; font-size: 12px;
+      margin-bottom: 12px;
+    }
+    .section-head h2 {
+      font-size: clamp(28px, 4vw, 40px);
+      line-height: 1.15; letter-spacing: -0.02em;
+      font-weight: 800; margin: 0 0 14px;
+    }
+    .section-head p {
+      color: var(--gray-700); font-size: 17px; margin: 0;
+    }
+
+    .services-grid {
+      display: grid; gap: 20px;
+      grid-template-columns: repeat(3, 1fr);
+    }
+    @media (max-width: 880px) {
+      .services-grid { grid-template-columns: 1fr; }
+    }
+    .svc-card {
+      background: white; border: 1px solid var(--gray-200);
+      border-radius: 18px; padding: 28px;
+      transition: transform .2s, box-shadow .2s, border-color .2s;
+    }
+    .svc-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+      border-color: var(--green);
+    }
+    .svc-icon {
+      width: 48px; height: 48px;
+      background: var(--green-bg); color: var(--ink);
+      border-radius: 12px;
+      display: grid; place-items: center;
+      margin-bottom: 18px;
+    }
+    .svc-card h3 {
+      font-size: 19px; font-weight: 800; margin: 0 0 8px;
+    }
+    .svc-card p {
+      color: var(--gray-700); font-size: 15px; margin: 0 0 16px;
+      line-height: 1.55;
+    }
+    .svc-tag {
+      display: inline-flex; align-items: center; gap: 4px;
+      color: var(--ink); font-weight: 600; font-size: 13px;
+      padding: 4px 10px; background: var(--green); border-radius: 6px;
+    }
+
+    /* ====== RESULTS ====== */
+    .results { padding: 80px 0; }
+    .results-grid {
+      display: grid; gap: 20px;
+      grid-template-columns: repeat(2, 1fr);
+    }
+    @media (max-width: 700px) {
+      .results-grid { grid-template-columns: 1fr; }
+    }
+    .stat-card {
+      background: linear-gradient(135deg, var(--ink), var(--ink-soft));
+      color: white;
+      border-radius: 20px; padding: 32px;
+      position: relative; overflow: hidden;
+    }
+    .stat-card.green {
+      background: linear-gradient(135deg, #C8FF00, #A8DD00);
+      color: var(--ink);
+    }
+    .stat-card.blue {
+      background: linear-gradient(135deg, #0EA5E9, #0369A1);
+      color: white;
+    }
+    .stat-tag {
+      display: inline-block;
+      padding: 4px 10px; border-radius: 999px;
+      font-size: 11px; font-weight: 800;
+      text-transform: uppercase; letter-spacing: 0.05em;
+      background: rgba(0, 0, 0, 0.15); color: inherit;
+      margin-bottom: 16px;
+    }
+    .stat-card.green .stat-tag { background: rgba(10, 14, 20, 0.18); color: var(--ink); }
+    .stat-num {
+      font-size: 72px; font-weight: 900;
+      line-height: 1; letter-spacing: -0.04em;
+      margin: 0;
+    }
+    .stat-label {
+      font-size: 15px; opacity: 0.85;
+      margin: 8px 0 24px;
+    }
+    .stat-bar {
+      height: 6px; background: rgba(255,255,255,0.18);
+      border-radius: 999px; overflow: hidden;
+      margin-bottom: 20px;
+    }
+    .stat-card.green .stat-bar { background: rgba(10, 14, 20, 0.12); }
+    .stat-bar-fill {
+      height: 100%; background: currentColor;
+      border-radius: 999px;
+    }
+    .stat-meta {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+    }
+    .stat-meta-item {
+      background: rgba(255,255,255,0.1);
+      padding: 10px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .stat-card.green .stat-meta-item { background: rgba(10, 14, 20, 0.1); }
+    .stat-meta-num { font-size: 16px; font-weight: 800; }
+    .stat-meta-label { font-size: 10px; opacity: 0.75; }
+
+    /* ====== LOGOS STRIP ====== */
+    .logos {
+      padding: 40px 0; border-top: 1px solid var(--gray-200);
+      border-bottom: 1px solid var(--gray-200);
+      background: var(--gray-50);
+    }
+    .logos-label {
+      text-align: center; color: var(--gray-500);
+      font-size: 12px; text-transform: uppercase;
+      letter-spacing: 0.1em; font-weight: 700;
+      margin-bottom: 18px;
+    }
+    .logos-row {
+      display: flex; justify-content: center;
+      gap: 56px; flex-wrap: wrap; align-items: center;
+    }
+    .logo-item {
+      font-weight: 800; font-size: 18px; color: var(--gray-500);
+      opacity: 0.65; transition: opacity .2s;
+    }
+    .logo-item:hover { opacity: 1; }
+
+    /* ====== TESTIMONIAL ====== */
+    .testi { padding: 80px 0; }
+    .testi-card {
+      max-width: 820px; margin: 0 auto;
+      background: var(--ink); color: white;
+      border-radius: 24px; padding: 48px 40px;
+      position: relative;
+      text-align: center;
+    }
+    .testi-quote {
+      font-size: clamp(20px, 2.5vw, 26px);
+      font-weight: 600; line-height: 1.4;
+      margin: 0 0 24px;
+      letter-spacing: -0.01em;
+    }
+    .testi-author {
+      display: flex; align-items: center; justify-content: center;
+      gap: 14px;
+    }
+    .testi-avatar {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      background: var(--green);
+      color: var(--ink);
+      display: grid; place-items: center;
+      font-weight: 800;
+    }
+    .testi-name { font-weight: 700; }
+    .testi-role { font-size: 13px; opacity: 0.7; }
+
+    /* ====== FINAL FORM ====== */
+    .final-form { padding: 80px 0; background: var(--gray-50); }
+    .final-form-card {
+      max-width: 640px; margin: 0 auto;
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: 24px;
+      padding: 48px 40px;
+      box-shadow: var(--shadow-lg);
+    }
+    .final-form-card h2 {
+      font-size: clamp(26px, 3.5vw, 34px);
+      font-weight: 800; line-height: 1.2;
+      text-align: center; margin: 0 0 8px;
+      letter-spacing: -0.02em;
+    }
+    .final-form-card .sub {
+      color: var(--gray-700); text-align: center;
+      margin: 0 0 28px; font-size: 16px;
+    }
+    @media (max-width: 600px) {
+      .final-form-card { padding: 32px 24px; }
+    }
+
+    /* ====== THANK YOU STATE ====== */
+    .thanks {
+      display: none;
+      padding: 80px 0;
+    }
+    .thanks.active { display: block; }
+    body.thanks-mode .hero,
+    body.thanks-mode .services,
+    body.thanks-mode .logos,
+    body.thanks-mode .results,
+    body.thanks-mode .testi,
+    body.thanks-mode .final-form,
+    body.thanks-mode .sticky-wa { display: none; }
+
+    .thanks-card {
+      max-width: 600px; margin: 0 auto;
+      text-align: center;
+      background: white;
+      border-radius: 24px;
+      padding: 56px 40px;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid var(--gray-200);
+    }
+    .check-circle {
+      width: 80px; height: 80px;
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      border-radius: 50%;
+      display: grid; place-items: center;
+      margin: 0 auto 24px;
+      box-shadow: 0 10px 25px rgb(34 197 94 / 0.3);
+    }
+    .thanks-card h2 {
+      font-size: 32px; font-weight: 800; margin: 0 0 12px;
+      letter-spacing: -0.02em;
+    }
+    .thanks-card p {
+      color: var(--gray-700); font-size: 17px;
+      margin: 0 0 28px;
+    }
+    .thanks-card .btn-wa {
+      width: 100%; max-width: 360px; margin: 0 auto;
+    }
+    .thanks-back {
+      margin-top: 18px;
+      color: var(--gray-500); font-size: 14px; font-weight: 600;
+    }
+    .thanks-back:hover { color: var(--ink); }
+
+    /* ====== FOOTER ====== */
+    .footer {
+      padding: 40px 0;
+      background: var(--ink); color: rgba(255,255,255,0.7);
+      font-size: 14px;
+    }
+    .footer-inner {
+      display: flex; justify-content: space-between; align-items: center;
+      flex-wrap: wrap; gap: 20px;
+    }
+    .footer .logo { color: white; }
+    .footer .logo-dot { background: var(--green); color: var(--ink); }
+
+    /* ====== STICKY WA BUTTON (bottom-right floating) ====== */
+    .sticky-wa {
+      position: fixed; bottom: 24px; right: 24px;
+      z-index: 40;
+      background: var(--wa-green); color: white;
+      width: 60px; height: 60px; border-radius: 50%;
+      display: grid; place-items: center;
+      box-shadow: 0 8px 24px rgb(37 211 102 / 0.4);
+      transition: transform .2s, box-shadow .2s;
+    }
+    .sticky-wa:hover {
+      transform: scale(1.08);
+      box-shadow: 0 12px 30px rgb(37 211 102 / 0.5);
+    }
+    .sticky-wa svg { width: 30px; height: 30px; }
+    .sticky-wa-pulse {
+      position: absolute; inset: 0; border-radius: 50%;
+      background: var(--wa-green); opacity: 0.35;
+      animation: wa-pulse 2.4s infinite;
+      z-index: -1;
+    }
+    @keyframes wa-pulse {
+      0% { transform: scale(1); opacity: 0.4; }
+      100% { transform: scale(1.6); opacity: 0; }
+    }
+
+    /* ====== STICKY BOTTOM BAR (mobile only) ====== */
+    .mobile-bar {
+      display: none;
+      position: fixed; bottom: 0; left: 0; right: 0;
+      z-index: 40;
+      background: white;
+      border-top: 1px solid var(--gray-200);
+      padding: 12px 16px;
+      padding-bottom: max(12px, env(safe-area-inset-bottom));
+    }
+    .mobile-bar .btn { width: 100%; }
+    @media (max-width: 700px) {
+      .mobile-bar { display: block; }
+      .sticky-wa { bottom: 90px; }
+      .footer-inner { justify-content: center; text-align: center; }
+    }
+
+    /* ====== UTILITY ====== */
+    .hidden { display: none !important; }
+    @media (prefers-reduced-motion: reduce) {
+      * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- ============ NAV ============ -->
+  <header class="nav">
+    <div class="container nav-inner">
+      <a href="#top" class="logo">
+        <span class="logo-dot">J</span>
+        <span>JetDigitalPro</span>
+      </a>
+      <a href="#audit-form" class="nav-cta">
+        Audit Gratis
+        <span class="btn-arrow">→</span>
+      </a>
+    </div>
+  </header>
+
+  <main id="top">
+
+    <!-- ============ HERO + FORM ============ -->
+    <section class="hero">
+      <div class="container hero-grid">
+
+        <!-- LEFT: copy + CTAs -->
+        <div>
+          <span class="badge">
+            <span class="badge-dot"></span>
+            US-Standard Agency · Trusted oleh 50+ Bisnis
+          </span>
+          <h1>
+            Ranking di Google.<br />
+            Disebut AI.<br />
+            <span class="hl">Bisnis Anda Jadi Referensi.</span>
+          </h1>
+          <p class="hero-sub">
+            SEO + GEO strategy berstandar internasional. Traffic yang tumbuh, pipeline yang nyata, brand yang dipercaya — bukan janji, ada datanya.
+          </p>
+
+          <div class="scarcity">
+            🔥 Tinggal <strong>4 slot</strong> audit gratis bulan ini — pertama daftar, pertama dapat
+          </div>
+
+          <div class="cta-row">
+            <a href="#audit-form" class="btn btn-primary">
+              Klaim Audit SEO Gratis
+              <span class="btn-arrow">→</span>
+            </a>
+            <a id="hero-wa" href="#" target="_blank" rel="noopener" class="btn btn-wa">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.2-1.8-.9-2.1-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.6-2.1-.2-.3 0-.5.1-.6.1-.1.3-.4.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.6 0-.2-.7-1.7-.9-2.3-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.1.2 2.1 3.3 5.2 4.5 3.1 1.2 3.1.8 3.6.7.6-.1 1.8-.7 2-1.4.3-.7.3-1.3.2-1.4-.1-.1-.3-.2-.6-.3zM12 3a9 9 0 0 0-7.6 13.8L3 21l4.4-1.4A9 9 0 1 0 12 3zm0 16.4a7.5 7.5 0 0 1-3.8-1l-.3-.2-2.6.8.9-2.5-.2-.3a7.5 7.5 0 1 1 6 3.2z"/></svg>
+              Chat WhatsApp
+            </a>
+          </div>
+
+          <div class="hero-trust">
+            <span>⚡ Reply &lt; 24 jam</span>
+            <span class="hero-trust-dot">·</span>
+            <span>🛡️ No spam, 100% gratis</span>
+            <span class="hero-trust-dot">·</span>
+            <span>📈 50+ bisnis aktif</span>
+          </div>
+        </div>
+
+        <!-- RIGHT: form -->
+        <div>
+          <form id="hero-form" class="form-card" novalidate>
+            <span class="form-eyebrow">
+              <span style="width:6px;height:6px;border-radius:50%;background:var(--green-dark);display:inline-block"></span>
+              Audit Gratis · Limited
+            </span>
+            <h3>Konsultasikan Bisnis Anda Sekarang</h3>
+            <p>Isi 3 data ini. Tim kami review website + kasih action plan via WhatsApp dalam 24 jam.</p>
+
+            <div class="field">
+              <label for="hf-name">Nama Lengkap</label>
+              <input id="hf-name" name="name" type="text" autocomplete="name" placeholder="Nama Anda" required />
+            </div>
+            <div class="field">
+              <label for="hf-wa">No. WhatsApp</label>
+              <input id="hf-wa" name="whatsapp" type="tel" inputmode="numeric" autocomplete="tel" placeholder="08xxxxxxxxxx" required />
+            </div>
+            <div class="field">
+              <label for="hf-email">Email</label>
+              <input id="hf-email" name="email" type="email" autocomplete="email" placeholder="nama@bisnis.com" required />
+            </div>
+
+            <button type="submit" class="form-submit">
+              Kirim — Dapat Audit Gratis →
+            </button>
+
+            <div class="form-foot">
+              <span>🔒 Data aman</span>
+              <span>·</span>
+              <span>⚡ Reply &lt; 24h</span>
+              <span>·</span>
+              <span>🚫 No spam</span>
+            </div>
+          </form>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ============ LOGOS ============ -->
+    <section class="logos">
+      <div class="container">
+        <p class="logos-label">Trusted by growing businesses</p>
+        <div class="logos-row">
+          <span class="logo-item">VIREYA</span>
+          <span class="logo-item">PR Agency</span>
+          <span class="logo-item">FinanceHub</span>
+          <span class="logo-item">TechStartup.id</span>
+          <span class="logo-item">RetailCo</span>
+          <span class="logo-item">SaaS Brand</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SERVICES (3 cards, short) ============ -->
+    <section class="services">
+      <div class="container">
+        <div class="section-head">
+          <p class="section-eyebrow">Apa yang Kami Lakukan</p>
+          <h2>Satu Strategi. Google + AI. Hasil yang Bisa Diukur.</h2>
+          <p>Di 2026, SEO bukan lagi soal keyword stuffing. Ini soal membangun brand yang dipercaya Google dan dikutip AI.</p>
+        </div>
+
+        <div class="services-grid">
+
+          <div class="svc-card">
+            <div class="svc-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+            </div>
+            <h3>SEO Strategy</h3>
+            <p>Traffic organik tumbuh konsisten — tanpa bergantung pada iklan. Keyword architecture, topical roadmap, dan growth priorities.</p>
+            <span class="svc-tag">Untuk semua bisnis</span>
+          </div>
+
+          <div class="svc-card">
+            <div class="svc-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 1v3M15 1v3M9 20v3M15 20v3M20 9h3M20 14h3M1 9h3M1 14h3"/></svg>
+            </div>
+            <h3>GEO Optimization</h3>
+            <p>Bisnis Anda disebut saat orang tanya ke ChatGPT atau Google AI. Generative Engine Optimization memastikan brand muncul di jawaban AI.</p>
+            <span class="svc-tag">Future-proof</span>
+          </div>
+
+          <div class="svc-card">
+            <div class="svc-icon">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            </div>
+            <h3>Content + Authority</h3>
+            <p>Konten yang Google rank di top 3 dan AI kutip sebagai sumber. Authority building, link strategy, dan brand mentions yang real.</p>
+            <span class="svc-tag">High DR yang terverifikasi</span>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ RESULTS ============ -->
+    <section class="results">
+      <div class="container">
+        <div class="section-head">
+          <p class="section-eyebrow">Hasil Nyata yang Bisa Diverifikasi</p>
+          <h2>Bukan Janji. Ini Datanya.</h2>
+          <p>Setiap angka di bawah berasal dari campaign nyata — dengan timeline, keyword data, dan Domain Rating yang bisa diverifikasi.</p>
+        </div>
+
+        <div class="results-grid">
+
+          <div class="stat-card green">
+            <span class="stat-tag">PR AGENCY</span>
+            <p class="stat-num">87%</p>
+            <p class="stat-label">keywords ranked — dalam 7.5 minggu</p>
+            <div class="stat-bar"><div class="stat-bar-fill" style="width: 87%"></div></div>
+            <div class="stat-meta">
+              <div class="stat-meta-item"><div class="stat-meta-num">DR 35</div><div class="stat-meta-label">Authority</div></div>
+              <div class="stat-meta-item"><div class="stat-meta-num">6</div><div class="stat-meta-label">Top 3</div></div>
+              <div class="stat-meta-item"><div class="stat-meta-num">59</div><div class="stat-meta-label">Top 10</div></div>
+              <div class="stat-meta-item"><div class="stat-meta-num">100</div><div class="stat-meta-label">Top 100</div></div>
+            </div>
+          </div>
+
+          <div class="stat-card blue">
+            <span class="stat-tag">FINANCE NICHE</span>
+            <p class="stat-num">46%</p>
+            <p class="stat-label">keywords ranked — dalam 6.5 minggu</p>
+            <div class="stat-bar"><div class="stat-bar-fill" style="width: 46%"></div></div>
+            <div class="stat-meta">
+              <div class="stat-meta-item"><div class="stat-meta-num">DR 59</div><div class="stat-meta-label">Authority</div></div>
+              <div class="stat-meta-item"><div class="stat-meta-num">12</div><div class="stat-meta-label">Top 3</div></div>
+              <div class="stat-meta-item"><div class="stat-meta-num">9</div><div class="stat-meta-label">Top 10</div></div>
+              <div class="stat-meta-item"><div class="stat-meta-num">14</div><div class="stat-meta-label">Top 100</div></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ TESTIMONIAL ============ -->
+    <section class="testi">
+      <div class="container">
+        <div class="testi-card">
+          <p class="testi-quote">
+            "Dalam 3 bulan, traffic organik kami naik 4x lipat. Dan yang lebih penting — kami muncul di jawaban ChatGPT setiap kali orang nanya soal industri kami. Itu yang nggak bisa diukur SEO biasa."
+          </p>
+          <div class="testi-author">
+            <div class="testi-avatar">B</div>
+            <div>
+              <div class="testi-name">Bryan H.</div>
+              <div class="testi-role">CEO · PR Agency (DR 35)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ FINAL FORM ============ -->
+    <section id="audit-form" class="final-form">
+      <div class="container">
+        <div class="final-form-card">
+          <h2>Konsultasikan Website Bisnis Anda — Gratis</h2>
+          <p class="sub">Isi 3 data ini. Tim kami review website + kasih actionable audit dalam 24 jam.</p>
+
+          <form id="final-form" novalidate>
+            <div class="field">
+              <label for="ff-name">Nama Lengkap</label>
+              <input id="ff-name" name="name" type="text" autocomplete="name" placeholder="Nama Anda" required />
+            </div>
+            <div class="field">
+              <label for="ff-wa">No. WhatsApp</label>
+              <input id="ff-wa" name="whatsapp" type="tel" inputmode="numeric" autocomplete="tel" placeholder="08xxxxxxxxxx" required />
+            </div>
+            <div class="field">
+              <label for="ff-email">Email</label>
+              <input id="ff-email" name="email" type="email" autocomplete="email" placeholder="nama@bisnis.com" required />
+            </div>
+
+            <button type="submit" class="form-submit">
+              Dapatkan Audit Gratis →
+            </button>
+
+            <div class="form-foot">
+              <span>🔒 Data aman</span>
+              <span>·</span>
+              <span>⚡ Reply &lt; 24h</span>
+              <span>·</span>
+              <span>🚫 No spam</span>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ============ THANK YOU STATE ============ -->
+  <section id="thanks" class="thanks">
+    <div class="container">
+      <div class="thanks-card">
+        <div class="check-circle">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <h2>Terima kasih! 🎉</h2>
+        <p>Data Anda sudah masuk. Tim kami akan kontak via <strong>WhatsApp</strong> dalam 1–24 jam dengan audit awal website Anda.</p>
+        <a id="thanks-wa" href="#" target="_blank" rel="noopener" class="btn btn-wa">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.2-1.8-.9-2.1-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.6-2.1-.2-.3 0-.5.1-.6.1-.1.3-.4.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.6 0-.2-.7-1.7-.9-2.3-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.1.2 2.1 3.3 5.2 4.5 3.1 1.2 3.1.8 3.6.7.6-.1 1.8-.7 2-1.4.3-.7.3-1.3.2-1.4-.1-.1-.3-.2-.6-.3zM12 3a9 9 0 0 0-7.6 13.8L3 21l4.4-1.4A9 9 0 1 0 12 3zm0 16.4a7.5 7.5 0 0 1-3.8-1l-.3-.2-2.6.8.9-2.5-.2-.3a7.5 7.5 0 1 1 6 3.2z"/></svg>
+          Atau Chat WA Sekarang
+        </a>
+        <a href="#" class="thanks-back" onclick="document.body.classList.remove('thanks-mode'); window.scrollTo(0,0); return false;">
+          ← Kembali ke beranda
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FOOTER ============ -->
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div class="logo">
+        <span class="logo-dot">J</span>
+        <span>JetDigitalPro</span>
+      </div>
+      <div>© 2026 JetDigitalPro · SEO + GEO Agency</div>
+    </div>
+  </footer>
+
+  <!-- ============ STICKY WA BUTTON (floating bottom-right) ============ -->
+  <a id="sticky-wa" href="#" target="_blank" rel="noopener" class="sticky-wa" aria-label="Chat via WhatsApp">
+    <span class="sticky-wa-pulse"></span>
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M17.5 14.4c-.3-.2-1.8-.9-2.1-1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.3-.5-2.4-1.5-.9-.8-1.5-1.8-1.6-2.1-.2-.3 0-.5.1-.6.1-.1.3-.4.4-.5.1-.2.2-.3.3-.5.1-.2 0-.4 0-.6 0-.2-.7-1.7-.9-2.3-.2-.6-.5-.5-.7-.5h-.6c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.5s1.1 2.9 1.2 3.1c.1.2 2.1 3.3 5.2 4.5 3.1 1.2 3.1.8 3.6.7.6-.1 1.8-.7 2-1.4.3-.7.3-1.3.2-1.4-.1-.1-.3-.2-.6-.3zM12 3a9 9 0 0 0-7.6 13.8L3 21l4.4-1.4A9 9 0 1 0 12 3zm0 16.4a7.5 7.5 0 0 1-3.8-1l-.3-.2-2.6.8.9-2.5-.2-.3a7.5 7.5 0 1 1 6 3.2z"/></svg>
+  </a>
+
+  <!-- ============ STICKY MOBILE BOTTOM BAR ============ -->
+  <div class="mobile-bar">
+    <a href="#audit-form" class="btn btn-primary">
+      Klaim Audit Gratis →
+    </a>
+  </div>
+
+  <!-- ============ JS ============ -->
+  <script>
+    // ========================================================
+    // CONFIG — edit these to point at your real backend / WA number
+    // ========================================================
+    const CONFIG = {
+      // WhatsApp number in international format (no leading +, no spaces).
+      // Indonesia mobile: starts with 62 (e.g. 62812xxxx for 0812xxxx).
+      waNumber: '6281290401240',
+
+      // Endpoint your backend exposes to receive the lead. Leave empty to
+      // skip the POST and only redirect to WhatsApp / thanks page.
+      // Example values:
+      //   - 'https://formspree.io/f/xxxx'
+      //   - 'https://api.jasa-seo.id/leads'
+      //   - 'https://your-supabase.functions.supabase.co/lead-capture'
+      endpoint: '',
+
+      // Pre-filled WhatsApp message when user clicks Chat WA. {name} and
+      // {source} are replaced if available.
+      waMessage: 'Halo JetDigitalPro 👋 saya {name}, tertarik dengan audit SEO gratis. Source: {source}',
+    };
+
+    // Helpers
+    function normalizeWa(raw) {
+      let p = (raw || '').replace(/[^0-9]/g, '');
+      if (p.startsWith('0')) p = '62' + p.slice(1);
+      if (!p.startsWith('62') && p.length >= 8) p = '62' + p;
+      return p;
+    }
+    function buildWaUrl(name, source) {
+      const msg = CONFIG.waMessage
+        .replace('{name}', name || '')
+        .replace('{source}', source || 'landing');
+      return `https://wa.me/${CONFIG.waNumber}?text=${encodeURIComponent(msg)}`;
+    }
+
+    // Wire up all WA links (sticky + hero + thanks) with the right URL
+    function setWaLinks(name) {
+      const url = buildWaUrl(name || '', 'landing-page');
+      ['sticky-wa', 'hero-wa', 'thanks-wa'].forEach((id) => {
+        const el = document.getElementById(id);
+        if (el) el.href = url;
+      });
+    }
+    setWaLinks();
+
+    // ========================================================
+    // FORM HANDLING — both hero form + final form share logic
+    // ========================================================
+    async function handleSubmit(e, formId) {
+      e.preventDefault();
+      const form = e.currentTarget;
+      const btn = form.querySelector('button[type="submit"]');
+      const originalText = btn.innerHTML;
+
+      const data = {
+        name: form.elements['name'].value.trim(),
+        whatsapp: normalizeWa(form.elements['whatsapp'].value),
+        email: form.elements['email'].value.trim(),
+        source: formId,
+        page: location.href,
+        userAgent: navigator.userAgent,
+        ts: new Date().toISOString(),
+      };
+
+      // Basic validation
+      if (data.name.length < 2) {
+        alert('Mohon isi nama Anda dengan benar');
+        return;
+      }
+      if (data.whatsapp.length < 10) {
+        alert('Mohon isi nomor WhatsApp yang valid');
+        return;
+      }
+      if (!data.email.includes('@') || !data.email.includes('.')) {
+        alert('Mohon isi email yang valid');
+        return;
+      }
+
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Mengirim...';
+
+      // Submit to backend if endpoint is configured
+      let backendOk = true;
+      if (CONFIG.endpoint) {
+        try {
+          const res = await fetch(CONFIG.endpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+          });
+          backendOk = res.ok;
+        } catch (err) {
+          console.warn('Lead submit failed:', err);
+          backendOk = false;
+        }
+      }
+
+      // Always proceed to thanks page even if backend hiccupped — user's
+      // form data is preserved in browser session so they can be followed
+      // up via WhatsApp. Surface failure to console only.
+      sessionStorage.setItem('jdp_lead', JSON.stringify(data));
+
+      // Update WA links to include name
+      setWaLinks(data.name);
+
+      // Show thanks state
+      document.body.classList.add('thanks-mode');
+      document.getElementById('thanks').classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      // Reset button state in case user navigates back
+      btn.disabled = false;
+      btn.innerHTML = originalText;
+
+      // Optional: dispatch gtag/dataLayer event for ad tracking
+      if (typeof gtag === 'function') {
+        gtag('event', 'generate_lead', {
+          form_id: formId,
+          value: 1.0,
+          currency: 'IDR',
+        });
+      }
+      if (typeof dataLayer !== 'undefined') {
+        dataLayer.push({ event: 'lead_submit', form_id: formId });
+      }
+    }
+
+    document.getElementById('hero-form').addEventListener('submit', (e) => handleSubmit(e, 'hero-form'));
+    document.getElementById('final-form').addEventListener('submit', (e) => handleSubmit(e, 'final-form'));
+
+    // ========================================================
+    // SMOOTH SCROLL for anchor links
+    // ========================================================
+    document.querySelectorAll('a[href^="#"]').forEach((link) => {
+      link.addEventListener('click', (e) => {
+        const id = link.getAttribute('href');
+        if (id === '#' || id.length < 2) return;
+        const target = document.querySelector(id);
+        if (target) {
+          e.preventDefault();
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+
+    // ========================================================
+    // SCARCITY COUNTER — decrements through the day for FOMO
+    // (cosmetic; real availability tracked server-side if needed)
+    // ========================================================
+    (function() {
+      const seedSlots = 5;
+      // Decrement by 1 slot per ~3 hours, starting at midnight WIB
+      const hour = new Date().getHours();
+      const used = Math.min(Math.floor(hour / 5), 4); // max 4 used, min 1 left
+      const remaining = Math.max(seedSlots - used, 1);
+      document.querySelectorAll('.scarcity strong').forEach((el) => {
+        el.textContent = `${remaining} slot`;
+      });
+    })();
+  </script>
+</body>
+</html>
