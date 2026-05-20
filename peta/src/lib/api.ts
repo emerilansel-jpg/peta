@@ -406,32 +406,47 @@ export async function checkPayoutEligibility(userId: string, amount: number) {
   if (error) throw error;
   return data as {
     eligible: boolean;
-    reason?: 'holding_period' | 'earnings_floor' | 'weekly_cap';
+    reason?: 'holding_period' | 'earnings_floor' | 'weekly_cap' | 'insufficient_balance';
     message?: string;
     days_old?: number;
     approved_tasks?: number;
     weekly_total?: number;
     weekly_cap?: number;
-    earned_from_work?: number;
-    earnings_floor?: number;
     task_earnings?: number;
-    signup_bonus?: number;
+    bonus_total?: number;
+    bonus_unlocked?: boolean;
+    bonus_unlock_floor?: number;
+    available_unlocked?: number;
   };
 }
 
-// Returns the user's saldo split four ways so the Earnings UI can
-// enforce the "Rp150K dari task + signup bonus dulu, baru bisa narik
-// referral" rule on the client (server still gates via RPC).
-//   fromWork = approved task rewards + signup_bonus credits  (counts toward floor)
-//   referral = referral_bonus_referrer + referral_bonus_referee  (locked behind floor)
-//   other    = manual_adjustment (treated like fromWork — admin discretion)
-//   earned   = fromWork + other  (everything that isn't referral)
-//   total    = earned + referral
+// Returns the user's saldo split so the Earnings UI can show the
+// new "task cair langsung, bonus tunggu Rp100K dari task" rule
+// (server enforces via validate_payout_eligibility).
+//   tasks          = approved task rewards               (cashable always)
+//   manualAdj      = manual_adjustment credits           (cashable always)
+//   bonus          = signup_bonus + referral bonuses     (locked until tasks >= floor)
+//   bonusUnlocked  = tasks >= BONUS_UNLOCK_FLOOR
+//   cashable       = tasks + manualAdj + (bonus if unlocked)
+//   total          = tasks + manualAdj + bonus           (display only)
+//
+// Back-compat fields kept so older UI doesn't break mid-deploy:
+//   earned   = tasks + manualAdj  (was: fromWork + other)
+//   fromWork = tasks              (was: tasks + signup_bonus)
+//   referral = bonus              (now includes signup_bonus too)
+export const BONUS_UNLOCK_FLOOR = 100000;
+
 export async function getTotalEarnings(userId: string): Promise<{
+  tasks: number;
+  manualAdj: number;
+  bonus: number;
+  bonusUnlocked: boolean;
+  cashable: number;
+  total: number;
+  // Back-compat
   earned: number;
   referral: number;
   fromWork: number;
-  total: number;
 }> {
   // 1) Approved task earnings (across all reddit accounts)
   const { data: accounts, error: accErr } = await supabase
@@ -473,12 +488,19 @@ export async function getTotalEarnings(userId: string): Promise<{
     }
   });
 
-  const fromWork = taskTotal + signupBonus;
-  const earned = fromWork + otherCredits;
-  const referral = referralCredits;
-  const total = earned + referral;
+  const tasks = taskTotal;
+  const manualAdj = otherCredits;
+  const bonus = signupBonus + referralCredits;
+  const bonusUnlocked = tasks >= BONUS_UNLOCK_FLOOR;
+  const cashable = tasks + manualAdj + (bonusUnlocked ? bonus : 0);
+  const total = tasks + manualAdj + bonus;
 
-  return { earned, referral, fromWork, total };
+  // Back-compat
+  const earned = tasks + manualAdj;
+  const referral = bonus;
+  const fromWork = tasks;
+
+  return { tasks, manualAdj, bonus, bonusUnlocked, cashable, total, earned, referral, fromWork };
 }
 
 // Mask a name for privacy: "Ahmad" -> "A****", "Ahmad Rifki" -> "A**** R."
@@ -851,17 +873,62 @@ export async function sendBroadcastEmails(broadcastId: string): Promise<{
 
 // Trigger WhatsApp blast via Fonnte gateway (background, no popups).
 // Falls back gracefully with status='not_configured' if FONNTE_TOKEN unset.
-export async function sendBroadcastWhatsapp(broadcastId: string): Promise<{
+// `stripUrls` switches the edge fn into Fonnte-Free-Plan-safe mode (URLs in
+// the body are replaced with "(cek di email atau buka app PeTa)" so the
+// message doesn't hit Fonnte's "invalid message request on free package"
+// reject for links).
+export async function sendBroadcastWhatsapp(
+  broadcastId: string,
+  opts: { stripUrls?: boolean } = {},
+): Promise<{
   sent: number;
   failed: number;
   status: 'done' | 'not_configured' | 'no_recipients';
   message?: string;
   errors?: string[];
+  free_package_blocked?: number;
+  hint?: string;
 }> {
   const { data, error } = await supabase.functions.invoke('send-broadcast-whatsapp', {
-    body: { broadcast_id: broadcastId },
+    body: { broadcast_id: broadcastId, strip_urls: !!opts.stripUrls },
   });
   if (error) throw error;
+  return data;
+}
+
+// Diagnostic: fetch Fonnte device + plan/quota so the admin can see if the
+// WhatsApp gateway is connected, what plan tier is active (Free vs Personal),
+// and how much daily quota is left.
+export async function getFonnteDeviceStatus(): Promise<{
+  ok: boolean;
+  device?: any;
+  error?: string;
+}> {
+  const { data, error } = await supabase.functions.invoke('send-broadcast-whatsapp', {
+    body: { diag: true },
+  });
+  if (error) return { ok: false, error: error.message || String(error) };
+  return data;
+}
+
+// On-demand retry for stale pending WhatsApp recipients. Reuses the same
+// retry edge fn that pg_cron pings every 5 minutes — admin can trigger
+// manually for impatient retries. Defaults to "any pending older than 1 min"
+// when the admin clicks; cron uses 5 min.
+export async function retryPendingWhatsapp(opts: { olderThanMinutes?: number } = {}): Promise<{
+  ok: boolean;
+  retried: number;
+  sent: number;
+  failed: number;
+  skipped: number;
+  fonnte_plan?: 'free' | 'paid';
+  errors?: string[];
+  error?: string;
+}> {
+  const { data, error } = await supabase.functions.invoke('retry-pending-whatsapp', {
+    body: { olderThanMinutes: opts.olderThanMinutes ?? 1, limit: 100 },
+  });
+  if (error) return { ok: false, retried: 0, sent: 0, failed: 0, skipped: 0, error: error.message || String(error) };
   return data;
 }
 
@@ -1232,7 +1299,7 @@ export async function sendTestBroadcast(opts: {
       out.whatsapp_test = { sent: false, error: e.message || String(e) };
     }
     if (opts.testWhatsapp) {
-      const message = `*${opts.subject}*\n\n${opts.body}\n\n— PeTa Team (TEST)\nhttps://www.penghasilantambahan.com`;
+      const message = `*${opts.subject}*\n\n${opts.body}`;
       out.whatsapp_test.link = buildWhatsappLink(opts.testWhatsapp, message);
     }
   }

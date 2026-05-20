@@ -1,17 +1,17 @@
 import React from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { TrendingUp, X, Banknote, Lock, ArrowRight } from 'lucide-react';
+import { TrendingUp, X, Banknote, Lock, ArrowRight, Zap, Info } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { CardSkeleton } from '../components/Skeleton';
 import { supabase } from '../lib/supabase';
-import { getPayoutHistory, requestPayout, getTotalEarnings, getMaxRedditKarma, getMyPendingAssignments } from '../lib/api';
+import { getPayoutHistory, requestPayout, getTotalEarnings, getMaxRedditKarma, getMyPendingAssignments, listEligibleTasksForUser, type EligibleTask } from '../lib/api';
 import { toast } from '../components/Toast';
 
 const MIN_PAYOUT = 150000;
-const EARNINGS_FLOOR = 150000; // Rp150K dari task + signup bonus dulu
+const BONUS_UNLOCK_FLOOR = 100000; // Rp100K dari TASK approved baru bonus (signup+referral) bisa cair
 const PAYOUT_PRESETS = [150000, 250000, 500000, 1000000];
 
 export function Earnings() {
@@ -19,6 +19,7 @@ export function Earnings() {
   const [user, setUser] = React.useState<any>(null);
   const [amount, setAmount] = React.useState(MIN_PAYOUT);
   const [showSheet, setShowSheet] = React.useState(false);
+  const [showHowItWorks, setShowHowItWorks] = React.useState(false);
 
   React.useEffect(() => {
     (async () => {
@@ -34,7 +35,10 @@ export function Earnings() {
     enabled: !!user?.id,
   });
 
-  const { data: earningsBreakdown = { earned: 0, referral: 0, fromWork: 0, total: 0 }, isLoading: earningsLoading } = useQuery({
+  const { data: earningsBreakdown = {
+    tasks: 0, manualAdj: 0, bonus: 0, bonusUnlocked: false, cashable: 0, total: 0,
+    earned: 0, referral: 0, fromWork: 0,
+  }, isLoading: earningsLoading } = useQuery({
     queryKey: ['earnings', user?.id],
     queryFn: () => getTotalEarnings(user!.id),
     enabled: !!user?.id,
@@ -65,6 +69,21 @@ export function Earnings() {
   });
   const needsReddit = user?.id ? !karmaInfo?.username : false;
 
+  // Eligible tasks — used to compute concrete "X upvote = unlock bonus" CTA.
+  // Pulls the cheapest available reward so the math feels achievable.
+  const { data: eligibleTasks = [] } = useQuery<EligibleTask[]>({
+    queryKey: ['eligibleTasks-earnings', user?.id],
+    queryFn: () => listEligibleTasksForUser(),
+    enabled: !!user?.id && !!karmaInfo?.username,
+    refetchInterval: 120_000,
+  });
+  const cheapestUpvote = eligibleTasks
+    .filter((t) => t.task_type === 'upvote')
+    .sort((a, b) => a.reward_amount - b.reward_amount)[0];
+  const cheapestAny = [...eligibleTasks].sort((a, b) => a.reward_amount - b.reward_amount)[0];
+  const cheapestTask = cheapestUpvote || cheapestAny; // prefer upvote for "10 detik" framing
+  const hasEligibleTask = !!cheapestTask;
+
   const payoutMutation = useMutation({
     mutationFn: () => requestPayout(user.id, amount),
     onSuccess: () => {
@@ -86,27 +105,34 @@ export function Earnings() {
 
   const totalPending = payouts.filter((p) => p.status === 'pending').reduce((s, p) => s + p.amount, 0);
   const totalPaid    = payouts.filter((p) => p.status === 'paid').reduce((s, p) => s + p.amount, 0);
-  const available    = earningsBreakdown.total - totalPending - totalPaid;
+  const committed    = totalPending + totalPaid;
+  // "Available" = pool yang lagi unlocked - sudah dipakai untuk payout
+  const available    = Math.max(earningsBreakdown.cashable - committed, 0);
+  // Locked saldo (bonus yg belum kebuka) — display only
+  const lockedAmount = earningsBreakdown.bonusUnlocked ? 0 : earningsBreakdown.bonus;
 
-  // Earnings-floor rule: must earn ≥Rp150K from task + signup bonus
-  // BEFORE any saldo (including referral) bisa cair. Server-enforced
-  // via validate_payout_eligibility — UI mirrors the gate.
-  const floorMet = earningsBreakdown.fromWork >= EARNINGS_FLOOR;
-  const floorShortfall = Math.max(EARNINGS_FLOOR - earningsBreakdown.fromWork, 0);
-  const floorProgress = Math.min((earningsBreakdown.fromWork / EARNINGS_FLOOR) * 100, 100);
-  const canWithdraw = floorMet && available >= MIN_PAYOUT;
-
-  // Milestone — first goal is min payout, then bigger targets
-  const milestones = [MIN_PAYOUT, 300000, 500000, 1000000, 2000000];
-  const next = milestones.find((m) => m > earningsBreakdown.total) || milestones[milestones.length - 1];
-  const progress = Math.min((earningsBreakdown.total / next) * 100, 100);
-  const remaining = Math.max(next - earningsBreakdown.total, 0);
+  // Bonus-unlock rule: bonus (signup + referral) baru bisa cair
+  // setelah task earnings >= Rp100K. Task earnings itself cair anytime
+  // (subject to min payout). Server-enforced via RPC.
+  const bonusUnlocked = earningsBreakdown.bonusUnlocked;
+  const bonusShortfall = Math.max(BONUS_UNLOCK_FLOOR - earningsBreakdown.tasks, 0);
+  const bonusProgress = Math.min((earningsBreakdown.tasks / BONUS_UNLOCK_FLOOR) * 100, 100);
+  const canWithdraw = available >= MIN_PAYOUT;
+  // Quick-win math: how many cheap tasks needed to unlock bonus?
+  const quickReward = cheapestTask?.reward_amount || 1000; // sensible default
+  const tasksToUnlock = bonusShortfall > 0 ? Math.ceil(bonusShortfall / quickReward) : 0;
+  // Shortfall to first payout — drives the "still need Rp X to cash out" hint
+  const payoutShortfall = Math.max(MIN_PAYOUT - available, 0);
+  const tasksToPayout = payoutShortfall > 0 ? Math.ceil(payoutShortfall / quickReward) : 0;
 
   const submit = () => {
     if (amount < MIN_PAYOUT) { toast.error(`Minimum payout Rp${MIN_PAYOUT.toLocaleString('id-ID')}`); return; }
-    if (amount > available) { toast.error('Saldo tidak cukup'); return; }
-    if (!floorMet) {
-      toast.error(`Butuh Rp${floorShortfall.toLocaleString('id-ID')} lagi dari task + signup bonus dulu`);
+    if (amount > available) {
+      if (!bonusUnlocked && earningsBreakdown.bonus > 0) {
+        toast.error(`Bonus (signup+referral) kebuka setelah Rp${BONUS_UNLOCK_FLOOR.toLocaleString('id-ID')} dari task. Kurang Rp${bonusShortfall.toLocaleString('id-ID')} lagi.`);
+      } else {
+        toast.error('Saldo tidak cukup');
+      }
       return;
     }
     payoutMutation.mutate();
@@ -171,79 +197,25 @@ export function Earnings() {
         </Card>
       )}
 
-      {/* Hero saldo card */}
-      <Card className="mb-4 bg-gradient-to-br from-primary to-secondary text-white border-0 ring-0">
-        <p className="text-xs opacity-80 mb-1">Siap dicairkan</p>
-        <p className="text-4xl sm:text-5xl font-extrabold money mb-3">
+      {/* HERO — saldo bisa cair sekarang (cuma yg unlocked). Single big number,
+          no "total" mixup. Locked bonus diceritain di card terpisah biar fokus. */}
+      <Card className="mb-3 bg-gradient-to-br from-primary to-secondary text-white border-0 ring-0">
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-xs opacity-80 font-bold uppercase tracking-wide">💸 Bisa Cair Sekarang</p>
+          <button
+            onClick={() => setShowHowItWorks((v) => !v)}
+            className="text-[11px] opacity-80 hover:opacity-100 flex items-center gap-1 px-2 py-1 rounded-full bg-white/10"
+            aria-label="Cara hitung saldo"
+          >
+            <Info size={12} /> Cara hitung
+          </button>
+        </div>
+        <p className="text-5xl sm:text-6xl font-extrabold money mb-1 leading-none">
           Rp{available.toLocaleString('id-ID')}
         </p>
-
-        {/* Breakdown: earned + referral */}
-        <div className="bg-white/15 backdrop-blur rounded-xl p-3 mb-4 space-y-2 text-sm">
-          <div className="flex items-center justify-between">
-            <span className="flex items-center gap-1.5">✅ Dari task & bonus</span>
-            <span className="font-bold">Rp{earningsBreakdown.earned.toLocaleString('id-ID')}</span>
-          </div>
-          {earningsBreakdown.referral > 0 && (
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5">
-                {floorMet ? '🎁' : <Lock size={13} className="opacity-80" />} Dari referral
-              </span>
-              <span className="font-bold">
-                Rp{earningsBreakdown.referral.toLocaleString('id-ID')}
-                {!floorMet && <span className="ml-1 text-[10px] opacity-80 font-normal">(locked)</span>}
-              </span>
-            </div>
-          )}
-          <div className="border-t border-white/20 pt-2 flex items-center justify-between font-extrabold">
-            <span>🎯 Total</span>
-            <span>Rp{earningsBreakdown.total.toLocaleString('id-ID')}</span>
-          </div>
-        </div>
-
-        {/* Earnings-floor gate — visible until cleared */}
-        {!floorMet && (
-          <div className="bg-yellow-300/95 text-dark rounded-xl p-3 mb-4">
-            <div className="flex items-center justify-between text-xs mb-1.5 font-bold">
-              <span className="flex items-center gap-1.5">
-                <Lock size={13} /> Buka cair: task + signup bonus
-              </span>
-              <span>{Math.round(floorProgress)}%</span>
-            </div>
-            <div className="w-full h-2 bg-dark/15 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-dark rounded-full transition-all"
-                style={{ width: `${floorProgress}%` }}
-              />
-            </div>
-            <p className="text-[11px] mt-1.5 leading-snug">
-              Kumpulin <b>Rp{EARNINGS_FLOOR.toLocaleString('id-ID')}</b> dari task + signup bonus dulu, baru semua saldo (termasuk referral) bisa cair.
-              Kurang <b>Rp{floorShortfall.toLocaleString('id-ID')}</b> lagi.
-            </p>
-          </div>
-        )}
-
-        {floorMet && (
-          <div className="bg-white/15 backdrop-blur rounded-xl p-3 mb-4">
-            <div className="flex items-center justify-between text-xs mb-1.5">
-              <span>Goal: Rp{next.toLocaleString('id-ID')}</span>
-              <span className="font-bold">{Math.round(progress)}%</span>
-            </div>
-            <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-yellow-300 rounded-full transition-all"
-                style={{ width: `${progress}%` }}
-              />
-            </div>
-            {remaining > 0 ? (
-              <p className="text-xs mt-2 opacity-90">
-                🎯 Tinggal Rp{remaining.toLocaleString('id-ID')} lagi {remaining <= 50000 && '— hampir!'}
-              </p>
-            ) : (
-              <p className="text-xs mt-2 opacity-90">🎉 Goal tercapai!</p>
-            )}
-          </div>
-        )}
+        <p className="text-xs opacity-90 mb-4">
+          Saldo dari task — cair kapan aja (min Rp{(MIN_PAYOUT/1000).toFixed(0)}K).
+        </p>
 
         <Button
           onClick={() => {
@@ -256,13 +228,192 @@ export function Earnings() {
           disabled={!canWithdraw}
           className="!bg-yellow-300 !text-dark hover:!brightness-95 !shadow-yellow-300/30"
         >
-          {!floorMet ? <Lock size={18} /> : <Banknote size={20} />}
-          {!floorMet
-            ? `Locked — kurang Rp${floorShortfall.toLocaleString('id-ID')} dari task`
-            : available < MIN_PAYOUT
-            ? `Min Rp${(MIN_PAYOUT/1000).toFixed(0)}K — kurang Rp${(MIN_PAYOUT - available).toLocaleString('id-ID')}`
-            : 'Tarik Saldo Sekarang'}
+          {canWithdraw ? <Banknote size={20} /> : <Lock size={18} />}
+          {canWithdraw
+            ? `Tarik Rp${available.toLocaleString('id-ID')} Sekarang`
+            : `Kurang Rp${payoutShortfall.toLocaleString('id-ID')} buat narik`}
         </Button>
+
+        {!canWithdraw && hasEligibleTask && tasksToPayout > 0 && (
+          <button
+            onClick={() => navigate('/tasks')}
+            className="mt-2.5 w-full bg-white/15 hover:bg-white/25 backdrop-blur rounded-xl px-3 py-2.5 text-left flex items-center justify-between gap-2 tap-shrink transition"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="text-xl shrink-0">⚡</div>
+              <div className="min-w-0">
+                <p className="text-xs font-extrabold leading-tight">
+                  Tinggal {tasksToPayout}× {cheapestTask?.task_type === 'upvote' ? 'upvote' : 'task'} = bisa narik
+                </p>
+                <p className="text-[10px] opacity-90 leading-tight">
+                  Rp{quickReward.toLocaleString('id-ID')}/{cheapestTask?.task_type === 'upvote' ? '10 detik tap' : 'task'} • langsung masuk
+                </p>
+              </div>
+            </div>
+            <ArrowRight size={16} className="shrink-0 opacity-90" />
+          </button>
+        )}
+      </Card>
+
+      {/* "Cara hitung" — collapsible explainer. Sekali baca, ngerti aturan. */}
+      {showHowItWorks && (
+        <Card className="mb-3 bg-blue-50 ring-blue-200" padding="sm">
+          <p className="text-xs font-extrabold text-blue-950 mb-2 flex items-center gap-1.5">
+            <Info size={13} /> Cara saldo dihitung
+          </p>
+          <ul className="text-[12px] text-blue-950/90 space-y-1.5 leading-snug">
+            <li className="flex items-start gap-2">
+              <span className="font-bold text-green-700 shrink-0">1.</span>
+              <span><b>Saldo dari task</b> (komen + upvote approved) → <b>cair anytime</b>, min Rp{(MIN_PAYOUT/1000).toFixed(0)}K.</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="font-bold text-orange-700 shrink-0">2.</span>
+              <span><b>Bonus signup + referral</b> → <b>kebuka setelah Rp{(BONUS_UNLOCK_FLOOR/1000).toFixed(0)}K</b> dari task approved. Anti farming.</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="font-bold text-blue-700 shrink-0">3.</span>
+              <span>Task selesai → admin verify max 3 hari → otomatis masuk saldo.</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="font-bold text-blue-700 shrink-0">4.</span>
+              <span>Request payout → admin transfer max 24 jam ke rekening kamu.</span>
+            </li>
+          </ul>
+        </Card>
+      )}
+
+      {/* UNLOCK BONUS — biggest CRO card. Quick-win math + button ke /tasks.
+          Cuma muncul kalo user emang punya bonus locked (ada signup/referral). */}
+      {!bonusUnlocked && earningsBreakdown.bonus > 0 && (
+        <Card className="mb-3 bg-gradient-to-br from-yellow-300 to-orange-300 text-dark border-0 ring-0">
+          <div className="flex items-start gap-3 mb-3">
+            <div className="w-11 h-11 bg-dark/15 rounded-xl grid place-items-center shrink-0">
+              <Lock size={20} className="text-dark" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] font-bold uppercase tracking-wide opacity-75">Bonus Terkunci</p>
+              <p className="text-2xl font-extrabold money leading-tight">
+                Rp{earningsBreakdown.bonus.toLocaleString('id-ID')}
+              </p>
+              <p className="text-[11px] opacity-80 leading-snug">
+                signup + referral — tinggal kerjain task dikit, kebuka semua
+              </p>
+            </div>
+          </div>
+
+          {/* Progress bar — visual hook */}
+          <div className="mb-3">
+            <div className="flex items-center justify-between text-[11px] font-bold mb-1">
+              <span>Progress task: Rp{earningsBreakdown.tasks.toLocaleString('id-ID')} / Rp{BONUS_UNLOCK_FLOOR.toLocaleString('id-ID')}</span>
+              <span>{Math.round(bonusProgress)}%</span>
+            </div>
+            <div className="w-full h-2.5 bg-dark/15 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-dark rounded-full transition-all"
+                style={{ width: `${bonusProgress}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Quick-win iming-iming — concrete math */}
+          {hasEligibleTask ? (
+            <div className="bg-dark text-white rounded-xl p-3 mb-3">
+              <p className="text-[11px] uppercase font-bold tracking-wide opacity-70 mb-0.5 flex items-center gap-1.5">
+                <Zap size={12} className="text-yellow-300" /> QUICK WIN
+              </p>
+              <p className="text-base font-extrabold leading-tight">
+                {tasksToUnlock}× {cheapestTask?.task_type === 'upvote' ? 'tap upvote' : 'task'} = unlock <span className="text-yellow-300">Rp{earningsBreakdown.bonus.toLocaleString('id-ID')}</span> bonus
+              </p>
+              <p className="text-[11px] opacity-80 mt-0.5">
+                {cheapestTask?.task_type === 'upvote'
+                  ? `Rp${quickReward.toLocaleString('id-ID')} per tap × ${tasksToUnlock} = ${tasksToUnlock * quickReward >= 1000 ? `Rp${(tasksToUnlock * quickReward).toLocaleString('id-ID')}` : ''} • ~${tasksToUnlock * 10} detik total`
+                  : `Rp${quickReward.toLocaleString('id-ID')} per task × ${tasksToUnlock} task`}
+              </p>
+            </div>
+          ) : (
+            <div className="bg-dark/10 rounded-xl p-3 mb-3 text-[12px] leading-snug">
+              Kerjain task biar saldo ke{BONUS_UNLOCK_FLOOR.toLocaleString('id-ID')} dulu — semua bonus langsung kebuka.
+              <b className="block mt-0.5">Kurang Rp{bonusShortfall.toLocaleString('id-ID')} lagi.</b>
+            </div>
+          )}
+
+          <Button
+            onClick={() => navigate('/tasks')}
+            variant="primary"
+            size="lg"
+            fullWidth
+            className="!bg-dark hover:!bg-dark/90 !text-yellow-300 !shadow-dark/30"
+          >
+            🚀 Ambil Task Sekarang <ArrowRight size={16} />
+          </Button>
+        </Card>
+      )}
+
+      {/* Bonus unlocked — celebratory chip (kalo bonus > 0 dan sudah kebuka) */}
+      {bonusUnlocked && earningsBreakdown.bonus > 0 && (
+        <Card className="mb-3 bg-success/10 ring-success/30" padding="sm">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 bg-success/20 text-success rounded-lg grid place-items-center shrink-0 text-base">🎉</div>
+            <div className="flex-1 min-w-0">
+              <p className="font-extrabold text-sm text-success leading-tight">
+                Bonus unlocked! +Rp{earningsBreakdown.bonus.toLocaleString('id-ID')} udah masuk saldo cair
+              </p>
+              <p className="text-[11px] text-success/90 leading-snug">
+                Kerjaan kamu kebayar — signup + referral semua bisa ditarik sekarang.
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* SALDO BREAKDOWN — clear math, no mystery. 3 baris simpel. */}
+      <Card className="mb-3" padding="sm">
+        <p className="text-[10px] font-bold uppercase tracking-wide text-muted mb-2">Rincian Saldo Kamu</p>
+        <div className="space-y-1.5 text-sm">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-1.5 text-dark">
+              <span className="text-success">✅</span> Dari task approved
+            </span>
+            <span className="font-extrabold money">Rp{earningsBreakdown.tasks.toLocaleString('id-ID')}</span>
+          </div>
+          {earningsBreakdown.manualAdj > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-dark">
+                <span>🎁</span> Bonus admin
+              </span>
+              <span className="font-extrabold money">Rp{earningsBreakdown.manualAdj.toLocaleString('id-ID')}</span>
+            </div>
+          )}
+          {earningsBreakdown.bonus > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-dark">
+                {bonusUnlocked ? <span>🎁</span> : <Lock size={13} className="text-orange-500" />}
+                Bonus signup + referral
+              </span>
+              <span className={`font-extrabold money ${bonusUnlocked ? '' : 'text-orange-500'}`}>
+                Rp{earningsBreakdown.bonus.toLocaleString('id-ID')}
+                {!bonusUnlocked && <span className="ml-1 text-[10px] font-normal">(locked)</span>}
+              </span>
+            </div>
+          )}
+          {committed > 0 && (
+            <div className="flex items-center justify-between text-muted">
+              <span className="flex items-center gap-1.5">
+                <span>−</span> Sudah ditarik / pending
+              </span>
+              <span className="font-bold">Rp{committed.toLocaleString('id-ID')}</span>
+            </div>
+          )}
+          <div className="border-t border-border/60 pt-1.5 mt-1 flex items-center justify-between font-extrabold">
+            <span className="text-dark">💰 Bisa cair sekarang</span>
+            <span className="money text-primary">Rp{available.toLocaleString('id-ID')}</span>
+          </div>
+          {lockedAmount > 0 && (
+            <p className="text-[10px] text-orange-600/90 leading-snug pt-0.5">
+              + Rp{lockedAmount.toLocaleString('id-ID')} nunggu unlock (lihat card kuning di atas)
+            </p>
+          )}
+        </div>
       </Card>
 
       {/* Pending approval banner — shown when user has submitted tasks
@@ -289,23 +440,41 @@ export function Earnings() {
         </Card>
       )}
 
-      {/* Quick stats — Dari Task / Verify-pending / Cair */}
-      <div className="grid grid-cols-3 gap-2 mb-5">
+      {/* Lifetime stats — 2 simple cards: Total + Cair (history below for detail). */}
+      <div className="grid grid-cols-2 gap-2 mb-3">
         <Card padding="sm" className="text-center">
-          <p className="text-[10px] text-muted uppercase font-bold tracking-wide">Dari Task</p>
-          <p className="text-base font-extrabold money">Rp{(earningsBreakdown.earned / 1000).toFixed(0)}K</p>
+          <p className="text-[10px] text-muted uppercase font-bold tracking-wide">Total Hasil</p>
+          <p className="text-lg font-extrabold money">Rp{(earningsBreakdown.total / 1000).toFixed(0)}K</p>
         </Card>
         <Card padding="sm" className="text-center">
-          <p className="text-[10px] text-muted uppercase font-bold tracking-wide" title="Task selesai, lagi diverify admin">Verify</p>
-          <p className="text-base font-extrabold money text-warning">
-            Rp{(pendingApprovalValue / 1000).toFixed(0)}K
-          </p>
-        </Card>
-        <Card padding="sm" className="text-center">
-          <p className="text-[10px] text-muted uppercase font-bold tracking-wide">Cair</p>
-          <p className="text-base font-extrabold money text-success">Rp{(totalPaid / 1000).toFixed(0)}K</p>
+          <p className="text-[10px] text-muted uppercase font-bold tracking-wide">Udah Cair</p>
+          <p className="text-lg font-extrabold money text-success">Rp{(totalPaid / 1000).toFixed(0)}K</p>
         </Card>
       </div>
+
+      {/* Always-on CTA — even kalo bonus unlocked, tetap drive ke /tasks */}
+      {hasEligibleTask && (
+        <Card
+          className="mb-5 bg-gradient-to-r from-secondary/15 to-primary/10 ring-secondary/30 cursor-pointer hover:ring-secondary/60 transition tap-shrink"
+          padding="sm"
+          onClick={() => navigate('/tasks')}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-10 h-10 bg-secondary/25 text-secondary rounded-xl grid place-items-center shrink-0 text-lg"><Zap size={18} /></div>
+              <div className="min-w-0">
+                <p className="font-extrabold text-sm leading-tight">
+                  ⚡ {eligibleTasks.length} task siap dikerjain
+                </p>
+                <p className="text-[11px] text-muted leading-snug">
+                  Mulai dari Rp{quickReward.toLocaleString('id-ID')} • saldo nambah otomatis tiap approved
+                </p>
+              </div>
+            </div>
+            <ArrowRight size={18} className="text-secondary shrink-0" />
+          </div>
+        </Card>
+      )}
 
       {/* Payout-pending stat — only show when there's something there */}
       {totalPending > 0 && (
