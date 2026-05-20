@@ -439,7 +439,9 @@ export const BONUS_UNLOCK_FLOOR = 100000;
 export async function getTotalEarnings(userId: string): Promise<{
   tasks: number;
   manualAdj: number;
-  bonus: number;
+  signupBonus: number;     // signup_bonus only
+  referralBonus: number;   // referral_bonus_referrer + _referee
+  bonus: number;           // signupBonus + referralBonus combined
   bonusUnlocked: boolean;
   cashable: number;
   total: number;
@@ -506,7 +508,13 @@ export async function getTotalEarnings(userId: string): Promise<{
   const referral = bonus;
   const fromWork = tasks;
 
-  return { tasks, manualAdj, bonus, bonusUnlocked, cashable, total, earned, referral, fromWork };
+  return {
+    tasks, manualAdj,
+    signupBonus,
+    referralBonus: referralCredits,
+    bonus, bonusUnlocked, cashable, total,
+    earned, referral, fromWork,
+  };
 }
 
 // Mask a name for privacy: "Ahmad" -> "A****", "Ahmad Rifki" -> "A**** R."

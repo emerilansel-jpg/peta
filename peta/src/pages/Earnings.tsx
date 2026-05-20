@@ -1,5 +1,5 @@
 import React from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { TrendingUp, X, Banknote, Lock, ArrowRight, Zap, Info } from 'lucide-react';
 import { Layout } from '../components/Layout';
@@ -17,6 +17,7 @@ const PAYOUT_PRESETS = [10000, 50000, 100000, 500000];
 
 export function Earnings() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [user, setUser] = React.useState<any>(null);
   const [amount, setAmount] = React.useState(10000);
   const [showSheet, setShowSheet] = React.useState(false);
@@ -37,7 +38,8 @@ export function Earnings() {
   });
 
   const { data: earningsBreakdown = {
-    tasks: 0, manualAdj: 0, bonus: 0, bonusUnlocked: false, cashable: 0, total: 0,
+    tasks: 0, manualAdj: 0, signupBonus: 0, referralBonus: 0,
+    bonus: 0, bonusUnlocked: false, cashable: 0, total: 0,
     earned: 0, referral: 0, fromWork: 0,
   }, isLoading: earningsLoading } = useQuery({
     queryKey: ['earnings', user?.id],
@@ -91,7 +93,10 @@ export function Earnings() {
       toast.success('Payout request terkirim! 24 jam max ✅ Cek inbox + spam folder buat konfirmasi (peta@penghasilantambahan.com)');
       setAmount(10000);
       setShowSheet(false);
+      // Refresh BOTH payouts + earnings so the hero number decrements immediately
       refetch();
+      queryClient.invalidateQueries({ queryKey: ['earnings', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['payouts', user?.id] });
     },
     onError: (e: any) => toast.error(e?.message || 'Gagal request payout'),
   });
@@ -391,14 +396,26 @@ export function Earnings() {
               <span className="font-extrabold money">Rp{earningsBreakdown.manualAdj.toLocaleString('id-ID')}</span>
             </div>
           )}
-          {earningsBreakdown.bonus > 0 && (
+          {earningsBreakdown.signupBonus > 0 && (
             <div className="flex items-center justify-between">
               <span className="flex items-center gap-1.5 text-dark">
                 {bonusUnlocked ? <span>🎁</span> : <Lock size={13} className="text-orange-500" />}
-                Bonus signup + referral
+                Saldo bonus (signup)
               </span>
               <span className={`font-extrabold money ${bonusUnlocked ? '' : 'text-orange-500'}`}>
-                Rp{earningsBreakdown.bonus.toLocaleString('id-ID')}
+                Rp{earningsBreakdown.signupBonus.toLocaleString('id-ID')}
+                {!bonusUnlocked && <span className="ml-1 text-[10px] font-normal">(locked)</span>}
+              </span>
+            </div>
+          )}
+          {earningsBreakdown.referralBonus > 0 && (
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-dark">
+                {bonusUnlocked ? <span>🤝</span> : <Lock size={13} className="text-orange-500" />}
+                Saldo referral
+              </span>
+              <span className={`font-extrabold money ${bonusUnlocked ? '' : 'text-orange-500'}`}>
+                Rp{earningsBreakdown.referralBonus.toLocaleString('id-ID')}
                 {!bonusUnlocked && <span className="ml-1 text-[10px] font-normal">(locked)</span>}
               </span>
             </div>
