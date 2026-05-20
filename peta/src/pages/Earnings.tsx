@@ -10,14 +10,15 @@ import { supabase } from '../lib/supabase';
 import { getPayoutHistory, requestPayout, getTotalEarnings, getMaxRedditKarma, getMyPendingAssignments, listEligibleTasksForUser, type EligibleTask } from '../lib/api';
 import { toast } from '../components/Toast';
 
-const MIN_PAYOUT = 150000;
-const BONUS_UNLOCK_FLOOR = 100000; // Rp100K dari TASK approved baru bonus (signup+referral) bisa cair
-const PAYOUT_PRESETS = [150000, 250000, 500000, 1000000];
+// No minimum payout — saldo dari task cair berapapun, kapan aja.
+// Bonus (signup + referral) tetap locked sampai Rp100K task earnings.
+const BONUS_UNLOCK_FLOOR = 100000;
+const PAYOUT_PRESETS = [10000, 50000, 100000, 500000];
 
 export function Earnings() {
   const navigate = useNavigate();
   const [user, setUser] = React.useState<any>(null);
-  const [amount, setAmount] = React.useState(MIN_PAYOUT);
+  const [amount, setAmount] = React.useState(10000);
   const [showSheet, setShowSheet] = React.useState(false);
   const [showHowItWorks, setShowHowItWorks] = React.useState(false);
 
@@ -88,11 +89,11 @@ export function Earnings() {
     mutationFn: () => requestPayout(user.id, amount),
     onSuccess: () => {
       toast.success('Payout request terkirim! 24 jam max ✅ Cek inbox + spam folder buat konfirmasi (peta@penghasilantambahan.com)');
-      setAmount(50000);
+      setAmount(10000);
       setShowSheet(false);
       refetch();
     },
-    onError: () => toast.error('Gagal request payout'),
+    onError: (e: any) => toast.error(e?.message || 'Gagal request payout'),
   });
 
   if (!user || earningsLoading || payoutsLoading) {
@@ -111,22 +112,19 @@ export function Earnings() {
   // Locked saldo (bonus yg belum kebuka) — display only
   const lockedAmount = earningsBreakdown.bonusUnlocked ? 0 : earningsBreakdown.bonus;
 
-  // Bonus-unlock rule: bonus (signup + referral) baru bisa cair
-  // setelah task earnings >= Rp100K. Task earnings itself cair anytime
-  // (subject to min payout). Server-enforced via RPC.
+  // Bonus-unlock rule: bonus (signup + referral) baru cair setelah
+  // tasks ≥ Rp100K. Task earnings sendiri cair anytime, NO MINIMUM.
   const bonusUnlocked = earningsBreakdown.bonusUnlocked;
   const bonusShortfall = Math.max(BONUS_UNLOCK_FLOOR - earningsBreakdown.tasks, 0);
   const bonusProgress = Math.min((earningsBreakdown.tasks / BONUS_UNLOCK_FLOOR) * 100, 100);
-  const canWithdraw = available >= MIN_PAYOUT;
-  // Quick-win math: how many cheap tasks needed to unlock bonus?
-  const quickReward = cheapestTask?.reward_amount || 1000; // sensible default
+  // Bisa narik = ada saldo cair (sesimple itu, no min)
+  const canWithdraw = available > 0;
+  // Quick-win math: cheapest reward → tasksToUnlock for bonus
+  const quickReward = cheapestTask?.reward_amount || 1000;
   const tasksToUnlock = bonusShortfall > 0 ? Math.ceil(bonusShortfall / quickReward) : 0;
-  // Shortfall to first payout — drives the "still need Rp X to cash out" hint
-  const payoutShortfall = Math.max(MIN_PAYOUT - available, 0);
-  const tasksToPayout = payoutShortfall > 0 ? Math.ceil(payoutShortfall / quickReward) : 0;
 
   const submit = () => {
-    if (amount < MIN_PAYOUT) { toast.error(`Minimum payout Rp${MIN_PAYOUT.toLocaleString('id-ID')}`); return; }
+    if (amount <= 0) { toast.error('Amount harus lebih besar dari 0'); return; }
     if (amount > available) {
       if (!bonusUnlocked && earningsBreakdown.bonus > 0) {
         toast.error(`Bonus (signup+referral) kebuka setelah Rp${BONUS_UNLOCK_FLOOR.toLocaleString('id-ID')} dari task. Kurang Rp${bonusShortfall.toLocaleString('id-ID')} lagi.`);
@@ -197,15 +195,13 @@ export function Earnings() {
         </Card>
       )}
 
-      {/* HERO — 3 visual states biar user nggak bingung:
-          A) canWithdraw (saldo cukup) → big "Tarik Sekarang" button (yellow, action)
-          B) saldo > 0 tapi < MIN_PAYOUT → progress bar to MIN + active CTA ke /tasks
-          C) saldo = 0 → CTA ke /tasks ("Mulai earning")
-          NO disabled-gray button — always ada action yg bisa diklik. */}
+      {/* HERO — 2 visual states (NO minimum payout):
+          A) available > 0 → BIG "Tarik Sekarang" button (yellow, klik = tarik)
+          B) available = 0 → CTA ke /tasks ("Mulai Earning") */}
       <Card className="mb-3 bg-gradient-to-br from-primary to-secondary text-white border-0 ring-0">
         <div className="flex items-center justify-between mb-1">
           <p className="text-xs opacity-80 font-bold uppercase tracking-wide">
-            {canWithdraw ? '💸 Siap Dicairkan' : '💰 Saldo Kamu'}
+            {canWithdraw ? '💸 Siap Dicairkan' : '💰 Saldo Cair'}
           </p>
           <button
             onClick={() => setShowHowItWorks((v) => !v)}
@@ -220,33 +216,15 @@ export function Earnings() {
         </p>
         <p className="text-xs opacity-90 mb-4">
           {canWithdraw
-            ? `Saldo cair anytime — min Rp${(MIN_PAYOUT/1000).toFixed(0)}K per request.`
-            : available > 0
-              ? `Bisa narik mulai Rp${(MIN_PAYOUT/1000).toFixed(0)}K — kumpulin Rp${payoutShortfall.toLocaleString('id-ID')} lagi.`
-              : `Mulai earning — kerjain task pertama kamu di bawah.`}
+            ? 'Cair kapan aja, berapapun. Nggak ada minimum.'
+            : 'Belum ada saldo. Kerjain task pertama → langsung cair anytime.'}
         </p>
 
-        {/* Progress bar to MIN_PAYOUT — only shown when ada saldo tapi belum cukup */}
-        {!canWithdraw && available > 0 && (
-          <div className="mb-3">
-            <div className="flex items-center justify-between text-[11px] mb-1 opacity-90">
-              <span>Progress ke Rp{(MIN_PAYOUT/1000).toFixed(0)}K</span>
-              <span className="font-bold">{Math.round((available / MIN_PAYOUT) * 100)}%</span>
-            </div>
-            <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-yellow-300 rounded-full transition-all"
-                style={{ width: `${Math.min((available / MIN_PAYOUT) * 100, 100)}%` }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Action — STATE A: tarik */}
+        {/* Action — STATE A: tarik (saldo > 0, no minimum) */}
         {canWithdraw && (
           <Button
             onClick={() => {
-              setAmount(Math.min(Math.max(MIN_PAYOUT, available), available));
+              setAmount(available);
               setShowSheet(true);
             }}
             variant="success"
@@ -259,7 +237,7 @@ export function Earnings() {
           </Button>
         )}
 
-        {/* Action — STATE B/C: active CTA ke /tasks (NO disabled button) */}
+        {/* Action — STATE B: saldo kosong → drive ke /tasks */}
         {!canWithdraw && (
           <Button
             onClick={() => navigate('/tasks')}
@@ -269,18 +247,17 @@ export function Earnings() {
             className="!bg-yellow-300 !text-dark hover:!brightness-95 !shadow-yellow-300/30"
           >
             <Zap size={18} />
-            {hasEligibleTask && tasksToPayout > 0
-              ? `🚀 ${tasksToPayout}× ${cheapestTask?.task_type === 'upvote' ? 'tap' : 'task'} = bisa narik`
+            {hasEligibleTask
+              ? `🚀 Mulai dari Rp${quickReward.toLocaleString('id-ID')}/${cheapestTask?.task_type === 'upvote' ? 'tap' : 'task'}`
               : '🚀 Lanjut Earning'}
           </Button>
         )}
 
-        {/* Detail row di bawah CTA — what does the action mean */}
         {!canWithdraw && hasEligibleTask && (
           <p className="mt-2 text-[11px] text-center opacity-90">
             {cheapestTask?.task_type === 'upvote'
-              ? `Rp${quickReward.toLocaleString('id-ID')}/tap • ~${tasksToPayout * 10} detik`
-              : `Mulai dari Rp${quickReward.toLocaleString('id-ID')}/task`}
+              ? '~10 detik per tap • saldo nambah otomatis tiap approved'
+              : 'Komen sekali, saldo masuk setelah admin approve'}
           </p>
         )}
       </Card>
@@ -294,11 +271,11 @@ export function Earnings() {
           <ul className="text-[12px] text-blue-950/90 space-y-1.5 leading-snug">
             <li className="flex items-start gap-2">
               <span className="font-bold text-green-700 shrink-0">1.</span>
-              <span><b>Saldo dari task</b> (komen + upvote approved) → <b>cair anytime</b>, min Rp{(MIN_PAYOUT/1000).toFixed(0)}K.</span>
+              <span><b>Saldo dari task</b> (komen + upvote approved) → <b>cair kapan aja</b>. Berapapun nominalnya, no minimum. 🎉</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="font-bold text-orange-700 shrink-0">2.</span>
-              <span><b>Bonus signup + referral</b> → <b>kebuka setelah Rp{(BONUS_UNLOCK_FLOOR/1000).toFixed(0)}K</b> dari task approved. Anti farming.</span>
+              <span><b>Bonus signup + referral</b> → <b>kebuka setelah Rp{(BONUS_UNLOCK_FLOOR/1000).toFixed(0)}K</b> dari task approved. Anti-farming.</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="font-bold text-blue-700 shrink-0">3.</span>
@@ -571,8 +548,8 @@ export function Earnings() {
               <p className="text-xs text-muted mb-2">Saldo tersedia</p>
               <p className="text-2xl font-extrabold money mb-5">Rp{available.toLocaleString('id-ID')}</p>
 
-              <p className="text-xs uppercase font-bold tracking-wide text-muted mb-2">Pilih nominal</p>
-              <div className="grid grid-cols-2 gap-2 mb-4">
+              <p className="text-xs uppercase font-bold tracking-wide text-muted mb-2">Pilih nominal (preset)</p>
+              <div className="grid grid-cols-2 gap-2 mb-3">
                 {PAYOUT_PRESETS.filter(v => v <= available).map((v) => (
                   <button
                     key={v}
@@ -586,22 +563,36 @@ export function Earnings() {
                     Rp{v.toLocaleString('id-ID')}
                   </button>
                 ))}
+                {/* "Tarik semua" — utility shortcut */}
+                {available > 0 && (
+                  <button
+                    onClick={() => setAmount(available)}
+                    className={`tap-shrink min-h-[48px] rounded-xl font-bold text-sm col-span-2 ${
+                      amount === available
+                        ? 'bg-success text-white shadow-md shadow-success/30'
+                        : 'bg-success/10 text-success ring-1 ring-success/30 hover:ring-success/60'
+                    }`}
+                  >
+                    💰 Tarik Semua: Rp{available.toLocaleString('id-ID')}
+                  </button>
+                )}
               </div>
 
-              <p className="text-xs uppercase font-bold tracking-wide text-muted mb-1">Atau custom</p>
+              <p className="text-xs uppercase font-bold tracking-wide text-muted mb-1">Atau custom (no minimum)</p>
               <input
                 type="number"
                 inputMode="numeric"
                 value={amount}
-                onChange={(e) => setAmount(Math.max(MIN_PAYOUT, parseInt(e.target.value) || 0))}
-                min={MIN_PAYOUT}
+                onChange={(e) => setAmount(Math.max(0, parseInt(e.target.value) || 0))}
+                min={1}
                 max={available}
-                step={10000}
+                step={1000}
                 className="w-full min-h-[48px] px-4 py-3 text-base bg-light border-2 border-transparent rounded-xl focus:outline-none focus:border-primary focus:bg-white transition mb-4"
               />
 
-              <div className="bg-light rounded-xl p-3 mb-4 text-xs text-muted">
-                <p>📌 Min: Rp{MIN_PAYOUT.toLocaleString('id-ID')} • Max 24 jam proses</p>
+              <div className="bg-light rounded-xl p-3 mb-4 text-xs text-muted space-y-0.5">
+                <p>✅ <b>No minimum</b> — tarik berapapun, kapan aja</p>
+                <p>⏱️ Max 24 jam proses transfer</p>
                 <p>🏦 Transfer ke rekening yang terdaftar</p>
               </div>
 
@@ -610,7 +601,7 @@ export function Earnings() {
                 variant="primary"
                 size="lg"
                 loading={payoutMutation.isPending}
-                disabled={amount < MIN_PAYOUT || amount > available}
+                disabled={amount <= 0 || amount > available}
                 fullWidth
               >
                 Request Rp{amount.toLocaleString('id-ID')}
