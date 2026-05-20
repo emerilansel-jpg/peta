@@ -197,11 +197,16 @@ export function Earnings() {
         </Card>
       )}
 
-      {/* HERO — saldo bisa cair sekarang (cuma yg unlocked). Single big number,
-          no "total" mixup. Locked bonus diceritain di card terpisah biar fokus. */}
+      {/* HERO — 3 visual states biar user nggak bingung:
+          A) canWithdraw (saldo cukup) → big "Tarik Sekarang" button (yellow, action)
+          B) saldo > 0 tapi < MIN_PAYOUT → progress bar to MIN + active CTA ke /tasks
+          C) saldo = 0 → CTA ke /tasks ("Mulai earning")
+          NO disabled-gray button — always ada action yg bisa diklik. */}
       <Card className="mb-3 bg-gradient-to-br from-primary to-secondary text-white border-0 ring-0">
         <div className="flex items-center justify-between mb-1">
-          <p className="text-xs opacity-80 font-bold uppercase tracking-wide">💸 Bisa Cair Sekarang</p>
+          <p className="text-xs opacity-80 font-bold uppercase tracking-wide">
+            {canWithdraw ? '💸 Siap Dicairkan' : '💰 Saldo Kamu'}
+          </p>
           <button
             onClick={() => setShowHowItWorks((v) => !v)}
             className="text-[11px] opacity-80 hover:opacity-100 flex items-center gap-1 px-2 py-1 rounded-full bg-white/10"
@@ -214,44 +219,69 @@ export function Earnings() {
           Rp{available.toLocaleString('id-ID')}
         </p>
         <p className="text-xs opacity-90 mb-4">
-          Saldo dari task — cair kapan aja (min Rp{(MIN_PAYOUT/1000).toFixed(0)}K).
+          {canWithdraw
+            ? `Saldo cair anytime — min Rp${(MIN_PAYOUT/1000).toFixed(0)}K per request.`
+            : available > 0
+              ? `Bisa narik mulai Rp${(MIN_PAYOUT/1000).toFixed(0)}K — kumpulin Rp${payoutShortfall.toLocaleString('id-ID')} lagi.`
+              : `Mulai earning — kerjain task pertama kamu di bawah.`}
         </p>
 
-        <Button
-          onClick={() => {
-            setAmount(Math.min(Math.max(MIN_PAYOUT, available), available));
-            setShowSheet(true);
-          }}
-          variant="success"
-          size="lg"
-          fullWidth
-          disabled={!canWithdraw}
-          className="!bg-yellow-300 !text-dark hover:!brightness-95 !shadow-yellow-300/30"
-        >
-          {canWithdraw ? <Banknote size={20} /> : <Lock size={18} />}
-          {canWithdraw
-            ? `Tarik Rp${available.toLocaleString('id-ID')} Sekarang`
-            : `Kurang Rp${payoutShortfall.toLocaleString('id-ID')} buat narik`}
-        </Button>
-
-        {!canWithdraw && hasEligibleTask && tasksToPayout > 0 && (
-          <button
-            onClick={() => navigate('/tasks')}
-            className="mt-2.5 w-full bg-white/15 hover:bg-white/25 backdrop-blur rounded-xl px-3 py-2.5 text-left flex items-center justify-between gap-2 tap-shrink transition"
-          >
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="text-xl shrink-0">⚡</div>
-              <div className="min-w-0">
-                <p className="text-xs font-extrabold leading-tight">
-                  Tinggal {tasksToPayout}× {cheapestTask?.task_type === 'upvote' ? 'upvote' : 'task'} = bisa narik
-                </p>
-                <p className="text-[10px] opacity-90 leading-tight">
-                  Rp{quickReward.toLocaleString('id-ID')}/{cheapestTask?.task_type === 'upvote' ? '10 detik tap' : 'task'} • langsung masuk
-                </p>
-              </div>
+        {/* Progress bar to MIN_PAYOUT — only shown when ada saldo tapi belum cukup */}
+        {!canWithdraw && available > 0 && (
+          <div className="mb-3">
+            <div className="flex items-center justify-between text-[11px] mb-1 opacity-90">
+              <span>Progress ke Rp{(MIN_PAYOUT/1000).toFixed(0)}K</span>
+              <span className="font-bold">{Math.round((available / MIN_PAYOUT) * 100)}%</span>
             </div>
-            <ArrowRight size={16} className="shrink-0 opacity-90" />
-          </button>
+            <div className="w-full h-2 bg-white/20 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-yellow-300 rounded-full transition-all"
+                style={{ width: `${Math.min((available / MIN_PAYOUT) * 100, 100)}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Action — STATE A: tarik */}
+        {canWithdraw && (
+          <Button
+            onClick={() => {
+              setAmount(Math.min(Math.max(MIN_PAYOUT, available), available));
+              setShowSheet(true);
+            }}
+            variant="success"
+            size="lg"
+            fullWidth
+            className="!bg-yellow-300 !text-dark hover:!brightness-95 !shadow-yellow-300/30"
+          >
+            <Banknote size={20} />
+            Tarik Rp{available.toLocaleString('id-ID')} Sekarang
+          </Button>
+        )}
+
+        {/* Action — STATE B/C: active CTA ke /tasks (NO disabled button) */}
+        {!canWithdraw && (
+          <Button
+            onClick={() => navigate('/tasks')}
+            variant="success"
+            size="lg"
+            fullWidth
+            className="!bg-yellow-300 !text-dark hover:!brightness-95 !shadow-yellow-300/30"
+          >
+            <Zap size={18} />
+            {hasEligibleTask && tasksToPayout > 0
+              ? `🚀 ${tasksToPayout}× ${cheapestTask?.task_type === 'upvote' ? 'tap' : 'task'} = bisa narik`
+              : '🚀 Lanjut Earning'}
+          </Button>
+        )}
+
+        {/* Detail row di bawah CTA — what does the action mean */}
+        {!canWithdraw && hasEligibleTask && (
+          <p className="mt-2 text-[11px] text-center opacity-90">
+            {cheapestTask?.task_type === 'upvote'
+              ? `Rp${quickReward.toLocaleString('id-ID')}/tap • ~${tasksToPayout * 10} detik`
+              : `Mulai dari Rp${quickReward.toLocaleString('id-ID')}/task`}
+          </p>
         )}
       </Card>
 

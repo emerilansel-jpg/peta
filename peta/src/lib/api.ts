@@ -483,8 +483,14 @@ export async function getTotalEarnings(userId: string): Promise<{
       signupBonus += amt;
     } else if (c.source === 'referral_bonus_referrer' || c.source === 'referral_bonus_referee') {
       referralCredits += amt;
+    } else if (c.source === 'task_reward') {
+      // Skip — already counted via task_assignments JOIN tasks above.
+      // tg_on_assignment_approved mirrors approved assignment into user_credits
+      // for ledger history; we use task_assignments as canonical to match
+      // the server-side validate_payout_eligibility math.
     } else {
-      otherCredits += amt; // manual_adjustment, etc.
+      // manual_adjustment + karma_milestone + future cashable credits.
+      otherCredits += amt;
     }
   });
 
