@@ -46,13 +46,33 @@ export function AdminApprovalQueue() {
   const { data: assignments = [], isLoading, refetch } = useQuery({
     queryKey: ['pendingApprovals'],
     queryFn: async () => {
-      const { data } = await supabase
-        .from('task_assignments')
-        .select('*, tasks(title, reward_amount, target_url, task_category, task_type), reddit_accounts(username)')
-        .eq('status', 'submitted')
-        .order('created_at', { ascending: false });
-      return data || [];
+      // SECURITY DEFINER RPC — bypasses PostgREST embed quirks + stale RLS.
+      // Returns flat rows; we adapt them to the legacy nested shape that the
+      // JSX below expects (a.tasks.title / a.reddit_accounts.username).
+      const { data, error } = await supabase.rpc('admin_pending_approvals');
+      if (error) throw error;
+      return (data || []).map((r: any) => ({
+        id: r.id,
+        status: r.status,
+        proof_url: r.proof_url,
+        draft_comment: r.draft_comment,
+        admin_notes: r.admin_notes,
+        created_at: r.created_at,
+        updated_at: r.updated_at,
+        submitted_at: r.submitted_at,
+        tasks: {
+          title: r.task_title,
+          reward_amount: r.task_reward,
+          target_url: r.task_target_url,
+          task_category: r.task_category,
+          task_type: r.task_type,
+        },
+        reddit_accounts: { username: r.reddit_username },
+        army_email: r.army_email,
+        army_name: r.army_name,
+      }));
     },
+    refetchInterval: 30_000, // surface new submissions within 30s
   });
 
   const approveMutation = useMutation({
