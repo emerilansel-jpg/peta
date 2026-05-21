@@ -43,7 +43,19 @@ export function AdminApprovalQueue() {
   const [rejectTarget, setRejectTarget] = useState<{ id: string; title: string; username: string } | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
-  const { data: assignments = [], isLoading, refetch } = useQuery({
+  // Diagnostic — exposes auth.uid + is_admin so we can see WHY the queue
+  // is empty without guessing.  Always runs (anon-callable RPC).
+  const { data: debug } = useQuery({
+    queryKey: ['adminSessionDebug'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('admin_session_debug');
+      if (error) return { error: error.message };
+      return data as { auth_uid: string | null; public_users_role: string | null; is_admin: boolean; submitted_count: number };
+    },
+    refetchInterval: 30_000,
+  });
+
+  const { data: assignments = [], isLoading, refetch, error: queueError } = useQuery({
     queryKey: ['pendingApprovals'],
     queryFn: async () => {
       // SECURITY DEFINER RPC — bypasses PostgREST embed quirks + stale RLS.
@@ -112,6 +124,41 @@ export function AdminApprovalQueue() {
         <h1 className="text-2xl sm:text-3xl font-extrabold">Approval Queue</h1>
         <p className="text-sm text-muted">{assignments.length} task menunggu review</p>
       </div>
+
+      {/* Session diagnostic banner — shown only when something's off.
+          Helps admin self-diagnose "kenapa kosong" without DM-ing dev. */}
+      {debug && !('error' in debug) && (
+        <>
+          {!debug.is_admin && (
+            <Card className="mb-3 bg-danger/10 ring-danger/40" padding="sm">
+              <p className="font-extrabold text-danger text-sm">⚠️ Session bukan admin</p>
+              <p className="text-xs text-danger/90 mt-1 leading-snug">
+                auth.uid: <code>{debug.auth_uid || 'null (not logged in)'}</code><br />
+                role di public.users: <code>{debug.public_users_role || 'null'}</code><br />
+                is_admin(): <code>{String(debug.is_admin)}</code>
+              </p>
+              <p className="text-xs text-danger/90 mt-2 leading-snug">
+                <b>Fix:</b> Logout terus login ulang (JWT mungkin expired) — kalau masih bukan admin, kontak dev.
+              </p>
+            </Card>
+          )}
+          {debug.is_admin && debug.submitted_count !== assignments.length && (
+            <Card className="mb-3 bg-warning/10 ring-warning/40" padding="sm">
+              <p className="font-extrabold text-warning text-sm">⚠️ Sync mismatch</p>
+              <p className="text-xs text-warning/90 mt-1 leading-snug">
+                DB punya <b>{debug.submitted_count}</b> submitted, UI render <b>{assignments.length}</b>.
+                Click refresh atau tunggu 30 detik.
+              </p>
+            </Card>
+          )}
+        </>
+      )}
+      {queueError && (
+        <Card className="mb-3 bg-danger/10 ring-danger/40" padding="sm">
+          <p className="font-extrabold text-danger text-sm">⚠️ Query error</p>
+          <p className="text-xs text-danger/90 mt-1"><code>{(queueError as any)?.message || String(queueError)}</code></p>
+        </Card>
+      )}
 
       {isLoading ? (
         <div className="space-y-3"><CardSkeleton /><CardSkeleton /></div>
