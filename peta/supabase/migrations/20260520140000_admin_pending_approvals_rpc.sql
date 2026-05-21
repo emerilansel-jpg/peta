@@ -38,26 +38,28 @@ BEGIN
   IF NOT public.is_admin() THEN RAISE EXCEPTION 'forbidden'; END IF;
 
   RETURN QUERY
+  -- Explicit ::text casts because auth.users.email is varchar (not text);
+  -- without them PG raises "structure of query does not match function result type".
   SELECT
     ta.id,
-    ta.status,
-    ta.proof_url,
-    ta.draft_comment,
-    ta.admin_notes,
+    ta.status::text,
+    ta.proof_url::text,
+    ta.draft_comment::text,
+    ta.admin_notes::text,
     ta.created_at,
     ta.updated_at,
     COALESCE(ta.updated_at, ta.created_at) AS submitted_at,
     t.id AS task_id,
-    t.title AS task_title,
-    t.target_url AS task_target_url,
-    t.task_category,
-    t.task_type,
+    t.title::text AS task_title,
+    t.target_url::text AS task_target_url,
+    t.task_category::text,
+    t.task_type::text,
     t.reward_amount AS task_reward,
     ra.id AS reddit_account_id,
-    ra.username AS reddit_username,
+    ra.username::text AS reddit_username,
     u.id AS army_user_id,
-    au.email AS army_email,
-    u.full_name AS army_name
+    au.email::text AS army_email,
+    u.full_name::text AS army_name
   FROM public.task_assignments ta
   LEFT JOIN public.tasks t ON t.id = ta.task_id
   LEFT JOIN public.reddit_accounts ra ON ra.id = ta.reddit_account_id
