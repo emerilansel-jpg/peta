@@ -125,33 +125,23 @@ export function AdminApprovalQueue() {
         <p className="text-sm text-muted">{assignments.length} task menunggu review</p>
       </div>
 
-      {/* Session diagnostic banner — shown only when something's off.
-          Helps admin self-diagnose "kenapa kosong" without DM-ing dev. */}
-      {debug && !('error' in debug) && (
-        <>
-          {!debug.is_admin && (
-            <Card className="mb-3 bg-danger/10 ring-danger/40" padding="sm">
-              <p className="font-extrabold text-danger text-sm">⚠️ Session bukan admin</p>
-              <p className="text-xs text-danger/90 mt-1 leading-snug">
-                auth.uid: <code>{debug.auth_uid || 'null (not logged in)'}</code><br />
-                role di public.users: <code>{debug.public_users_role || 'null'}</code><br />
-                is_admin(): <code>{String(debug.is_admin)}</code>
-              </p>
-              <p className="text-xs text-danger/90 mt-2 leading-snug">
-                <b>Fix:</b> Logout terus login ulang (JWT mungkin expired) — kalau masih bukan admin, kontak dev.
-              </p>
-            </Card>
-          )}
-          {debug.is_admin && debug.submitted_count !== assignments.length && (
-            <Card className="mb-3 bg-warning/10 ring-warning/40" padding="sm">
-              <p className="font-extrabold text-warning text-sm">⚠️ Sync mismatch</p>
-              <p className="text-xs text-warning/90 mt-1 leading-snug">
-                DB punya <b>{debug.submitted_count}</b> submitted, UI render <b>{assignments.length}</b>.
-                Click refresh atau tunggu 30 detik.
-              </p>
-            </Card>
-          )}
-        </>
+      {/* Session diagnostic — only shown when something's wrong. After the
+          2026-05-20 env-mismatch incident this stays in the codebase as a
+          permanent self-debug surface (don't remove). */}
+      {debug && !('error' in debug) && !debug.is_admin && (
+        <Card className="mb-3 bg-danger/10 ring-danger/40" padding="sm">
+          <p className="font-extrabold text-danger text-sm">⚠️ Session bukan admin</p>
+          <p className="text-xs text-danger/90 mt-1 leading-snug">
+            auth.uid: <code>{debug.auth_uid || 'NULL'}</code> · role: <code>{debug.public_users_role || 'NULL'}</code> · is_admin: <code>false</code>
+          </p>
+          <p className="text-xs text-danger/90 mt-2"><b>Fix:</b> Logout & login ulang (JWT expired) — kalau masih, cek kamu login pakai akun admin yang benar.</p>
+        </Card>
+      )}
+      {debug && !('error' in debug) && debug.is_admin && debug.submitted_count !== assignments.length && (
+        <Card className="mb-3 bg-warning/10 ring-warning/40" padding="sm">
+          <p className="font-extrabold text-warning text-sm">⚠️ Sync mismatch</p>
+          <p className="text-xs text-warning/90 mt-1">DB punya <b>{debug.submitted_count}</b> submitted, UI render <b>{assignments.length}</b>. Refresh atau tunggu 30 detik.</p>
+        </Card>
       )}
       {queueError && (
         <Card className="mb-3 bg-danger/10 ring-danger/40" padding="sm">

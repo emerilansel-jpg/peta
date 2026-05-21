@@ -12,10 +12,14 @@ dist
 dist-ssr
 *.local
 
-# Env files — only the .example template is committed
+# Env files — only .example + .env.production committed.
+# .env.production contains the PUBLIC prod anon key + URL (safe; VITE_*
+# vars are baked into the client bundle anyway). Committing guarantees
+# every `npm run build` produces a prod-pointing bundle.
 .env
 .env.*
 !.env.example
+!.env.production
 
 # Supabase CLI local cache
 .supabase/
