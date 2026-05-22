@@ -1,9 +1,18 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { LogOut, Home, Wallet, User as UserIcon, Menu, X, BarChart3, Users, ListChecks, ClipboardCheck, Coins, Link as LinkIcon, ShieldCheck, Megaphone, Target, Inbox, Key } from 'lucide-react';
+import { LogOut, Home, Wallet, User as UserIcon, Menu, X, BarChart3, Users, ListChecks, ClipboardCheck, Coins, Link as LinkIcon, ShieldCheck, Megaphone, Target, Inbox, Key, Radio } from 'lucide-react';
 import { getMyPendingAssignments } from '../lib/api';
 import { supabase } from '../lib/supabase';
+
+// Active broadcast indicator — admins often kick off a long blast (60+ recipients
+// at 1.1s pacing = ~70s WA, plus email) then want to do other admin work without
+// losing track. The RPC returns any broadcast with pending recipients in the last
+// 30 min. The chip sits in the sidebar so it's visible on every admin page.
+type ActiveBroadcast = {
+  id: string; subject: string; created_at: string;
+  total: number; sent: number; failed: number; pending: number; channels: string[];
+};
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -27,6 +36,7 @@ const adminLinks = [
   { href: '/admin/approval',  label: 'Approval',    icon: ClipboardCheck },
   { href: '/admin/accounts',  label: 'Akun Reddit', icon: LinkIcon },
   { href: '/admin/broadcast', label: 'Kirim Pesan', icon: Megaphone },
+  { href: '/admin/wa-bot',    label: 'WA Bot',      icon: Radio },
   { href: '/admin/inbox',     label: 'Inbox',       icon: Inbox },
   { href: '/admin/secrets',   label: 'Secrets',     icon: Key },
   { href: '/admin/team',      label: 'Tim',         icon: Users },
@@ -73,6 +83,24 @@ export function Layout({ children, userRole = 'army' }: LayoutProps) {
   const rejectedCount = pendingAssignments.filter((a) => a.status === 'rejected').length;
   const tasksBadgeCount = pendingCount + rejectedCount;
 
+  // Poll for in-flight broadcasts only when admin is browsing admin pages.
+  // Hits RPC every 5s while the indicator is showing, every 15s when idle —
+  // saves quota while still giving live progress feel during blast windows.
+  const { data: activeBroadcasts = [] } = useQuery<ActiveBroadcast[]>({
+    queryKey: ['adminActiveBroadcasts'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('admin_active_broadcasts');
+      if (error) throw error;
+      return (data || []) as ActiveBroadcast[];
+    },
+    enabled: userRole === 'admin',
+    refetchInterval: (q) => {
+      const arr = (q.state.data as ActiveBroadcast[]) || [];
+      return arr.length > 0 ? 5_000 : 15_000;
+    },
+    refetchOnWindowFocus: true,
+  });
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/login');
@@ -115,6 +143,9 @@ export function Layout({ children, userRole = 'army' }: LayoutProps) {
               );
             })}
           </nav>
+          {activeBroadcasts.length > 0 && (
+            <ActiveBlastChip broadcasts={activeBroadcasts} />
+          )}
           <Link
             to="/tasks"
             className="mx-3 mt-2 flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm font-semibold text-secondary ring-1 ring-secondary/40 hover:bg-secondary/10"
@@ -128,6 +159,22 @@ export function Layout({ children, userRole = 'army' }: LayoutProps) {
             <LogOut size={18} /> Logout
           </button>
         </aside>
+
+        {/* Floating blast indicator — mobile only. Drawer is usually closed
+            while the admin works on Approval / Task Queue, so the sidebar
+            chip wouldn't be visible. This pinned pill is. */}
+        {activeBroadcasts.length > 0 && (
+          <Link
+            to="/admin/broadcast"
+            className="md:hidden fixed top-20 right-3 z-30 flex items-center gap-1.5 bg-primary text-white text-xs font-extrabold pl-2 pr-3 py-1.5 rounded-full shadow-lg ring-1 ring-primary/40 animate-fade-in"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-white/60 animate-ping" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-white" />
+            </span>
+            Blast {activeBroadcasts[0].sent + activeBroadcasts[0].failed}/{activeBroadcasts[0].total}
+          </Link>
+        )}
 
         {/* Mobile top bar */}
         <header className="md:hidden fixed top-0 inset-x-0 z-40 bg-white ring-1 ring-black/5 safe-top">
@@ -184,6 +231,9 @@ export function Layout({ children, userRole = 'army' }: LayoutProps) {
                   );
                 })}
               </nav>
+              {activeBroadcasts.length > 0 && (
+                <ActiveBlastChip broadcasts={activeBroadcasts} compact onClick={() => setDrawerOpen(false)} />
+              )}
               <Link
                 to="/tasks"
                 onClick={() => setDrawerOpen(false)}
@@ -311,5 +361,47 @@ export function Layout({ children, userRole = 'army' }: LayoutProps) {
         </div>
       </nav>
     </div>
+  );
+}
+
+// Visible-everywhere chip that surfaces in-flight broadcasts. Clicking jumps
+// the admin to /admin/broadcast (where the full progress bar lives). Mobile
+// drawer + desktop sidebar both render this. Animated dot makes "still alive"
+// state obvious at a glance — kills the "is it stuck?" anxiety.
+function ActiveBlastChip({
+  broadcasts, compact, onClick,
+}: { broadcasts: ActiveBroadcast[]; compact?: boolean; onClick?: () => void }) {
+  // Show the most recent active broadcast; if more, append +N badge.
+  const head = broadcasts[0];
+  const rest = broadcasts.length - 1;
+  const done = head.sent + head.failed;
+  const pct = head.total > 0 ? Math.round((done / head.total) * 100) : 0;
+  return (
+    <Link
+      to="/admin/broadcast"
+      onClick={onClick}
+      className={`mx-3 mt-2 flex items-start gap-2 px-3 ${compact ? 'py-3 text-base' : 'py-2.5 text-sm'} rounded-lg font-semibold bg-primary/10 ring-1 ring-primary/30 text-primary hover:bg-primary/15 transition`}
+      aria-label="Broadcast in flight — click to view progress"
+    >
+      <span className="relative flex h-2.5 w-2.5 mt-1 shrink-0">
+        <span className="absolute inline-flex h-full w-full rounded-full bg-primary opacity-60 animate-ping" />
+        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary" />
+      </span>
+      <span className="flex-1 min-w-0">
+        <span className="flex items-center gap-1.5">
+          <Radio size={compact ? 14 : 12} className="shrink-0" />
+          <span className="font-extrabold truncate">Blast jalan</span>
+          {rest > 0 && (
+            <span className="text-[10px] bg-primary text-white rounded-full px-1.5 py-0.5">+{rest}</span>
+          )}
+        </span>
+        <span className="block text-[11px] font-normal text-primary/80 truncate" title={head.subject}>
+          {head.subject}
+        </span>
+        <span className="block mt-1 text-[10px] font-bold tabular-nums">
+          {done}/{head.total} · {pct}%
+        </span>
+      </span>
+    </Link>
   );
 }

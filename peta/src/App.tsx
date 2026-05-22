@@ -43,6 +43,7 @@ import { AdminPayroll } from './pages/admin/Payroll';
 import { AdminBroadcast } from './pages/admin/Broadcast';
 import { AdminInbox } from './pages/admin/Inbox';
 import { AdminSecrets } from './pages/admin/Secrets';
+import { AdminWaBot } from './pages/admin/WaBot';
 import { AdminGuard } from './components/AdminGuard';
 
 import './App.css';
@@ -145,6 +146,7 @@ function App() {
           <Route path="/admin/broadcast" element={<AdminGuard><AdminBroadcast /></AdminGuard>} />
           <Route path="/admin/inbox" element={<AdminGuard><AdminInbox /></AdminGuard>} />
           <Route path="/admin/secrets" element={<AdminGuard><AdminSecrets /></AdminGuard>} />
+          <Route path="/admin/wa-bot" element={<AdminGuard><AdminWaBot /></AdminGuard>} />
 
           {/* Catch all */}
           <Route path="*" element={<Navigate to="/" replace />} />

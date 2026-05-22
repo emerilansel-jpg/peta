@@ -1,0 +1,130 @@
+{
+  "name": "PeTa WA Verifier",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "wa-incoming",
+        "options": {}
+      },
+      "id": "01-webhook",
+      "name": "Webhook (Evolution → here)",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [200, 300],
+      "webhookId": "wa-incoming"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Normalize Evolution API message payload across event shapes\nconst body = $input.first().json.body || $input.first().json;\nconst data = body.data || body;\nconst key = data.key || {};\nconst remoteJid = key.remoteJid || '';\nconst isGroup = remoteJid.endsWith('@g.us');\nconst fromMe = !!key.fromMe;\n\n// Sender phone — in groups it's `participant`, in DMs it's `remoteJid`\nconst senderJid = isGroup ? (key.participant || '') : remoteJid;\nconst senderPhone = senderJid.split('@')[0].replace(/[^0-9]/g, '');\n\n// Extract text — handle multiple message envelope variants\nconst m = data.message || {};\nconst text = (\n  m.conversation ||\n  m.extendedTextMessage?.text ||\n  m.imageMessage?.caption ||\n  m.videoMessage?.caption ||\n  ''\n).trim();\n\nreturn [{ json: {\n  event: body.event || data.event || 'unknown',\n  isGroup,\n  fromMe,\n  groupJid: isGroup ? remoteJid : null,\n  senderPhone,\n  senderJid,\n  text,\n  textLower: text.toLowerCase(),\n  raw: body,\n}}];"
+      },
+      "id": "02-normalize",
+      "name": "Normalize Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [420, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [
+            { "id": "is-group", "leftValue": "={{ $json.isGroup }}", "rightValue": true, "operator": { "type": "boolean", "operation": "true" } },
+            { "id": "not-from-me", "leftValue": "={{ $json.fromMe }}", "rightValue": false, "operator": { "type": "boolean", "operation": "false" } },
+            { "id": "is-peta-keyword", "leftValue": "={{ $json.textLower }}", "rightValue": "peta", "operator": { "type": "string", "operation": "equals" } },
+            { "id": "is-peta-group", "leftValue": "={{ $json.groupJid }}", "rightValue": "={{ $env.PETA_GROUP_JID }}", "operator": { "type": "string", "operation": "equals" } }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "03-filter",
+      "name": "IF: peta keyword in PeTa group?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [640, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SUPABASE_URL }}/rest/v1/rpc/claim_wa_group_by_phone",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [
+          { "name": "apikey", "value": "={{ $env.SUPABASE_ANON_KEY }}" },
+          { "name": "Authorization", "value": "Bearer {{ $env.SUPABASE_ANON_KEY }}" },
+          { "name": "Content-Type", "value": "application/json" }
+        ] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"p_phone\": \"{{ $json.senderPhone }}\",\n  \"p_webhook_secret\": \"{{ $env.WA_VERIFY_WEBHOOK_SECRET }}\"\n}",
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "id": "04-call-rpc",
+      "name": "Claim Bonus (Supabase RPC)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 240]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build a DM reply based on RPC result\nconst rpc = $input.first().json;\nconst sender = $('Normalize Payload').first().json;\nconst msg = rpc?.message || (rpc?.ok ? '✅ Bonus terverifikasi!' : '❌ Verifikasi gagal — coba lagi atau hubungi admin.');\nreturn [{ json: { ...sender, dmText: msg, rpc } }];"
+      },
+      "id": "05-build-reply",
+      "name": "Build DM Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1100, 240]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.EVOLUTION_API_URL }}/message/sendText/{{ $env.EVOLUTION_INSTANCE }}",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [
+          { "name": "apikey", "value": "={{ $env.EVOLUTION_API_KEY }}" },
+          { "name": "Content-Type", "value": "application/json" }
+        ] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"number\": \"{{ $json.senderPhone }}\",\n  \"text\": \"{{ $json.dmText }}\"\n}"
+      },
+      "id": "06-send-dm",
+      "name": "DM Sender (Evolution)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, 240]
+    }
+  ],
+  "connections": {
+    "Webhook (Evolution → here)": { "main": [[{ "node": "Normalize Payload", "type": "main", "index": 0 }]] },
+    "Normalize Payload": { "main": [[{ "node": "IF: peta keyword in PeTa group?", "type": "main", "index": 0 }]] },
+    "IF: peta keyword in PeTa group?": { "main": [
+      [{ "node": "Claim Bonus (Supabase RPC)", "type": "main", "index": 0 }],
+      []
+    ]},
+    "Claim Bonus (Supabase RPC)": { "main": [[{ "node": "Build DM Reply", "type": "main", "index": 0 }]] },
+    "Build DM Reply": { "main": [[{ "node": "DM Sender (Evolution)", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "pinData": {},
+  "_setup_instructions": {
+    "_about": "Import this JSON into N8N (Workflows → Import from File). Then set the following N8N Environment Variables (Settings → Variables, or .env on the N8N container):",
+    "env_vars": {
+      "SUPABASE_URL": "https://yorlsgzsawchpeeazcvi.supabase.co",
+      "SUPABASE_ANON_KEY": "<paste prod anon key from .env.production>",
+      "WA_VERIFY_WEBHOOK_SECRET": "<paste value from app_secrets table>",
+      "EVOLUTION_API_URL": "https://wa.46-250-239-138.sslip.io",
+      "EVOLUTION_API_KEY": "<paste from /opt/peta-bot/.env on VPS>",
+      "EVOLUTION_INSTANCE": "peta-bot",
+      "PETA_GROUP_JID": "<set after bot joins group — copy from Admin → WA Bot UI>"
+    },
+    "next_steps": [
+      "1. Import this JSON into N8N.",
+      "2. Set all the env vars above in N8N (use N8N's Variables UI or container .env).",
+      "3. Activate the workflow (toggle top-right).",
+      "4. Copy the webhook URL from the Webhook node — looks like https://n8n.46-250-239-138.sslip.io/webhook/wa-incoming",
+      "5. In PeTa Admin → WA Bot, paste that URL into 'N8N Webhook URL' field → Save.",
+      "6. Scan QR with burner WhatsApp, join PeTa group, copy group JID into Admin UI.",
+      "7. Test: ketik 'peta' di grup dari nomor army yang terdaftar → cek user_credits — Rp5K masuk."
+    ]
+  }
+}
