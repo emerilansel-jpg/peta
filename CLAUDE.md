@@ -1,6 +1,7 @@
 # PeTa — Project State for Claude
 
 > Auto-loaded into every Claude session. Keep this file dense and current.
+> For cold-start AI handoff, also read `docs/SYSTEM_OVERVIEW.md` + `docs/CHANGELOG.md`.
 
 ## What this is
 
@@ -8,14 +9,28 @@
 
 The Reddit dependency is **internal** — public marketing copy (Landing, Login, Register) does NOT mention Reddit; it just says "komen di internet" / "bayar buat komen". Reddit/WARP only surface inside onboarding and admin.
 
+**Sister product:** Straight Ltd (USD upvote service for clients) runs on the SAME Supabase project. Users are split by `users.role` ('army' = PeTa workers, 'client' = Straight Ltd customers, 'admin' = staff). See `docs/SYSTEM_OVERVIEW.md` for the dual-product architecture.
+
 ## Stack
 
 - **Frontend:** Vite 8 + React 19 + TypeScript + Tailwind v4 (`@tailwindcss/vite` plugin, NOT PostCSS)
 - **State:** TanStack Query (server) + React useState (local)
 - **Routing:** React Router v7
 - **Backend:** Supabase (Postgres + Auth + RLS + Edge Functions)
-- **Hosting:** Vercel — domain `penghasilantambahan.com` (live)
+- **Hosting:** Cloudflare Pages — `www.penghasilantambahan.com` (live, manual deploy via `wrangler pages deploy`)
+- **WA Verifier Bot:** Contabo VPS `46.250.239.138` → Docker stack (N8N + Evolution API + Postgres + Redis + Caddy). See `docs/WA_BOT_SETUP.md`.
 - **Project root:** `D:\Claude Cowork\Reddit Army Local\` — the actual app lives in `peta/` subfolder
+
+## Deploy commands
+
+```bash
+# Build pakai prod env (auto-loaded dari .env.production)
+cd peta && npm run build
+# Deploy ke Cloudflare Pages
+npx wrangler pages deploy dist --project-name=peta --branch=main --commit-dirty=true
+```
+
+⚠️ NEVER use `.env.local` for prod env. Always `.env.production` (committed) or `.env.development.local` (gitignored, dev only). See `peta/.env.example` for history.
 
 ## Environments
 
