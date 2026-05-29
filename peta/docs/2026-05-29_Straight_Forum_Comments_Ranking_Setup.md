@@ -9,7 +9,7 @@
 - Suggested flow asks for brand/domain and plain-text vs link mention.
 - DeepSeek draft appears in the textarea and can be edited or regenerated.
 - `/reddit/ranking-forum` helps users pick a low-competition keyword, scans a Google top-10 style result set, keeps forum/discussion pages, then sends the chosen URL into the comment flow.
-- When Google Custom Search secrets are configured, the keyword step uses top-10 SERP signals and forum density to rank opportunities. Without a dedicated SEO keyword-volume API, displayed volume is still an estimate, not official search volume.
+- When DataForSEO secrets are configured, the keyword step uses Google Ads search volume plus live Google Organic top-10/forum-density signals. Google Custom Search remains a secondary fallback only.
 - Comment orders are stored in `reddit_upvote_orders` with `target_type='comment'`; details are stored as JSON text in `notes`.
 
 ## Required Supabase migration
@@ -69,15 +69,21 @@ Optional:
 supabase secrets set DEEPSEEK_MODEL="deepseek-chat" --project-ref <project-ref>
 ```
 
-For live Google top-10 SERP:
+For live keyword volume and Google Organic top-10 SERP via DataForSEO:
+
+```bash
+supabase secrets set DATAFORSEO_LOGIN="<dataforseo-login>" --project-ref <project-ref>
+supabase secrets set DATAFORSEO_PASSWORD="<dataforseo-api-password>" --project-ref <project-ref>
+```
+
+Optional Google Custom Search fallback:
 
 ```bash
 supabase secrets set GOOGLE_SEARCH_API_KEY="<google-custom-search-api-key>" --project-ref <project-ref>
 supabase secrets set GOOGLE_SEARCH_CX="<google-custom-search-engine-id>" --project-ref <project-ref>
 ```
 
-If Google secrets are missing, Ranking Forum Page falls back to a local preview so the UX still works, but it is not live SERP data.
-If exact keyword-volume numbers are required, add a dedicated SEO data provider later; the current version is designed around Google top-10 opportunity signals.
+If DataForSEO and Google fallback secrets are missing or temporarily unavailable, Ranking Forum Page falls back to a local preview so the UX still works, but it is not live SERP data.
 
 ## Frontend deployment
 

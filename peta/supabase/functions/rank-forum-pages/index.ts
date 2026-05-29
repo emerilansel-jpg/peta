@@ -27,6 +27,30 @@ type GoogleSearchResponse = {
   };
 };
 
+type DataForSeoSerpItem = {
+  type?: string;
+  title?: string;
+  url?: string;
+  rank_group?: number;
+};
+
+type DataForSeoKeywordItem = {
+  keyword?: string;
+  search_volume?: number | null;
+  competition?: string | null;
+  competition_index?: number | null;
+};
+
+type DataForSeoResponse<T> = {
+  status_code?: number;
+  status_message?: string;
+  tasks?: Array<{
+    status_code?: number;
+    status_message?: string;
+    result?: T[];
+  }>;
+};
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -142,6 +166,122 @@ function fallbackTop10(keyword: string): SerpResult[] {
   }));
 }
 
+function dataForSeoAuth() {
+  const login = Deno.env.get('DATAFORSEO_LOGIN');
+  const password = Deno.env.get('DATAFORSEO_PASSWORD');
+  if (!login || !password) return null;
+  return `Basic ${btoa(`${login}:${password}`)}`;
+}
+
+async function dataForSeoPost<T>(path: string, body: unknown): Promise<DataForSeoResponse<T> | null> {
+  const auth = dataForSeoAuth();
+  if (!auth) return null;
+
+  const r = await fetch(`https://api.dataforseo.com/v3/${path}`, {
+    method: 'POST',
+    headers: {
+      'Authorization': auth,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(`dataforseo_http_${r.status}`);
+  const dfs = data as DataForSeoResponse<T>;
+  if (dfs.status_code && dfs.status_code >= 40000) {
+    throw new Error(`dataforseo_${dfs.status_code}_${dfs.status_message || 'error'}`);
+  }
+  const task = dfs.tasks?.[0];
+  if (task?.status_code && task.status_code >= 40000) {
+    throw new Error(`dataforseo_task_${task.status_code}_${task.status_message || 'error'}`);
+  }
+  return dfs;
+}
+
+function mapDataForSeoSerpItems(items: DataForSeoSerpItem[] = []): SerpResult[] {
+  return items
+    .filter((item) => item.url && (!item.type || item.type === 'organic'))
+    .sort((a, b) => (a.rank_group || 999) - (b.rank_group || 999))
+    .slice(0, 10)
+    .map((item) => {
+      const resultUrl = String(item.url || '');
+      const eligible = isForumUrl(resultUrl);
+      return {
+        title: String(item.title || resultUrl),
+        url: resultUrl,
+        platform: platformForUrl(resultUrl),
+        reason: eligible
+          ? 'Forum or discussion-style result from live Google SERP data.'
+          : 'Skipped because this live Google result does not look like a public discussion page.',
+        eligible,
+      };
+    });
+}
+
+async function dataForSeoTop10(keyword: string): Promise<SerpResult[] | null> {
+  const data = await dataForSeoPost<{ items?: DataForSeoSerpItem[] }>(
+    'serp/google/organic/live/advanced',
+    [{
+      keyword,
+      location_code: 2840,
+      language_code: 'en',
+      depth: 10,
+    }]
+  ).catch((error) => {
+    console.error('dataforseo_top10_failed', (error as Error).message);
+    return null;
+  });
+  const items = data?.tasks?.[0]?.result?.[0]?.items || [];
+  return items.length ? mapDataForSeoSerpItems(items) : null;
+}
+
+async function dataForSeoKeywordIdeas(seed: string): Promise<KeywordIdea[] | null> {
+  const keywords = candidateKeywords(seed).slice(0, 6);
+  const volumeData = await dataForSeoPost<DataForSeoKeywordItem>(
+    'keywords_data/google_ads/search_volume/live',
+    [{
+      keywords,
+      location_code: 2840,
+      language_code: 'en',
+    }]
+  ).catch((error) => {
+    console.error('dataforseo_keyword_volume_failed', (error as Error).message);
+    return null;
+  });
+  const volumeRows = volumeData?.tasks?.[0]?.result || [];
+  if (!volumeRows.length) return null;
+
+  const rowsByKeyword = new Map(
+    volumeRows.map((row) => [String(row.keyword || '').toLowerCase(), row])
+  );
+  const analyzed: Array<KeywordIdea & { score: number }> = [];
+
+  for (const keyword of keywords) {
+    const volumeRow = rowsByKeyword.get(keyword.toLowerCase());
+    const serpResults = await dataForSeoTop10(keyword);
+    const forumCount = serpResults?.filter((result) => result.eligible).length || 0;
+    const volume = Math.max(0, Number(volumeRow?.search_volume || 0));
+    const competitionIndex = Number(volumeRow?.competition_index ?? 50);
+    const competition: 'Low' | 'Medium' = competitionIndex <= 35 ? 'Low' : 'Medium';
+    const score = volume + (forumCount * 500) - (competitionIndex * 8);
+
+    analyzed.push({
+      keyword,
+      volume,
+      competition,
+      intent: forumCount > 0
+        ? `${forumCount} forum-style result${forumCount === 1 ? '' : 's'} appeared in the live Google top 10.`
+        : `Google Ads competition is ${String(volumeRow?.competition || 'available').toLowerCase()}, but forum surfaces are weaker in the top 10.`,
+      score,
+    });
+  }
+
+  return analyzed
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 4)
+    .map(({ keyword, volume, competition, intent }) => ({ keyword, volume, competition, intent }));
+}
+
 async function googleSearch(keyword: string): Promise<GoogleSearchResponse | null> {
   const key = Deno.env.get('GOOGLE_SEARCH_API_KEY');
   const cx = Deno.env.get('GOOGLE_SEARCH_CX');
@@ -239,10 +379,27 @@ Deno.serve(async (req: Request) => {
     if (!seed && !keyword) return json({ error: 'seed or keyword required' }, 400);
 
     if (!keyword) {
+      const dataForSeoIdeas = await dataForSeoKeywordIdeas(seed);
+      if (dataForSeoIdeas) {
+        return json({
+          keyword_ideas: dataForSeoIdeas,
+          provider: 'dataforseo_google_ads_serp_opportunity_model',
+        });
+      }
+
       const googleIdeas = await googleKeywordIdeas(seed);
       return json({
         keyword_ideas: googleIdeas || buildKeywordIdeas(seed),
         provider: googleIdeas ? 'google_custom_search_opportunity_model' : 'heuristic_keyword_model',
+      });
+    }
+
+    const dataForSeoResults = await dataForSeoTop10(keyword);
+    if (dataForSeoResults) {
+      return json({
+        serp_results: dataForSeoResults,
+        provider: 'dataforseo_google_organic_live',
+        keyword,
       });
     }
 

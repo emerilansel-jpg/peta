@@ -67,7 +67,7 @@ export function RankingForumPage() {
     } catch {
       setForumResults(buildGoogleTop10Results(idea.keyword));
       setSerpProvider('local_fallback');
-      setNotice('Live Google SERP scan is not deployed yet, showing a local top-10 style preview.');
+      setNotice('Live SERP scan is unavailable right now, showing a local top-10 style preview.');
     } finally {
       setSerpLoading(false);
     }
@@ -278,6 +278,8 @@ export function RankingForumPage() {
 function formatProvider(provider: string) {
   const map: Record<string, string> = {
     heuristic_keyword_model: 'estimated keyword model',
+    dataforseo_google_ads_serp_opportunity_model: 'DataForSEO Google Ads + live SERP model',
+    dataforseo_google_organic_live: 'DataForSEO Google Organic live top 10',
     google_custom_search_opportunity_model: 'Google top-10 opportunity model',
     google_custom_search: 'Google Custom Search top 10',
     fallback_top10: 'fallback top-10 preview',
