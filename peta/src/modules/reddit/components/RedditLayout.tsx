@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ShoppingCart, Wallet, Clock, LogOut, Shield, Menu, X, Star, Sparkles, ExternalLink, Lightbulb } from 'lucide-react';
+import { LayoutDashboard, ShoppingCart, Wallet, Clock, LogOut, Shield, Menu, X, Star, Sparkles, ExternalLink, Lightbulb, Search } from 'lucide-react';
 import { Link as RouterLink } from 'react-router-dom';
 import { supabase } from '../../../lib/supabase';
 import { useRedditCredits } from '../hooks/useRedditCredits';
@@ -125,6 +125,7 @@ export function RedditLayout({ children, showAdminLink = false }: RedditLayoutPr
   const navItems = [
     { href: '/reddit/dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: 0 },
     { href: '/reddit/new-order', label: 'New order', icon: ShoppingCart, badge: 0 },
+    { href: '/reddit/ranking-forum', label: 'Ranking Forum', icon: Search, badge: 0 },
     { href: '/reddit/orders', label: 'Orders', icon: Clock, badge: unreadOrders },
     { href: '/reddit/topup', label: 'Top up', icon: Wallet, badge: 0 },
     { href: '/reddit/reviews', label: 'Reviews · Earn $25', icon: Star, badge: reviewableOrders.length },

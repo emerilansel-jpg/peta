@@ -6,4 +6,12 @@ project_id = "peta-staging"
 # Email confirmation is disabled for both staging and prod — onboarding flow
 # auto-confirms via the `handle_new_user` trigger.
 enable_signup = true
+
+[auth.email]
 enable_confirmations = false
+
+[functions.generate-forum-comment]
+verify_jwt = true
+
+[functions.rank-forum-pages]
+verify_jwt = true

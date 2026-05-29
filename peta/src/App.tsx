@@ -25,6 +25,7 @@ import { RedditSignup } from './modules/reddit/pages/RedditSignup';
 import { RedditLogin } from './modules/reddit/pages/RedditLogin';
 import { RedditReviews } from './modules/reddit/pages/RedditReviews';
 import { RedditFeatureRequests } from './modules/reddit/pages/RedditFeatureRequests';
+import { RankingForumPage } from './modules/reddit/pages/RankingForumPage';
 import { AdminOverview } from './modules/reddit/pages/admin/AdminOverview';
 import { AdminOrders as RedditAdminOrders } from './modules/reddit/pages/admin/AdminOrders';
 import { AdminTickets as RedditAdminTickets } from './modules/reddit/pages/admin/AdminTickets';
@@ -125,6 +126,7 @@ function App() {
           <Route path="/reddit/topup" element={<RedditTopup />} />
           <Route path="/reddit/reviews" element={<RedditReviews />} />
           <Route path="/reddit/feature-requests" element={<RedditFeatureRequests />} />
+          <Route path="/reddit/ranking-forum" element={<RankingForumPage />} />
           {/* Reddit Admin Routes */}
           <Route path="/reddit/admin" element={<AdminGuard><AdminOverview /></AdminGuard>} />
           <Route path="/reddit/admin/orders" element={<AdminGuard><RedditAdminOrders /></AdminGuard>} />

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { type ElementType, useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -29,7 +29,32 @@ import { ReviewRequestModal } from '../components/ReviewRequestModal';
 import { EmailWhitelistNotice } from '../components/EmailWhitelistNotice';
 import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 
-const STATUS_CONFIG: Record<string, { label: string; class: string; icon: any; desc: string }> = {
+type RedditOrderRecord = {
+  id: number;
+  target_type?: string | null;
+  status: string;
+  thread_url: string;
+  subreddit?: string | null;
+  requested_upvotes: number;
+  delivered_upvotes: number;
+  cost_credits: number;
+  created_at: string;
+  completed_at?: string | null;
+  notes: string | null;
+  delivery_proof_text?: string | null;
+  delivery_proof_url?: string | null;
+};
+
+type TicketRecord = {
+  id: number;
+};
+
+type TicketMessageRecord = {
+  id: number;
+  [key: string]: unknown;
+};
+
+const STATUS_CONFIG: Record<string, { label: string; class: string; icon: ElementType; desc: string }> = {
   pending: {
     label: 'Pending review',
     class: 'bg-amber-50 text-amber-700 ring-amber-200',
@@ -56,12 +81,55 @@ const STATUS_CONFIG: Record<string, { label: string; class: string; icon: any; d
   },
 };
 
+function parseOrderNotes(raw: string | null) {
+  if (!raw) return { clientNote: '', commentText: '', useSuggested: false, sourceKeyword: '', brand: '' };
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed?.service === 'forum_comment') {
+      return {
+        clientNote: parsed.client_notes || '',
+        commentText: parsed.comment_text || '',
+        useSuggested: !!parsed.use_suggested_comment,
+        sourceKeyword: parsed.source_keyword || '',
+        brand: parsed.brand_name || parsed.brand_domain || '',
+      };
+    }
+  } catch {
+    return { clientNote: raw, commentText: '', useSuggested: false, sourceKeyword: '', brand: '' };
+  }
+  return { clientNote: raw, commentText: '', useSuggested: false, sourceKeyword: '', brand: '' };
+}
+
+function serviceMeta(order: RedditOrderRecord) {
+  if ((order.target_type || 'upvote') === 'comment') {
+    return {
+      name: 'Forum comment',
+      targetLabel: 'Target page',
+      quantityLabel: 'Comment',
+      progress: '1 comment ordered',
+      statusDesc: {
+        pending: 'Our team is reviewing your comment brief and target page.',
+        processing: 'We are preparing or placing your forum comment.',
+        completed: 'Comment placement is complete. Thanks for choosing Straight Ltd.',
+        cancelled: 'Order was cancelled. Credits have been refunded if applicable.',
+      } as Record<string, string>,
+    };
+  }
+  return {
+    name: 'Reddit upvotes',
+    targetLabel: 'Target thread',
+    quantityLabel: 'Upvotes',
+    progress: `${order.delivered_upvotes || 0} / ${order.requested_upvotes}`,
+    statusDesc: {} as Record<string, string>,
+  };
+}
+
 export function RedditOrderDetail() {
   const { orderId } = useParams();
   const navigate = useNavigate();
-  const [order, setOrder] = useState<any>(null);
-  const [ticket, setTicket] = useState<any>(null);
-  const [messages, setMessages] = useState<any[]>([]);
+  const [order, setOrder] = useState<RedditOrderRecord | null>(null);
+  const [ticket, setTicket] = useState<TicketRecord | null>(null);
+  const [messages, setMessages] = useState<TicketMessageRecord[]>([]);
   const [loading, setLoading] = useState(true);
   // Show the email-deliverability banner once after the client sends a message — the moment they
   // most care about getting our reply, and the moment our reply is most likely to land in Spam.
@@ -101,7 +169,7 @@ export function RedditOrderDetail() {
       // Check if user has already reviewed this order
       const reviewed = await hasReviewedOrder(parseInt(orderId), 'internal');
       setHasReviewed(reviewed);
-    } catch (err: any) {
+    } catch {
       toast.error('Failed to load order');
     } finally {
       setLoading(false);
@@ -109,7 +177,9 @@ export function RedditOrderDetail() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId]);
 
   // Realtime: refresh when new messages arrive or order updates
@@ -139,8 +209,8 @@ export function RedditOrderDetail() {
       setBody('');
       await load();
       setShowEmailNotice(true);
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to send');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to send');
     } finally {
       setSending(false);
     }
@@ -168,6 +238,8 @@ export function RedditOrderDetail() {
 
   const status = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
   const StatusIcon = status.icon;
+  const service = serviceMeta(order);
+  const parsedNotes = parseOrderNotes(order.notes);
 
   return (
     <RedditLayout>
@@ -182,7 +254,9 @@ export function RedditOrderDetail() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Order #{order.id}</h1>
-            <p className="text-slate-600 mt-1">{order.subreddit ? `r/${order.subreddit}` : order.thread_url}</p>
+            <p className="text-slate-600 mt-1">
+              {service.name} · {order.subreddit && (order.target_type || 'upvote') !== 'comment' ? `r/${order.subreddit}` : order.subreddit || order.thread_url}
+            </p>
           </div>
           <button
             onClick={load}
@@ -198,7 +272,7 @@ export function RedditOrderDetail() {
           <StatusIcon size={20} className="shrink-0 mt-0.5" />
           <div className="flex-1">
             <p className="font-bold">{status.label}</p>
-            <p className="text-sm opacity-80 mt-0.5">{status.desc}</p>
+            <p className="text-sm opacity-80 mt-0.5">{service.statusDesc[order.status] || status.desc}</p>
           </div>
         </div>
 
@@ -314,7 +388,7 @@ export function RedditOrderDetail() {
                   className="flex-1 px-4 py-2.5 rounded-lg ring-1 ring-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none text-slate-900 bg-white"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                      handleSend(e as any);
+                      void handleSend(e as unknown as React.FormEvent);
                     }
                   }}
                 />
@@ -336,7 +410,7 @@ export function RedditOrderDetail() {
               <h3 className="font-bold text-slate-900 mb-3">Order summary</h3>
               <div className="space-y-3 text-sm">
                 <div>
-                  <p className="text-xs text-slate-500">Target thread</p>
+                  <p className="text-xs text-slate-500">{service.targetLabel}</p>
                   <a
                     href={order.thread_url}
                     target="_blank"
@@ -348,11 +422,11 @@ export function RedditOrderDetail() {
                   </a>
                 </div>
                 <div>
-                  <p className="text-xs text-slate-500">Upvotes</p>
+                  <p className="text-xs text-slate-500">{service.quantityLabel}</p>
                   <p className="font-bold text-slate-900">
-                    {order.delivered_upvotes || 0} / {order.requested_upvotes}
+                    {service.progress}
                   </p>
-                  {order.delivered_upvotes > 0 && order.delivered_upvotes < order.requested_upvotes && (
+                  {(order.target_type || 'upvote') === 'upvote' && order.delivered_upvotes > 0 && order.delivered_upvotes < order.requested_upvotes && (
                     <div className="mt-1 h-1.5 bg-slate-200 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-orange-500 transition-all"
@@ -375,10 +449,21 @@ export function RedditOrderDetail() {
                     <p className="font-medium">{new Date(order.completed_at).toLocaleString('en-US')}</p>
                   </div>
                 )}
-                {order.notes && (
+                {parsedNotes.commentText && (
+                  <div className="pt-3 border-t border-slate-200">
+                    <p className="text-xs text-slate-500">Final comment</p>
+                    <p className="text-sm text-slate-700 mt-0.5 whitespace-pre-wrap">{parsedNotes.commentText}</p>
+                    <p className="text-xs text-slate-500 mt-2">
+                      {parsedNotes.useSuggested ? 'Suggested comment assistant used' : 'Client-written comment'}
+                      {parsedNotes.brand ? ` · Brand: ${parsedNotes.brand}` : ''}
+                      {parsedNotes.sourceKeyword ? ` · Keyword: ${parsedNotes.sourceKeyword}` : ''}
+                    </p>
+                  </div>
+                )}
+                {parsedNotes.clientNote && (
                   <div className="pt-3 border-t border-slate-200">
                     <p className="text-xs text-slate-500">Your note</p>
-                    <p className="text-sm text-slate-700 italic mt-0.5">"{order.notes}"</p>
+                    <p className="text-sm text-slate-700 italic mt-0.5">"{parsedNotes.clientNote}"</p>
                   </div>
                 )}
               </div>

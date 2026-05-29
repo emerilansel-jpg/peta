@@ -1,5 +1,6 @@
-import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import type { ElementType } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ArrowRight,
   AlertCircle,
@@ -15,21 +16,27 @@ import {
   Sparkles,
   ArrowLeft,
   Send,
+  Search,
+  RefreshCcw,
+  Edit3,
+  Link as LinkIcon,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { RedditLayout } from '../components/RedditLayout';
 import { EmailWhitelistNotice } from '../components/EmailWhitelistNotice';
 import { useRedditCredits } from '../hooks/useRedditCredits';
 import { useRedditOrders } from '../hooks/useRedditOrders';
-import { calculateCost, formatUSD, getPricePerUpvoteUSD, submitFeatureRequest } from '../lib/api';
+import { calculateCost, formatUSD, generateForumComment, getPricePerUpvoteUSD, submitFeatureRequest } from '../lib/api';
 
 const PRESET_QUANTITIES = [25, 50, 100, 250, 500];
+const FORUM_COMMENT_PRICE_CENTS = 500;
+const SUGGESTED_COMMENT_PRICE_CENTS = 550;
 
 interface Service {
   id: string;
   platform: string;
   name: string;
-  icon: any;
+  icon: ElementType;
   description: string;
   status: 'active' | 'coming_soon' | 'request';
   badge?: string;
@@ -50,12 +57,12 @@ const SERVICES: Service[] = [
   },
   {
     id: 'reddit-comment',
-    platform: 'Reddit',
+    platform: 'Forums',
     name: 'Comments',
     icon: MessageSquare,
-    description: 'Engaging comments with karma history',
-    status: 'coming_soon',
-    badge: 'Q3 2026',
+    description: 'Helpful comments for Reddit, Quora, HubSpot, and niche forums',
+    status: 'active',
+    badge: 'New',
     iconBg: 'bg-blue-100',
     iconColor: 'text-blue-600',
   },
@@ -97,18 +104,24 @@ const SERVICES: Service[] = [
     platform: 'Custom',
     name: 'Request a service',
     icon: Sparkles,
-    description: 'Forum, Twitter, Discord, custom integration?',
+    description: 'Twitter, Discord, custom integration?',
     status: 'request',
     iconBg: 'bg-amber-100',
     iconColor: 'text-amber-600',
   },
 ];
 
-type ViewMode = 'select' | 'reddit-upvote' | 'coming-soon' | 'feature-request';
+type ViewMode = 'select' | 'reddit-upvote' | 'reddit-comment' | 'coming-soon' | 'feature-request';
 
 export function RedditNewOrder() {
-  const [view, setView] = useState<ViewMode>('select');
-  const [activeService, setActiveService] = useState<Service | null>(null);
+  const [searchParams] = useSearchParams();
+  const startsInComments = searchParams.get('service') === 'comments';
+  const [view, setView] = useState<ViewMode>(startsInComments ? 'reddit-comment' : 'select');
+  const [activeService, setActiveService] = useState<Service | null>(
+    startsInComments ? (SERVICES.find((s) => s.id === 'reddit-comment') || null) : null
+  );
+  const sourceKeyword = searchParams.get('keyword') || '';
+  const prefillUrl = searchParams.get('url') || '';
 
   const handleServiceClick = (service: Service) => {
     setActiveService(service);
@@ -130,6 +143,13 @@ export function RedditNewOrder() {
     <RedditLayout>
       {view === 'select' && <ServiceSelector services={SERVICES} onSelect={handleServiceClick} />}
       {view === 'reddit-upvote' && <RedditUpvoteOrderForm onBack={handleBack} />}
+      {view === 'reddit-comment' && (
+        <ForumCommentOrderForm
+          onBack={handleBack}
+          prefillUrl={prefillUrl}
+          sourceKeyword={sourceKeyword}
+        />
+      )}
       {view === 'coming-soon' && activeService && (
         <ComingSoonForm service={activeService} onBack={handleBack} />
       )}
@@ -165,9 +185,12 @@ function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect
       {/* Other platforms */}
       <div className="mb-10">
         <div className="flex items-center gap-3 mb-4">
-          <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Other platforms</h2>
+          <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Forum discovery</h2>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {services.filter((s) => s.platform === 'Forums').map((s) => (
+            <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
+          ))}
           {services.filter((s) => s.platform === 'Facebook').map((s) => (
             <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
           ))}
@@ -294,7 +317,7 @@ function RedditUpvoteOrderForm({ onBack }: { onBack: () => void }) {
         notes: notes.trim() || null,
       },
       {
-        onSuccess: (order: any) => {
+        onSuccess: (order: { id?: number } | null) => {
           toast.success(`Order placed. ${formatUSD(cost)} deducted from credit.`);
           setShowConfirm(false);
           // Show whitelist/spam-folder education modal so order updates actually reach inbox.
@@ -302,7 +325,7 @@ function RedditUpvoteOrderForm({ onBack }: { onBack: () => void }) {
           setNewOrderInfo({ id: order?.id, cost });
           setShowSuccessModal(true);
         },
-        onError: (err: any) => {
+        onError: (err: Error) => {
           toast.error(err.message || 'Failed to create order');
           setShowConfirm(false);
         },
@@ -562,6 +585,434 @@ function RedditUpvoteOrderForm({ onBack }: { onBack: () => void }) {
 }
 
 // ============================================================
+// View 2b: Forum Comment Order Form
+// ============================================================
+function ForumCommentOrderForm({
+  onBack,
+  prefillUrl,
+  sourceKeyword,
+}: {
+  onBack: () => void;
+  prefillUrl?: string;
+  sourceKeyword?: string;
+}) {
+  const navigate = useNavigate();
+  const { balance } = useRedditCredits();
+  const { createForumCommentOrder, isCreatingForumCommentOrder } = useRedditOrders();
+
+  const [targetUrl, setTargetUrl] = useState(prefillUrl || '');
+  const [platform, setPlatform] = useState('');
+  const [wantsSuggestion, setWantsSuggestion] = useState<boolean | null>(null);
+  const [brandName, setBrandName] = useState('');
+  const [brandDomain, setBrandDomain] = useState('');
+  const [mentionMode, setMentionMode] = useState<'plain' | 'link'>('plain');
+  const [notes, setNotes] = useState('');
+  const [commentText, setCommentText] = useState('');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generationMeta, setGenerationMeta] = useState<{ provider: string; fetchedContext?: boolean; reason?: string | null } | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [newOrderId, setNewOrderId] = useState<number | null>(null);
+
+  const detectedPlatform = useMemo(() => detectForumPlatform(targetUrl), [targetUrl]);
+  const cost = wantsSuggestion ? SUGGESTED_COMMENT_PRICE_CENTS : FORUM_COMMENT_PRICE_CENTS;
+  const hasEnoughCredit = balance >= cost;
+  const isValidUrl = /^https?:\/\/[^\s.]+\.[^\s]+/i.test(targetUrl.trim());
+  const needsBrand = wantsSuggestion === true;
+
+  const regenerateDraft = async () => {
+    if (!targetUrl.trim()) {
+      toast.error('Add the forum URL first');
+      return;
+    }
+    if (!brandName.trim() && !brandDomain.trim()) {
+      toast.error('Add the brand or domain first');
+      return;
+    }
+    setIsGenerating(true);
+    try {
+      const result = await generateForumComment({
+        targetUrl: targetUrl.trim(),
+        platform: platform || detectedPlatform || 'forum',
+        brandName: brandName.trim() || null,
+        brandDomain: brandDomain.trim() || null,
+        mentionMode,
+        extraInstructions: notes.trim() || null,
+      });
+      setCommentText(result.comment);
+      setGenerationMeta({
+        provider: result.provider,
+        fetchedContext: result.fetched_context,
+        reason: result.fetch_reason,
+      });
+      toast.success(result.fetched_context
+        ? 'DeepSeek draft generated from the thread context'
+        : 'DeepSeek draft generated. Thread fetch was limited, so review carefully.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'AI generator failed';
+      toast.error(msg === 'DEEPSEEK_API_KEY not configured'
+        ? 'DeepSeek is not configured yet. Add DEEPSEEK_API_KEY in Supabase secrets.'
+        : msg);
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleSuggestionChoice = (choice: boolean) => {
+    setWantsSuggestion(choice);
+    if (!choice && !commentText) {
+      setCommentText('');
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isValidUrl) {
+      toast.error('Enter a valid URL, like https://reddit.com/... or https://community.hubspot.com/...');
+      return;
+    }
+    if (needsBrand && !brandName.trim() && !brandDomain.trim()) {
+      toast.error('Add the brand or domain for the suggested comment');
+      return;
+    }
+    if (commentText.trim().length < 20) {
+      toast.error('Comment must be at least 20 characters');
+      return;
+    }
+    if (!hasEnoughCredit) {
+      toast.error('Insufficient credit. Top up to continue.');
+      return;
+    }
+
+    createForumCommentOrder(
+      {
+        targetUrl: targetUrl.trim(),
+        platform: platform.trim() || detectedPlatform || null,
+        commentText: commentText.trim(),
+        useSuggestedComment: !!wantsSuggestion,
+        brandName: brandName.trim() || null,
+        brandDomain: brandDomain.trim() || null,
+        brandMentionMode: wantsSuggestion ? mentionMode : null,
+        sourceKeyword: sourceKeyword || null,
+        notes: [
+          notes.trim(),
+          generationMeta ? `generation_provider=${generationMeta.provider}; context_fetched=${generationMeta.fetchedContext ? 'yes' : 'no'}` : '',
+        ].filter(Boolean).join('\n') || null,
+      },
+      {
+        onSuccess: (order: { id?: number } | null) => {
+          toast.success(`Comment order placed. ${formatUSD(cost)} deducted from credit.`);
+          setNewOrderId(order?.id || null);
+          setShowSuccessModal(true);
+        },
+        onError: (err: Error) => toast.error(err.message || 'Failed to create comment order'),
+      }
+    );
+  };
+
+  return (
+    <div className="p-6 md:p-10 max-w-4xl mx-auto">
+      {showSuccessModal && (
+        <EmailWhitelistNotice
+          variant="modal"
+          headline="Comment order placed"
+          context={newOrderId ? `for order #${newOrderId}` : undefined}
+          primaryLabel="Got it - show me my orders"
+          onDismiss={() => {
+            setShowSuccessModal(false);
+            navigate(newOrderId ? `/reddit/orders/${newOrderId}` : '/reddit/orders');
+          }}
+        />
+      )}
+
+      <button
+        onClick={onBack}
+        className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 mb-4"
+      >
+        <ArrowLeft size={14} /> Choose different service
+      </button>
+
+      <div className="mb-8">
+        <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center">
+              <MessageSquare size={20} className="text-blue-600" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-slate-900">Forum Comments</h1>
+              <p className="text-sm text-slate-500">
+                Reddit, Quora, HubSpot Community, niche forums, and other public threads
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/reddit/ranking-forum')}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold"
+          >
+            <Search size={15} />
+            Find ranking forum pages
+          </button>
+        </div>
+      </div>
+
+      <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="md:col-span-2 p-4 rounded-xl bg-slate-900 text-white">
+          <p className="text-xs uppercase tracking-widest text-slate-400 font-semibold">Available credit</p>
+          <p className="text-2xl font-bold mt-0.5">{formatUSD(balance)}</p>
+        </div>
+        <button
+          onClick={() => navigate('/reddit/topup')}
+          className="px-4 py-3 rounded-xl bg-white ring-1 ring-slate-200 hover:ring-orange-300 text-sm font-semibold flex items-center justify-center gap-2"
+        >
+          <Wallet size={15} />
+          Top up
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl ring-1 ring-slate-200 p-6 md:p-8 space-y-7">
+        {sourceKeyword && (
+          <div className="p-3 rounded-lg bg-blue-50 ring-1 ring-blue-100 text-sm text-blue-900">
+            Started from Ranking Forum Page keyword: <strong>{sourceKeyword}</strong>
+          </div>
+        )}
+
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
+            <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+            Forum or discussion URL
+          </label>
+          <input
+            type="url"
+            value={targetUrl}
+            onChange={(e) => setTargetUrl(e.target.value)}
+            placeholder="https://community.hubspot.com/... or https://reddit.com/r/..."
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-slate-900"
+            required
+          />
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+            {isValidUrl && (
+              <span className="inline-flex items-center gap-1 text-emerald-700">
+                <Check size={12} />
+                URL accepted
+              </span>
+            )}
+            {(platform || detectedPlatform) && (
+              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-semibold">
+                {platform || detectedPlatform}
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-slate-900 mb-2">
+            Platform label <span className="text-slate-400 font-normal">(optional)</span>
+          </label>
+          <input
+            type="text"
+            value={platform}
+            onChange={(e) => setPlatform(e.target.value)}
+            placeholder="HubSpot Community, Reddit, Quora, niche forum..."
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-slate-900"
+          />
+        </div>
+
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-3">
+            <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">2</span>
+            Want us to suggest the comment?
+          </label>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => handleSuggestionChoice(true)}
+              className={`text-left p-5 rounded-xl border-2 transition ${
+                wantsSuggestion === true ? 'border-orange-500 bg-orange-50' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles size={17} className="text-orange-600" />
+                <span className="font-bold text-slate-900">Yes, use suggested comment</span>
+              </div>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                +10% price. Our conversation-aware bot reviews the context, adapts the tone,
+                and writes a helpful recommendation with a natural brand mention. The draft opens here so you can edit it before ordering.
+              </p>
+              <p className="mt-3 text-sm font-bold text-orange-700">{formatUSD(SUGGESTED_COMMENT_PRICE_CENTS)}</p>
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSuggestionChoice(false)}
+              className={`text-left p-5 rounded-xl border-2 transition ${
+                wantsSuggestion === false ? 'border-slate-900 bg-slate-50' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <Edit3 size={17} className="text-slate-700" />
+                <span className="font-bold text-slate-900">No, I will write it</span>
+              </div>
+              <p className="text-sm text-slate-600 leading-relaxed">
+                Paste your own final comment. We only place it on the target thread.
+              </p>
+              <p className="mt-3 text-sm font-bold text-slate-900">{formatUSD(FORUM_COMMENT_PRICE_CENTS)}</p>
+            </button>
+          </div>
+        </div>
+
+        {wantsSuggestion === true && (
+          <div className="space-y-5 rounded-xl bg-orange-50/50 ring-1 ring-orange-100 p-5">
+            <div>
+              <label className="block text-sm font-semibold text-slate-900 mb-2">Brand or domain</label>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <input
+                  type="text"
+                  value={brandName}
+                  onChange={(e) => setBrandName(e.target.value)}
+                  placeholder="Brand name, e.g. Jetdigitalpro"
+                  className="w-full px-4 py-3 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-900"
+                />
+                <input
+                  type="text"
+                  value={brandDomain}
+                  onChange={(e) => setBrandDomain(e.target.value)}
+                  placeholder="Domain, e.g. jetdigitalpro.com"
+                  className="w-full px-4 py-3 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-900"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-semibold text-slate-900 mb-2">Mention style</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMentionMode('plain')}
+                  className={`py-3 rounded-lg text-sm font-semibold border-2 transition ${
+                    mentionMode === 'plain' ? 'border-orange-500 bg-white text-orange-700' : 'border-orange-100 bg-white/70 text-slate-700'
+                  }`}
+                >
+                  Plain text mention
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMentionMode('link')}
+                  className={`py-3 rounded-lg text-sm font-semibold border-2 transition inline-flex items-center justify-center gap-2 ${
+                    mentionMode === 'link' ? 'border-orange-500 bg-white text-orange-700' : 'border-orange-100 bg-white/70 text-slate-700'
+                  }`}
+                >
+                  <LinkIcon size={14} />
+                  Include link
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={regenerateDraft}
+              disabled={isGenerating}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold"
+            >
+              {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <RefreshCcw size={14} />}
+              {isGenerating ? 'Generating with DeepSeek...' : (commentText ? 'Regenerate comment' : 'Generate suggested comment')}
+            </button>
+            {generationMeta && (
+              <p className="text-xs text-orange-900">
+                Generated with {generationMeta.provider}
+                {generationMeta.fetchedContext ? ' after reading the thread context.' : ' with limited thread context. Please review before placing the order.'}
+              </p>
+            )}
+          </div>
+        )}
+
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
+            <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">3</span>
+            Final comment
+          </label>
+          <textarea
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            placeholder={wantsSuggestion ? 'Generate a suggestion, then edit it before ordering...' : 'Paste the exact comment you want us to place...'}
+            rows={7}
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-y text-slate-900"
+            required
+          />
+          <p className="mt-2 text-xs text-slate-500">
+            You can edit the comment before checkout. Regenerating replaces this text.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-slate-900 mb-2">
+            Extra instructions <span className="text-slate-400 font-normal">(optional)</span>
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Tone, angle, things to avoid, account preference, delivery timing..."
+            rows={3}
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-none text-slate-900"
+          />
+        </div>
+
+        <div className="p-5 rounded-xl bg-slate-50 ring-1 ring-slate-200">
+          <div className="flex justify-between text-sm mb-2">
+            <span className="text-slate-600">Standard comment placement</span>
+            <span className="text-slate-900 font-semibold">{formatUSD(FORUM_COMMENT_PRICE_CENTS)}</span>
+          </div>
+          {wantsSuggestion && (
+            <div className="flex justify-between text-sm mb-2">
+              <span className="text-slate-600">Suggested comment assistant (+10%)</span>
+              <span className="text-slate-900 font-semibold">{formatUSD(SUGGESTED_COMMENT_PRICE_CENTS - FORUM_COMMENT_PRICE_CENTS)}</span>
+            </div>
+          )}
+          <div className="flex justify-between pt-3 mt-3 border-t border-slate-200">
+            <span className="text-slate-900 font-bold">Total</span>
+            <span className="text-2xl font-bold text-orange-600">{formatUSD(cost)}</span>
+          </div>
+          {!hasEnoughCredit && (
+            <div className="mt-3 p-3 rounded-lg bg-rose-50 text-sm text-rose-700 flex items-start gap-2">
+              <AlertCircle size={16} className="shrink-0 mt-0.5" />
+              <p>You need {formatUSD(cost - balance)} more. <button type="button" onClick={() => navigate('/reddit/topup')} className="underline font-semibold">Top up now</button>.</p>
+            </div>
+          )}
+        </div>
+
+        <button
+          type="submit"
+          disabled={!isValidUrl || wantsSuggestion === null || !hasEnoughCredit || isCreatingForumCommentOrder}
+          className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-semibold transition shadow-lg shadow-orange-500/20"
+        >
+          {isCreatingForumCommentOrder ? (
+            <>
+              <Loader2 size={18} className="animate-spin" />
+              Placing order...
+            </>
+          ) : (
+            <>
+              Place comment order
+              <ArrowRight size={18} />
+            </>
+          )}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function detectForumPlatform(url: string) {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, '');
+    if (host.includes('reddit.com')) return 'Reddit';
+    if (host.includes('quora.com')) return 'Quora';
+    if (host.includes('hubspot.com')) return 'HubSpot Community';
+    if (host.includes('blackhatworld.com')) return 'BlackHatWorld';
+    return host.split('.')[0]?.replace(/-/g, ' ') || '';
+  } catch {
+    return '';
+  }
+}
+
+// ============================================================
 // View 3: Coming Soon Notify Form
 // ============================================================
 function ComingSoonForm({ service, onBack }: { service: Service; onBack: () => void }) {
@@ -585,8 +1036,8 @@ function ComingSoonForm({ service, onBack }: { service: Service; onBack: () => v
       });
       setSubmitted(true);
       toast.success("Got it. We'll email you when it ships.");
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to submit');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to submit');
     } finally {
       setSubmitting(false);
     }
@@ -666,7 +1117,7 @@ function ComingSoonForm({ service, onBack }: { service: Service; onBack: () => v
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => setUrgency(opt.value as any)}
+                  onClick={() => setUrgency(opt.value as 'low' | 'normal' | 'high')}
                   className={`py-2.5 rounded-lg text-sm font-semibold border-2 transition ${
                     urgency === opt.value
                       ? 'border-orange-500 bg-orange-50 text-orange-700'
@@ -748,8 +1199,8 @@ function FeatureRequestForm({ onBack }: { onBack: () => void }) {
       });
       setSubmitted(true);
       toast.success('Request submitted. We review every one.');
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to submit');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to submit');
     } finally {
       setSubmitting(false);
     }
@@ -815,7 +1266,7 @@ function FeatureRequestForm({ onBack }: { onBack: () => void }) {
                 <button
                   key={opt.value}
                   type="button"
-                  onClick={() => setCategory(opt.value as any)}
+                  onClick={() => setCategory(opt.value as 'platform' | 'service' | 'integration' | 'feature')}
                   className={`py-2.5 rounded-lg text-sm font-semibold border-2 transition ${
                     category === opt.value
                       ? 'border-orange-500 bg-orange-50 text-orange-700'
@@ -875,7 +1326,7 @@ function FeatureRequestForm({ onBack }: { onBack: () => void }) {
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">Urgency</label>
               <select
                 value={urgency}
-                onChange={(e) => setUrgency(e.target.value as any)}
+                onChange={(e) => setUrgency(e.target.value as 'low' | 'normal' | 'high')}
                 className="w-full px-3.5 py-2.5 rounded-lg ring-1 ring-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-900 bg-white"
               >
                 <option value="low">Low — exploratory</option>

@@ -31,13 +31,38 @@ const STATUS_CONFIG: Record<string, { label: string; class: string; dot: string 
 
 const FILTERS = ['all', 'pending', 'processing', 'completed', 'cancelled'] as const;
 
+type RedditOrderListItem = {
+  id: number;
+  target_type?: string | null;
+  requested_upvotes: number;
+  delivered_upvotes: number;
+  status: string;
+  thread_url: string;
+  subreddit?: string | null;
+  cost_credits: number;
+  created_at: string;
+};
+
+function serviceLabel(order: RedditOrderListItem) {
+  if ((order.target_type || 'upvote') === 'comment') {
+    return { label: 'Comment', metric: 'Comments', value: '1', icon: '💬' };
+  }
+  return {
+    label: 'Upvotes',
+    metric: 'Upvotes',
+    value: Number(order.requested_upvotes || 0).toLocaleString(),
+    icon: '⬆️',
+  };
+}
+
 export function RedditOrders() {
   const navigate = useNavigate();
   const { orders, isLoading } = useRedditOrders();
   const [filter, setFilter] = useState<typeof FILTERS[number]>('all');
   const [query, setQuery] = useState('');
 
-  const filteredOrders = orders.filter((o: any) => {
+  const typedOrders = orders as RedditOrderListItem[];
+  const filteredOrders = typedOrders.filter((o) => {
     if (filter !== 'all' && o.status !== filter) return false;
     if (query && !o.thread_url.toLowerCase().includes(query.toLowerCase())) return false;
     return true;
@@ -50,7 +75,7 @@ export function RedditOrders() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
           <div>
             <h1 className="text-3xl font-bold text-slate-900">Orders</h1>
-            <p className="text-slate-600 mt-1">Track and manage your upvote campaigns</p>
+            <p className="text-slate-600 mt-1">Track upvotes, comments, and forum growth campaigns</p>
           </div>
           <button
             onClick={() => navigate('/reddit/new-order')}
@@ -65,7 +90,7 @@ export function RedditOrders() {
         <div className="bg-white rounded-xl ring-1 ring-slate-200 p-2 mb-6 flex flex-col md:flex-row gap-2">
           <div className="flex gap-1 overflow-x-auto">
             {FILTERS.map((f) => {
-              const count = f === 'all' ? orders.length : orders.filter((o: any) => o.status === f).length;
+              const count = f === 'all' ? typedOrders.length : typedOrders.filter((o) => o.status === f).length;
               return (
                 <button
                   key={f}
@@ -111,7 +136,7 @@ export function RedditOrders() {
             </p>
             <p className="text-sm text-slate-500 mb-6">
               {orders.length === 0
-                ? 'Submit your first Reddit upvote order in under 2 minutes'
+                ? 'Submit your first Straight Ltd order in under 2 minutes'
                 : 'Try a different filter or search query'}
             </p>
             {orders.length === 0 && (
@@ -132,7 +157,7 @@ export function RedditOrders() {
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
                     <th className="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-6 py-3">Order</th>
-                    <th className="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider px-6 py-3">Upvotes</th>
+                    <th className="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider px-6 py-3">Service</th>
                     <th className="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider px-6 py-3">Cost</th>
                     <th className="text-center text-xs font-semibold text-slate-600 uppercase tracking-wider px-6 py-3">Status</th>
                     <th className="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider px-6 py-3">Created</th>
@@ -140,16 +165,19 @@ export function RedditOrders() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {filteredOrders.map((order: any) => {
+                  {filteredOrders.map((order) => {
                     const status = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
+                    const service = serviceLabel(order);
                     return (
                       <tr key={order.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => navigate(`/reddit/orders/${order.id}`)}>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div>
                               <p className="font-semibold text-slate-900">
-                                #{order.id} {order.subreddit && (
-                                  <span className="text-slate-500 font-normal">· r/{order.subreddit}</span>
+                                <span className="mr-1">{service.icon}</span>#{order.id} {order.subreddit && (
+                                  <span className="text-slate-500 font-normal">
+                                    · {(order.target_type || 'upvote') === 'comment' ? order.subreddit : `r/${order.subreddit}`}
+                                  </span>
                                 )}
                               </p>
                               <p className="text-xs text-slate-500 truncate max-w-md mt-0.5">
@@ -159,7 +187,8 @@ export function RedditOrders() {
                           </div>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <span className="font-semibold text-slate-900">{order.requested_upvotes.toLocaleString()}</span>
+                          <span className="font-semibold text-slate-900">{service.value}</span>
+                          <p className="text-xs text-slate-500 mt-0.5">{service.label}</p>
                           {order.delivered_upvotes > 0 && order.delivered_upvotes < order.requested_upvotes && (
                             <p className="text-xs text-emerald-600 mt-0.5">{order.delivered_upvotes} delivered</p>
                           )}
@@ -197,8 +226,9 @@ export function RedditOrders() {
 
             {/* Mobile cards */}
             <div className="md:hidden divide-y divide-slate-100">
-              {filteredOrders.map((order: any) => {
+              {filteredOrders.map((order) => {
                 const status = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
+                const service = serviceLabel(order);
                 return (
                   <Link
                     key={order.id}
@@ -207,9 +237,11 @@ export function RedditOrders() {
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div>
-                        <p className="font-semibold text-slate-900">#{order.id}</p>
+                        <p className="font-semibold text-slate-900"><span className="mr-1">{service.icon}</span>#{order.id}</p>
                         {order.subreddit && (
-                          <p className="text-xs text-slate-500">r/{order.subreddit}</p>
+                          <p className="text-xs text-slate-500">
+                            {(order.target_type || 'upvote') === 'comment' ? order.subreddit : `r/${order.subreddit}`}
+                          </p>
                         )}
                       </div>
                       <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ${status.class}`}>
@@ -222,8 +254,8 @@ export function RedditOrders() {
                     </p>
                     <div className="grid grid-cols-3 gap-2 text-sm">
                       <div>
-                        <p className="text-xs text-slate-500">Upvotes</p>
-                        <p className="font-semibold text-slate-900">{order.requested_upvotes}</p>
+                        <p className="text-xs text-slate-500">{service.metric}</p>
+                        <p className="font-semibold text-slate-900">{service.value}</p>
                       </div>
                       <div>
                         <p className="text-xs text-slate-500">Cost</p>

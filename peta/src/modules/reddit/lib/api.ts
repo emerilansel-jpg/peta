@@ -91,6 +91,123 @@ export async function createRedditOrder(
   return data;
 }
 
+export interface ForumCommentOrderInput {
+  targetUrl: string;
+  platform: string | null;
+  commentText: string;
+  useSuggestedComment: boolean;
+  brandName: string | null;
+  brandDomain: string | null;
+  brandMentionMode: 'plain' | 'link' | null;
+  sourceKeyword?: string | null;
+  notes?: string | null;
+}
+
+export interface GenerateForumCommentInput {
+  targetUrl: string;
+  platform: string | null;
+  brandName: string | null;
+  brandDomain: string | null;
+  mentionMode: 'plain' | 'link';
+  extraInstructions?: string | null;
+}
+
+export async function generateForumComment(input: GenerateForumCommentInput): Promise<{
+  comment: string;
+  provider: string;
+  model?: string;
+  fetched_context?: boolean;
+  fetch_reason?: string | null;
+}> {
+  const { data, error } = await supabase.functions.invoke('generate-forum-comment', {
+    body: {
+      target_url: input.targetUrl,
+      platform: input.platform,
+      brand_name: input.brandName,
+      brand_domain: input.brandDomain,
+      mention_mode: input.mentionMode,
+      extra_instructions: input.extraInstructions ?? null,
+    },
+  });
+
+  if (error) {
+    throw new Error(error.message || 'AI generator failed');
+  }
+  if ((data as { error?: string })?.error) {
+    throw new Error((data as { error: string }).error);
+  }
+  return data as {
+    comment: string;
+    provider: string;
+    model?: string;
+    fetched_context?: boolean;
+    fetch_reason?: string | null;
+  };
+}
+
+export async function createForumCommentOrder(input: ForumCommentOrderInput) {
+  const { data, error } = await supabase.rpc('fn_create_forum_comment_order', {
+    p_target_url: input.targetUrl,
+    p_platform: input.platform,
+    p_comment_text: input.commentText,
+    p_use_suggested_comment: input.useSuggestedComment,
+    p_brand_name: input.brandName,
+    p_brand_domain: input.brandDomain,
+    p_brand_mention_mode: input.brandMentionMode,
+    p_source_keyword: input.sourceKeyword ?? null,
+    p_notes: input.notes ?? null,
+  });
+
+  if (error) {
+    if (error.message.includes('insufficient_credits')) {
+      throw new Error('Insufficient credits. Please top up your account.');
+    }
+    throw error;
+  }
+
+  return data;
+}
+
+export interface RankingKeywordIdea {
+  keyword: string;
+  volume: number;
+  competition: 'Low' | 'Medium';
+  intent: string;
+}
+
+export interface RankingForumResult {
+  title: string;
+  url: string;
+  platform: string;
+  reason: string;
+  eligible: boolean;
+}
+
+export async function getRankingKeywordIdeas(seed: string): Promise<{
+  keyword_ideas: RankingKeywordIdea[];
+  provider: string;
+}> {
+  const { data, error } = await supabase.functions.invoke('rank-forum-pages', {
+    body: { seed },
+  });
+  if (error) throw new Error(error.message || 'Ranking analysis failed');
+  if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
+  return data as { keyword_ideas: RankingKeywordIdea[]; provider: string };
+}
+
+export async function getRankingForumResults(keyword: string): Promise<{
+  serp_results: RankingForumResult[];
+  provider: string;
+  keyword: string;
+}> {
+  const { data, error } = await supabase.functions.invoke('rank-forum-pages', {
+    body: { keyword },
+  });
+  if (error) throw new Error(error.message || 'SERP scan failed');
+  if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
+  return data as { serp_results: RankingForumResult[]; provider: string; keyword: string };
+}
+
 // Get user's topup history
 export async function getTopupHistory() {
   const { data: { user } } = await supabase.auth.getUser();

@@ -37,19 +37,71 @@ const SERVICE_CONFIG: Record<string, { label: string; emoji: string; color: stri
   thread: { label: 'New Thread', emoji: '📌', color: 'bg-purple-100 text-purple-700' },
 };
 
+type AdminOrderRecord = {
+  id: number;
+  target_type?: string | null;
+  status: string;
+  thread_url: string;
+  subreddit?: string | null;
+  requested_upvotes: number;
+  delivered_upvotes: number;
+  cost_credits: number;
+  created_at: string;
+  completed_at?: string | null;
+  notes: string | null;
+  admin_notes?: string | null;
+  delivery_proof_text?: string | null;
+  delivery_proof_url?: string | null;
+  users?: {
+    email?: string | null;
+    full_name?: string | null;
+  } | null;
+};
+
+function parseOrderNotes(raw: string | null) {
+  if (!raw) return { clientNote: '', commentText: '', useSuggested: false, brand: '', mentionMode: '', keyword: '' };
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed?.service === 'forum_comment') {
+      return {
+        clientNote: parsed.client_notes || '',
+        commentText: parsed.comment_text || '',
+        useSuggested: !!parsed.use_suggested_comment,
+        brand: parsed.brand_name || parsed.brand_domain || '',
+        mentionMode: parsed.brand_mention_mode || '',
+        keyword: parsed.source_keyword || '',
+      };
+    }
+  } catch {
+    return { clientNote: raw, commentText: '', useSuggested: false, brand: '', mentionMode: '', keyword: '' };
+  }
+  return { clientNote: raw, commentText: '', useSuggested: false, brand: '', mentionMode: '', keyword: '' };
+}
+
+function serviceMetric(order: AdminOrderRecord) {
+  if ((order.target_type || 'upvote') === 'comment') {
+    return { label: 'Comments', value: '1', deliveredLabel: 'comment' };
+  }
+  return {
+    label: 'Upvotes',
+    value: String(order.requested_upvotes || 0),
+    deliveredLabel: 'delivered',
+  };
+}
+
 export function AdminOrders() {
   const [params, setParams] = useSearchParams();
-  const [orders, setOrders] = useState<any[]>([]);
+  const [orders, setOrders] = useState<AdminOrderRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<string>('all');
   const [query, setQuery] = useState('');
-  const [editingOrder, setEditingOrder] = useState<any>(null);
+  const [editingOrder, setEditingOrder] = useState<AdminOrderRecord | null>(null);
 
   const loadOrders = async () => {
     setLoading(true);
     try {
       const data = await getAdminAllOrders();
-      setOrders(data);
+      setOrders(data as AdminOrderRecord[]);
 
       // If URL has ?focus=ID, open that order
       const focusId = params.get('focus');
@@ -66,7 +118,9 @@ export function AdminOrders() {
   };
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useRealtimeRefresh({ table: 'reddit_upvote_orders' }, () => loadOrders());
@@ -114,7 +168,7 @@ export function AdminOrders() {
         {/* Service type quick stats — matches client side */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <ServiceCard label="Reddit Upvotes" emoji="⬆️" count={serviceStats.upvote || 0} active />
-          <ServiceCard label="Reddit Comments" emoji="💬" count={serviceStats.comment || 0} comingSoon="Q3 2026" />
+          <ServiceCard label="Forum Comments" emoji="💬" count={serviceStats.comment || 0} active />
           <ServiceCard label="Reddit Threads" emoji="📌" count={serviceStats.thread || 0} comingSoon="Q4 2026" />
           <ServiceCard label="Facebook" emoji="📘" count={0} comingSoon="Q4 2026" />
         </div>
@@ -164,7 +218,7 @@ export function AdminOrders() {
                   <tr>
                     <th className="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-6 py-3">Order</th>
                     <th className="text-left text-xs font-semibold text-slate-600 uppercase tracking-wider px-6 py-3">Client</th>
-                    <th className="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider px-6 py-3">Upvotes</th>
+                    <th className="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider px-6 py-3">Service</th>
                     <th className="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider px-6 py-3">Revenue</th>
                     <th className="text-center text-xs font-semibold text-slate-600 uppercase tracking-wider px-6 py-3">Status</th>
                     <th className="text-right text-xs font-semibold text-slate-600 uppercase tracking-wider px-6 py-3">Date</th>
@@ -174,6 +228,7 @@ export function AdminOrders() {
                 <tbody className="divide-y divide-slate-100">
                   {filteredOrders.map((order) => {
                     const status = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
+                    const metric = serviceMetric(order);
                     return (
                       <tr key={order.id} className="hover:bg-slate-50">
                         <td className="px-6 py-4">
@@ -196,9 +251,10 @@ export function AdminOrders() {
                           <p className="text-xs text-slate-500">{order.users?.email}</p>
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <p className="font-semibold text-slate-900">{order.requested_upvotes}</p>
+                          <p className="font-semibold text-slate-900">{metric.value}</p>
+                          <p className="text-xs text-slate-500">{metric.label}</p>
                           {order.delivered_upvotes > 0 && (
-                            <p className="text-xs text-emerald-600">{order.delivered_upvotes} delivered</p>
+                            <p className="text-xs text-emerald-600">{order.delivered_upvotes} {metric.deliveredLabel}</p>
                           )}
                         </td>
                         <td className="px-6 py-4 text-right font-semibold text-slate-900">
@@ -234,6 +290,7 @@ export function AdminOrders() {
               <div className="md:hidden divide-y divide-slate-100">
                 {filteredOrders.map((order) => {
                   const status = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
+                  const metric = serviceMetric(order);
                   return (
                     <button
                       key={order.id}
@@ -252,8 +309,8 @@ export function AdminOrders() {
                       </div>
                       <div className="grid grid-cols-3 gap-2 text-sm">
                         <div>
-                          <p className="text-xs text-slate-500">Upvotes</p>
-                          <p className="font-semibold text-slate-900">{order.requested_upvotes}</p>
+                          <p className="text-xs text-slate-500">{metric.label}</p>
+                          <p className="font-semibold text-slate-900">{metric.value}</p>
                         </div>
                         <div>
                           <p className="text-xs text-slate-500">Revenue</p>
@@ -342,10 +399,12 @@ function OrderEditModal({
   onClose,
   onSaved,
 }: {
-  order: any;
+  order: AdminOrderRecord;
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const isCommentOrder = (order.target_type || 'upvote') === 'comment';
+  const parsedNotes = parseOrderNotes(order.notes);
   const [status, setStatus] = useState(order.status);
   const [deliveredStr, setDeliveredStr] = useState(
     order.delivered_upvotes ? String(order.delivered_upvotes) : ''
@@ -373,7 +432,7 @@ function OrderEditModal({
   const handleSave = async () => {
     setSaving(true);
     try {
-      const delivered = parseInt(deliveredStr) || 0;
+      const delivered = isCommentOrder ? (status === 'completed' ? 1 : 0) : (parseInt(deliveredStr) || 0);
       let finalProofUrl: string | null = proofUrl.trim() || null;
 
       // If user selected image mode and provided new file, upload it
@@ -382,7 +441,7 @@ function OrderEditModal({
       }
 
       // If user switched mode, clear the irrelevant fields
-      const updates: any = {
+      const updates: Record<string, string | number | null> = {
         status,
         delivered_upvotes: delivered,
         admin_notes: adminNotes.trim(),
@@ -393,8 +452,8 @@ function OrderEditModal({
       await updateOrderDetail(order.id, updates);
       toast.success('Order updated' + (status === 'completed' ? ' · client will be notified' : ''));
       onSaved();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update');
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update');
     } finally {
       setSaving(false);
     }
@@ -420,18 +479,20 @@ function OrderEditModal({
             <h4 className="font-semibold text-sm text-slate-900 mb-3">Order details</h4>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
-                <p className="text-xs text-slate-500">Thread URL</p>
+                <p className="text-xs text-slate-500">{isCommentOrder ? 'Target page' : 'Thread URL'}</p>
                 <a href={order.thread_url} target="_blank" rel="noopener noreferrer" className="text-orange-600 hover:underline break-all flex items-center gap-1">
                   {order.thread_url.substring(0, 40)}... <ExternalLink size={10} />
                 </a>
               </div>
               <div>
-                <p className="text-xs text-slate-500">Subreddit</p>
-                <p className="font-medium">{order.subreddit ? `r/${order.subreddit}` : '—'}</p>
+                <p className="text-xs text-slate-500">{isCommentOrder ? 'Platform' : 'Subreddit'}</p>
+                <p className="font-medium">
+                  {order.subreddit ? (isCommentOrder ? order.subreddit : `r/${order.subreddit}`) : '—'}
+                </p>
               </div>
               <div>
                 <p className="text-xs text-slate-500">Requested</p>
-                <p className="font-medium">{order.requested_upvotes} upvotes</p>
+                <p className="font-medium">{isCommentOrder ? '1 comment' : `${order.requested_upvotes} upvotes`}</p>
               </div>
               <div>
                 <p className="text-xs text-slate-500">Revenue</p>
@@ -446,10 +507,22 @@ function OrderEditModal({
                 <p className="font-medium">{order.completed_at ? new Date(order.completed_at).toLocaleString('en-US') : '—'}</p>
               </div>
             </div>
-            {order.notes && (
+            {parsedNotes.commentText && (
+              <div className="mt-3 pt-3 border-t border-slate-200">
+                <p className="text-xs text-slate-500">Final comment</p>
+                <p className="text-sm text-slate-900 mt-1 whitespace-pre-wrap">{parsedNotes.commentText}</p>
+                <p className="text-xs text-slate-500 mt-2">
+                  {parsedNotes.useSuggested ? 'Suggested assistant used' : 'Client-written'}
+                  {parsedNotes.brand ? ` · Brand: ${parsedNotes.brand}` : ''}
+                  {parsedNotes.mentionMode ? ` · ${parsedNotes.mentionMode}` : ''}
+                  {parsedNotes.keyword ? ` · Keyword: ${parsedNotes.keyword}` : ''}
+                </p>
+              </div>
+            )}
+            {parsedNotes.clientNote && (
               <div className="mt-3 pt-3 border-t border-slate-200">
                 <p className="text-xs text-slate-500">Client note</p>
-                <p className="text-sm text-slate-900 mt-1 italic">"{order.notes}"</p>
+                <p className="text-sm text-slate-900 mt-1 italic">"{parsedNotes.clientNote}"</p>
               </div>
             )}
           </div>
@@ -469,6 +542,7 @@ function OrderEditModal({
             </select>
           </div>
 
+          {!isCommentOrder && (
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">
               Delivered upvotes <span className="text-slate-400 font-normal">(of {order.requested_upvotes})</span>
@@ -489,6 +563,7 @@ function OrderEditModal({
             />
             <p className="text-xs text-slate-500 mt-1">Track partial delivery for transparency</p>
           </div>
+          )}
 
           {/* Delivery proof (visible to client) */}
           <div className="p-4 rounded-xl bg-emerald-50/50 ring-1 ring-emerald-100">
@@ -526,7 +601,9 @@ function OrderEditModal({
                 value={proofText}
                 onChange={(e) => setProofText(e.target.value)}
                 rows={3}
-                placeholder="E.g. Delivered 50 upvotes across 3 hours via aged accounts. All upvotes are stable."
+                placeholder={isCommentOrder
+                  ? 'E.g. Comment placed and visible on the target thread. Screenshot attached.'
+                  : 'E.g. Delivered 50 upvotes across 3 hours via aged accounts. All upvotes are stable.'}
                 className="w-full px-3.5 py-2.5 rounded-lg ring-1 ring-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none text-slate-900 bg-white"
               />
             )}
@@ -536,7 +613,9 @@ function OrderEditModal({
                 type="url"
                 value={proofUrl}
                 onChange={(e) => setProofUrl(e.target.value)}
-                placeholder="https://reddit.com/r/.../comments/... (link to the boosted thread)"
+                placeholder={isCommentOrder
+                  ? 'https://forum.example.com/thread/... (link to the placed comment)'
+                  : 'https://reddit.com/r/.../comments/... (link to the boosted thread)'}
                 className="w-full px-3.5 py-2.5 rounded-lg ring-1 ring-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 bg-white"
               />
             )}
