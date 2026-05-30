@@ -3,7 +3,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 type KeywordIdea = {
   keyword: string;
   volume: number;
-  competition: 'Low' | 'Medium';
+  competition: 'Low' | 'Medium' | 'High';
   intent: string;
 };
 
@@ -81,44 +81,89 @@ function buildKeywordIdeas(seed: string): KeywordIdea[] {
   const base = seed.trim().toLowerCase() || 'growth tool';
   const score = Array.from(base).reduce((sum, char) => sum + char.charCodeAt(0), 0);
   const volumeBase = 900 + (score % 9) * 260;
-  return [
-    {
-      keyword: `best ${base} for small business`,
-      volume: volumeBase + 1800,
-      competition: 'Low',
-      intent: 'Comparison intent with room for helpful recommendations.',
-    },
-    {
-      keyword: `${base} alternatives`,
-      volume: volumeBase + 1200,
-      competition: 'Low',
-      intent: 'People are actively switching or comparing options.',
-    },
-    {
-      keyword: `${base} recommendations`,
-      volume: volumeBase + 850,
-      competition: 'Medium',
-      intent: 'Natural fit for forum answers and product mentions.',
-    },
-    {
-      keyword: `is ${base} worth it`,
-      volume: volumeBase + 450,
-      competition: 'Low',
-      intent: 'Question-led query where nuance performs better than hard selling.',
-    },
-  ];
+  return keywordTemplates(base).map((template, index) => ({
+    keyword: template.keyword,
+    volume: Math.max(0, volumeBase + template.volume - (index * 35)),
+    competition: template.competition,
+    intent: template.intent,
+  }));
 }
 
 function candidateKeywords(seed: string) {
   const base = seed.trim().toLowerCase() || 'growth tool';
-  return [
-    `best ${base} for small business`,
-    `${base} alternatives`,
-    `${base} recommendations`,
-    `is ${base} worth it`,
-    `${base} for startups`,
-    `${base} comparison`,
+  return keywordTemplates(base).map((item) => item.keyword);
+}
+
+function keywordTemplates(base: string): Array<KeywordIdea & { volume: number }> {
+  const primary = [
+    'best', 'top', 'cheap', 'affordable', 'recommended', 'trusted', 'easy', 'simple',
+    'professional', 'white label', 'outsourced', 'managed',
   ];
+  const intents = [
+    { suffix: 'for small business', intent: 'Segment query with room for practical recommendations.' },
+    { suffix: 'for startups', intent: 'Startup context often appears in operator forums.' },
+    { suffix: 'for agencies', intent: 'Agency use case fits comparison and tool discussions.' },
+    { suffix: 'for freelancers', intent: 'Solo-operator pain points often surface in public threads.' },
+    { suffix: 'for ecommerce', intent: 'Vertical-specific query with practical decision intent.' },
+    { suffix: 'for b2b', intent: 'B2B query helps filter generic content.' },
+    { suffix: 'for marketing teams', intent: 'Team workflow questions can generate forum discussion.' },
+  ];
+  const questionAngles = [
+    `is ${base} worth it`,
+    `how to choose ${base}`,
+    `${base} pros and cons`,
+    `${base} problems`,
+    `${base} pricing`,
+    `${base} reviews`,
+    `${base} alternatives`,
+    `${base} comparison`,
+    `${base} vs competitors`,
+    `${base} recommendations`,
+    `${base} tools`,
+    `${base} software`,
+    `${base} service`,
+  ];
+  const forumAngles = [
+    `${base} forum`,
+    `${base} discussion`,
+    `${base} community`,
+    `${base} reddit`,
+    `${base} quora`,
+    `${base} stack exchange`,
+    `${base} hubspot community`,
+    `${base} product hunt`,
+    `${base} indie hackers`,
+  ];
+  const generated: Array<KeywordIdea & { volume: number }> = [];
+
+  for (const angle of questionAngles) {
+    generated.push({
+      keyword: angle,
+      volume: 1900 - generated.length * 20,
+      competition: angle.includes('software') || angle.includes('tools') ? 'High' : angle.includes('pricing') || angle.includes('reviews') ? 'Medium' : 'Low',
+      intent: 'Decision-stage query that can support helpful non-salesy forum replies.',
+    });
+  }
+  for (const prefix of primary) {
+    for (const item of intents) {
+      generated.push({
+        keyword: `${prefix} ${base} ${item.suffix}`,
+        volume: 1600 - generated.length * 8,
+        competition: prefix === 'best' || prefix === 'top' ? 'Medium' : 'Low',
+        intent: item.intent,
+      });
+    }
+  }
+  for (const angle of forumAngles) {
+    generated.push({
+      keyword: angle,
+      volume: 900 - generated.length * 3,
+      competition: 'Low',
+      intent: 'Forum/community modifier increases chance of discussion pages.',
+    });
+  }
+
+  return generated.map((item) => ({ ...item, volume: Math.max(20, item.volume) }));
 }
 
 function platformForUrl(url: string) {
@@ -236,7 +281,7 @@ async function dataForSeoTop10(keyword: string): Promise<SerpResult[] | null> {
 }
 
 async function dataForSeoKeywordIdeas(seed: string): Promise<KeywordIdea[] | null> {
-  const keywords = candidateKeywords(seed).slice(0, 6);
+  const keywords = candidateKeywords(seed).slice(0, 100);
   const volumeData = await dataForSeoPost<DataForSeoKeywordItem>(
     'keywords_data/google_ads/search_volume/live',
     [{
@@ -258,27 +303,23 @@ async function dataForSeoKeywordIdeas(seed: string): Promise<KeywordIdea[] | nul
 
   for (const keyword of keywords) {
     const volumeRow = rowsByKeyword.get(keyword.toLowerCase());
-    const serpResults = await dataForSeoTop10(keyword);
-    const forumCount = serpResults?.filter((result) => result.eligible).length || 0;
     const volume = Math.max(0, Number(volumeRow?.search_volume || 0));
     const competitionIndex = Number(volumeRow?.competition_index ?? 50);
-    const competition: 'Low' | 'Medium' = competitionIndex <= 35 ? 'Low' : 'Medium';
-    const score = volume + (forumCount * 500) - (competitionIndex * 8);
+    const competition: 'Low' | 'Medium' | 'High' = competitionIndex <= 35 ? 'Low' : competitionIndex <= 70 ? 'Medium' : 'High';
+    const forumModifier = /forum|reddit|quora|community|discussion/i.test(keyword) ? 900 : 0;
+    const score = volume + forumModifier - (competitionIndex * 8);
 
     analyzed.push({
       keyword,
       volume,
       competition,
-      intent: forumCount > 0
-        ? `${forumCount} forum-style result${forumCount === 1 ? '' : 's'} appeared in the live Google top 10.`
-        : `Google Ads competition is ${String(volumeRow?.competition || 'available').toLowerCase()}, but forum surfaces are weaker in the top 10.`,
+      intent: `Google Ads competition is ${String(volumeRow?.competition || 'available').toLowerCase()}. Select it to scan Google top 10 for forum URLs.`,
       score,
     });
   }
 
   return analyzed
     .sort((a, b) => b.score - a.score)
-    .slice(0, 4)
     .map(({ keyword, volume, competition, intent }) => ({ keyword, volume, competition, intent }));
 }
 
@@ -325,7 +366,7 @@ async function googleTop10(keyword: string): Promise<SerpResult[] | null> {
 }
 
 async function googleKeywordIdeas(seed: string): Promise<KeywordIdea[] | null> {
-  const keywords = candidateKeywords(seed);
+  const keywords = candidateKeywords(seed).slice(0, 30);
   const analyzed: Array<KeywordIdea & { score: number }> = [];
 
   for (const keyword of keywords) {
@@ -359,7 +400,6 @@ async function googleKeywordIdeas(seed: string): Promise<KeywordIdea[] | null> {
 
   return analyzed
     .sort((a, b) => b.score - a.score)
-    .slice(0, 4)
     .map((idea) => ({
       keyword: idea.keyword,
       volume: idea.volume,

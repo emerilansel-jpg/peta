@@ -1,6 +1,6 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { ElementType } from 'react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ArrowRight,
   AlertCircle,
@@ -31,6 +31,7 @@ import { calculateCost, formatUSD, generateForumComment, getPricePerUpvoteUSD, s
 const PRESET_QUANTITIES = [25, 50, 100, 250, 500];
 const FORUM_COMMENT_PRICE_CENTS = 500;
 const SUGGESTED_COMMENT_PRICE_CENTS = 550;
+const BULK_COMMENT_DRAFT_KEY = 'straight:forum-comment-bulk:v1';
 
 interface Service {
   id: string;
@@ -113,6 +114,13 @@ const SERVICES: Service[] = [
 
 type ViewMode = 'select' | 'reddit-upvote' | 'reddit-comment' | 'coming-soon' | 'feature-request';
 
+type BulkForumTarget = {
+  keyword: string;
+  title: string;
+  url: string;
+  platform: string;
+};
+
 export function RedditNewOrder() {
   const [searchParams] = useSearchParams();
   const startsInComments = searchParams.get('service') === 'comments';
@@ -122,6 +130,19 @@ export function RedditNewOrder() {
   );
   const sourceKeyword = searchParams.get('keyword') || '';
   const prefillUrl = searchParams.get('url') || '';
+  const startsInBulk = searchParams.get('bulk') === 'ranking-forum';
+  const [bulkTargets, setBulkTargets] = useState<BulkForumTarget[]>([]);
+
+  useEffect(() => {
+    if (!startsInBulk) return;
+    try {
+      const raw = window.localStorage.getItem(BULK_COMMENT_DRAFT_KEY);
+      const parsed = raw ? JSON.parse(raw) as { targets?: BulkForumTarget[] } : null;
+      setBulkTargets(Array.isArray(parsed?.targets) ? parsed.targets : []);
+    } catch {
+      setBulkTargets([]);
+    }
+  }, [startsInBulk]);
 
   const handleServiceClick = (service: Service) => {
     setActiveService(service);
@@ -148,6 +169,7 @@ export function RedditNewOrder() {
           onBack={handleBack}
           prefillUrl={prefillUrl}
           sourceKeyword={sourceKeyword}
+          bulkTargets={bulkTargets}
         />
       )}
       {view === 'coming-soon' && activeService && (
@@ -591,16 +613,19 @@ function ForumCommentOrderForm({
   onBack,
   prefillUrl,
   sourceKeyword,
+  bulkTargets = [],
 }: {
   onBack: () => void;
   prefillUrl?: string;
   sourceKeyword?: string;
+  bulkTargets?: BulkForumTarget[];
 }) {
   const navigate = useNavigate();
   const { balance } = useRedditCredits();
-  const { createForumCommentOrder, isCreatingForumCommentOrder } = useRedditOrders();
+  const { createForumCommentOrder, createForumCommentOrderAsync, isCreatingForumCommentOrder } = useRedditOrders();
 
   const [targetUrl, setTargetUrl] = useState(prefillUrl || '');
+  const [bulkQueue, setBulkQueue] = useState<BulkForumTarget[]>(bulkTargets);
   const [platform, setPlatform] = useState('');
   const [wantsSuggestion, setWantsSuggestion] = useState<boolean | null>(null);
   const [brandName, setBrandName] = useState('');
@@ -612,11 +637,23 @@ function ForumCommentOrderForm({
   const [generationMeta, setGenerationMeta] = useState<{ fetchedContext?: boolean; reason?: string | null } | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [newOrderId, setNewOrderId] = useState<number | null>(null);
+  const [bulkOrderIds, setBulkOrderIds] = useState<number[]>([]);
+  const [bulkSubmitting, setBulkSubmitting] = useState(false);
 
+  useEffect(() => {
+    setBulkQueue(bulkTargets);
+    if (bulkTargets.length > 0) {
+      setWantsSuggestion(false);
+      setTargetUrl(bulkTargets[0]?.url || '');
+    }
+  }, [bulkTargets]);
+
+  const isBulk = bulkQueue.length > 0;
   const detectedPlatform = useMemo(() => detectForumPlatform(targetUrl), [targetUrl]);
-  const cost = wantsSuggestion ? SUGGESTED_COMMENT_PRICE_CENTS : FORUM_COMMENT_PRICE_CENTS;
+  const unitCost = wantsSuggestion ? SUGGESTED_COMMENT_PRICE_CENTS : FORUM_COMMENT_PRICE_CENTS;
+  const cost = unitCost * (isBulk ? bulkQueue.length : 1);
   const hasEnoughCredit = balance >= cost;
-  const isValidUrl = /^https?:\/\/[^\s.]+\.[^\s]+/i.test(targetUrl.trim());
+  const isValidUrl = isBulk || /^https?:\/\/[^\s.]+\.[^\s]+/i.test(targetUrl.trim());
   const needsBrand = wantsSuggestion === true;
 
   const regenerateDraft = async () => {
@@ -647,7 +684,7 @@ function ForumCommentOrderForm({
         ? 'Thread-aware draft is ready to review'
         : 'Draft is ready. Thread access was limited, so review carefully.');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'AI generator failed';
+      const msg = err instanceof Error ? err.message : 'Draft assistant failed';
       toast.error(msg.toLowerCase().includes('api_key not configured')
         ? 'Draft assistant is not configured yet. Contact support before placing a suggested-comment order.'
         : msg);
@@ -657,6 +694,10 @@ function ForumCommentOrderForm({
   };
 
   const handleSuggestionChoice = (choice: boolean) => {
+    if (isBulk && choice) {
+      toast.error('Suggested comments are only available for one URL at a time. Bulk orders use your supplied comment/instructions.');
+      return;
+    }
     setWantsSuggestion(choice);
     if (!choice && !commentText) {
       setCommentText('');
@@ -679,6 +720,34 @@ function ForumCommentOrderForm({
     }
     if (!hasEnoughCredit) {
       toast.error('Insufficient credit. Top up to continue.');
+      return;
+    }
+
+    if (isBulk) {
+      setBulkSubmitting(true);
+      Promise.all(bulkQueue.map((target) => createForumCommentOrderAsync({
+        targetUrl: target.url,
+        platform: target.platform || detectForumPlatform(target.url) || null,
+        commentText: commentText.trim(),
+        useSuggestedComment: false,
+        brandName: brandName.trim() || null,
+        brandDomain: brandDomain.trim() || null,
+        brandMentionMode: null,
+        sourceKeyword: target.keyword || sourceKeyword || null,
+        notes: [
+          notes.trim(),
+          `bulk_source=ranking_forum`,
+          `bulk_target_title=${target.title}`,
+        ].filter(Boolean).join('\n') || null,
+      }))).then((orders) => {
+        const ids = orders.map((order: { id?: number } | null) => order?.id).filter(Boolean) as number[];
+        setBulkOrderIds(ids);
+        window.localStorage.removeItem(BULK_COMMENT_DRAFT_KEY);
+        toast.success(`${bulkQueue.length} comment orders placed. ${formatUSD(cost)} deducted from credit.`);
+        setShowSuccessModal(true);
+      }).catch((err: Error) => {
+        toast.error(err.message || 'Failed to create bulk comment orders');
+      }).finally(() => setBulkSubmitting(false));
       return;
     }
 
@@ -713,12 +782,12 @@ function ForumCommentOrderForm({
       {showSuccessModal && (
         <EmailWhitelistNotice
           variant="modal"
-          headline="Comment order placed"
-          context={newOrderId ? `for order #${newOrderId}` : undefined}
+          headline={isBulk ? 'Bulk comment orders placed' : 'Comment order placed'}
+          context={isBulk ? `${bulkOrderIds.length || bulkQueue.length} orders created` : newOrderId ? `for order #${newOrderId}` : undefined}
           primaryLabel="Got it - show me my orders"
           onDismiss={() => {
             setShowSuccessModal(false);
-            navigate(newOrderId ? `/reddit/orders/${newOrderId}` : '/reddit/orders');
+            navigate(!isBulk && newOrderId ? `/reddit/orders/${newOrderId}` : '/reddit/orders');
           }}
         />
       )}
@@ -774,6 +843,47 @@ function ForumCommentOrderForm({
           </div>
         )}
 
+        {isBulk && (
+          <div className="p-4 rounded-xl bg-orange-50 ring-1 ring-orange-100">
+            <div className="flex items-start justify-between gap-3 mb-3">
+              <div>
+                <p className="font-bold text-slate-900">Bulk queue from Ranking Forum</p>
+                <p className="text-sm text-slate-600">{bulkQueue.length} forum URLs selected. One comment order will be created per URL.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/reddit/ranking-forum')}
+                className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-white ring-1 ring-orange-200 text-sm font-semibold text-orange-700"
+              >
+                <ArrowLeft size={14} />
+                Back
+              </button>
+            </div>
+            <div className="space-y-2 max-h-72 overflow-auto pr-1">
+              {bulkQueue.map((target) => (
+                <div key={target.url} className="rounded-lg bg-white ring-1 ring-orange-100 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-slate-900">{target.title}</p>
+                      <p className="text-xs text-slate-500 mt-1 break-all">{target.url}</p>
+                      <p className="text-xs text-orange-700 font-semibold mt-1">{target.keyword}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setBulkQueue((current) => current.filter((item) => item.url !== target.url))}
+                      className="p-2 rounded-lg hover:bg-orange-50 text-slate-500"
+                      aria-label="Remove URL"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!isBulk && (
         <div>
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
             <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">1</span>
@@ -801,7 +911,9 @@ function ForumCommentOrderForm({
             )}
           </div>
         </div>
+        )}
 
+        {!isBulk && (
         <div>
           <label className="block text-sm font-semibold text-slate-900 mb-2">
             Platform label <span className="text-slate-400 font-normal">(optional)</span>
@@ -814,6 +926,7 @@ function ForumCommentOrderForm({
             className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-slate-900"
           />
         </div>
+        )}
 
         <div>
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-3">
@@ -824,8 +937,9 @@ function ForumCommentOrderForm({
             <button
               type="button"
               onClick={() => handleSuggestionChoice(true)}
+              disabled={isBulk}
               className={`text-left p-5 rounded-xl border-2 transition ${
-                wantsSuggestion === true ? 'border-orange-500 bg-orange-50' : 'border-slate-200 hover:border-slate-300'
+                wantsSuggestion === true ? 'border-orange-500 bg-orange-50' : isBulk ? 'border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed' : 'border-slate-200 hover:border-slate-300'
               }`}
             >
               <div className="flex items-center gap-2 mb-2">
@@ -833,10 +947,11 @@ function ForumCommentOrderForm({
                 <span className="font-bold text-slate-900">Yes, use suggested comment</span>
               </div>
               <p className="text-sm text-slate-600 leading-relaxed">
-                +10% price. Our editorial draft system reviews the public conversation, matches the thread's tone,
-                and prepares a helpful comment with a natural brand mention. You review and approve the final wording before ordering.
+                +10% price. Our editorial assistant reviews the public conversation, adapts to the thread's tone,
+                and drafts a useful reply with one natural brand mention. You review, edit, and approve the final wording before ordering.
               </p>
               <p className="mt-3 text-sm font-bold text-orange-700">{formatUSD(SUGGESTED_COMMENT_PRICE_CENTS)}</p>
+              {isBulk && <p className="mt-2 text-xs font-semibold text-slate-500">Single URL only</p>}
             </button>
             <button
               type="button"
@@ -911,12 +1026,12 @@ function ForumCommentOrderForm({
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold"
             >
               {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <RefreshCcw size={14} />}
-              {isGenerating ? 'Preparing draft...' : (commentText ? 'Regenerate comment' : 'Generate suggested comment')}
+              {isGenerating ? 'Preparing draft...' : (commentText ? 'Refresh suggested comment' : 'Create suggested comment')}
             </button>
             {generationMeta && (
               <p className="text-xs text-orange-900">
                 {generationMeta.fetchedContext
-                  ? 'Draft prepared after reading the thread context. Review tone, claims, and brand mention before checkout.'
+                  ? 'Draft prepared from the public thread context. Review tone, claims, and brand mention before checkout.'
                   : 'Draft prepared with limited thread context. Review carefully before checkout.'}
               </p>
             )}
@@ -926,18 +1041,18 @@ function ForumCommentOrderForm({
         <div>
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
             <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">3</span>
-            Final comment
+            {isBulk ? 'Comment / instruction for all selected URLs' : 'Final comment'}
           </label>
           <textarea
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
-            placeholder={wantsSuggestion ? 'Generate a suggestion, then edit it before ordering...' : 'Paste the exact comment you want us to place...'}
+            placeholder={isBulk ? 'Paste the exact comment or shared instruction to apply to all selected forum URLs...' : wantsSuggestion ? 'Generate a suggestion, then edit it before ordering...' : 'Paste the exact comment you want us to place...'}
             rows={7}
             className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-y text-slate-900"
             required
           />
           <p className="mt-2 text-xs text-slate-500">
-            You can edit the comment before checkout. Regenerating replaces this text.
+            {isBulk ? 'This same comment/instruction will be attached to every URL in the bulk queue.' : 'You can edit the comment before checkout. Regenerating replaces this text.'}
           </p>
         </div>
 
@@ -957,7 +1072,7 @@ function ForumCommentOrderForm({
         <div className="p-5 rounded-xl bg-slate-50 ring-1 ring-slate-200">
           <div className="flex justify-between text-sm mb-2">
             <span className="text-slate-600">Standard comment placement</span>
-            <span className="text-slate-900 font-semibold">{formatUSD(FORUM_COMMENT_PRICE_CENTS)}</span>
+            <span className="text-slate-900 font-semibold">{formatUSD(FORUM_COMMENT_PRICE_CENTS)} x {isBulk ? bulkQueue.length : 1}</span>
           </div>
           {wantsSuggestion && (
             <div className="flex justify-between text-sm mb-2">
@@ -982,14 +1097,14 @@ function ForumCommentOrderForm({
           disabled={!isValidUrl || wantsSuggestion === null || !hasEnoughCredit || isCreatingForumCommentOrder}
           className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-semibold transition shadow-lg shadow-orange-500/20"
         >
-          {isCreatingForumCommentOrder ? (
+          {isCreatingForumCommentOrder || bulkSubmitting ? (
             <>
               <Loader2 size={18} className="animate-spin" />
-              Placing order...
+              {isBulk ? 'Placing bulk orders...' : 'Placing order...'}
             </>
           ) : (
             <>
-              Place comment order
+              {isBulk ? `Place ${bulkQueue.length} comment orders` : 'Place comment order'}
               <ArrowRight size={18} />
             </>
           )}

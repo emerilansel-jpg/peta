@@ -114,8 +114,6 @@ export interface GenerateForumCommentInput {
 
 export async function generateForumComment(input: GenerateForumCommentInput): Promise<{
   comment: string;
-  provider: string;
-  model?: string;
   fetched_context?: boolean;
   fetch_reason?: string | null;
 }> {
@@ -131,19 +129,16 @@ export async function generateForumComment(input: GenerateForumCommentInput): Pr
   });
 
   if (error) {
-    throw new Error(error.message || 'AI generator failed');
+    throw new Error(error.message || 'Draft assistant failed');
   }
   if ((data as { error?: string })?.error) {
-    const provider = (data as { provider?: string }).provider;
     if ((data as { error: string }).error === 'DRAFT_PROVIDER_NOT_CONFIGURED') {
-      throw new Error(`${provider === 'claude' ? 'Claude' : 'Selected'} draft provider is not configured`);
+      throw new Error('The draft assistant is not configured yet. Contact support before placing a suggested-comment order.');
     }
     throw new Error((data as { error: string }).error);
   }
   return data as {
     comment: string;
-    provider: string;
-    model?: string;
     fetched_context?: boolean;
     fetch_reason?: string | null;
   };
@@ -204,7 +199,7 @@ export async function createForumCommentOrder(input: ForumCommentOrderInput) {
 export interface RankingKeywordIdea {
   keyword: string;
   volume: number;
-  competition: 'Low' | 'Medium';
+  competition: 'Low' | 'Medium' | 'High';
   intent: string;
 }
 

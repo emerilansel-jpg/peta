@@ -160,6 +160,11 @@ function sanitizeComment(comment: string, input: GenerateForumCommentRequest) {
   let next = comment.replace(/^["']|["']$/g, '').replace(/—/g, '-').trim();
   const domain = normalizeDomain(input.brand_domain);
   const brand = displayBrand(input);
+  next = next
+    .replace(/\u00e2\u20ac\u201d/g, '-')
+    .replace(/[\u2013\u2014]/g, '-')
+    .replace(/^(final comment|comment|draft|suggested comment)\s*:\s*/i, '')
+    .trim();
 
   if (input.mention_mode === 'plain') {
     next = next.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/gi, '$1');
@@ -301,8 +306,6 @@ Deno.serve(async (req: Request) => {
 
     return json({
       comment,
-      provider: generation.provider,
-      model: generation.model,
       fetched_context: thread.fetched,
       fetch_reason: thread.reason || null,
     });

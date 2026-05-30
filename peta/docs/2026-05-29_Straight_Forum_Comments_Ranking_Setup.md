@@ -7,9 +7,13 @@
 - Standard comment order costs `$5.00`.
 - Suggested comment assistant costs `$5.50` (+10%).
 - Suggested flow asks for brand/domain and plain-text vs link mention.
-- DeepSeek draft appears in the textarea and can be edited or regenerated.
-- `/reddit/ranking-forum` helps users pick a low-competition keyword, scans a Google top-10 style result set, keeps forum/discussion pages, then sends the chosen URL into the comment flow.
-- When DataForSEO secrets are configured, the keyword step uses Google Ads search volume plus live Google Organic top-10/forum-density signals. Google Custom Search remains a secondary fallback only.
+- Suggested draft appears in the textarea and can be edited or refreshed; clients do not see the internal model/provider.
+- `/reddit/ranking-forum` is a step-by-step discovery flow: seed keyword -> paginated keyword ideas -> forum URL selection -> bulk order review.
+- The keyword step can return many keyword ideas and displays 25 keywords per page with next/previous pagination.
+- Clients can select multiple keywords, then select multiple forum URLs from the scanned Google top-10 results.
+- The results panel only shows forum/discussion URLs found in each Google top-10 scan. Non-forum Google results are hidden; keywords with no forum URL are labeled as no forum.
+- The selected forum URL queue is checked against available credit before continuing into bulk order checkout.
+- The Ranking Forum draft is persisted in `localStorage`, so refresh/backtracking returns clients to the step where they left off.
 - Comment orders are stored in `reddit_upvote_orders` with `target_type='comment'`; details are stored as JSON text in `notes`.
 
 ## Required Supabase migration
@@ -118,7 +122,8 @@ Expected production output contains `yorlsgzsawchpeeazcvi` and does not contain 
 11. Open `/reddit/orders` and confirm it shows Comment, not Upvotes.
 12. Open order detail and confirm final comment is visible.
 13. Open `/reddit/admin/orders` and confirm admin can see final comment, brand, mention mode, and mark order completed.
-14. Open `/reddit/ranking-forum`, enter a seed topic, pick a keyword, choose a forum result, and confirm it pre-fills the comment order URL and keyword.
+14. Open `/reddit/ranking-forum`, enter a seed topic, confirm keyword suggestions are paginated 25 per page, select multiple keywords, scan them, select multiple forum URLs, refresh the page, and confirm it restores the previous step.
+15. Continue from the Ranking Forum review step into `/reddit/new-order?service=comments&bulk=ranking-forum`, confirm the bulk queue appears, and confirm credit gating blocks checkout when balance is insufficient.
 
 ## Notes
 

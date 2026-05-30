@@ -419,10 +419,10 @@ export function TaskDetail() {
           num={2}
           done={false}
           active={threadOpened}
-          title={isUpvote ? 'Klik tombol upvote' : `Tulis komentar di ${platformLabel}`}
+          title={isUpvote ? 'Klik tombol upvote' : `Post komentar di ${platformLabel}`}
           subtitle={isUpvote
             ? 'Pastikan panah upvote berubah jadi warna terang. Itu tanda upvote sukses.'
-            : 'Ikuti brief. Komentar harus natural, membantu, dan tidak terlihat seperti spam.'
+            : 'Copy komentar yang sudah disediakan. Brief biru hanya untuk cara posting yang aman.'
           }
         >
           {/* Brief from admin â€” specific instructions for THIS task */}
@@ -430,7 +430,7 @@ export function TaskDetail() {
             <div className="space-y-3 mb-3">
               <div className="bg-yellow-50 ring-1 ring-yellow-300 rounded-xl p-3">
                 <p className="text-[10px] uppercase font-bold tracking-wide text-yellow-900 mb-1">
-                  Comment/Post yang harus diisi
+                  Komentar yang harus diposting
                 </p>
                 <p className="text-sm text-yellow-950 whitespace-pre-line leading-relaxed">
                   {splitForumBrief(task.brief).commentPost}
@@ -438,10 +438,10 @@ export function TaskDetail() {
               </div>
               <div className="bg-sky-50 ring-1 ring-sky-300 rounded-xl p-3">
                 <p className="text-[10px] uppercase font-bold tracking-wide text-sky-900 mb-1">
-                  Standard brief platform
+                  Cara posting aman
                 </p>
                 <p className="text-sm text-sky-950 whitespace-pre-line leading-relaxed">
-                  {splitForumBrief(task.brief).standardBrief}
+                  {memberSafePostingBrief(splitForumBrief(task.brief).standardBrief)}
                 </p>
               </div>
             </div>
@@ -675,6 +675,25 @@ function splitForumBrief(raw: string | null | undefined) {
   const platformStart = text.indexOf(platformMarker);
   const standardBrief = platformStart >= 0 ? text.slice(platformStart).trim() : standardStart >= 0 ? text.slice(standardStart).trim() : '';
   return { commentPost, standardBrief };
+}
+
+function memberSafePostingBrief(raw: string) {
+  return raw
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .filter((line) => {
+      const lower = line.toLowerCase();
+      return ![
+        'jawab seperti praktisi',
+        'mention brand',
+        'komentar harus menjawab',
+        'tulis komentar',
+        'tulis komentar/post',
+        'tulis komentar natural',
+      ].some((blocked) => lower.includes(blocked));
+    })
+    .join('\n')
+    .trim();
 }
 
 // ============================================================

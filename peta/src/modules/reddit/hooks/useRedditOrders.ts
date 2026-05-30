@@ -42,6 +42,7 @@ export function useRedditOrders() {
     createOrder: createOrderMutation.mutate,
     isCreating: createOrderMutation.isPending,
     createForumCommentOrder: createForumCommentOrderMutation.mutate,
+    createForumCommentOrderAsync: createForumCommentOrderMutation.mutateAsync,
     isCreatingForumCommentOrder: createForumCommentOrderMutation.isPending,
     error: createOrderMutation.error,
   };

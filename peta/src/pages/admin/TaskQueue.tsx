@@ -1259,8 +1259,8 @@ function buildStandardBriefTemplate(platform: string, targetUrl: string) {
       '- Login / Join Community dengan email aktif.',
       '- Lengkapi profil secukupnya supaya tidak terlihat kosong.',
       '- Baca thread dan reply sebelumnya sebelum komentar.',
-      '- Jawab seperti praktisi: beri insight singkat, contoh, atau caveat.',
-      '- Mention brand hanya jika relevan dengan problem di thread.',
+      '- Pakai komentar final yang sudah disediakan. Edit kecil hanya kalau perlu supaya nyambung dengan thread.',
+      '- Jangan tambah link kalau thread tidak secara natural membutuhkan link.',
     ] : [
       `Platform-specific ${platform}:`,
       '- Login atau daftar akun jika dibutuhkan.',
@@ -1272,7 +1272,7 @@ function buildStandardBriefTemplate(platform: string, targetUrl: string) {
 
   return [
     'COMMENT/POST YANG HARUS DIISI:',
-    'Tulis instruksi atau komentar final dari client di sini. Edit bagian ini sebelum task diaktifkan.',
+    'Isi komentar final yang harus diposting member di sini. Member akan diminta copy komentar ini.',
     '',
     'DETAIL ORDER:',
     `- Platform: ${platform}`,
@@ -1283,7 +1283,7 @@ function buildStandardBriefTemplate(platform: string, targetUrl: string) {
     '1. Buka target URL.',
     '2. Login atau daftar akun kalau platform meminta.',
     '3. Baca thread/post dan aturan komunitas.',
-    '4. Tulis komentar/post sesuai instruksi di atas.',
+    '4. Copy komentar/post yang sudah disediakan, lalu edit kecil hanya kalau perlu supaya natural.',
     '5. Publish, lalu submit URL komentar/thread dan username yang dipakai.',
     '',
     ...platformSpecific,
@@ -1314,7 +1314,7 @@ function splitForumBrief(raw: string | null | undefined) {
     : standardStart >= 0
       ? text.slice(standardStart).trim()
       : detailStart >= 0 ? text.slice(detailStart).trim() : '';
-  return { commentPost, standardBrief };
+  return { commentPost, standardBrief: normalizePostingBrief(standardBrief) };
 }
 
 function combineForumBrief(commentPost: string, standardBrief: string) {
@@ -1328,6 +1328,22 @@ function combineForumBrief(commentPost: string, standardBrief: string) {
 
 function standardBriefForPlatform(platform: string, targetUrl: string) {
   return splitForumBrief(buildStandardBriefTemplate(platform, targetUrl)).standardBrief;
+}
+
+function normalizePostingBrief(raw: string) {
+  return raw
+    .split('\n')
+    .map((line) => {
+      if (/jawab seperti praktisi/i.test(line)) {
+        return '- Kalau perlu edit kecil, pastikan tetap terdengar natural dan sesuai konteks thread.';
+      }
+      if (/mention brand/i.test(line)) {
+        return '- Jangan tambah mention/link lain di luar komentar yang sudah disediakan.';
+      }
+      return line;
+    })
+    .join('\n')
+    .trim();
 }
 
 function buildWaGroupDraft({
