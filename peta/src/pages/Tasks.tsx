@@ -42,10 +42,10 @@ const ymdMinusDays = (n: number) => {
 };
 
 const STREAK_MILESTONES = [
-  { days: 3,  bonus: 5000,  label: 'Streak Pemula',  emoji: 'ðŸŒ±' },
-  { days: 7,  bonus: 10000, label: 'Streak Konsisten', emoji: 'ðŸ”¥' },
-  { days: 14, bonus: 25000, label: 'Streak Pejuang',  emoji: 'âš”ï¸' },
-  { days: 30, bonus: 75000, label: 'Streak Legend',   emoji: 'ðŸ‘‘' },
+  { days: 3,  bonus: 5000,  label: 'Streak Pemula',  emoji: 'OK' },
+  { days: 7,  bonus: 10000, label: 'Streak Konsisten', emoji: 'Hot' },
+  { days: 14, bonus: 25000, label: 'Streak Pejuang',  emoji: 'Pro' },
+  { days: 30, bonus: 75000, label: 'Streak Legend',   emoji: 'Top' },
 ];
 
 function useDailyStreak(uid?: string) {
@@ -166,7 +166,7 @@ export function Tasks() {
     mutationFn: retryRejectedAssignment,
     onSuccess: (_, assignmentId) => {
       const assignment = myAssignments.find((a) => a.id === assignmentId);
-      toast.success('OK â€” coba lagi ðŸ”„');
+      toast.success('OK, coba lagi');
       queryClient.invalidateQueries({ queryKey: ['myAssignments', user?.id] });
       if (assignment) {
         navigate(`/task/${assignment.task_id}`);
@@ -195,7 +195,7 @@ export function Tasks() {
   const dismissMutation = useMutation({
     mutationFn: dismissWaGroup,
     onSuccess: () => {
-      toast.success('Oke â€” link grup ga muncul lagi');
+      toast.success('Oke, link grup ga muncul lagi');
       queryClient.invalidateQueries({ queryKey: ['waDismissed', user?.id] });
     },
     onError: () => toast.error('Gagal hide. Coba lagi.'),
@@ -244,7 +244,7 @@ export function Tasks() {
           <Card className="mb-3 bg-danger/5 ring-2 ring-danger/40">
             <div className="flex items-start gap-3 mb-3">
               <div className="w-10 h-10 bg-danger text-white rounded-xl grid place-items-center shrink-0 text-lg">
-                â›”
+                !
               </div>
               <div className="flex-1">
                 <p className="font-extrabold text-danger">
@@ -264,7 +264,7 @@ export function Tasks() {
               fullWidth
               className="!bg-danger hover:!brightness-110 !text-white"
             >
-              ðŸ› ï¸ Fix Akun Reddit Sekarang
+              Fix Akun Reddit Sekarang
             </Button>
           </Card>
         )}
@@ -278,7 +278,7 @@ export function Tasks() {
         {rejectedAssignments.length > 0 && (
           <div className="mb-4">
             <h2 className="text-base sm:text-lg font-extrabold flex items-center gap-1.5 mb-2">
-              âš ï¸ Task ditolak
+              Task ditolak
               <span className="text-xs font-bold text-danger bg-danger/10 px-2 py-0.5 rounded-full">
                 {rejectedAssignments.length}
               </span>
@@ -317,7 +317,7 @@ export function Tasks() {
                     {isFinal ? (
                       <div className="bg-white ring-1 ring-danger/20 rounded-lg p-2 text-center">
                         <p className="text-xs font-bold text-danger">
-                          â›” Reject final â€” task ini tidak bisa di-submit ulang
+                          Reject final - task ini tidak bisa di-submit ulang
                         </p>
                         <p className="text-[10px] text-muted mt-0.5">
                           Lakuin task lain di bawah untuk earn dari ulang.
@@ -332,7 +332,7 @@ export function Tasks() {
                         fullWidth
                         className="!bg-danger hover:!brightness-110"
                       >
-                        ðŸ”„ Coba Lagi (upload bukti baru)
+                        Coba Lagi (upload bukti baru)
                       </Button>
                     )}
                   </Card>
@@ -351,7 +351,7 @@ export function Tasks() {
           <div className="mb-4">
             <div className="flex items-baseline justify-between mb-2">
               <h2 className="text-base sm:text-lg font-extrabold flex items-center gap-1.5">
-                â³ Lagi diverify admin
+                Lagi diverify admin
                 <span className="text-xs font-bold text-warning bg-warning/10 px-2 py-0.5 rounded-full">
                   {pendingAssignments.length}
                 </span>
@@ -428,7 +428,7 @@ export function Tasks() {
           <div className="mb-5">
             <div className="flex items-baseline justify-between mb-2">
               <h2 className="text-lg sm:text-xl font-extrabold flex items-center gap-2">
-                ðŸ”¥ Task aktif buat kamu
+                Task aktif buat kamu
               </h2>
               <span className="text-xs font-bold text-success bg-success/10 px-2 py-0.5 rounded-full">
                 {eligibleTasks.length} tersedia
@@ -437,10 +437,10 @@ export function Tasks() {
             <div className="space-y-2">
               {eligibleTasks.map((t) => {
                 const categoryLabel =
-                  t.task_category === 'reddit_upvote' ? 'ðŸ‘ Reddit Upvote' :
-                  t.task_category === 'reddit_post_thread' ? 'ðŸ“ Reddit Post' :
-                  t.task_category === 'forum_comment' ? `ðŸ’¬ ${platformForTask(t)} Comment` :
-                  'ðŸ’¬ Reddit Comment';
+                  t.task_category === 'reddit_upvote' ? 'Reddit Upvote' :
+                  t.task_category === 'reddit_post_thread' ? 'Reddit Post' :
+                  t.task_category === 'forum_comment' ? `${platformForTask(t)} Comment` :
+                  'Reddit Comment';
                 const slotsLeft = Math.max(t.max_assignments - t.current_assignments, 0);
                 return (
                   <Card
@@ -482,9 +482,8 @@ export function Tasks() {
         )}
 
         {/* Empty state â€” Reddit setup OK but no eligible tasks right now. */}
-        {!needsReddit && !tasksLoading && eligibleTasks.length === 0 && (
+        {!needsReddit && !tasksLoading && eligibleTasks.length === 0 && inProgressAssignments.length === 0 && pendingAssignments.length === 0 && (
           <Card className="mb-5 text-center py-6" padding="sm">
-            <div className="text-3xl mb-1">â³</div>
             <p className="font-bold text-sm">Belum ada task aktif buat kamu</p>
             <p className="text-xs text-muted mt-1">
               Admin lagi siapin task baru. Pantau grup WA biar dapat duluan.

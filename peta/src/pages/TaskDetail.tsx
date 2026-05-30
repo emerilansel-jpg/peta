@@ -78,6 +78,11 @@ export function TaskDetail() {
     },
     enabled: !!taskId,
   });
+  const category = task?.task_category || task?.task_type;
+  const isUpvote = category === 'reddit_upvote' || task?.task_type === 'upvote';
+  const isForumComment = category === 'forum_comment';
+  const isComment = isForumComment || category === 'reddit_comment' || task?.task_type === 'comment';
+  const platformLabel = task ? platformForTask(task) : 'Forum';
 
   const startMutation = useMutation({
     mutationFn: () => createTaskAssignment(taskId!, selectedAccountId || null),
@@ -132,7 +137,7 @@ export function TaskDetail() {
       if (!user) throw new Error('Auth required');
       const url = await uploadTaskProofImage({ userId: user.id, taskId: taskId!, file });
       setProofImageUrl(url);
-      toast.success('Screenshot ter-upload âœ…');
+      toast.success('Screenshot ter-upload');
     } catch (e: any) {
       toast.error(`Upload gagal: ${e.message || e}`);
     } finally {
@@ -147,7 +152,6 @@ export function TaskDetail() {
     return (
       <Layout userRole="army">
         <div className="max-w-md mx-auto text-center py-12">
-          <div className="text-5xl mb-3">ðŸ¤·</div>
           <h2 className="text-2xl font-extrabold mb-2">Task tidak ditemukan</h2>
           <Button onClick={() => navigate('/tasks')} variant="primary" fullWidth>Kembali ke daftar</Button>
         </div>
@@ -155,12 +159,7 @@ export function TaskDetail() {
     );
   }
 
-  const minutes = task.reward_amount > 15000 ? '5â€“10' : '3â€“5';
-  const category = task.task_category || task.task_type;
-  const isUpvote = category === 'reddit_upvote' || task.task_type === 'upvote';
-  const isForumComment = category === 'forum_comment';
-  const isComment = isForumComment || category === 'reddit_comment' || task.task_type === 'comment';
-  const platformLabel = platformForTask(task);
+  const minutes = task.reward_amount > 15000 ? '5-10' : '3-5';
   // Step 3 is unlocked once user has opened the thread (or skipped the
   // visual nudge). We don't actually gate the upload behind this â€” that
   // would block a returning user. But it does drive the active-step UI.
@@ -175,7 +174,6 @@ export function TaskDetail() {
         <ConfettiBurst active={confetti} onDone={() => setConfetti(false)} />
         <div className="max-w-2xl mx-auto pb-8">
           <Card className="bg-gradient-to-br from-success/15 via-success/5 to-secondary/10 ring-success/30 text-center py-7">
-            <div className="text-6xl mb-3">ðŸŽ‰</div>
             <h1 className="text-3xl font-extrabold text-success mb-2">Tersubmit!</h1>
             <p className="text-base text-dark/85 mb-4">
               Admin lagi verify screenshot kamu sekarang.
@@ -183,19 +181,19 @@ export function TaskDetail() {
 
             <div className="bg-white rounded-2xl p-4 mb-5 ring-1 ring-success/30 max-w-sm mx-auto">
               <p className="text-xs uppercase font-bold tracking-wide text-muted mb-1">
-                â±ï¸ Estimasi approval
+                Estimasi approval
               </p>
               <p className="text-xl font-extrabold text-success leading-tight">
                 Max 3 hari kerja
               </p>
               <p className="text-sm text-muted mt-1">
-                Biasanya jauh lebih cepat â€” <b className="text-success">rata-rata 24 jam</b>.
+                Biasanya jauh lebih cepat - <b className="text-success">rata-rata 24 jam</b>.
                 Kalau approved, reward <b className="money">Rp{task.reward_amount.toLocaleString('id-ID')}</b> otomatis masuk saldo.
               </p>
             </div>
 
             <p className="text-sm font-bold mb-3 text-dark">
-              Sambil nunggu, jangan diem aja ðŸ‘‡
+              Sambil nunggu, jangan diem aja
             </p>
           </Card>
 
@@ -211,7 +209,7 @@ export function TaskDetail() {
               <div className="flex-1 text-left min-w-0">
                 <p className="font-extrabold text-base leading-tight">Lakuin task lain dulu</p>
                 <p className="text-xs opacity-90 mt-0.5">
-                  Cuan dobel â€” bisa kerjain task aktif lain selagi nunggu approval.
+                  Cuan dobel - bisa kerjain task aktif lain selagi nunggu approval.
                 </p>
               </div>
               <ArrowRight size={20} className="shrink-0" />
@@ -227,7 +225,7 @@ export function TaskDetail() {
               <div className="flex-1 text-left min-w-0">
                 <p className="font-extrabold text-base leading-tight">Bangun karma Reddit</p>
                 <p className="text-xs text-muted mt-0.5">
-                  Karma naik = reward task naik (Rp5K â†’ Rp20K) + buka task premium.
+                  Karma naik = reward task naik (Rp5K ke Rp20K) + buka task premium.
                 </p>
               </div>
               <ArrowRight size={20} className="shrink-0 text-muted" />
@@ -254,7 +252,7 @@ export function TaskDetail() {
             onClick={() => navigate('/tasks')}
             className="w-full mt-5 text-sm text-muted font-semibold hover:text-dark tap-shrink py-2"
           >
-            â† Kembali ke daftar task
+            Kembali ke daftar task
           </button>
         </div>
       </Layout>
@@ -317,7 +315,7 @@ export function TaskDetail() {
               disabled={!selectedAccountId}
               fullWidth
             >
-              âœ¨ Mulai Task
+              Mulai Task
             </Button>
           </Card>
         </div>
@@ -373,8 +371,8 @@ export function TaskDetail() {
               <h1 className="text-xl sm:text-2xl font-extrabold mb-2 leading-tight">{task.title}</h1>
               <p className="text-sm text-muted">{task.description}</p>
               <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted">
-                <span>â±ï¸ {minutes} min</span>
-                <span>ðŸ‘¥ {task.current_assignments}/{task.max_assignments} dikerjakan</span>
+                <span>{minutes} min</span>
+                <span>{task.current_assignments}/{task.max_assignments} dikerjakan</span>
               </div>
             </div>
             <div className="text-right shrink-0">
@@ -478,7 +476,7 @@ export function TaskDetail() {
                 <X size={16} />
               </button>
               <span className="absolute bottom-2 left-2 text-[10px] font-bold bg-success text-white px-2 py-0.5 rounded-full">
-                âœ“ Terupload
+                Terupload
               </span>
             </div>
           ) : (
@@ -497,13 +495,13 @@ export function TaskDetail() {
                 {uploadingProof ? (
                   <>
                     <Upload size={28} className="text-primary animate-pulse" />
-                    <p className="text-sm font-bold text-primary">Uploadingâ€¦</p>
+                    <p className="text-sm font-bold text-primary">Uploading...</p>
                   </>
                 ) : (
                   <>
                     <Camera size={32} className="text-primary" />
                     <p className="text-sm font-bold text-dark">Tap untuk foto / pilih dari galeri</p>
-                    <p className="text-[11px] text-muted">JPG, PNG, WEBP â€” max 5 MB</p>
+                    <p className="text-[11px] text-muted">JPG, PNG, WEBP - max 5 MB</p>
                   </>
                 )}
               </div>
@@ -544,7 +542,7 @@ export function TaskDetail() {
               <textarea
                 value={draftComment}
                 onChange={(e) => setDraftComment(e.target.value)}
-                placeholder="Optional: cerita singkat tentang komentar kamuâ€¦"
+                placeholder="Optional: cerita singkat tentang komentar kamu..."
                 className="w-full px-4 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition resize-none text-sm"
                 rows={3}
               />
@@ -567,7 +565,7 @@ export function TaskDetail() {
               disabled={!canSubmit}
               fullWidth
             >
-              âœ… Submit untuk Approval
+              Submit untuk Approval
             </Button>
             {!canSubmit && (
               <p className="text-[11px] text-muted text-center mt-2">
@@ -589,7 +587,7 @@ export function TaskDetail() {
             disabled={!canSubmit}
             fullWidth
           >
-            âœ… Submit untuk Approval
+            Submit untuk Approval
           </Button>
         </div>
       </div>
@@ -687,7 +685,7 @@ function ExampleScreenshot({ isUpvote }: { isUpvote: boolean }) {
   return (
     <div className="bg-light/60 rounded-xl p-3 ring-1 ring-black/5">
       <p className="text-[10px] uppercase font-bold tracking-wide text-muted mb-2">
-        ðŸ“· Contoh screenshot yang BENAR
+        Contoh screenshot yang benar
       </p>
       <div className="bg-white rounded-lg p-3 ring-1 ring-black/10 shadow-inner max-w-[280px] mx-auto">
         {isUpvote ? (
@@ -695,9 +693,9 @@ function ExampleScreenshot({ isUpvote }: { isUpvote: boolean }) {
             {/* Mock of Reddit upvote button â€” orange = upvoted */}
             <div className="flex items-start gap-2.5">
               <div className="flex flex-col items-center gap-1 shrink-0">
-                <div className="text-orange-500 text-2xl leading-none font-black animate-pulse">â–²</div>
+                <div className="text-orange-500 text-2xl leading-none font-black animate-pulse">▲</div>
                 <div className="text-[10px] font-bold text-orange-500">142</div>
-                <div className="text-gray-300 text-xl leading-none">â–¼</div>
+                <div className="text-gray-300 text-xl leading-none">▼</div>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="bg-gray-200 h-2.5 rounded w-4/5 mb-1.5" />
@@ -706,7 +704,7 @@ function ExampleScreenshot({ isUpvote }: { isUpvote: boolean }) {
               </div>
             </div>
             <div className="mt-3 pt-2 border-t border-gray-100 flex items-center gap-1.5 text-[9px] text-gray-400">
-              <span>r/example</span><span>â€¢</span><span>2h ago</span>
+              <span>r/example</span><span>-</span><span>2h ago</span>
             </div>
           </>
         ) : (
@@ -731,7 +729,7 @@ function ExampleScreenshot({ isUpvote }: { isUpvote: boolean }) {
       </div>
       <p className="text-[11px] text-muted mt-2 text-center leading-snug">
         {isUpvote
-          ? 'â†‘ Panah harus berwarna terang (orange/merah, tergantung tema). Sertakan URL bar juga biar admin verify.'
+          ? 'Panah harus berwarna terang (orange/merah, tergantung tema). Sertakan URL bar juga biar admin verify.'
           : 'Komentar dari username kamu harus terlihat. Kalau bisa sertakan URL bar dan waktu post.'
         }
       </p>

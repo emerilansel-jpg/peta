@@ -1341,22 +1341,23 @@ function buildWaGroupDraft({
   reward: number;
   commentPost: string;
 }) {
+  const safeReward = Number(reward || 5000);
+  const rewardLabel = `Rp${safeReward.toLocaleString('id-ID')}`;
+  const isHighReward = safeReward >= 50000;
+  const workSummary = (commentPost || '').trim();
   return [
-    'Task baru tersedia',
+    `${isHighReward ? 'HIGH REWARD TASK' : 'Task cepat tersedia'} - ${rewardLabel}`,
     '',
-    `Platform: ${platform}`,
-    `Task: ${title || 'Forum comment task'}`,
-    `Reward: Rp${Number(reward || 5000).toLocaleString('id-ID')}`,
+    `${title || `${platform} comment task`} sudah dibuka.`,
+    isHighReward
+      ? `Reward-nya jauh lebih besar dari task biasa: ${rewardLabel} untuk 1 slot.`
+      : `Reward: ${rewardLabel} untuk 1 slot.`,
     '',
-    'Yang dikerjakan:',
-    commentPost.trim() || 'Buka target, baca konteks thread/post, lalu tulis komentar natural sesuai brief.',
+    `Yang dikerjakan: ${workSummary || 'baca thread, tulis komentar natural sesuai brief, lalu submit bukti.'}`,
     '',
-    'Bukti submit:',
-    '- URL komentar/thread setelah komentar tampil',
-    '- Username yang dipakai di platform',
-    '- Screenshot optional tapi disarankan',
+    'Slot terbatas. Ambil sekarang sebelum keburu di-claim member lain.',
     '',
-    'Ambil task dari dashboard PeTa. Jangan spam dan ikuti rules platform.',
+    'CTA: buka dashboard PeTa > Tugas > ambil task ini > submit URL komentar + username. Screenshot optional tapi sangat disarankan.',
   ].join('\n');
 }
 
