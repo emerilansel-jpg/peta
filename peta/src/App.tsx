@@ -33,6 +33,7 @@ import { AdminClients as RedditAdminClients } from './modules/reddit/pages/admin
 import { AdminFinance as RedditAdminFinance } from './modules/reddit/pages/admin/AdminFinance';
 import { AdminReviews as RedditAdminReviews } from './modules/reddit/pages/admin/AdminReviews';
 import { AdminFeatureRequests as RedditAdminFeatureRequests } from './modules/reddit/pages/admin/AdminFeatureRequests';
+import { AdminSettings as RedditAdminSettings } from './modules/reddit/pages/admin/AdminSettings';
 
 // Admin Pages
 import { AdminDashboard } from './pages/admin/Dashboard';
@@ -137,6 +138,7 @@ function App() {
           <Route path="/reddit/admin/reviews" element={<AdminGuard><RedditAdminReviews /></AdminGuard>} />
           <Route path="/reddit/admin/feature-requests" element={<AdminGuard><RedditAdminFeatureRequests /></AdminGuard>} />
           <Route path="/reddit/admin/finance" element={<AdminGuard><RedditAdminFinance /></AdminGuard>} />
+          <Route path="/reddit/admin/settings" element={<AdminGuard><RedditAdminSettings /></AdminGuard>} />
 
           {/* Admin Routes (guarded) */}
           <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />

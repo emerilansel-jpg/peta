@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 
 type MentionMode = 'plain' | 'link';
+type DraftProvider = 'deepseek' | 'claude';
 
 type GenerateForumCommentRequest = {
   target_url: string;
@@ -9,6 +10,17 @@ type GenerateForumCommentRequest = {
   brand_domain?: string | null;
   mention_mode: MentionMode;
   extra_instructions?: string | null;
+};
+
+type StraightAiSettings = {
+  draft_provider: DraftProvider;
+  claude_model: string;
+  deepseek_model: string;
+};
+
+type PromptMessage = {
+  role: 'system' | 'user';
+  content: string;
 };
 
 const CORS = {
@@ -58,7 +70,7 @@ async function fetchThreadText(url: string): Promise<{ text: string; fetched: bo
   }
 }
 
-function buildPrompt(input: GenerateForumCommentRequest, threadText: string) {
+function buildPrompt(input: GenerateForumCommentRequest, threadText: string): PromptMessage[] {
   const brand = input.brand_name || input.brand_domain || '';
   const linkInstruction = input.mention_mode === 'link'
     ? 'Use one hyperlink exactly once for the brand/domain mention.'
@@ -94,6 +106,37 @@ function buildPrompt(input: GenerateForumCommentRequest, threadText: string) {
       ].filter(Boolean).join('\n'),
     },
   ];
+}
+
+async function getStraightAiSettings(req: Request): Promise<StraightAiSettings> {
+  const fallback: StraightAiSettings = {
+    draft_provider: 'deepseek',
+    claude_model: Deno.env.get('ANTHROPIC_MODEL') || 'claude-sonnet-4-20250514',
+    deepseek_model: Deno.env.get('DEEPSEEK_MODEL') || 'deepseek-chat',
+  };
+
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  const authHeader = req.headers.get('Authorization');
+  if (!supabaseUrl || !anonKey || !authHeader) return fallback;
+
+  const r = await fetch(`${supabaseUrl}/rest/v1/straight_ai_settings?id=eq.true&select=draft_provider,claude_model,deepseek_model`, {
+    headers: {
+      'apikey': anonKey,
+      'Authorization': authHeader,
+    },
+  }).catch(() => null);
+  if (!r?.ok) return fallback;
+
+  const rows = await r.json().catch(() => []) as Partial<StraightAiSettings>[];
+  const row = rows[0];
+  if (!row) return fallback;
+
+  return {
+    draft_provider: row.draft_provider === 'claude' ? 'claude' : 'deepseek',
+    claude_model: row.claude_model || fallback.claude_model,
+    deepseek_model: row.deepseek_model || fallback.deepseek_model,
+  };
 }
 
 function normalizeDomain(domain?: string | null) {
@@ -143,16 +186,80 @@ function sanitizeComment(comment: string, input: GenerateForumCommentRequest) {
   return `${next} [${brand}](${href})`.trim();
 }
 
+async function generateWithDeepSeek(messages: PromptMessage[], model: string) {
+  const apiKey = Deno.env.get('DEEPSEEK_API_KEY');
+  if (!apiKey) return { error: 'DRAFT_PROVIDER_NOT_CONFIGURED' };
+
+  const r = await fetch('https://api.deepseek.com/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      temperature: 0.7,
+      max_tokens: 280,
+      stream: false,
+    }),
+  });
+
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) return { error: 'draft_generation_failed', detail: data };
+
+  return {
+    comment: String(data?.choices?.[0]?.message?.content || '').trim(),
+    provider: 'deepseek' as const,
+    model,
+  };
+}
+
+async function generateWithClaude(messages: PromptMessage[], model: string) {
+  const apiKey = Deno.env.get('ANTHROPIC_API_KEY');
+  if (!apiKey) return { error: 'DRAFT_PROVIDER_NOT_CONFIGURED' };
+
+  const system = messages.find((message) => message.role === 'system')?.content || '';
+  const userMessages = messages
+    .filter((message) => message.role !== 'system')
+    .map((message) => ({ role: 'user', content: message.content }));
+
+  const r = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model,
+      system,
+      messages: userMessages,
+      temperature: 0.7,
+      max_tokens: 280,
+    }),
+  });
+
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) return { error: 'draft_generation_failed', detail: data };
+
+  const textBlocks = Array.isArray(data?.content)
+    ? data.content.filter((part: { type?: string; text?: string }) => part.type === 'text').map((part: { text?: string }) => part.text || '')
+    : [];
+
+  return {
+    comment: textBlocks.join('\n').trim(),
+    provider: 'claude' as const,
+    model,
+  };
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
   try {
     const payload = await req.json() as GenerateForumCommentRequest;
-    const apiKey = Deno.env.get('DEEPSEEK_API_KEY');
-    const model = Deno.env.get('DEEPSEEK_MODEL') || 'deepseek-chat';
-
-    if (!apiKey) return json({ error: 'DEEPSEEK_API_KEY not configured' }, 500);
     if (!payload.target_url || !/^https?:\/\//i.test(payload.target_url)) {
       return json({ error: 'valid target_url required' }, 400);
     }
@@ -165,33 +272,34 @@ Deno.serve(async (req: Request) => {
 
     const thread = await fetchThreadText(payload.target_url);
     const messages = buildPrompt(payload, thread.text);
+    const settings = await getStraightAiSettings(req);
+    const model = settings.draft_provider === 'claude' ? settings.claude_model : settings.deepseek_model;
+    const generation = settings.draft_provider === 'claude'
+      ? await generateWithClaude(messages, model)
+      : await generateWithDeepSeek(messages, model);
 
-    const r = await fetch('https://api.deepseek.com/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        messages,
-        temperature: 0.7,
-        max_tokens: 280,
-        stream: false,
-      }),
-    });
+    if (generation.error === 'DRAFT_PROVIDER_NOT_CONFIGURED') {
+      return json({
+        error: 'DRAFT_PROVIDER_NOT_CONFIGURED',
+        provider: settings.draft_provider,
+      }, 500);
+    }
+    if (generation.error) {
+      return json({
+        error: generation.error,
+        provider: settings.draft_provider,
+        detail: generation.detail,
+      }, 502);
+    }
 
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok) return json({ error: 'deepseek_failed', detail: data }, 502);
-
-    let comment = String(data?.choices?.[0]?.message?.content || '').trim();
+    let comment = generation.comment || '';
     comment = sanitizeComment(comment, payload);
     if (!comment) return json({ error: 'empty_generation' }, 502);
 
     return json({
       comment,
-      provider: 'deepseek',
-      model,
+      provider: generation.provider,
+      model: generation.model,
       fetched_context: thread.fetched,
       fetch_reason: thread.reason || null,
     });

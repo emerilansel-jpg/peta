@@ -134,6 +134,10 @@ export async function generateForumComment(input: GenerateForumCommentInput): Pr
     throw new Error(error.message || 'AI generator failed');
   }
   if ((data as { error?: string })?.error) {
+    const provider = (data as { provider?: string }).provider;
+    if ((data as { error: string }).error === 'DRAFT_PROVIDER_NOT_CONFIGURED') {
+      throw new Error(`${provider === 'claude' ? 'Claude' : 'Selected'} draft provider is not configured`);
+    }
     throw new Error((data as { error: string }).error);
   }
   return data as {
@@ -143,6 +147,35 @@ export async function generateForumComment(input: GenerateForumCommentInput): Pr
     fetched_context?: boolean;
     fetch_reason?: string | null;
   };
+}
+
+export type StraightDraftProvider = 'deepseek' | 'claude';
+
+export type StraightAiSettings = {
+  draft_provider: StraightDraftProvider;
+  claude_model: string;
+  deepseek_model: string;
+  updated_at: string;
+};
+
+export async function getStraightAiSettings(): Promise<StraightAiSettings> {
+  const { data, error } = await supabase.rpc('admin_get_straight_ai_settings');
+  if (error) throw error;
+  return (Array.isArray(data) ? data[0] : data) as StraightAiSettings;
+}
+
+export async function updateStraightAiSettings(input: {
+  draftProvider: StraightDraftProvider;
+  claudeModel: string;
+  deepseekModel: string;
+}) {
+  const { data, error } = await supabase.rpc('admin_update_straight_ai_settings', {
+    p_draft_provider: input.draftProvider,
+    p_claude_model: input.claudeModel,
+    p_deepseek_model: input.deepseekModel,
+  });
+  if (error) throw error;
+  return data;
 }
 
 export async function createForumCommentOrder(input: ForumCommentOrderInput) {

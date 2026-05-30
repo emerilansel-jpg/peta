@@ -9,6 +9,7 @@ import {
   DollarSign,
   Star,
   Lightbulb,
+  Settings,
   LogOut,
   Menu,
   X,
@@ -34,7 +35,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     try {
       const count = await getAdminUnreadTicketsCount();
       setUnreadCount(count);
-    } catch {}
+    } catch {
+      setUnreadCount(0);
+    }
   };
 
   useEffect(() => {
@@ -66,6 +69,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     { href: '/reddit/admin/reviews', label: 'Reviews', icon: Star },
     { href: '/reddit/admin/feature-requests', label: 'Feature Requests', icon: Lightbulb },
     { href: '/reddit/admin/finance', label: 'Finance', icon: DollarSign },
+    { href: '/reddit/admin/settings', label: 'Settings', icon: Settings },
   ];
 
   const isActive = (href: string, exact?: boolean) => {
