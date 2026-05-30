@@ -166,9 +166,9 @@ BEGIN
   JOIN public.tasks t ON t.id = ta.task_id
   WHERE (
       ta.user_id = v_uid
-      OR ta.reddit_account_id IN (SELECT id FROM public.reddit_accounts WHERE user_id = v_uid)
+      OR ta.reddit_account_id IN (SELECT ra.id FROM public.reddit_accounts ra WHERE ra.user_id = v_uid)
     )
-    AND ta.status IN ('submitted','rejected')
+    AND ta.status IN ('in_progress','submitted','rejected')
   ORDER BY ta.created_at DESC
   LIMIT 50;
 END $$;

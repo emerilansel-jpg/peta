@@ -32,6 +32,7 @@ export function TaskDetail() {
   const [assignmentId, setAssignmentId] = React.useState<string>('');
   const [threadOpened, setThreadOpened] = React.useState(false);
   const [confetti, setConfetti] = React.useState(false);
+  const [checkingExistingAssignment, setCheckingExistingAssignment] = React.useState(true);
 
   React.useEffect(() => {
     (async () => {
@@ -44,8 +45,30 @@ export function TaskDetail() {
         setAccounts(accs);
         setSelectedAccountId(accs[0]?.id || '');
       }
+      const accountIds = (accs || []).map((a) => a.id);
+      const accountFilter = accountIds.length
+        ? `reddit_account_id.in.(${accountIds.join(',')})`
+        : 'reddit_account_id.is.null';
+      const { data: existing } = await supabase
+        .from('task_assignments')
+        .select('id, status, draft_comment, proof_url, submitted_username, proof_image_url')
+        .eq('task_id', taskId)
+        .or(`user_id.eq.${data.user.id},${accountFilter}`)
+        .in('status', ['in_progress', 'submitted'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (existing?.id) {
+        setAssignmentId(existing.id);
+        setDraftComment(existing.draft_comment || '');
+        setProofUrl(existing.proof_url || '');
+        setSubmittedUsername(existing.submitted_username || '');
+        setProofImageUrl(existing.proof_image_url || null);
+        setStage(existing.status === 'submitted' ? 'done' : 'submit');
+      }
+      setCheckingExistingAssignment(false);
     })();
-  }, [navigate]);
+  }, [navigate, taskId]);
 
   const { data: task, isLoading: taskLoading } = useQuery({
     queryKey: ['task', taskId],
@@ -72,6 +95,7 @@ export function TaskDetail() {
       stage === 'preview' &&
       ((accounts.length === 1 && selectedAccountId) || (isForumComment && accounts.length === 0)) &&
       !startMutation.isPending &&
+      !checkingExistingAssignment &&
       !assignmentId
     ) {
       startMutation.mutate();
