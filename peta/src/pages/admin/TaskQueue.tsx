@@ -1242,16 +1242,6 @@ function buildStandardBriefTemplate(platform: string, targetUrl: string) {
     '4. Tulis komentar/post sesuai instruksi di atas.',
     '5. Publish, lalu submit URL komentar/thread dan username yang dipakai.',
     '',
-    'STANDARD BRIEF UNIVERSAL:',
-    '- Baca target page/thread sampai paham konteks sebelum komentar.',
-    '- Komentar harus natural, membantu, dan spesifik terhadap pertanyaan/thread.',
-    '- Jangan terdengar seperti iklan, sales pitch, atau copy-paste template.',
-    '- Jangan klaim berlebihan. Kalau menyebut brand, jadikan side note yang relevan.',
-    '- Sesuaikan bahasa, panjang, dan tone dengan komunitas.',
-    '- Jangan kirim komentar yang sama berkali-kali.',
-    '- Kalau platform terlihat sensitif terhadap link, gunakan plain mention saja.',
-    '- Submit bukti: URL komentar/thread, username platform, dan screenshot optional tapi disarankan.',
-    '',
     ...platformSpecific,
   ].join('\n');
 }
@@ -1260,17 +1250,26 @@ function splitForumBrief(raw: string | null | undefined) {
   const text = raw || '';
   const commentMarker = 'COMMENT/POST YANG HARUS DIISI:';
   const detailMarker = 'DETAIL ORDER:';
+  const stepsMarker = 'LANGKAH KERJA UNTUK NEWBIE:';
   const standardMarker = 'STANDARD BRIEF UNIVERSAL:';
-  if (!text.includes(commentMarker) && !text.includes(standardMarker)) {
+  const platformMarker = 'Platform-specific';
+  if (!text.includes(commentMarker) && !text.includes(standardMarker) && !text.includes(platformMarker)) {
     return { commentPost: text, standardBrief: '' };
   }
   const afterComment = text.includes(commentMarker) ? text.split(commentMarker)[1] : text;
-  const commentPost = (afterComment.split(detailMarker)[0] || '').trim();
+  const nextMarkers = [detailMarker, stepsMarker, standardMarker, platformMarker]
+    .map((marker) => ({ marker, index: afterComment.indexOf(marker) }))
+    .filter((item) => item.index >= 0)
+    .sort((a, b) => a.index - b.index);
+  const commentPost = (nextMarkers.length ? afterComment.slice(0, nextMarkers[0].index) : afterComment).trim();
   const detailStart = text.indexOf(detailMarker);
   const standardStart = text.indexOf(standardMarker);
-  const standardBrief = standardStart >= 0
-    ? text.slice(standardStart).trim()
-    : detailStart >= 0 ? text.slice(detailStart).trim() : '';
+  const platformStart = text.indexOf(platformMarker);
+  const standardBrief = platformStart >= 0
+    ? text.slice(platformStart).trim()
+    : standardStart >= 0
+      ? text.slice(standardStart).trim()
+      : detailStart >= 0 ? text.slice(detailStart).trim() : '';
   return { commentPost, standardBrief };
 }
 

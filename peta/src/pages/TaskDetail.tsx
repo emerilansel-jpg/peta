@@ -638,14 +638,21 @@ function splitForumBrief(raw: string | null | undefined) {
   const text = raw || '';
   const commentMarker = 'COMMENT/POST YANG HARUS DIISI:';
   const detailMarker = 'DETAIL ORDER:';
+  const stepsMarker = 'LANGKAH KERJA UNTUK NEWBIE:';
   const standardMarker = 'STANDARD BRIEF UNIVERSAL:';
-  if (!text.includes(commentMarker) && !text.includes(standardMarker)) {
+  const platformMarker = 'Platform-specific';
+  if (!text.includes(commentMarker) && !text.includes(standardMarker) && !text.includes(platformMarker)) {
     return { commentPost: text, standardBrief: '' };
   }
   const afterComment = text.includes(commentMarker) ? text.split(commentMarker)[1] : text;
-  const commentPost = (afterComment.split(detailMarker)[0] || '').trim();
+  const nextMarkers = [detailMarker, stepsMarker, standardMarker, platformMarker]
+    .map((marker) => ({ marker, index: afterComment.indexOf(marker) }))
+    .filter((item) => item.index >= 0)
+    .sort((a, b) => a.index - b.index);
+  const commentPost = (nextMarkers.length ? afterComment.slice(0, nextMarkers[0].index) : afterComment).trim();
   const standardStart = text.indexOf(standardMarker);
-  const standardBrief = standardStart >= 0 ? text.slice(standardStart).trim() : text.replace(commentPost, '').trim();
+  const platformStart = text.indexOf(platformMarker);
+  const standardBrief = platformStart >= 0 ? text.slice(platformStart).trim() : standardStart >= 0 ? text.slice(standardStart).trim() : '';
   return { commentPost, standardBrief };
 }
 
