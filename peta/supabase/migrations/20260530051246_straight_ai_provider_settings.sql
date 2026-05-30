@@ -20,7 +20,7 @@ CREATE POLICY straight_ai_settings_read_authenticated
   ON public.straight_ai_settings
   FOR SELECT
   TO authenticated
-  USING (TRUE);
+  USING (public.is_admin());
 
 DROP POLICY IF EXISTS straight_ai_settings_admin_update ON public.straight_ai_settings;
 CREATE POLICY straight_ai_settings_admin_update

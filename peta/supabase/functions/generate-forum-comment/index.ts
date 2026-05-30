@@ -117,13 +117,16 @@ async function getStraightAiSettings(req: Request): Promise<StraightAiSettings> 
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL');
   const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   const authHeader = req.headers.get('Authorization');
-  if (!supabaseUrl || !anonKey || !authHeader) return fallback;
+  const apiKey = serviceRoleKey || anonKey;
+  const authorization = serviceRoleKey ? `Bearer ${serviceRoleKey}` : authHeader;
+  if (!supabaseUrl || !apiKey || !authorization) return fallback;
 
   const r = await fetch(`${supabaseUrl}/rest/v1/straight_ai_settings?id=eq.true&select=draft_provider,claude_model,deepseek_model`, {
     headers: {
-      'apikey': anonKey,
-      'Authorization': authHeader,
+      'apikey': apiKey,
+      'Authorization': authorization,
     },
   }).catch(() => null);
   if (!r?.ok) return fallback;
