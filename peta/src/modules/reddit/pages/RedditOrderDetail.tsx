@@ -28,6 +28,7 @@ import { MessageBubble } from './admin/AdminTickets';
 import { ReviewRequestModal } from '../components/ReviewRequestModal';
 import { EmailWhitelistNotice } from '../components/EmailWhitelistNotice';
 import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
+import { cleanInternalText } from '../../../lib/internalText';
 
 type RedditOrderRecord = {
   id: number;
@@ -87,7 +88,7 @@ function parseOrderNotes(raw: string | null) {
     const parsed = JSON.parse(raw);
     if (parsed?.service === 'forum_comment') {
       return {
-        clientNote: parsed.client_notes || '',
+        clientNote: cleanInternalText(parsed.client_notes || ''),
         commentText: parsed.comment_text || '',
         useSuggested: !!parsed.use_suggested_comment,
         sourceKeyword: parsed.source_keyword || '',
@@ -95,9 +96,9 @@ function parseOrderNotes(raw: string | null) {
       };
     }
   } catch {
-    return { clientNote: raw, commentText: '', useSuggested: false, sourceKeyword: '', brand: '' };
+    return { clientNote: cleanInternalText(raw), commentText: '', useSuggested: false, sourceKeyword: '', brand: '' };
   }
-  return { clientNote: raw, commentText: '', useSuggested: false, sourceKeyword: '', brand: '' };
+  return { clientNote: cleanInternalText(raw), commentText: '', useSuggested: false, sourceKeyword: '', brand: '' };
 }
 
 function serviceMeta(order: RedditOrderRecord) {

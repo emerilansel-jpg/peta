@@ -23,6 +23,7 @@ import {
 } from '../../lib/api';
 import { ImageUploadWithPaste } from '../../components/ImageUploadWithPaste';
 import { useRealtimeRefresh } from '../../hooks/useRealtimeRefresh';
+import { cleanInternalText } from '../../../../lib/internalText';
 
 const STATUS_CONFIG: Record<string, { label: string; class: string; dot: string }> = {
   pending: { label: 'Pending', class: 'bg-amber-50 text-amber-700 ring-amber-200', dot: 'bg-amber-500' },
@@ -64,7 +65,7 @@ function parseOrderNotes(raw: string | null) {
     const parsed = JSON.parse(raw);
     if (parsed?.service === 'forum_comment') {
       return {
-        clientNote: parsed.client_notes || '',
+        clientNote: cleanInternalText(parsed.client_notes || ''),
         commentText: parsed.comment_text || '',
         useSuggested: !!parsed.use_suggested_comment,
         brand: parsed.brand_name || parsed.brand_domain || '',
@@ -73,9 +74,9 @@ function parseOrderNotes(raw: string | null) {
       };
     }
   } catch {
-    return { clientNote: raw, commentText: '', useSuggested: false, brand: '', mentionMode: '', keyword: '' };
+    return { clientNote: cleanInternalText(raw), commentText: '', useSuggested: false, brand: '', mentionMode: '', keyword: '' };
   }
-  return { clientNote: raw, commentText: '', useSuggested: false, brand: '', mentionMode: '', keyword: '' };
+  return { clientNote: cleanInternalText(raw), commentText: '', useSuggested: false, brand: '', mentionMode: '', keyword: '' };
 }
 
 function serviceMetric(order: AdminOrderRecord) {

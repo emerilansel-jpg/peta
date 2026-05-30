@@ -9,6 +9,7 @@ import { supabase } from '../../lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import { toast } from '../../components/Toast';
 import { listPendingRedditOrders, importRedditOrder, adminUpdateTask } from '../../lib/api';
+import { cleanInternalText } from '../../lib/internalText';
 
 // Convert ISO timestamp → local-datetime input format (YYYY-MM-DDTHH:mm).
 function isoToLocalInput(iso: string | null | undefined): string {
@@ -391,7 +392,7 @@ export function AdminTaskQueue() {
                   <p className="font-bold leading-snug">
                     {t.title}
                   </p>
-                  <p className="text-xs text-muted line-clamp-1">{t.description}</p>
+                  <p className="text-xs text-muted line-clamp-1">{formatTaskDescription(t)}</p>
                   {t.brief && t.brief.trim() && (
                     // Brief preview — collapsible details so admin can scan + expand to verify
                     // what army members are seeing. Important for comment/post tasks where
@@ -401,7 +402,7 @@ export function AdminTaskQueue() {
                         Brief lengkap - klik buka
                       </summary>
                       <div className="mt-2 p-2.5 bg-yellow-50 ring-1 ring-yellow-200 rounded-lg text-xs whitespace-pre-line leading-relaxed text-yellow-950">
-                        {t.brief}
+                        {cleanInternalText(t.brief)}
                       </div>
                     </details>
                   )}
@@ -930,6 +931,25 @@ function formatGate(t: TaskRow) {
   if (Number(t.min_karma || 0) > 0) gates.push(`${Number(t.min_karma).toLocaleString('id-ID')} karma`);
   if (Number(t.min_account_age_days || 0) > 0) gates.push(`${Number(t.min_account_age_days).toLocaleString('id-ID')}d age`);
   return gates.length ? `Gate: ${gates.join(' + ')}` : 'Gate: all eligible members';
+}
+
+function formatTaskDescription(t: TaskRow) {
+  const raw = t.description || '';
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed?.service === 'forum_comment') {
+      const pieces = [
+        'Forum comment order',
+        parsed.platform ? `Platform: ${parsed.platform}` : '',
+        parsed.brand_name || parsed.brand_domain ? `Brand: ${parsed.brand_name || parsed.brand_domain}` : '',
+        parsed.source_keyword ? `Keyword: ${parsed.source_keyword}` : '',
+      ].filter(Boolean);
+      return pieces.join(' · ');
+    }
+  } catch {
+    // Non-JSON descriptions are regular PeTa task copy.
+  }
+  return cleanInternalText(raw);
 }
 
 function errorMessage(error: unknown, fallback: string) {
