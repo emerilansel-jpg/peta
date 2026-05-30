@@ -32,7 +32,7 @@ const UPVOTE_PRESETS  = [500, 1000, 1500, 2000];
 
 type FilterKey = 'all' | 'draft' | 'active' | 'paused';
 type TaskStatus = 'draft' | 'active' | 'paused' | 'completed';
-type TaskCategory = 'reddit_upvote' | 'reddit_comment' | 'reddit_post_thread';
+type TaskCategory = 'reddit_upvote' | 'reddit_comment' | 'reddit_post_thread' | 'forum_comment';
 
 type TaskRow = {
   id: string;
@@ -75,7 +75,7 @@ export function AdminTaskQueue() {
     description: '',
     brief: '',
     target_url: '',
-    task_category: 'reddit_comment' as 'reddit_upvote' | 'reddit_comment' | 'reddit_post_thread',
+    task_category: 'reddit_comment' as TaskCategory,
     reward_amount: '0',
     max_assignments: '1',
     per_account_limit: '1',
@@ -93,7 +93,7 @@ export function AdminTaskQueue() {
     description: '',
     brief: '',
     target_url: '',
-    task_category: 'reddit_comment' as 'reddit_upvote' | 'reddit_comment' | 'reddit_post_thread',
+    task_category: 'reddit_comment' as TaskCategory,
     reward_amount: '8000',
     max_assignments: '5',
     per_account_limit: '1',
@@ -916,6 +916,7 @@ function formatTaskCategory(t: TaskRow) {
   const category = t.task_category || (t.task_type === 'upvote' ? 'reddit_upvote' : 'reddit_comment');
   if (category === 'reddit_upvote') return 'Upvote';
   if (category === 'reddit_post_thread') return 'Post thread';
+  if (category === 'forum_comment') return 'Forum comment';
   return 'Comment';
 }
 

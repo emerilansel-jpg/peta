@@ -346,7 +346,16 @@ export async function createTaskAssignment(taskId: string, redditAccountId: stri
   return data;
 }
 
-export async function updateTaskAssignment(assignmentId: string, updates: any) {
+export type TaskAssignmentUpdate = {
+  draft_comment?: string | null;
+  proof_url?: string | null;
+  proof_image_url?: string | null;
+  submitted_url?: string | null;
+  submitted_username?: string | null;
+  status?: 'in_progress' | 'submitted' | 'approved' | 'rejected';
+};
+
+export async function updateTaskAssignment(assignmentId: string, updates: TaskAssignmentUpdate) {
   const { data, error } = await supabase
     .from('task_assignments')
     .update(updates)
@@ -993,7 +1002,7 @@ export async function importRedditOrder(opts: {
   return data;
 }
 
-export type TaskCategory = 'reddit_upvote' | 'reddit_comment' | 'reddit_post_thread';
+export type TaskCategory = 'reddit_upvote' | 'reddit_comment' | 'reddit_post_thread' | 'forum_comment';
 export type TaskStatus = 'draft' | 'active' | 'paused' | 'completed';
 
 export type AdminTaskUpdate = {

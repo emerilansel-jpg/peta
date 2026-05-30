@@ -25,6 +25,7 @@ export function TaskDetail() {
   const [selectedAccountId, setSelectedAccountId] = React.useState('');
   const [draftComment, setDraftComment] = React.useState('');
   const [proofUrl, setProofUrl] = React.useState('');
+  const [submittedUsername, setSubmittedUsername] = React.useState('');
   const [proofImageUrl, setProofImageUrl] = React.useState<string | null>(null);
   const [uploadingProof, setUploadingProof] = React.useState(false);
   const [stage, setStage] = React.useState<Stage>('preview');
@@ -84,6 +85,9 @@ export function TaskDetail() {
     mutationFn: () => updateTaskAssignment(assignmentId, {
       draft_comment: draftComment || null,
       proof_url: proofUrl || proofImageUrl || null,
+      submitted_url: proofUrl || null,
+      submitted_username: submittedUsername || null,
+      proof_image_url: proofImageUrl || null,
       status: 'submitted',
     }),
     onSuccess: () => {
@@ -130,14 +134,17 @@ export function TaskDetail() {
   }
 
   const minutes = task.reward_amount > 15000 ? '5–10' : '3–5';
-  const isUpvote = (task.task_category || task.task_type) === 'reddit_upvote' || task.task_type === 'upvote';
-  const isComment = (task.task_category || task.task_type) === 'reddit_comment' || task.task_type === 'comment';
+  const category = task.task_category || task.task_type;
+  const isUpvote = category === 'reddit_upvote' || task.task_type === 'upvote';
+  const isForumComment = category === 'forum_comment';
+  const isComment = isForumComment || category === 'reddit_comment' || task.task_type === 'comment';
+  const platformLabel = platformForTask(task);
   // Step 3 is unlocked once user has opened the thread (or skipped the
   // visual nudge). We don't actually gate the upload behind this — that
   // would block a returning user. But it does drive the active-step UI.
   const canSubmit = isUpvote
     ? !!proofImageUrl
-    : !!proofImageUrl || !!proofUrl.trim() || !!draftComment.trim();
+    : !!proofUrl.trim() && !!submittedUsername.trim();
 
   // ----- DONE STAGE — celebrate + nudge to the next high-value action -----
   if (stage === 'done') {
@@ -333,7 +340,7 @@ export function TaskDetail() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <span className="text-[10px] font-bold uppercase tracking-wide bg-primary/15 text-primary px-2 py-0.5 rounded-full">
-                  {isUpvote ? '👍 Reddit Upvote' : isComment ? '💬 Reddit Comment' : '📝 Reddit Task'}
+                  {isUpvote ? 'Upvote' : isComment ? `${platformLabel} Comment` : `${platformLabel} Task`}
                 </span>
               </div>
               <h1 className="text-xl sm:text-2xl font-extrabold mb-2 leading-tight">{task.title}</h1>
@@ -352,13 +359,13 @@ export function TaskDetail() {
           </div>
         </Card>
 
-        {/* ============ STEP 1 — BUKA THREAD REDDIT ============ */}
+        {/* ============ STEP 1 — BUKA TARGET ============ */}
         <StepCard
           num={1}
           done={threadOpened}
           active={!threadOpened}
-          title="Buka thread Reddit"
-          subtitle="Klik tombol di bawah — bakal kebuka di tab baru."
+          title={`Buka halaman ${platformLabel}`}
+          subtitle="Klik tombol di bawah. Target akan terbuka di tab baru."
         >
           <a
             href={task.target_url}
@@ -368,7 +375,7 @@ export function TaskDetail() {
             className="mt-1 flex items-center justify-between bg-white rounded-xl px-4 py-3 ring-2 ring-primary/30 hover:ring-primary/60 transition tap-shrink"
           >
             <div className="min-w-0">
-              <p className="text-[10px] text-muted uppercase font-bold tracking-wide">Thread target</p>
+              <p className="text-[10px] text-muted uppercase font-bold tracking-wide">Target URL</p>
               <p className="text-sm font-bold truncate text-primary">{task.target_url}</p>
             </div>
             <div className="ml-3 shrink-0 flex items-center gap-1.5 bg-primary text-white px-3 py-2 rounded-lg font-bold text-sm">
@@ -377,7 +384,7 @@ export function TaskDetail() {
           </a>
           {threadOpened && (
             <p className="text-xs text-success font-semibold mt-2 flex items-center gap-1">
-              <Check size={12} /> Thread terbuka — lanjut Step 2 di bawah.
+              <Check size={12} /> Target terbuka. Lanjut Step 2 di bawah.
             </p>
           )}
         </StepCard>
@@ -387,10 +394,10 @@ export function TaskDetail() {
           num={2}
           done={false}
           active={threadOpened}
-          title={isUpvote ? 'Klik tombol upvote (▲)' : 'Tulis komentar di thread'}
+          title={isUpvote ? 'Klik tombol upvote' : `Tulis komentar di ${platformLabel}`}
           subtitle={isUpvote
-            ? 'Pastikan panah upvote berubah jadi warna terang (orange/merah) — tanda upvote sukses.'
-            : 'Tulis komentar yang natural & helpful — jangan iklan / spam.'
+            ? 'Pastikan panah upvote berubah jadi warna terang. Itu tanda upvote sukses.'
+            : 'Ikuti brief. Komentar harus natural, membantu, dan tidak terlihat seperti spam.'
           }
         >
           {/* Brief from admin — specific instructions for THIS task */}
@@ -415,8 +422,8 @@ export function TaskDetail() {
           num={3}
           done={false}
           active={threadOpened}
-          title="Screenshot & submit bukti"
-          subtitle="Foto layar Reddit kamu — upload di sini supaya admin bisa verify."
+          title="Submit URL, username, dan bukti"
+          subtitle={isUpvote ? 'Screenshot wajib untuk upvote.' : 'URL komentar dan username wajib. Screenshot optional tapi disarankan.'}
         >
           {/* SCREENSHOT UPLOAD */}
           {proofImageUrl ? (
@@ -466,11 +473,11 @@ export function TaskDetail() {
             </label>
           )}
 
-          {/* For comment tasks — optional URL + draft text fields */}
+          {/* For comment tasks — submitted URL + platform username are required, screenshot is optional. */}
           {!isUpvote && (
             <>
               <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
-                🔗 (Opsional) URL komentar kamu
+                URL komentar / thread setelah komentar tampil
               </p>
               <div className="relative mb-3">
                 <LinkIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
@@ -478,13 +485,24 @@ export function TaskDetail() {
                   type="url"
                   value={proofUrl}
                   onChange={(e) => setProofUrl(e.target.value)}
-                  placeholder="https://reddit.com/r/.../comments/..."
+                  placeholder={isForumComment ? 'https://community.hubspot.com/...' : 'https://reddit.com/r/.../comments/...'}
                   className="w-full pl-10 pr-3 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm"
                 />
               </div>
 
               <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
-                💬 (Opsional) Catatan untuk admin
+                Username yang kamu pakai di {platformLabel}
+              </p>
+              <input
+                type="text"
+                value={submittedUsername}
+                onChange={(e) => setSubmittedUsername(e.target.value)}
+                placeholder={isForumComment ? 'Contoh: nama profile HubSpot kamu' : 'u/username'}
+                className="w-full px-4 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm mb-3"
+              />
+
+              <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
+                Catatan untuk admin (optional)
               </p>
               <textarea
                 value={draftComment}
@@ -498,7 +516,7 @@ export function TaskDetail() {
 
           {isUpvote && (
             <p className="text-xs text-warning bg-warning/10 px-3 py-2 rounded-lg mt-2">
-              📸 Upvote task: <b>screenshot wajib</b>. Pastikan panah upvote berwarna terang (aktif) — bisa orange atau merah, tergantung tema Reddit kamu.
+              Upvote task: <b>screenshot wajib</b>. Pastikan panah upvote berwarna terang/aktif.
             </p>
           )}
 
@@ -518,7 +536,7 @@ export function TaskDetail() {
               <p className="text-[11px] text-muted text-center mt-2">
                 {isUpvote
                   ? 'Upload screenshot dulu untuk submit.'
-                  : 'Upload screenshot, paste URL, atau tulis catatan dulu.'}
+                  : 'Isi URL komentar/thread dan username yang kamu pakai dulu.'}
               </p>
             )}
           </div>
@@ -590,6 +608,18 @@ function StepCard({
   );
 }
 
+function platformForTask(task: any) {
+  const category = task.task_category || task.task_type;
+  if (category === 'reddit_upvote' || category === 'reddit_comment' || task.task_type === 'upvote') return 'Reddit';
+  const text = `${task.title || ''} ${task.description || ''} ${task.target_url || ''}`.toLowerCase();
+  if (text.includes('hubspot')) return 'HubSpot';
+  if (text.includes('quora')) return 'Quora';
+  if (text.includes('indiehackers')) return 'Indie Hackers';
+  if (text.includes('stack')) return 'Stack Exchange';
+  if (text.includes('producthunt')) return 'Product Hunt';
+  return 'Forum';
+}
+
 // ============================================================
 // ExampleScreenshot — CSS-only visual mock of what valid proof
 // looks like. Saves an asset download + always matches our brand.
@@ -622,18 +652,18 @@ function ExampleScreenshot({ isUpvote }: { isUpvote: boolean }) {
           </>
         ) : (
           <>
-            {/* Mock of a Reddit comment thread with user's comment highlighted */}
+            {/* Mock of a forum comment thread with user's comment highlighted */}
             <div className="flex items-start gap-2">
               <div className="w-6 h-6 bg-primary/20 rounded-full shrink-0" />
               <div className="flex-1 min-w-0">
-                <div className="text-[9px] font-bold text-primary mb-1">u/kamu</div>
+                <div className="text-[9px] font-bold text-primary mb-1">username kamu</div>
                 <div className="bg-primary/10 ring-1 ring-primary/30 rounded-md p-2">
                   <div className="bg-gray-300 h-1.5 rounded w-full mb-1" />
                   <div className="bg-gray-300 h-1.5 rounded w-4/5 mb-1" />
                   <div className="bg-gray-300 h-1.5 rounded w-2/3" />
                 </div>
                 <div className="flex gap-2 mt-1.5 text-[8px] text-gray-400">
-                  <span>▲ 8</span><span>Reply</span><span>Share</span>
+                  <span>Reply</span><span>Share</span>
                 </div>
               </div>
             </div>
@@ -643,7 +673,7 @@ function ExampleScreenshot({ isUpvote }: { isUpvote: boolean }) {
       <p className="text-[11px] text-muted mt-2 text-center leading-snug">
         {isUpvote
           ? '↑ Panah harus berwarna terang (orange/merah, tergantung tema). Sertakan URL bar juga biar admin verify.'
-          : '↑ Komentar dari u/akun kamu harus kelihatan. Termasuk waktu post.'
+          : 'Komentar dari username kamu harus terlihat. Kalau bisa sertakan URL bar dan waktu post.'
         }
       </p>
     </div>

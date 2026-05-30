@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Check, X, ExternalLink, Clock, ImageIcon, AlertTriangle } from 'lucide-react';
+import { Check, X, ExternalLink, Clock, ImageIcon } from 'lucide-react';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
@@ -67,6 +67,9 @@ export function AdminApprovalQueue() {
         id: r.id,
         status: r.status,
         proof_url: r.proof_url,
+        proof_image_url: r.proof_image_url,
+        submitted_url: r.submitted_url,
+        submitted_username: r.submitted_username,
         draft_comment: r.draft_comment,
         admin_notes: r.admin_notes,
         created_at: r.created_at,
@@ -79,7 +82,7 @@ export function AdminApprovalQueue() {
           task_category: r.task_category,
           task_type: r.task_type,
         },
-        reddit_accounts: { username: r.reddit_username },
+        reddit_accounts: { username: r.submitted_username || r.reddit_username },
         army_email: r.army_email,
         army_name: r.army_name,
       }));
@@ -167,7 +170,7 @@ export function AdminApprovalQueue() {
                 <tr className="border-b border-border text-left">
                   <th className="px-2 py-2 font-semibold text-muted">Submitted</th>
                   <th className="px-2 py-2 font-semibold text-muted">Task</th>
-                  <th className="px-2 py-2 font-semibold text-muted">u/Username</th>
+                  <th className="px-2 py-2 font-semibold text-muted">Username</th>
                   <th className="px-2 py-2 font-semibold text-muted">Bukti</th>
                   <th className="px-2 py-2 font-semibold text-muted">Komentar</th>
                   <th className="px-2 py-2 font-semibold text-muted text-right">Reward</th>
@@ -176,9 +179,11 @@ export function AdminApprovalQueue() {
               </thead>
               <tbody>
                 {assignments.map((a: any) => {
-                  const hasProof = !!a.proof_url;
+                  const proofImage = a.proof_image_url || (/\.(png|jpe?g|gif|webp)(\?|$)/i.test(a.proof_url || '') ? a.proof_url : '');
+                  const submittedUrl = a.submitted_url || a.proof_url;
+                  const hasProof = !!proofImage;
                   const hasComment = !!a.draft_comment?.trim();
-                  const noEvidence = !hasProof && !hasComment;
+                  const noEvidence = !hasProof && !submittedUrl && !hasComment;
                   return (
                     <tr key={a.id} className={`border-b border-border last:border-0 hover:bg-light/60 ${noEvidence ? 'bg-warning/5' : ''}`}>
                       <td className="px-2 py-3 align-top whitespace-nowrap">
@@ -199,24 +204,32 @@ export function AdminApprovalQueue() {
                           </a>
                         )}
                       </td>
-                      <td className="px-2 py-3 align-top text-xs">u/{a.reddit_accounts?.username}</td>
+                      <td className="px-2 py-3 align-top text-xs">{a.reddit_accounts?.username || '-'}</td>
                       <td className="px-2 py-3 align-top">
                         {hasProof ? (
                           <button
-                            onClick={() => setLightbox({ src: a.proof_url, caption: `${a.tasks?.title} — u/${a.reddit_accounts?.username}` })}
+                            onClick={() => setLightbox({ src: proofImage, caption: `${a.tasks?.title} - ${a.reddit_accounts?.username}` })}
                             className="block w-16 h-16 rounded-lg overflow-hidden ring-1 ring-border hover:ring-primary transition group"
                             title="Klik untuk lihat besar"
                           >
                             <img
-                              src={a.proof_url}
+                              src={proofImage}
                               alt="Screenshot bukti"
                               className="w-full h-full object-cover group-hover:scale-105 transition"
                             />
                           </button>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] text-warning font-bold">
-                            <AlertTriangle size={11} /> no image
-                          </span>
+                          <span className="inline-flex items-center gap-1 text-[10px] text-muted font-bold">optional</span>
+                        )}
+                        {submittedUrl && (
+                          <a
+                            href={submittedUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-1 inline-flex items-center gap-1 text-[11px] text-primary font-semibold hover:underline"
+                          >
+                            Submitted URL <ExternalLink size={10} />
+                          </a>
                         )}
                       </td>
                       <td className="px-2 py-3 align-top max-w-xs">
@@ -269,7 +282,9 @@ export function AdminApprovalQueue() {
           {/* Mobile cards — compact, action-first */}
           <div className="md:hidden space-y-2">
             {assignments.map((a: any) => {
-              const hasProof = !!a.proof_url;
+              const proofImage = a.proof_image_url || (/\.(png|jpe?g|gif|webp)(\?|$)/i.test(a.proof_url || '') ? a.proof_url : '');
+              const submittedUrl = a.submitted_url || a.proof_url;
+              const hasProof = !!proofImage;
               const hasComment = !!a.draft_comment?.trim();
               return (
                 <Card key={a.id} padding="sm">
@@ -277,7 +292,7 @@ export function AdminApprovalQueue() {
                     <div className="min-w-0 flex-1">
                       <p className="font-bold text-sm leading-snug truncate">{a.tasks?.title}</p>
                       <div className="flex items-center gap-2 text-[11px] text-muted mt-0.5 flex-wrap">
-                        <span>u/{a.reddit_accounts?.username}</span>
+                        <span>{a.reddit_accounts?.username || '-'}</span>
                       </div>
                       <p className="text-[11px] text-muted flex items-center gap-1 mt-0.5">
                         <Clock size={10} /> {formatSubmittedAt(a.submitted_at || a.updated_at || a.created_at)}
@@ -291,10 +306,10 @@ export function AdminApprovalQueue() {
                   <div className="flex gap-2 items-stretch">
                     {hasProof ? (
                       <button
-                        onClick={() => setLightbox({ src: a.proof_url, caption: `${a.tasks?.title} — u/${a.reddit_accounts?.username}` })}
+                        onClick={() => setLightbox({ src: proofImage, caption: `${a.tasks?.title} - ${a.reddit_accounts?.username}` })}
                         className="w-20 h-20 rounded-lg overflow-hidden ring-1 ring-border shrink-0"
                       >
-                        <img src={a.proof_url} alt="Bukti" className="w-full h-full object-cover" />
+                        <img src={proofImage} alt="Bukti" className="w-full h-full object-cover" />
                       </button>
                     ) : (
                       <div className="w-20 h-20 rounded-lg bg-warning/10 ring-1 ring-warning/30 grid place-items-center shrink-0">
@@ -311,8 +326,8 @@ export function AdminApprovalQueue() {
                             {a.draft_comment}
                           </p>
                         </details>
-                      ) : !hasProof ? (
-                        <p className="text-[11px] text-warning">⚠️ No screenshot, no comment</p>
+                      ) : !hasProof && !submittedUrl ? (
+                        <p className="text-[11px] text-warning">No screenshot or URL</p>
                       ) : (
                         <p className="text-[11px] text-muted">No comment</p>
                       )}
@@ -324,6 +339,16 @@ export function AdminApprovalQueue() {
                           className="inline-flex items-center gap-1 text-[11px] text-primary font-semibold mt-1 hover:underline"
                         >
                           Buka thread <ExternalLink size={10} />
+                        </a>
+                      )}
+                      {submittedUrl && (
+                        <a
+                          href={submittedUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] text-primary font-semibold mt-1 hover:underline"
+                        >
+                          Submitted URL <ExternalLink size={10} />
                         </a>
                       )}
                     </div>
