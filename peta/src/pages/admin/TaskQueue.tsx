@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, X, Download, ExternalLink, Zap, Pencil, Calendar, ClipboardList, ShieldCheck, Clock3, Users } from 'lucide-react';
 import { Layout } from '../../components/Layout';
@@ -11,7 +11,7 @@ import { toast } from '../../components/Toast';
 import { listPendingRedditOrders, importRedditOrder, adminUpdateTask } from '../../lib/api';
 import { cleanInternalText } from '../../lib/internalText';
 
-// Convert ISO timestamp → local-datetime input format (YYYY-MM-DDTHH:mm).
+// Convert ISO timestamp â†’ local-datetime input format (YYYY-MM-DDTHH:mm).
 function isoToLocalInput(iso: string | null | undefined): string {
   if (!iso) return '';
   const d = new Date(iso);
@@ -19,7 +19,7 @@ function isoToLocalInput(iso: string | null | undefined): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-// Local-datetime input value (YYYY-MM-DDTHH:mm) → ISO string. Empty → null.
+// Local-datetime input value (YYYY-MM-DDTHH:mm) â†’ ISO string. Empty â†’ null.
 function localInputToIso(s: string): string | null {
   if (!s) return null;
   const d = new Date(s);
@@ -28,11 +28,18 @@ function localInputToIso(s: string): string | null {
 
 const COMMENT_PRESETS = [5000, 8000, 11000, 14000, 17000, 20000];
 const UPVOTE_PRESETS  = [500, 1000, 1500, 2000];
-// LEVEL_OPTIONS removed — gates now use min_karma + min_age directly.
+// LEVEL_OPTIONS removed â€” gates now use min_karma + min_age directly.
 
 type FilterKey = 'all' | 'draft' | 'active' | 'paused';
 type TaskStatus = 'draft' | 'active' | 'paused' | 'completed';
 type TaskCategory = 'reddit_upvote' | 'reddit_comment' | 'reddit_post_thread' | 'forum_comment';
+
+const TASK_CATEGORY_OPTIONS: Array<[TaskCategory, string, string, number]> = [
+  ['reddit_upvote', 'Upvote', 'Rp500-2K', 1000],
+  ['reddit_comment', 'Reddit comment', 'Rp5K-20K', 8000],
+  ['forum_comment', 'Forum comment', 'Rp5K-20K', 5000],
+  ['reddit_post_thread', 'Post thread', 'Rp10K-25K', 15000],
+];
 
 type TaskRow = {
   id: string;
@@ -68,7 +75,7 @@ export function AdminTaskQueue() {
   const [showSheet, setShowSheet] = React.useState(false);
   const [filter, setFilter] = React.useState<FilterKey>('all');
   const [bulkImporting, setBulkImporting] = React.useState(false);
-  // Edit-sheet state — pre-populated when admin clicks "Edit" on a task row.
+  // Edit-sheet state â€” pre-populated when admin clicks "Edit" on a task row.
   const [editingTask, setEditingTask] = React.useState<TaskRow | null>(null);
   const [editForm, setEditForm] = React.useState({
     title: '',
@@ -116,7 +123,7 @@ export function AdminTaskQueue() {
   // Map task_category back to legacy task_type column (kept for compat).
   const categoryToType = (c: string): 'upvote' | 'comment' => c === 'reddit_upvote' ? 'upvote' : 'comment';
 
-  // Parse string state → int with sensible defaults. Empty = 0.
+  // Parse string state â†’ int with sensible defaults. Empty = 0.
   const parseInt0 = (s: string) => {
     const n = parseInt(s, 10);
     return Number.isNaN(n) ? 0 : n;
@@ -146,7 +153,7 @@ export function AdminTaskQueue() {
       if (error) throw error;
     },
     onSuccess: (_data, publishStatus) => {
-      toast.success(publishStatus === 'draft' ? 'Disimpan sebagai draft 📝' : 'Task aktif & visible buat army ✅');
+      toast.success(publishStatus === 'draft' ? 'Disimpan sebagai draft ðŸ“' : 'Task aktif & visible buat army âœ…');
       setForm({ title: '', description: '', brief: '', target_url: '', task_category: 'reddit_comment', reward_amount: '8000', max_assignments: '5', per_account_limit: '1', min_karma: '', min_account_age_days: '' });
       setShowSheet(false);
       refetch();
@@ -162,7 +169,7 @@ export function AdminTaskQueue() {
     onSuccess: () => { toast.success('Status diupdate'); refetch(); },
   });
 
-  // Straight Ltd order queue → import into PeTa tasks. The list shows
+  // Straight Ltd order queue â†’ import into PeTa tasks. The list shows
   // pending orders that haven't been imported yet; admin can one-click
   // import each, or batch-import all at once.
   const { data: pendingOrders = [], isLoading: ordersLoading } = useQuery({
@@ -173,14 +180,14 @@ export function AdminTaskQueue() {
   const importOrderMutation = useMutation({
     mutationFn: (orderId: number) => importRedditOrder({ orderId }),
     onSuccess: () => {
-      toast.success('Order di-import sebagai task ✅');
+      toast.success('Order di-import sebagai task âœ…');
       queryClient.invalidateQueries({ queryKey: ['pendingRedditOrders'] });
       queryClient.invalidateQueries({ queryKey: ['adminTasks'] });
     },
     onError: (e: unknown) => toast.error(`Import gagal: ${errorMessage(e, 'Unknown error')}`),
   });
 
-  // Open Edit sheet for a task — pre-populate form with current values.
+  // Open Edit sheet for a task â€” pre-populate form with current values.
   const openEdit = (t: TaskRow) => {
     setEditForm({
       title: t.title || '',
@@ -223,7 +230,7 @@ export function AdminTaskQueue() {
       });
     },
     onSuccess: () => {
-      toast.success('Task updated ✅');
+      toast.success('Task updated âœ…');
       setEditingTask(null);
       refetch();
     },
@@ -247,7 +254,7 @@ export function AdminTaskQueue() {
     setBulkImporting(false);
     queryClient.invalidateQueries({ queryKey: ['pendingRedditOrders'] });
     queryClient.invalidateQueries({ queryKey: ['adminTasks'] });
-    toast.success(`Import selesai: ${ok} sukses · ${fail} gagal`);
+    toast.success(`Import selesai: ${ok} sukses Â· ${fail} gagal`);
   };
 
   const filtered = tasks.filter((t) => filter === 'all' || t.status === filter);
@@ -255,6 +262,20 @@ export function AdminTaskQueue() {
   const draftCount = tasks.filter((t) => t.status === 'draft').length;
   const pausedCount = tasks.filter((t) => t.status === 'paused').length;
   const openSlots = tasks.reduce((sum, t) => sum + Math.max(0, Number(t.max_assignments || 0) - Number(t.current_assignments || 0)), 0);
+
+  const applyStandardBrief = (mode: 'create' | 'edit') => {
+    if (mode === 'create') {
+      setForm({
+        ...form,
+        brief: buildStandardBriefTemplate(platformForUrl(form.target_url, form.task_category), form.target_url),
+      });
+      return;
+    }
+    setEditForm({
+      ...editForm,
+      brief: buildStandardBriefTemplate(platformForUrl(editForm.target_url, editForm.task_category), editForm.target_url),
+    });
+  };
 
   return (
     <Layout userRole="admin">
@@ -278,7 +299,7 @@ export function AdminTaskQueue() {
         <QueueStat icon={ClipboardList} label="Client orders" value={pendingOrders.length} tone="warning" />
       </div>
 
-      {/* Straight Ltd order queue — import-as-task panel. Only shown when
+      {/* Straight Ltd order queue â€” import-as-task panel. Only shown when
           there are pending orders so it doesn't add visual noise. */}
       {!ordersLoading && pendingOrders.length > 0 && (
         <Card className="mb-5 bg-warning/5 ring-warning/30">
@@ -320,7 +341,7 @@ export function AdminTaskQueue() {
                     {o.subreddit && (
                       <span className="text-xs text-muted">r/{o.subreddit}</span>
                     )}
-                    <span className="text-xs font-bold">×{o.requested_upvotes}</span>
+                    <span className="text-xs font-bold">Ã—{o.requested_upvotes}</span>
                   </div>
                   <a
                     href={o.thread_url}
@@ -367,7 +388,7 @@ export function AdminTaskQueue() {
         <div className="space-y-3"><CardSkeleton /><CardSkeleton /></div>
       ) : filtered.length === 0 ? (
         <Card className="text-center py-10">
-          <div className="text-5xl mb-3">📋</div>
+          <div className="text-5xl mb-3">ðŸ“‹</div>
           <p className="font-bold">Belum ada task</p>
           <p className="text-sm text-muted mb-4">Klik "Task Baru" untuk mulai.</p>
         </Card>
@@ -394,7 +415,7 @@ export function AdminTaskQueue() {
                   </p>
                   <p className="text-xs text-muted line-clamp-1">{formatTaskDescription(t)}</p>
                   {t.brief && t.brief.trim() && (
-                    // Brief preview — collapsible details so admin can scan + expand to verify
+                    // Brief preview â€” collapsible details so admin can scan + expand to verify
                     // what army members are seeing. Important for comment/post tasks where
                     // instructions need to be exactly right.
                     <details className="mt-1.5">
@@ -422,14 +443,14 @@ export function AdminTaskQueue() {
               <div className="flex items-center justify-between text-xs gap-2 flex-wrap">
                 <div className="flex items-center gap-2 text-muted flex-wrap">
                   <span>{t.current_assignments}/{t.max_assignments} slots filled</span>
-                  <span>•</span>
+                  <span>â€¢</span>
                   <span>{formatGate(t)}</span>
                   {(t.start_at || t.end_at) && (
                     <span className="text-[10px] bg-light px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
                       <Calendar size={10} />
-                      {t.start_at ? new Date(t.start_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '—'}
-                      {' → '}
-                      {t.end_at ? new Date(t.end_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '—'}
+                      {t.start_at ? new Date(t.start_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : 'â€”'}
+                      {' â†’ '}
+                      {t.end_at ? new Date(t.end_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : 'â€”'}
                     </span>
                   )}
                   {t.source_order_id && (
@@ -474,16 +495,18 @@ export function AdminTaskQueue() {
 
               <div className="space-y-3">
                 <Field label="Kategori Task">
-                  <div className="grid grid-cols-3 gap-2">
-                    {([
-                      ['reddit_upvote',      '👍 Upvote',  'Rp500–2K',  1000],
-                      ['reddit_comment',     '💬 Comment', 'Rp5K–20K',  8000],
-                      ['reddit_post_thread', '📝 Post',    'Rp10K–25K', 15000],
-                    ] as const).map(([cat, label, range, defaultReward]) => (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {TASK_CATEGORY_OPTIONS.map(([cat, label, range, defaultReward]) => (
                       <button
                         key={cat}
                         type="button"
-                        onClick={() => setForm({ ...form, task_category: cat, reward_amount: String(defaultReward) })}
+                        onClick={() => {
+                          const next = { ...form, task_category: cat, reward_amount: String(defaultReward) };
+                          if (cat === 'forum_comment' && !form.brief.trim()) {
+                            next.brief = buildStandardBriefTemplate(platformForUrl(form.target_url, cat), form.target_url);
+                          }
+                          setForm(next);
+                        }}
                         className={`tap-shrink min-h-[68px] rounded-xl px-2 py-2 text-left ${
                           form.task_category === cat
                             ? 'bg-primary text-white shadow-md shadow-primary/30'
@@ -502,7 +525,7 @@ export function AdminTaskQueue() {
                     type="text"
                     value={form.title}
                     onChange={(e) => setForm({ ...form, title: e.target.value })}
-                    placeholder={form.task_category === 'reddit_upvote' ? 'Contoh: Upvote thread tentang AI' : form.task_category === 'reddit_post_thread' ? 'Contoh: Post thread baru di r/Indonesia' : 'Contoh: Comment di r/Indonesia tentang AI'}
+                    placeholder={form.task_category === 'reddit_upvote' ? 'Contoh: Upvote thread tentang AI' : form.task_category === 'reddit_post_thread' ? 'Contoh: Post thread baru di r/Indonesia' : form.task_category === 'forum_comment' ? 'Contoh: Comment di Quora/HubSpot/Facebook Group' : 'Contoh: Comment di r/Indonesia tentang AI'}
                     className={inputCls}
                   />
                 </Field>
@@ -517,25 +540,39 @@ export function AdminTaskQueue() {
                   />
                 </Field>
 
-                <Field label="Target URL (Reddit thread)">
+                <Field label={form.task_category === 'forum_comment' ? 'Target URL forum/community' : 'Target URL (Reddit thread)'}>
                   <input
                     type="url"
                     value={form.target_url}
                     onChange={(e) => setForm({ ...form, target_url: e.target.value })}
-                    placeholder="https://reddit.com/r/..."
+                    placeholder={form.task_category === 'forum_comment' ? 'https://www.quora.com/... atau https://www.facebook.com/groups/...' : 'https://reddit.com/r/...'}
                     className={inputCls}
                   />
                 </Field>
 
-                <Field label="Brief Lengkap (komen/post yang harus army tulis)">
+                <Field label="Brief lengkap: comment/post + standard brief (editable)">
+                  {form.task_category !== 'reddit_upvote' && (
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <p className="text-[11px] text-muted">
+                        Format wajib: comment/post yang harus diisi + standard brief sesuai platform.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => applyStandardBrief('create')}
+                        className="shrink-0 text-[11px] font-bold text-primary hover:underline"
+                      >
+                        Isi standard brief
+                      </button>
+                    </div>
+                  )}
                   <textarea
                     value={form.brief}
                     onChange={(e) => setForm({ ...form, brief: e.target.value })}
                     placeholder={form.task_category === 'reddit_upvote'
                       ? 'Untuk upvote: cukup link thread di atas. Brief opsional.'
-                      : 'Tulis instruksi lengkap. Contoh:\n\n"Komentar harus bahas pengalaman pribadi pakai produk X. Min 3 kalimat. Sebutkan keyword Y secara natural. Hindari kata Z. Contoh tone: ramah tapi tidak salesy."'}
-                    className={inputCls + ' min-h-[110px] resize-y'}
-                    rows={5}
+                      : 'COMMENT/POST YANG HARUS DIISI:\n...\n\nSTANDARD BRIEF UNIVERSAL:\n...\n\nPlatform-specific ...'}
+                    className={inputCls + ' min-h-[180px] resize-y'}
+                    rows={8}
                   />
                 </Field>
 
@@ -624,7 +661,7 @@ export function AdminTaskQueue() {
                     loading={create.isPending}
                     fullWidth
                   >
-                    📝 Save Draft
+                    ðŸ“ Save Draft
                   </Button>
                   <Button
                     onClick={() => {
@@ -636,7 +673,7 @@ export function AdminTaskQueue() {
                     loading={create.isPending}
                     fullWidth
                   >
-                    ✅ Publish Active
+                    âœ… Publish Active
                   </Button>
                 </div>
                 <p className="text-[11px] text-muted text-center">
@@ -648,7 +685,7 @@ export function AdminTaskQueue() {
         </div>
       )}
 
-      {/* Bottom sheet: edit task — pre-populated with current values for the
+      {/* Bottom sheet: edit task â€” pre-populated with current values for the
           row admin clicked. Same field set as create + adds status,
           start_at, end_at scheduling. */}
       {editingTask && (
@@ -683,23 +720,25 @@ export function AdminTaskQueue() {
                             : 'bg-light text-dark ring-1 ring-border'
                         }`}
                       >
-                        {s === 'draft' ? '📝 Draft' : s === 'paused' ? '⏸ Pause' : s === 'active' ? '▶ Active' : '✓ Done'}
+                        {s === 'draft' ? 'ðŸ“ Draft' : s === 'paused' ? 'â¸ Pause' : s === 'active' ? 'â–¶ Active' : 'âœ“ Done'}
                       </button>
                     ))}
                   </div>
                 </Field>
 
                 <Field label="Kategori">
-                  <div className="grid grid-cols-3 gap-2">
-                    {([
-                      ['reddit_upvote',      '👍 Upvote'],
-                      ['reddit_comment',     '💬 Comment'],
-                      ['reddit_post_thread', '📝 Post'],
-                    ] as const).map(([cat, label]) => (
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {TASK_CATEGORY_OPTIONS.map(([cat, label]) => (
                       <button
                         key={cat}
                         type="button"
-                        onClick={() => setEditForm({ ...editForm, task_category: cat })}
+                        onClick={() => setEditForm({
+                          ...editForm,
+                          task_category: cat,
+                          brief: cat === 'forum_comment' && !editForm.brief.trim()
+                            ? buildStandardBriefTemplate(platformForUrl(editForm.target_url, cat), editForm.target_url)
+                            : editForm.brief,
+                        })}
                         className={`tap-shrink min-h-[44px] rounded-xl text-xs font-bold ${
                           editForm.task_category === cat
                             ? 'bg-primary text-white' : 'bg-light text-dark ring-1 ring-border'
@@ -729,7 +768,7 @@ export function AdminTaskQueue() {
                   />
                 </Field>
 
-                <Field label="Target URL">
+                <Field label={editForm.task_category === 'forum_comment' ? 'Target URL forum/community' : 'Target URL'}>
                   <input
                     type="url"
                     value={editForm.target_url}
@@ -738,15 +777,29 @@ export function AdminTaskQueue() {
                   />
                 </Field>
 
-                <Field label="Brief Lengkap (komen/post yang harus army tulis)">
+                <Field label="Brief lengkap: comment/post + standard brief (editable)">
+                  {editForm.task_category !== 'reddit_upvote' && (
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <p className="text-[11px] text-muted">
+                        Bagian atas untuk comment/post. Bagian bawah standard brief sesuai forum.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => applyStandardBrief('edit')}
+                        className="shrink-0 text-[11px] font-bold text-primary hover:underline"
+                      >
+                        Refill standard brief
+                      </button>
+                    </div>
+                  )}
                   <textarea
                     value={editForm.brief}
                     onChange={(e) => setEditForm({ ...editForm, brief: e.target.value })}
                     placeholder={editForm.task_category === 'reddit_upvote'
                       ? 'Untuk upvote: cukup link thread. Brief opsional.'
-                      : 'Tulis instruksi lengkap untuk army…'}
-                    className={inputCls + ' min-h-[110px] resize-y'}
-                    rows={5}
+                      : 'COMMENT/POST YANG HARUS DIISI:\n...\n\nSTANDARD BRIEF UNIVERSAL:\n...'}
+                    className={inputCls + ' min-h-[180px] resize-y'}
+                    rows={8}
                   />
                 </Field>
 
@@ -841,8 +894,8 @@ export function AdminTaskQueue() {
                 </div>
 
                 <p className="text-[11px] text-muted leading-snug">
-                  💡 Set <b>Start</b> di masa depan biar task auto-mulai. <b>End</b> akan auto-pause task setelah tanggal lewat (admin tetap bisa manual toggle).
-                  Default new auto-import dari B2B order = <b>paused</b> — review dulu sebelum aktifkan.
+                  ðŸ’¡ Set <b>Start</b> di masa depan biar task auto-mulai. <b>End</b> akan auto-pause task setelah tanggal lewat (admin tetap bisa manual toggle).
+                  Default new auto-import dari B2B order = <b>paused</b> â€” review dulu sebelum aktifkan.
                 </p>
 
                 <Button
@@ -858,7 +911,7 @@ export function AdminTaskQueue() {
                   loading={editMutation.isPending}
                   fullWidth
                 >
-                  💾 Simpan Perubahan
+                  ðŸ’¾ Simpan Perubahan
                 </Button>
               </div>
             </div>
@@ -945,12 +998,95 @@ function formatTaskDescription(t: TaskRow) {
         parsed.brand_name || parsed.brand_domain ? `Brand: ${parsed.brand_name || parsed.brand_domain}` : '',
         parsed.source_keyword ? `Keyword: ${parsed.source_keyword}` : '',
       ].filter(Boolean);
-      return pieces.join(' · ');
+      return pieces.join(' Â· ');
     }
   } catch {
     // Non-JSON descriptions are regular PeTa task copy.
   }
   return cleanInternalText(raw);
+}
+
+function platformForUrl(url: string, category?: TaskCategory) {
+  const text = url.toLowerCase();
+  if (category === 'reddit_comment' || category === 'reddit_upvote' || text.includes('reddit.com')) return 'Reddit';
+  if (text.includes('quora.com')) return 'Quora';
+  if (text.includes('facebook.com/groups') || text.includes('fb.com/groups')) return 'Facebook Groups';
+  if (text.includes('hubspot.com')) return 'HubSpot Community';
+  if (text.includes('indiehackers.com')) return 'Indie Hackers';
+  if (text.includes('stackoverflow.com')) return 'Stack Overflow';
+  if (text.includes('stackexchange.com')) return 'Stack Exchange';
+  if (text.includes('producthunt.com')) return 'Product Hunt';
+  if (text.includes('discord.com') || text.includes('discord.gg')) return 'Discord Community';
+  return category === 'forum_comment' ? 'Forum' : 'Reddit';
+}
+
+function buildStandardBriefTemplate(platform: string, targetUrl: string) {
+  const lower = platform.toLowerCase();
+  const platformSpecific =
+    lower.includes('reddit') ? [
+      'Platform-specific Reddit:',
+      '- Wajib nyalakan Cloudflare WARP/VPN kalau Reddit terblokir dari jaringan kamu.',
+      '- Login dengan akun Reddit yang dipakai untuk task.',
+      '- Baca rules subreddit dan tone thread sebelum comment.',
+      '- Jangan langsung drop link di akun baru. Plain mention lebih aman.',
+      '- Copy permalink komentar kalau bisa, lalu submit URL + username + screenshot optional.',
+    ] : lower.includes('quora') ? [
+      'Platform-specific Quora:',
+      '- Jawaban harus helpful dan cukup lengkap, bukan komentar pendek.',
+      '- Mulai dengan konteks/pendapat, lalu beri alasan atau langkah praktis.',
+      '- Hindari link di awal jawaban. Mention brand natural di tengah/akhir kalau relevan.',
+      '- Copy URL answer/reply dan screenshot nama profil + jawaban.',
+    ] : lower.includes('facebook') ? [
+      'Platform-specific Facebook Groups:',
+      '- Join group dulu jika belum member dan jawab pertanyaan onboarding secara normal.',
+      '- Baca rules group, terutama aturan promo/link.',
+      '- Jangan posting link kecuali rules memperbolehkan.',
+      '- Komentar harus seperti member asli: singkat, relevan, dan tidak hard-selling.',
+      '- Screenshot harus menunjukkan group/post, komentar, dan nama profil jika memungkinkan.',
+    ] : lower.includes('hubspot') ? [
+      'Platform-specific HubSpot Community:',
+      '- Login / Join Community dengan email aktif.',
+      '- Lengkapi profil secukupnya supaya tidak terlihat kosong.',
+      '- Baca thread dan reply sebelumnya sebelum komentar.',
+      '- Jawab seperti praktisi: beri insight singkat, contoh, atau caveat.',
+      '- Mention brand hanya jika relevan dengan problem di thread.',
+    ] : [
+      `Platform-specific ${platform}:`,
+      '- Login atau daftar akun jika dibutuhkan.',
+      '- Baca rules, pinned thread, dan gaya bahasa member lain.',
+      '- Jangan drop link kalau belum jelas diperbolehkan.',
+      '- Komentar harus menjawab konteks thread, bukan promosi lepas.',
+      '- Screenshot harus menunjukkan komentar sudah tampil dan username jika memungkinkan.',
+    ];
+
+  return [
+    'COMMENT/POST YANG HARUS DIISI:',
+    'Tulis instruksi atau komentar final dari client di sini. Edit bagian ini sebelum task diaktifkan.',
+    '',
+    'DETAIL ORDER:',
+    `- Platform: ${platform}`,
+    `- Target URL: ${targetUrl || '-'}`,
+    '- Brand/client mention: isi brand/client di sini',
+    '',
+    'LANGKAH KERJA UNTUK NEWBIE:',
+    '1. Buka target URL.',
+    '2. Login atau daftar akun kalau platform meminta.',
+    '3. Baca thread/post dan aturan komunitas.',
+    '4. Tulis komentar/post sesuai instruksi di atas.',
+    '5. Publish, lalu submit URL komentar/thread dan username yang dipakai.',
+    '',
+    'STANDARD BRIEF UNIVERSAL:',
+    '- Baca target page/thread sampai paham konteks sebelum komentar.',
+    '- Komentar harus natural, membantu, dan spesifik terhadap pertanyaan/thread.',
+    '- Jangan terdengar seperti iklan, sales pitch, atau copy-paste template.',
+    '- Jangan klaim berlebihan. Kalau menyebut brand, jadikan side note yang relevan.',
+    '- Sesuaikan bahasa, panjang, dan tone dengan komunitas.',
+    '- Jangan kirim komentar yang sama berkali-kali.',
+    '- Kalau platform terlihat sensitif terhadap link, gunakan plain mention saja.',
+    '- Submit bukti: URL komentar/thread, username platform, dan screenshot optional tapi disarankan.',
+    '',
+    ...platformSpecific,
+  ].join('\n');
 }
 
 function errorMessage(error: unknown, fallback: string) {
