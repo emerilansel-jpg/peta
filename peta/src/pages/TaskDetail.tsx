@@ -254,8 +254,12 @@ export function TaskDetail() {
           </button>
           <Card>
             <p className="text-xs uppercase font-bold tracking-wide text-muted mb-2">Pilih akun</p>
-            <h2 className="text-lg font-extrabold mb-1">Akun Reddit untuk task ini</h2>
-            <p className="text-sm text-muted mb-4">Komentar / upvote akan tercatat atas nama akun ini.</p>
+            <h2 className="text-lg font-extrabold mb-1">{isForumComment ? 'Profil tracking untuk task ini' : 'Akun Reddit untuk task ini'}</h2>
+            <p className="text-sm text-muted mb-4">
+              {isForumComment
+                ? `Ini hanya untuk tracking PeTa. Username ${platformLabel} tetap kamu isi nanti saat submit bukti.`
+                : 'Komentar / upvote akan tercatat atas nama akun ini.'}
+            </p>
             <div className="space-y-2 mb-5">
               {accounts.map((acc) => (
                 <label
@@ -312,9 +316,9 @@ export function TaskDetail() {
           </button>
           <Card>
             <p className="text-sm text-muted">
-              Belum ada akun Reddit terhubung.{' '}
+              {isForumComment ? 'Belum ada profil task terhubung.' : 'Belum ada akun Reddit terhubung.'}{' '}
               <button onClick={() => navigate('/onboarding')} className="text-primary font-bold underline">
-                Setup dulu
+                Selesaikan setup dulu
               </button>.
             </p>
           </Card>

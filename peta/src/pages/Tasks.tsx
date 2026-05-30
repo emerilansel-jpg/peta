@@ -403,6 +403,7 @@ export function Tasks() {
                 const categoryLabel =
                   t.task_category === 'reddit_upvote' ? '👍 Reddit Upvote' :
                   t.task_category === 'reddit_post_thread' ? '📝 Reddit Post' :
+                  t.task_category === 'forum_comment' ? `💬 ${platformForTask(t)} Comment` :
                   '💬 Reddit Comment';
                 const slotsLeft = Math.max(t.max_assignments - t.current_assignments, 0);
                 return (
@@ -517,7 +518,7 @@ export function Tasks() {
         </div>
         <p className="text-xs text-muted mb-3 px-1">
           {needsReddit
-            ? 'Inilah jenis task & bayaran yang nunggu kamu. Selesaikan setup Reddit dulu — task real diumumkan di grup setelah unlock 👇'
+            ? 'Inilah jenis task & bayaran yang nunggu kamu. Selesaikan setup akun dulu — task real diumumkan di grup setelah unlock 👇'
             : 'Inilah jenis task & bayaran yang biasanya muncul. Yang real diumumkan di grup 👇'}
         </p>
 
@@ -528,7 +529,7 @@ export function Tasks() {
                 <div className="bg-white/95 ring-1 ring-black/10 rounded-full px-3 py-1 flex items-center gap-1.5 shadow-sm">
                   <Lock size={12} className="text-muted" />
                   <span className="text-[11px] font-bold text-dark">
-                    {needsReddit ? 'Selesaikan setup Reddit untuk unlock' : 'Diumumkan di grup WA'}
+                    {needsReddit ? 'Selesaikan setup akun untuk unlock' : 'Diumumkan di grup WA'}
                   </span>
                 </div>
               </div>
@@ -579,13 +580,24 @@ export function Tasks() {
             </li>
             <li className="flex items-start gap-2">
               <TrendingUp size={16} className="text-warning shrink-0 mt-0.5" />
-              <span><b>Karma Reddit naik.</b> Level naik → reward per task naik (Rp5K → Rp20K).</span>
+              <span><b>Kualitas akun naik.</b> Level naik → reward per task naik (Rp5K → Rp20K).</span>
             </li>
           </ul>
         </Card>
       </div>
     </Layout>
   );
+}
+
+function platformForTask(task: { title?: string | null; description?: string | null; target_url?: string | null }) {
+  const text = `${task.title || ''} ${task.description || ''} ${task.target_url || ''}`.toLowerCase();
+  if (text.includes('hubspot')) return 'HubSpot';
+  if (text.includes('quora')) return 'Quora';
+  if (text.includes('indiehackers')) return 'Indie Hackers';
+  if (text.includes('stackoverflow')) return 'Stack Overflow';
+  if (text.includes('stackexchange') || text.includes('stack exchange')) return 'Stack Exchange';
+  if (text.includes('producthunt')) return 'Product Hunt';
+  return 'Forum';
 }
 
 // ============================================================
@@ -617,13 +629,13 @@ function RedditSetupBanner({
 
         <h2 className="text-xl sm:text-2xl font-extrabold leading-tight mb-1 text-yellow-950">
           {explicitlyDeferred
-            ? 'Yuk lanjutin setup Reddit-mu'
-            : 'Setup Reddit dulu — baru kamu bisa earn task'}
+            ? 'Yuk lanjutin setup akunmu'
+            : 'Setup akun kerja dulu — baru kamu bisa earn task'}
         </h2>
         <p className="text-sm text-yellow-950/85 mb-3">
           {explicitlyDeferred
-            ? 'Akun Reddit dipake buat kirim komentar yang dibayar Rp5K-20K per task. Sisa 2 step + bonus Rp10K nungguin.'
-            : 'Tanpa akun Reddit, task ga bisa kamu ambil. 2 step lagi (5 menit) + bonus Rp10K masuk saldo.'}
+            ? 'Akun dipakai buat tracking task komentar berbayar Rp5K-20K. Sisa 2 step + bonus Rp10K nungguin.'
+            : 'Tanpa setup akun, task belum bisa kamu ambil. 2 step lagi (5 menit) + bonus Rp10K masuk saldo.'}
         </p>
 
         <Button
@@ -633,7 +645,7 @@ function RedditSetupBanner({
           size="lg"
           className="!bg-yellow-900 hover:!bg-yellow-950 !text-white"
         >
-          {explicitlyDeferred ? '🔓 Lanjutkan Setup' : '🔓 Setup Reddit Sekarang'}
+          {explicitlyDeferred ? '🔓 Lanjutkan Setup' : '🔓 Setup Akun Sekarang'}
           <ArrowRight size={16} />
         </Button>
 
