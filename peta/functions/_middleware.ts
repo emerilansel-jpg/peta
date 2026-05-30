@@ -1,4 +1,4 @@
-// Cloudflare Pages Functions — host-aware HTML shell routing.
+// Cloudflare Pages Functions host-aware HTML shell routing.
 //
 // Reads the Straight shell file content + returns it as a fresh Response,
 // bypassing Cloudflare Pages' auto-extension-strip (which was causing
@@ -18,7 +18,7 @@ export const onRequest: PagesFunction = async (context) => {
   // straight.ltd hosts: fetch the shell file and return its content directly
   const isStraight = /(^|\.)straight\.ltd(?::\d+)?$/i.test(host);
   if (isStraight) {
-    const shellResp = await env.ASSETS.fetch(new URL('/_straight_shell.html', url));
+    const shellResp = await env.ASSETS.fetch(new URL('/straight.html', url));
     const body = await shellResp.text();
     return new Response(body, {
       status: 200,

@@ -11,7 +11,7 @@ import { toast } from '../../components/Toast';
 import { listPendingRedditOrders, importRedditOrder, adminUpdateTask } from '../../lib/api';
 import { cleanInternalText } from '../../lib/internalText';
 
-// Convert ISO timestamp â†’ local-datetime input format (YYYY-MM-DDTHH:mm).
+// Convert ISO timestamp to local-datetime input format (YYYY-MM-DDTHH:mm).
 function isoToLocalInput(iso: string | null | undefined): string {
   if (!iso) return '';
   const d = new Date(iso);
@@ -19,7 +19,7 @@ function isoToLocalInput(iso: string | null | undefined): string {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-// Local-datetime input value (YYYY-MM-DDTHH:mm) â†’ ISO string. Empty â†’ null.
+// Local-datetime input value (YYYY-MM-DDTHH:mm) to ISO string. Empty means null.
 function localInputToIso(s: string): string | null {
   if (!s) return null;
   const d = new Date(s);
@@ -28,7 +28,7 @@ function localInputToIso(s: string): string | null {
 
 const COMMENT_PRESETS = [5000, 8000, 11000, 14000, 17000, 20000];
 const UPVOTE_PRESETS  = [500, 1000, 1500, 2000];
-// LEVEL_OPTIONS removed â€” gates now use min_karma + min_age directly.
+// LEVEL_OPTIONS removed; gates now use min_karma + min_age directly.
 
 type FilterKey = 'all' | 'draft' | 'active' | 'paused';
 type TaskStatus = 'draft' | 'active' | 'paused' | 'completed';
@@ -77,7 +77,7 @@ export function AdminTaskQueue() {
   const [showSheet, setShowSheet] = React.useState(false);
   const [filter, setFilter] = React.useState<FilterKey>('all');
   const [bulkImporting, setBulkImporting] = React.useState(false);
-  // Edit-sheet state â€” pre-populated when admin clicks "Edit" on a task row.
+  // Edit-sheet state, pre-populated when admin clicks "Edit" on a task row.
   const [editingTask, setEditingTask] = React.useState<TaskRow | null>(null);
   const [editForm, setEditForm] = React.useState({
     title: '',
@@ -129,7 +129,7 @@ export function AdminTaskQueue() {
   // Map task_category back to legacy task_type column (kept for compat).
   const categoryToType = (c: string): 'upvote' | 'comment' => c === 'reddit_upvote' ? 'upvote' : 'comment';
 
-  // Parse string state â†’ int with sensible defaults. Empty = 0.
+  // Parse string state to int with sensible defaults. Empty = 0.
   const parseInt0 = (s: string) => {
     const n = parseInt(s, 10);
     return Number.isNaN(n) ? 0 : n;
@@ -161,7 +161,7 @@ export function AdminTaskQueue() {
       if (error) throw error;
     },
     onSuccess: (_data, publishStatus) => {
-      toast.success(publishStatus === 'draft' ? 'Disimpan sebagai draft ðŸ“' : 'Task aktif & visible buat army âœ…');
+      toast.success(publishStatus === 'draft' ? 'Disimpan sebagai draft' : 'Task aktif & visible buat army');
       setForm({ title: '', description: '', brief: '', post_to_wa_group: false, wa_group_draft: '', target_url: '', task_category: 'reddit_comment', reward_amount: '8000', max_assignments: '5', per_account_limit: '1', min_karma: '', min_account_age_days: '' });
       setShowSheet(false);
       refetch();
@@ -177,7 +177,7 @@ export function AdminTaskQueue() {
     onSuccess: () => { toast.success('Status diupdate'); refetch(); },
   });
 
-  // Straight Ltd order queue â†’ import into PeTa tasks. The list shows
+  // Straight Ltd order queue import into PeTa tasks. The list shows
   // pending orders that haven't been imported yet; admin can one-click
   // import each, or batch-import all at once.
   const { data: pendingOrders = [], isLoading: ordersLoading } = useQuery({
@@ -188,14 +188,14 @@ export function AdminTaskQueue() {
   const importOrderMutation = useMutation({
     mutationFn: (orderId: number) => importRedditOrder({ orderId }),
     onSuccess: () => {
-      toast.success('Order di-import sebagai task âœ…');
+      toast.success('Order di-import sebagai task');
       queryClient.invalidateQueries({ queryKey: ['pendingRedditOrders'] });
       queryClient.invalidateQueries({ queryKey: ['adminTasks'] });
     },
     onError: (e: unknown) => toast.error(`Import gagal: ${errorMessage(e, 'Unknown error')}`),
   });
 
-  // Open Edit sheet for a task â€” pre-populate form with current values.
+  // Open Edit sheet for a task and pre-populate form with current values.
   const openEdit = (t: TaskRow) => {
     setEditForm({
       title: t.title || '',
@@ -242,7 +242,7 @@ export function AdminTaskQueue() {
       });
     },
     onSuccess: () => {
-      toast.success('Task updated âœ…');
+      toast.success('Task updated');
       setEditingTask(null);
       refetch();
     },
@@ -313,7 +313,7 @@ export function AdminTaskQueue() {
         <QueueStat icon={ClipboardList} label="Client orders" value={pendingOrders.length} tone="warning" />
       </div>
 
-      {/* Straight Ltd order queue â€” import-as-task panel. Only shown when
+      {/* Straight Ltd order queue import-as-task panel. Only shown when
           there are pending orders so it doesn't add visual noise. */}
       {!ordersLoading && pendingOrders.length > 0 && (
         <Card className="mb-5 bg-warning/5 ring-warning/30">
@@ -355,7 +355,7 @@ export function AdminTaskQueue() {
                     {o.subreddit && (
                       <span className="text-xs text-muted">r/{o.subreddit}</span>
                     )}
-                    <span className="text-xs font-bold">Ã—{o.requested_upvotes}</span>
+                    <span className="text-xs font-bold">x{o.requested_upvotes}</span>
                   </div>
                   <a
                     href={o.thread_url}
@@ -402,7 +402,7 @@ export function AdminTaskQueue() {
         <div className="space-y-3"><CardSkeleton /><CardSkeleton /></div>
       ) : filtered.length === 0 ? (
         <Card className="text-center py-10">
-          <div className="text-5xl mb-3">ðŸ“‹</div>
+          <ClipboardList size={44} className="mx-auto mb-3 text-muted" />
           <p className="font-bold">Belum ada task</p>
           <p className="text-sm text-muted mb-4">Klik "Task Baru" untuk mulai.</p>
         </Card>
@@ -429,7 +429,7 @@ export function AdminTaskQueue() {
                   </p>
                   <p className="text-xs text-muted line-clamp-1">{formatTaskDescription(t)}</p>
                   {t.brief && t.brief.trim() && (
-                    // Brief preview â€” collapsible details so admin can scan + expand to verify
+                    // Brief preview, collapsible details so admin can scan + expand to verify
                     // what army members are seeing. Important for comment/post tasks where
                     // instructions need to be exactly right.
                     <details className="mt-1.5">
@@ -445,9 +445,11 @@ export function AdminTaskQueue() {
                           <p className="font-extrabold uppercase text-[10px] mb-1">Standard Brief</p>
                           {cleanInternalText(splitForumBrief(t.brief).standardBrief || '-')}
                         </div>
-                        {t.post_to_wa_group && (
+                        {(t.post_to_wa_group || Boolean(t.wa_group_draft?.trim())) && (
                           <div className="p-2.5 bg-green-50 ring-1 ring-green-200 rounded-lg text-xs whitespace-pre-line leading-relaxed text-green-950">
-                            <p className="font-extrabold uppercase text-[10px] mb-1">Draft WA Group</p>
+                            <p className="font-extrabold uppercase text-[10px] mb-1">
+                              Draft WA Group {t.post_to_wa_group ? '(siap dipost manual)' : '(preview)'}
+                            </p>
                             {cleanInternalText(t.wa_group_draft || '-')}
                           </div>
                         )}
@@ -470,14 +472,14 @@ export function AdminTaskQueue() {
               <div className="flex items-center justify-between text-xs gap-2 flex-wrap">
                 <div className="flex items-center gap-2 text-muted flex-wrap">
                   <span>{t.current_assignments}/{t.max_assignments} slots filled</span>
-                  <span>â€¢</span>
+                  <span>-</span>
                   <span>{formatGate(t)}</span>
                   {(t.start_at || t.end_at) && (
                     <span className="text-[10px] bg-light px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
                       <Calendar size={10} />
-                      {t.start_at ? new Date(t.start_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : 'â€”'}
-                      {' â†’ '}
-                      {t.end_at ? new Date(t.end_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : 'â€”'}
+                      {t.start_at ? new Date(t.start_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '-'}
+                      {' to '}
+                      {t.end_at ? new Date(t.end_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '-'}
                     </span>
                   )}
                   {t.source_order_id && (
@@ -625,7 +627,7 @@ export function AdminTaskQueue() {
                 </Field>
 
                 {form.task_category !== 'reddit_upvote' && (
-                  <Field label="Post ke WA group">
+                  <Field label="Draft WA Group (manual post)">
                     <label className="flex items-start gap-3 p-3 rounded-xl bg-light ring-1 ring-border cursor-pointer">
                       <input
                         type="checkbox"
@@ -648,27 +650,48 @@ export function AdminTaskQueue() {
                         className="mt-1"
                       />
                       <span className="text-sm">
-                        <b>Siapkan draft WA manual.</b>
-                        <span className="block text-xs text-muted">Sistem tidak auto-post. Admin copy draft ini ke grup WA.</span>
+                        <b>Tandai untuk diposting ke WA group.</b>
+                        <span className="block text-xs text-muted">Sistem tidak auto-post. Draft di bawah tinggal dicopy manual.</span>
                       </span>
                     </label>
-                    {form.post_to_wa_group && (
-                      <div className="mt-2">
-                        <button
-                          type="button"
-                          onClick={() => navigator.clipboard?.writeText(form.wa_group_draft).then(() => toast.success('Draft WA dicopy'))}
-                          className="mb-2 text-[11px] font-bold text-primary hover:underline"
-                        >
-                          Copy draft WA
-                        </button>
-                        <textarea
-                          value={form.wa_group_draft}
-                          onChange={(e) => setForm({ ...form, wa_group_draft: e.target.value })}
-                          className={inputCls + ' min-h-[150px] resize-y'}
-                          rows={6}
-                        />
+                    <div className="mt-2">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <p className="text-[11px] text-muted leading-snug">
+                          Draft WA selalu bisa diedit di sini. Checkbox hanya penanda task ini akan dipost manual ke grup.
+                        </p>
+                        <div className="shrink-0 flex gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setForm({
+                              ...form,
+                              wa_group_draft: buildWaGroupDraft({
+                                title: form.title,
+                                platform: platformForUrl(form.target_url, form.task_category),
+                                reward: parseInt0(form.reward_amount),
+                                commentPost: splitForumBrief(form.brief).commentPost,
+                              }),
+                            })}
+                            className="text-[11px] font-bold text-primary hover:underline"
+                          >
+                            Generate draft
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => navigator.clipboard?.writeText(form.wa_group_draft).then(() => toast.success('Draft WA dicopy'))}
+                            className="text-[11px] font-bold text-primary hover:underline"
+                          >
+                            Copy draft WA
+                          </button>
+                        </div>
                       </div>
-                    )}
+                      <textarea
+                        value={form.wa_group_draft}
+                        onChange={(e) => setForm({ ...form, wa_group_draft: e.target.value })}
+                        placeholder="Draft pesan WA untuk admin copy-paste manual ke grup."
+                        className={inputCls + ' min-h-[150px] resize-y'}
+                        rows={6}
+                      />
+                    </div>
                   </Field>
                 )}
 
@@ -757,7 +780,7 @@ export function AdminTaskQueue() {
                     loading={create.isPending}
                     fullWidth
                   >
-                    ðŸ“ Save Draft
+                    Save Draft
                   </Button>
                   <Button
                     onClick={() => {
@@ -769,7 +792,7 @@ export function AdminTaskQueue() {
                     loading={create.isPending}
                     fullWidth
                   >
-                    âœ… Publish Active
+                    Publish Active
                   </Button>
                 </div>
                 <p className="text-[11px] text-muted text-center">
@@ -781,7 +804,7 @@ export function AdminTaskQueue() {
         </div>
       )}
 
-      {/* Bottom sheet: edit task â€” pre-populated with current values for the
+      {/* Bottom sheet: edit task, pre-populated with current values for the
           row admin clicked. Same field set as create + adds status,
           start_at, end_at scheduling. */}
       {editingTask && (
@@ -816,7 +839,7 @@ export function AdminTaskQueue() {
                             : 'bg-light text-dark ring-1 ring-border'
                         }`}
                       >
-                        {s === 'draft' ? 'ðŸ“ Draft' : s === 'paused' ? 'â¸ Pause' : s === 'active' ? 'â–¶ Active' : 'âœ“ Done'}
+                        {s === 'draft' ? 'Draft' : s === 'paused' ? 'Pause' : s === 'active' ? 'Active' : 'Done'}
                       </button>
                     ))}
                   </div>
@@ -923,7 +946,7 @@ export function AdminTaskQueue() {
                 </Field>
 
                 {editForm.task_category !== 'reddit_upvote' && (
-                  <Field label="Post ke WA group">
+                  <Field label="Draft WA Group (manual post)">
                     <label className="flex items-start gap-3 p-3 rounded-xl bg-light ring-1 ring-border cursor-pointer">
                       <input
                         type="checkbox"
@@ -946,27 +969,48 @@ export function AdminTaskQueue() {
                         className="mt-1"
                       />
                       <span className="text-sm">
-                        <b>Siapkan draft WA manual.</b>
-                        <span className="block text-xs text-muted">Sistem tidak auto-post. Admin copy draft ini ke grup WA.</span>
+                        <b>Tandai untuk diposting ke WA group.</b>
+                        <span className="block text-xs text-muted">Sistem tidak auto-post. Draft di bawah tinggal dicopy manual.</span>
                       </span>
                     </label>
-                    {editForm.post_to_wa_group && (
-                      <div className="mt-2">
-                        <button
-                          type="button"
-                          onClick={() => navigator.clipboard?.writeText(editForm.wa_group_draft).then(() => toast.success('Draft WA dicopy'))}
-                          className="mb-2 text-[11px] font-bold text-primary hover:underline"
-                        >
-                          Copy draft WA
-                        </button>
-                        <textarea
-                          value={editForm.wa_group_draft}
-                          onChange={(e) => setEditForm({ ...editForm, wa_group_draft: e.target.value })}
-                          className={inputCls + ' min-h-[150px] resize-y'}
-                          rows={6}
-                        />
+                    <div className="mt-2">
+                      <div className="mb-2 flex items-center justify-between gap-2">
+                        <p className="text-[11px] text-muted leading-snug">
+                          Draft WA selalu bisa diedit di sini. Checkbox hanya penanda task ini akan dipost manual ke grup.
+                        </p>
+                        <div className="shrink-0 flex gap-3">
+                          <button
+                            type="button"
+                            onClick={() => setEditForm({
+                              ...editForm,
+                              wa_group_draft: buildWaGroupDraft({
+                                title: editForm.title,
+                                platform: platformForUrl(editForm.target_url, editForm.task_category),
+                                reward: parseInt0(editForm.reward_amount),
+                                commentPost: splitForumBrief(editForm.brief).commentPost,
+                              }),
+                            })}
+                            className="text-[11px] font-bold text-primary hover:underline"
+                          >
+                            Generate draft
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => navigator.clipboard?.writeText(editForm.wa_group_draft).then(() => toast.success('Draft WA dicopy'))}
+                            className="text-[11px] font-bold text-primary hover:underline"
+                          >
+                            Copy draft WA
+                          </button>
+                        </div>
                       </div>
-                    )}
+                      <textarea
+                        value={editForm.wa_group_draft}
+                        onChange={(e) => setEditForm({ ...editForm, wa_group_draft: e.target.value })}
+                        placeholder="Draft pesan WA untuk admin copy-paste manual ke grup."
+                        className={inputCls + ' min-h-[150px] resize-y'}
+                        rows={6}
+                      />
+                    </div>
                   </Field>
                 )}
 
@@ -1061,8 +1105,8 @@ export function AdminTaskQueue() {
                 </div>
 
                 <p className="text-[11px] text-muted leading-snug">
-                  ðŸ’¡ Set <b>Start</b> di masa depan biar task auto-mulai. <b>End</b> akan auto-pause task setelah tanggal lewat (admin tetap bisa manual toggle).
-                  Default new auto-import dari B2B order = <b>paused</b> â€” review dulu sebelum aktifkan.
+                  Set <b>Start</b> di masa depan biar task auto-mulai. <b>End</b> akan auto-pause task setelah tanggal lewat (admin tetap bisa manual toggle).
+                  Default new auto-import dari B2B order = <b>paused</b> - review dulu sebelum aktifkan.
                 </p>
 
                 <Button
@@ -1078,7 +1122,7 @@ export function AdminTaskQueue() {
                   loading={editMutation.isPending}
                   fullWidth
                 >
-                  ðŸ’¾ Simpan Perubahan
+                  Simpan Perubahan
                 </Button>
               </div>
             </div>
