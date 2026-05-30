@@ -609,7 +609,7 @@ function ForumCommentOrderForm({
   const [notes, setNotes] = useState('');
   const [commentText, setCommentText] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [generationMeta, setGenerationMeta] = useState<{ provider: string; fetchedContext?: boolean; reason?: string | null } | null>(null);
+  const [generationMeta, setGenerationMeta] = useState<{ fetchedContext?: boolean; reason?: string | null } | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [newOrderId, setNewOrderId] = useState<number | null>(null);
 
@@ -640,17 +640,16 @@ function ForumCommentOrderForm({
       });
       setCommentText(result.comment);
       setGenerationMeta({
-        provider: result.provider,
         fetchedContext: result.fetched_context,
         reason: result.fetch_reason,
       });
       toast.success(result.fetched_context
-        ? 'DeepSeek draft generated from the thread context'
-        : 'DeepSeek draft generated. Thread fetch was limited, so review carefully.');
+        ? 'Thread-aware draft is ready to review'
+        : 'Draft is ready. Thread access was limited, so review carefully.');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'AI generator failed';
-      toast.error(msg === 'DEEPSEEK_API_KEY not configured'
-        ? 'DeepSeek is not configured yet. Add DEEPSEEK_API_KEY in Supabase secrets.'
+      toast.error(msg.toLowerCase().includes('api_key not configured')
+        ? 'Draft assistant is not configured yet. Contact support before placing a suggested-comment order.'
         : msg);
     } finally {
       setIsGenerating(false);
@@ -695,7 +694,7 @@ function ForumCommentOrderForm({
         sourceKeyword: sourceKeyword || null,
         notes: [
           notes.trim(),
-          generationMeta ? `generation_provider=${generationMeta.provider}; context_fetched=${generationMeta.fetchedContext ? 'yes' : 'no'}` : '',
+          generationMeta ? `draft_context_fetched=${generationMeta.fetchedContext ? 'yes' : 'no'}` : '',
         ].filter(Boolean).join('\n') || null,
       },
       {
@@ -834,8 +833,8 @@ function ForumCommentOrderForm({
                 <span className="font-bold text-slate-900">Yes, use suggested comment</span>
               </div>
               <p className="text-sm text-slate-600 leading-relaxed">
-                +10% price. Our conversation-aware bot reviews the context, adapts the tone,
-                and writes a helpful recommendation with a natural brand mention. The draft opens here so you can edit it before ordering.
+                +10% price. Our editorial draft system reviews the public conversation, matches the thread's tone,
+                and prepares a helpful comment with a natural brand mention. You review and approve the final wording before ordering.
               </p>
               <p className="mt-3 text-sm font-bold text-orange-700">{formatUSD(SUGGESTED_COMMENT_PRICE_CENTS)}</p>
             </button>
@@ -912,12 +911,13 @@ function ForumCommentOrderForm({
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold"
             >
               {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <RefreshCcw size={14} />}
-              {isGenerating ? 'Generating with DeepSeek...' : (commentText ? 'Regenerate comment' : 'Generate suggested comment')}
+              {isGenerating ? 'Preparing draft...' : (commentText ? 'Regenerate comment' : 'Generate suggested comment')}
             </button>
             {generationMeta && (
               <p className="text-xs text-orange-900">
-                Generated with {generationMeta.provider}
-                {generationMeta.fetchedContext ? ' after reading the thread context.' : ' with limited thread context. Please review before placing the order.'}
+                {generationMeta.fetchedContext
+                  ? 'Draft prepared after reading the thread context. Review tone, claims, and brand mention before checkout.'
+                  : 'Draft prepared with limited thread context. Review carefully before checkout.'}
               </p>
             )}
           </div>

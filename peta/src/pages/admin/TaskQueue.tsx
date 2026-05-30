@@ -1,11 +1,12 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, X, Download, ExternalLink, Zap, Pencil, Calendar } from 'lucide-react';
+import { Plus, X, Download, ExternalLink, Zap, Pencil, Calendar, ClipboardList, ShieldCheck, Clock3, Users } from 'lucide-react';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
+import type { User } from '@supabase/supabase-js';
 import { toast } from '../../components/Toast';
 import { listPendingRedditOrders, importRedditOrder, adminUpdateTask } from '../../lib/api';
 
@@ -28,14 +29,46 @@ const COMMENT_PRESETS = [5000, 8000, 11000, 14000, 17000, 20000];
 const UPVOTE_PRESETS  = [500, 1000, 1500, 2000];
 // LEVEL_OPTIONS removed — gates now use min_karma + min_age directly.
 
+type FilterKey = 'all' | 'draft' | 'active' | 'paused';
+type TaskStatus = 'draft' | 'active' | 'paused' | 'completed';
+type TaskCategory = 'reddit_upvote' | 'reddit_comment' | 'reddit_post_thread';
+
+type TaskRow = {
+  id: string;
+  title: string | null;
+  description: string | null;
+  brief: string | null;
+  target_url: string | null;
+  task_type: 'upvote' | 'comment' | string | null;
+  task_category: TaskCategory | null;
+  reward_amount: number;
+  current_assignments: number | null;
+  max_assignments: number | null;
+  per_account_limit: number | null;
+  min_level: number | null;
+  min_karma: number | null;
+  min_account_age_days: number | null;
+  start_at: string | null;
+  end_at: string | null;
+  status: TaskStatus;
+  source_order_id?: number | null;
+};
+
+const FILTERS: Array<[FilterKey, string, (tasks: TaskRow[], stats: { draft: number; active: number; paused: number }) => number]> = [
+  ['all', 'Semua', (tasks) => tasks.length],
+  ['draft', 'Draft', (_tasks, stats) => stats.draft],
+  ['active', 'Aktif', (_tasks, stats) => stats.active],
+  ['paused', 'Paused', (_tasks, stats) => stats.paused],
+];
+
 export function AdminTaskQueue() {
   const queryClient = useQueryClient();
-  const [user, setUser] = React.useState<any>(null);
+  const [user, setUser] = React.useState<User | null>(null);
   const [showSheet, setShowSheet] = React.useState(false);
-  const [filter, setFilter] = React.useState<'all' | 'draft' | 'active' | 'paused'>('all');
+  const [filter, setFilter] = React.useState<FilterKey>('all');
   const [bulkImporting, setBulkImporting] = React.useState(false);
   // Edit-sheet state — pre-populated when admin clicks "Edit" on a task row.
-  const [editingTask, setEditingTask] = React.useState<any | null>(null);
+  const [editingTask, setEditingTask] = React.useState<TaskRow | null>(null);
   const [editForm, setEditForm] = React.useState({
     title: '',
     description: '',
@@ -75,7 +108,7 @@ export function AdminTaskQueue() {
     queryKey: ['adminTasks'],
     queryFn: async () => {
       const { data } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
-      return data || [];
+      return (data || []) as TaskRow[];
     },
   });
 
@@ -117,7 +150,7 @@ export function AdminTaskQueue() {
       setShowSheet(false);
       refetch();
     },
-    onError: (e: any) => toast.error(e?.message || 'Gagal membuat task'),
+    onError: (e: unknown) => toast.error(errorMessage(e, 'Gagal membuat task')),
   });
 
   const toggleStatus = useMutation({
@@ -143,18 +176,18 @@ export function AdminTaskQueue() {
       queryClient.invalidateQueries({ queryKey: ['pendingRedditOrders'] });
       queryClient.invalidateQueries({ queryKey: ['adminTasks'] });
     },
-    onError: (e: any) => toast.error(`Import gagal: ${e.message || e}`),
+    onError: (e: unknown) => toast.error(`Import gagal: ${errorMessage(e, 'Unknown error')}`),
   });
 
   // Open Edit sheet for a task — pre-populate form with current values.
-  const openEdit = (t: any) => {
+  const openEdit = (t: TaskRow) => {
     setEditForm({
       title: t.title || '',
       description: t.description || '',
       brief: t.brief || '',
       target_url: t.target_url || '',
       task_category: (t.task_category ||
-        (t.task_type === 'upvote' ? 'reddit_upvote' : 'reddit_comment')) as any,
+        (t.task_type === 'upvote' ? 'reddit_upvote' : 'reddit_comment')) as TaskCategory,
       reward_amount: String(t.reward_amount ?? 0),
       max_assignments: String(t.max_assignments ?? 1),
       per_account_limit: String(t.per_account_limit ?? 1),
@@ -169,28 +202,31 @@ export function AdminTaskQueue() {
   };
 
   const editMutation = useMutation({
-    mutationFn: () => adminUpdateTask({
-      taskId: editingTask.id,
-      title: editForm.title,
-      description: editForm.description,
-      brief: editForm.brief,
-      target_url: editForm.target_url,
-      task_category: editForm.task_category,
-      reward_amount: parseInt0(editForm.reward_amount),
-      max_assignments: parseInt1(editForm.max_assignments),
-      per_account_limit: parseInt1(editForm.per_account_limit),
-      min_karma: parseInt0(editForm.min_karma),
-      min_account_age_days: parseInt0(editForm.min_account_age_days),
-      start_at: localInputToIso(editForm.start_at),
-      end_at: localInputToIso(editForm.end_at),
-      status: editForm.status,
-    }),
+    mutationFn: () => {
+      if (!editingTask) throw new Error('No task selected');
+      return adminUpdateTask({
+        taskId: editingTask.id,
+        title: editForm.title,
+        description: editForm.description,
+        brief: editForm.brief,
+        target_url: editForm.target_url,
+        task_category: editForm.task_category,
+        reward_amount: parseInt0(editForm.reward_amount),
+        max_assignments: parseInt1(editForm.max_assignments),
+        per_account_limit: parseInt1(editForm.per_account_limit),
+        min_karma: parseInt0(editForm.min_karma),
+        min_account_age_days: parseInt0(editForm.min_account_age_days),
+        start_at: localInputToIso(editForm.start_at),
+        end_at: localInputToIso(editForm.end_at),
+        status: editForm.status,
+      });
+    },
     onSuccess: () => {
       toast.success('Task updated ✅');
       setEditingTask(null);
       refetch();
     },
-    onError: (e: any) => toast.error(e.message || String(e)),
+    onError: (e: unknown) => toast.error(errorMessage(e, 'Task update failed')),
   });
 
   const importAll = async () => {
@@ -214,17 +250,31 @@ export function AdminTaskQueue() {
   };
 
   const filtered = tasks.filter((t) => filter === 'all' || t.status === filter);
+  const activeCount = tasks.filter((t) => t.status === 'active').length;
+  const draftCount = tasks.filter((t) => t.status === 'draft').length;
+  const pausedCount = tasks.filter((t) => t.status === 'paused').length;
+  const openSlots = tasks.reduce((sum, t) => sum + Math.max(0, Number(t.max_assignments || 0) - Number(t.current_assignments || 0)), 0);
 
   return (
     <Layout userRole="admin">
-      <div className="flex items-start justify-between gap-3 mb-5">
-        <div>
-          <p className="text-xs uppercase tracking-wide font-bold text-muted">Admin Console</p>
+      <div className="flex items-start justify-between gap-3 mb-4">
+        <div className="min-w-0">
+          <p className="text-xs uppercase tracking-wide font-bold text-primary">Operations Control</p>
           <h1 className="text-2xl sm:text-3xl font-extrabold">Task Queue</h1>
+          <p className="text-sm text-muted mt-1 max-w-2xl">
+            Review client orders, set reward economics, and publish only tasks that are ready for PeTa members.
+          </p>
         </div>
         <Button onClick={() => setShowSheet(true)} variant="primary" size="md">
           <Plus size={18} /> Task Baru
         </Button>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-5">
+        <QueueStat icon={ShieldCheck} label="Active" value={activeCount} tone="success" />
+        <QueueStat icon={Clock3} label="Draft review" value={draftCount} tone="muted" />
+        <QueueStat icon={Users} label="Open slots" value={openSlots} tone="primary" />
+        <QueueStat icon={ClipboardList} label="Client orders" value={pendingOrders.length} tone="warning" />
       </div>
 
       {/* Straight Ltd order queue — import-as-task panel. Only shown when
@@ -233,12 +283,12 @@ export function AdminTaskQueue() {
         <Card className="mb-5 bg-warning/5 ring-warning/30">
           <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
             <div>
-              <p className="text-xs uppercase tracking-wide font-bold text-warning">Order Queue · Straight Ltd</p>
+              <p className="text-xs uppercase tracking-wide font-bold text-warning">Client Order Intake</p>
               <h2 className="text-lg sm:text-xl font-extrabold">
-                {pendingOrders.length} order belum di-import
+                {pendingOrders.length} order needs task review
               </h2>
               <p className="text-xs text-muted">
-                Order dari client B2B yang masih nunggu task PeTa dibuat. Klik "Import" buat copy jadi task otomatis.
+                Import creates a paused PeTa task from each Straight Ltd order. Review the brief, payout, slots, and account gates before activating.
               </p>
             </div>
             <Button
@@ -248,7 +298,7 @@ export function AdminTaskQueue() {
               variant="primary"
               size="sm"
             >
-              <Zap size={14} /> Import Semua ({pendingOrders.length})
+              <Zap size={14} /> Import all ({pendingOrders.length})
             </Button>
           </div>
 
@@ -299,20 +349,15 @@ export function AdminTaskQueue() {
 
       {/* Filter */}
       <div className="flex gap-2 overflow-x-auto no-scrollbar mb-4">
-        {[
-          ['all',     'Semua',  tasks.length],
-          ['draft',   'Draft',  tasks.filter(t => t.status === 'draft').length],
-          ['active',  'Aktif',  tasks.filter(t => t.status === 'active').length],
-          ['paused',  'Paused', tasks.filter(t => t.status === 'paused').length],
-        ].map(([k, l, n]) => (
+        {FILTERS.map(([k, l, getCount]) => (
           <button
-            key={k as string}
-            onClick={() => setFilter(k as any)}
+            key={k}
+            onClick={() => setFilter(k)}
             className={`tap-shrink shrink-0 px-3 py-1.5 rounded-full text-xs font-bold ${
               filter === k ? 'bg-primary text-white' : 'bg-white ring-1 ring-border text-muted'
             }`}
           >
-            {l} ({n})
+            {l} ({getCount(tasks, { draft: draftCount, active: activeCount, paused: pausedCount })})
           </button>
         ))}
       </div>
@@ -331,8 +376,19 @@ export function AdminTaskQueue() {
             <Card key={t.id} padding="sm">
               <div className="flex items-start justify-between gap-3 mb-2">
                 <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <span className="text-[10px] uppercase tracking-wide font-bold bg-light text-muted px-2 py-0.5 rounded-full">
+                      {formatTaskCategory(t)}
+                    </span>
+                    <span className={`text-[10px] uppercase tracking-wide font-bold px-2 py-0.5 rounded-full ${
+                      t.status === 'active' ? 'bg-success/15 text-success' :
+                      t.status === 'paused' ? 'bg-warning/15 text-warning' :
+                      t.status === 'completed' ? 'bg-light text-dark' : 'bg-light text-muted'
+                    }`}>
+                      {formatStatus(t.status)}
+                    </span>
+                  </div>
                   <p className="font-bold leading-snug">
-                    <span className="mr-1">{t.task_type === 'upvote' ? '👍' : '💬'}</span>
                     {t.title}
                   </p>
                   <p className="text-xs text-muted line-clamp-1">{t.description}</p>
@@ -342,7 +398,7 @@ export function AdminTaskQueue() {
                     // instructions need to be exactly right.
                     <details className="mt-1.5">
                       <summary className="text-[11px] font-bold text-warning bg-warning/10 px-2 py-0.5 rounded-full inline-flex items-center gap-1 cursor-pointer hover:bg-warning/20 list-none">
-                        📋 Brief lengkap (klik buka)
+                        Brief lengkap - klik buka
                       </summary>
                       <div className="mt-2 p-2.5 bg-yellow-50 ring-1 ring-yellow-200 rounded-lg text-xs whitespace-pre-line leading-relaxed text-yellow-950">
                         {t.brief}
@@ -354,16 +410,19 @@ export function AdminTaskQueue() {
                   Rp{t.reward_amount.toLocaleString('id-ID')}
                 </p>
               </div>
+              <div className="mb-2">
+                <div className="h-1.5 rounded-full bg-light overflow-hidden">
+                  <div
+                    className="h-full bg-primary"
+                    style={{ width: `${Math.min(100, Math.round((Number(t.current_assignments || 0) / Math.max(1, Number(t.max_assignments || 1))) * 100))}%` }}
+                  />
+                </div>
+              </div>
               <div className="flex items-center justify-between text-xs gap-2 flex-wrap">
                 <div className="flex items-center gap-2 text-muted flex-wrap">
-                  <span>{t.current_assignments}/{t.max_assignments}</span>
+                  <span>{t.current_assignments}/{t.max_assignments} slots filled</span>
                   <span>•</span>
-                  <span>min lvl {t.min_level}</span>
-                  <span>•</span>
-                  <span className={`px-2 py-0.5 rounded-full font-bold ${
-                    t.status === 'active' ? 'bg-success/15 text-success' :
-                    t.status === 'paused' ? 'bg-warning/15 text-warning' : 'bg-light text-muted'
-                  }`}>{t.status}</span>
+                  <span>{formatGate(t)}</span>
                   {(t.start_at || t.end_at) && (
                     <span className="text-[10px] bg-light px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
                       <Calendar size={10} />
@@ -819,4 +878,60 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       {children}
     </div>
   );
+}
+
+function QueueStat({
+  icon: Icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  label: string;
+  value: number;
+  tone: 'primary' | 'success' | 'warning' | 'muted';
+}) {
+  const toneClass = {
+    primary: 'text-primary bg-primary/10',
+    success: 'text-success bg-success/10',
+    warning: 'text-warning bg-warning/10',
+    muted: 'text-muted bg-light',
+  }[tone];
+
+  return (
+    <div className="bg-white ring-1 ring-border rounded-2xl p-3 flex items-center gap-3">
+      <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${toneClass}`}>
+        <Icon size={18} />
+      </div>
+      <div>
+        <p className="text-[11px] uppercase tracking-wide font-bold text-muted">{label}</p>
+        <p className="text-xl font-extrabold text-dark">{value.toLocaleString('id-ID')}</p>
+      </div>
+    </div>
+  );
+}
+
+function formatTaskCategory(t: TaskRow) {
+  const category = t.task_category || (t.task_type === 'upvote' ? 'reddit_upvote' : 'reddit_comment');
+  if (category === 'reddit_upvote') return 'Upvote';
+  if (category === 'reddit_post_thread') return 'Post thread';
+  return 'Comment';
+}
+
+function formatStatus(status: string) {
+  if (status === 'active') return 'Active';
+  if (status === 'paused') return 'Paused';
+  if (status === 'completed') return 'Done';
+  return 'Draft';
+}
+
+function formatGate(t: TaskRow) {
+  const gates: string[] = [];
+  if (Number(t.min_karma || 0) > 0) gates.push(`${Number(t.min_karma).toLocaleString('id-ID')} karma`);
+  if (Number(t.min_account_age_days || 0) > 0) gates.push(`${Number(t.min_account_age_days).toLocaleString('id-ID')}d age`);
+  return gates.length ? `Gate: ${gates.join(' + ')}` : 'Gate: all eligible members';
+}
+
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
 }
