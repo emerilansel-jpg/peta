@@ -46,6 +46,8 @@ type TaskRow = {
   title: string | null;
   description: string | null;
   brief: string | null;
+  post_to_wa_group: boolean | null;
+  wa_group_draft: string | null;
   target_url: string | null;
   task_type: 'upvote' | 'comment' | string | null;
   task_category: TaskCategory | null;
@@ -81,6 +83,8 @@ export function AdminTaskQueue() {
     title: '',
     description: '',
     brief: '',
+    post_to_wa_group: false,
+    wa_group_draft: '',
     target_url: '',
     task_category: 'reddit_comment' as TaskCategory,
     reward_amount: '0',
@@ -99,6 +103,8 @@ export function AdminTaskQueue() {
     title: '',
     description: '',
     brief: '',
+    post_to_wa_group: false,
+    wa_group_draft: '',
     target_url: '',
     task_category: 'reddit_comment' as TaskCategory,
     reward_amount: '8000',
@@ -139,6 +145,8 @@ export function AdminTaskQueue() {
         title: form.title,
         description: form.description,
         brief: form.brief,
+        post_to_wa_group: form.post_to_wa_group,
+        wa_group_draft: form.wa_group_draft || null,
         target_url: form.target_url,
         task_category: form.task_category,
         task_type: categoryToType(form.task_category),
@@ -154,7 +162,7 @@ export function AdminTaskQueue() {
     },
     onSuccess: (_data, publishStatus) => {
       toast.success(publishStatus === 'draft' ? 'Disimpan sebagai draft ðŸ“' : 'Task aktif & visible buat army âœ…');
-      setForm({ title: '', description: '', brief: '', target_url: '', task_category: 'reddit_comment', reward_amount: '8000', max_assignments: '5', per_account_limit: '1', min_karma: '', min_account_age_days: '' });
+      setForm({ title: '', description: '', brief: '', post_to_wa_group: false, wa_group_draft: '', target_url: '', task_category: 'reddit_comment', reward_amount: '8000', max_assignments: '5', per_account_limit: '1', min_karma: '', min_account_age_days: '' });
       setShowSheet(false);
       refetch();
     },
@@ -193,6 +201,8 @@ export function AdminTaskQueue() {
       title: t.title || '',
       description: t.description || '',
       brief: t.brief || '',
+      post_to_wa_group: Boolean(t.post_to_wa_group),
+      wa_group_draft: t.wa_group_draft || '',
       target_url: t.target_url || '',
       task_category: (t.task_category ||
         (t.task_type === 'upvote' ? 'reddit_upvote' : 'reddit_comment')) as TaskCategory,
@@ -217,6 +227,8 @@ export function AdminTaskQueue() {
         title: editForm.title,
         description: editForm.description,
         brief: editForm.brief,
+        post_to_wa_group: editForm.post_to_wa_group,
+        wa_group_draft: editForm.wa_group_draft,
         target_url: editForm.target_url,
         task_category: editForm.task_category,
         reward_amount: parseInt0(editForm.reward_amount),
@@ -265,15 +277,17 @@ export function AdminTaskQueue() {
 
   const applyStandardBrief = (mode: 'create' | 'edit') => {
     if (mode === 'create') {
+      const parts = splitForumBrief(form.brief);
       setForm({
         ...form,
-        brief: buildStandardBriefTemplate(platformForUrl(form.target_url, form.task_category), form.target_url),
+        brief: combineForumBrief(parts.commentPost, standardBriefForPlatform(platformForUrl(form.target_url, form.task_category), form.target_url)),
       });
       return;
     }
+    const parts = splitForumBrief(editForm.brief);
     setEditForm({
       ...editForm,
-      brief: buildStandardBriefTemplate(platformForUrl(editForm.target_url, editForm.task_category), editForm.target_url),
+      brief: combineForumBrief(parts.commentPost, standardBriefForPlatform(platformForUrl(editForm.target_url, editForm.task_category), editForm.target_url)),
     });
   };
 
@@ -422,8 +436,21 @@ export function AdminTaskQueue() {
                       <summary className="text-[11px] font-bold text-warning bg-warning/10 px-2 py-0.5 rounded-full inline-flex items-center gap-1 cursor-pointer hover:bg-warning/20 list-none">
                         Brief lengkap - klik buka
                       </summary>
-                      <div className="mt-2 p-2.5 bg-yellow-50 ring-1 ring-yellow-200 rounded-lg text-xs whitespace-pre-line leading-relaxed text-yellow-950">
-                        {cleanInternalText(t.brief)}
+                      <div className="mt-2 space-y-2">
+                        <div className="p-2.5 bg-yellow-50 ring-1 ring-yellow-200 rounded-lg text-xs whitespace-pre-line leading-relaxed text-yellow-950">
+                          <p className="font-extrabold uppercase text-[10px] mb-1">Comment/Post</p>
+                          {cleanInternalText(splitForumBrief(t.brief).commentPost || '-')}
+                        </div>
+                        <div className="p-2.5 bg-sky-50 ring-1 ring-sky-200 rounded-lg text-xs whitespace-pre-line leading-relaxed text-sky-950">
+                          <p className="font-extrabold uppercase text-[10px] mb-1">Standard Brief</p>
+                          {cleanInternalText(splitForumBrief(t.brief).standardBrief || '-')}
+                        </div>
+                        {t.post_to_wa_group && (
+                          <div className="p-2.5 bg-green-50 ring-1 ring-green-200 rounded-lg text-xs whitespace-pre-line leading-relaxed text-green-950">
+                            <p className="font-extrabold uppercase text-[10px] mb-1">Draft WA Group</p>
+                            {cleanInternalText(t.wa_group_draft || '-')}
+                          </div>
+                        )}
                       </div>
                     </details>
                   )}
@@ -504,6 +531,12 @@ export function AdminTaskQueue() {
                           const next = { ...form, task_category: cat, reward_amount: String(defaultReward) };
                           if (cat === 'forum_comment' && !form.brief.trim()) {
                             next.brief = buildStandardBriefTemplate(platformForUrl(form.target_url, cat), form.target_url);
+                            next.wa_group_draft = buildWaGroupDraft({
+                              title: form.title,
+                              platform: platformForUrl(form.target_url, cat),
+                              reward: Number(defaultReward),
+                              commentPost: splitForumBrief(next.brief).commentPost,
+                            });
                           }
                           setForm(next);
                         }}
@@ -565,16 +598,79 @@ export function AdminTaskQueue() {
                       </button>
                     </div>
                   )}
-                  <textarea
-                    value={form.brief}
-                    onChange={(e) => setForm({ ...form, brief: e.target.value })}
-                    placeholder={form.task_category === 'reddit_upvote'
-                      ? 'Untuk upvote: cukup link thread di atas. Brief opsional.'
-                      : 'COMMENT/POST YANG HARUS DIISI:\n...\n\nSTANDARD BRIEF UNIVERSAL:\n...\n\nPlatform-specific ...'}
-                    className={inputCls + ' min-h-[180px] resize-y'}
-                    rows={8}
-                  />
+                  <div className="space-y-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-dark">Comment/post yang harus diisi</p>
+                    <textarea
+                      value={splitForumBrief(form.brief).commentPost}
+                      onChange={(e) => setForm({ ...form, brief: combineForumBrief(e.target.value, splitForumBrief(form.brief).standardBrief) })}
+                      placeholder={form.task_category === 'reddit_upvote'
+                        ? 'Untuk upvote: cukup link thread di atas. Brief opsional.'
+                        : 'Comment/post final dari client, atau instruksi inti yang wajib dikerjakan army.'}
+                      className={inputCls + ' min-h-[110px] resize-y'}
+                      rows={5}
+                    />
+                    {form.task_category !== 'reddit_upvote' && (
+                      <>
+                        <p className="text-[11px] font-bold uppercase tracking-wide text-dark">Standard brief platform</p>
+                        <textarea
+                          value={splitForumBrief(form.brief).standardBrief}
+                          onChange={(e) => setForm({ ...form, brief: combineForumBrief(splitForumBrief(form.brief).commentPost, e.target.value) })}
+                          placeholder="STANDARD BRIEF UNIVERSAL + platform-specific brief..."
+                          className={inputCls + ' min-h-[160px] resize-y'}
+                          rows={7}
+                        />
+                      </>
+                    )}
+                  </div>
                 </Field>
+
+                {form.task_category !== 'reddit_upvote' && (
+                  <Field label="Post ke WA group">
+                    <label className="flex items-start gap-3 p-3 rounded-xl bg-light ring-1 ring-border cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={form.post_to_wa_group}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setForm({
+                            ...form,
+                            post_to_wa_group: checked,
+                            wa_group_draft: checked && !form.wa_group_draft.trim()
+                              ? buildWaGroupDraft({
+                                title: form.title,
+                                platform: platformForUrl(form.target_url, form.task_category),
+                                reward: parseInt0(form.reward_amount),
+                                commentPost: splitForumBrief(form.brief).commentPost,
+                              })
+                              : form.wa_group_draft,
+                          });
+                        }}
+                        className="mt-1"
+                      />
+                      <span className="text-sm">
+                        <b>Siapkan draft WA manual.</b>
+                        <span className="block text-xs text-muted">Sistem tidak auto-post. Admin copy draft ini ke grup WA.</span>
+                      </span>
+                    </label>
+                    {form.post_to_wa_group && (
+                      <div className="mt-2">
+                        <button
+                          type="button"
+                          onClick={() => navigator.clipboard?.writeText(form.wa_group_draft).then(() => toast.success('Draft WA dicopy'))}
+                          className="mb-2 text-[11px] font-bold text-primary hover:underline"
+                        >
+                          Copy draft WA
+                        </button>
+                        <textarea
+                          value={form.wa_group_draft}
+                          onChange={(e) => setForm({ ...form, wa_group_draft: e.target.value })}
+                          className={inputCls + ' min-h-[150px] resize-y'}
+                          rows={6}
+                        />
+                      </div>
+                    )}
+                  </Field>
+                )}
 
                 <Field label="Reward per task (Rp)">
                   <div className={`grid ${form.task_category === 'reddit_upvote' ? 'grid-cols-4' : 'grid-cols-3'} gap-2 mb-2`}>
@@ -738,6 +834,14 @@ export function AdminTaskQueue() {
                           brief: cat === 'forum_comment' && !editForm.brief.trim()
                             ? buildStandardBriefTemplate(platformForUrl(editForm.target_url, cat), editForm.target_url)
                             : editForm.brief,
+                          wa_group_draft: cat === 'forum_comment' && !editForm.wa_group_draft.trim()
+                            ? buildWaGroupDraft({
+                              title: editForm.title,
+                              platform: platformForUrl(editForm.target_url, cat),
+                              reward: parseInt0(editForm.reward_amount),
+                              commentPost: splitForumBrief(editForm.brief).commentPost,
+                            })
+                            : editForm.wa_group_draft,
                         })}
                         className={`tap-shrink min-h-[44px] rounded-xl text-xs font-bold ${
                           editForm.task_category === cat
@@ -792,16 +896,79 @@ export function AdminTaskQueue() {
                       </button>
                     </div>
                   )}
-                  <textarea
-                    value={editForm.brief}
-                    onChange={(e) => setEditForm({ ...editForm, brief: e.target.value })}
-                    placeholder={editForm.task_category === 'reddit_upvote'
-                      ? 'Untuk upvote: cukup link thread. Brief opsional.'
-                      : 'COMMENT/POST YANG HARUS DIISI:\n...\n\nSTANDARD BRIEF UNIVERSAL:\n...'}
-                    className={inputCls + ' min-h-[180px] resize-y'}
-                    rows={8}
-                  />
+                  <div className="space-y-3">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-dark">Comment/post yang harus diisi</p>
+                    <textarea
+                      value={splitForumBrief(editForm.brief).commentPost}
+                      onChange={(e) => setEditForm({ ...editForm, brief: combineForumBrief(e.target.value, splitForumBrief(editForm.brief).standardBrief) })}
+                      placeholder={editForm.task_category === 'reddit_upvote'
+                        ? 'Untuk upvote: cukup link thread. Brief opsional.'
+                        : 'Comment/post final dari client, atau instruksi inti yang wajib dikerjakan army.'}
+                      className={inputCls + ' min-h-[110px] resize-y'}
+                      rows={5}
+                    />
+                    {editForm.task_category !== 'reddit_upvote' && (
+                      <>
+                        <p className="text-[11px] font-bold uppercase tracking-wide text-dark">Standard brief platform</p>
+                        <textarea
+                          value={splitForumBrief(editForm.brief).standardBrief}
+                          onChange={(e) => setEditForm({ ...editForm, brief: combineForumBrief(splitForumBrief(editForm.brief).commentPost, e.target.value) })}
+                          placeholder="STANDARD BRIEF UNIVERSAL + platform-specific brief..."
+                          className={inputCls + ' min-h-[160px] resize-y'}
+                          rows={7}
+                        />
+                      </>
+                    )}
+                  </div>
                 </Field>
+
+                {editForm.task_category !== 'reddit_upvote' && (
+                  <Field label="Post ke WA group">
+                    <label className="flex items-start gap-3 p-3 rounded-xl bg-light ring-1 ring-border cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={editForm.post_to_wa_group}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setEditForm({
+                            ...editForm,
+                            post_to_wa_group: checked,
+                            wa_group_draft: checked && !editForm.wa_group_draft.trim()
+                              ? buildWaGroupDraft({
+                                title: editForm.title,
+                                platform: platformForUrl(editForm.target_url, editForm.task_category),
+                                reward: parseInt0(editForm.reward_amount),
+                                commentPost: splitForumBrief(editForm.brief).commentPost,
+                              })
+                              : editForm.wa_group_draft,
+                          });
+                        }}
+                        className="mt-1"
+                      />
+                      <span className="text-sm">
+                        <b>Siapkan draft WA manual.</b>
+                        <span className="block text-xs text-muted">Sistem tidak auto-post. Admin copy draft ini ke grup WA.</span>
+                      </span>
+                    </label>
+                    {editForm.post_to_wa_group && (
+                      <div className="mt-2">
+                        <button
+                          type="button"
+                          onClick={() => navigator.clipboard?.writeText(editForm.wa_group_draft).then(() => toast.success('Draft WA dicopy'))}
+                          className="mb-2 text-[11px] font-bold text-primary hover:underline"
+                        >
+                          Copy draft WA
+                        </button>
+                        <textarea
+                          value={editForm.wa_group_draft}
+                          onChange={(e) => setEditForm({ ...editForm, wa_group_draft: e.target.value })}
+                          className={inputCls + ' min-h-[150px] resize-y'}
+                          rows={6}
+                        />
+                      </div>
+                    )}
+                  </Field>
+                )}
 
                 <Field label="Reward per task (Rp)">
                   <div className={`grid ${editForm.task_category === 'reddit_upvote' ? 'grid-cols-4' : 'grid-cols-3'} gap-2 mb-2`}>
@@ -1086,6 +1253,67 @@ function buildStandardBriefTemplate(platform: string, targetUrl: string) {
     '- Submit bukti: URL komentar/thread, username platform, dan screenshot optional tapi disarankan.',
     '',
     ...platformSpecific,
+  ].join('\n');
+}
+
+function splitForumBrief(raw: string | null | undefined) {
+  const text = raw || '';
+  const commentMarker = 'COMMENT/POST YANG HARUS DIISI:';
+  const detailMarker = 'DETAIL ORDER:';
+  const standardMarker = 'STANDARD BRIEF UNIVERSAL:';
+  if (!text.includes(commentMarker) && !text.includes(standardMarker)) {
+    return { commentPost: text, standardBrief: '' };
+  }
+  const afterComment = text.includes(commentMarker) ? text.split(commentMarker)[1] : text;
+  const commentPost = (afterComment.split(detailMarker)[0] || '').trim();
+  const detailStart = text.indexOf(detailMarker);
+  const standardStart = text.indexOf(standardMarker);
+  const standardBrief = standardStart >= 0
+    ? text.slice(standardStart).trim()
+    : detailStart >= 0 ? text.slice(detailStart).trim() : '';
+  return { commentPost, standardBrief };
+}
+
+function combineForumBrief(commentPost: string, standardBrief: string) {
+  return [
+    'COMMENT/POST YANG HARUS DIISI:',
+    commentPost.trim(),
+    '',
+    standardBrief.trim(),
+  ].join('\n');
+}
+
+function standardBriefForPlatform(platform: string, targetUrl: string) {
+  return splitForumBrief(buildStandardBriefTemplate(platform, targetUrl)).standardBrief;
+}
+
+function buildWaGroupDraft({
+  title,
+  platform,
+  reward,
+  commentPost,
+}: {
+  title: string;
+  platform: string;
+  reward: number;
+  commentPost: string;
+}) {
+  return [
+    'Task baru tersedia',
+    '',
+    `Platform: ${platform}`,
+    `Task: ${title || 'Forum comment task'}`,
+    `Reward: Rp${Number(reward || 5000).toLocaleString('id-ID')}`,
+    '',
+    'Yang dikerjakan:',
+    commentPost.trim() || 'Buka target, baca konteks thread/post, lalu tulis komentar natural sesuai brief.',
+    '',
+    'Bukti submit:',
+    '- URL komentar/thread setelah komentar tampil',
+    '- Username yang dipakai di platform',
+    '- Screenshot optional tapi disarankan',
+    '',
+    'Ambil task dari dashboard PeTa. Jangan spam dan ikuti rules platform.',
   ].join('\n');
 }
 

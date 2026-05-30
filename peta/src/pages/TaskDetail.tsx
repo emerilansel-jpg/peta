@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import {
@@ -110,7 +110,7 @@ export function TaskDetail() {
       if (!user) throw new Error('Auth required');
       const url = await uploadTaskProofImage({ userId: user.id, taskId: taskId!, file });
       setProofImageUrl(url);
-      toast.success('Screenshot ter-upload ✅');
+      toast.success('Screenshot ter-upload âœ…');
     } catch (e: any) {
       toast.error(`Upload gagal: ${e.message || e}`);
     } finally {
@@ -125,7 +125,7 @@ export function TaskDetail() {
     return (
       <Layout userRole="army">
         <div className="max-w-md mx-auto text-center py-12">
-          <div className="text-5xl mb-3">🤷</div>
+          <div className="text-5xl mb-3">ðŸ¤·</div>
           <h2 className="text-2xl font-extrabold mb-2">Task tidak ditemukan</h2>
           <Button onClick={() => navigate('/tasks')} variant="primary" fullWidth>Kembali ke daftar</Button>
         </div>
@@ -133,27 +133,27 @@ export function TaskDetail() {
     );
   }
 
-  const minutes = task.reward_amount > 15000 ? '5–10' : '3–5';
+  const minutes = task.reward_amount > 15000 ? '5â€“10' : '3â€“5';
   const category = task.task_category || task.task_type;
   const isUpvote = category === 'reddit_upvote' || task.task_type === 'upvote';
   const isForumComment = category === 'forum_comment';
   const isComment = isForumComment || category === 'reddit_comment' || task.task_type === 'comment';
   const platformLabel = platformForTask(task);
   // Step 3 is unlocked once user has opened the thread (or skipped the
-  // visual nudge). We don't actually gate the upload behind this — that
+  // visual nudge). We don't actually gate the upload behind this â€” that
   // would block a returning user. But it does drive the active-step UI.
   const canSubmit = isUpvote
     ? !!proofImageUrl
     : !!proofUrl.trim() && !!submittedUsername.trim();
 
-  // ----- DONE STAGE — celebrate + nudge to the next high-value action -----
+  // ----- DONE STAGE â€” celebrate + nudge to the next high-value action -----
   if (stage === 'done') {
     return (
       <Layout userRole="army">
         <ConfettiBurst active={confetti} onDone={() => setConfetti(false)} />
         <div className="max-w-2xl mx-auto pb-8">
           <Card className="bg-gradient-to-br from-success/15 via-success/5 to-secondary/10 ring-success/30 text-center py-7">
-            <div className="text-6xl mb-3">🎉</div>
+            <div className="text-6xl mb-3">ðŸŽ‰</div>
             <h1 className="text-3xl font-extrabold text-success mb-2">Tersubmit!</h1>
             <p className="text-base text-dark/85 mb-4">
               Admin lagi verify screenshot kamu sekarang.
@@ -161,23 +161,23 @@ export function TaskDetail() {
 
             <div className="bg-white rounded-2xl p-4 mb-5 ring-1 ring-success/30 max-w-sm mx-auto">
               <p className="text-xs uppercase font-bold tracking-wide text-muted mb-1">
-                ⏱️ Estimasi approval
+                â±ï¸ Estimasi approval
               </p>
               <p className="text-xl font-extrabold text-success leading-tight">
                 Max 3 hari kerja
               </p>
               <p className="text-sm text-muted mt-1">
-                Biasanya jauh lebih cepat — <b className="text-success">rata-rata 24 jam</b>.
+                Biasanya jauh lebih cepat â€” <b className="text-success">rata-rata 24 jam</b>.
                 Kalau approved, reward <b className="money">Rp{task.reward_amount.toLocaleString('id-ID')}</b> otomatis masuk saldo.
               </p>
             </div>
 
             <p className="text-sm font-bold mb-3 text-dark">
-              Sambil nunggu, jangan diem aja 👇
+              Sambil nunggu, jangan diem aja ðŸ‘‡
             </p>
           </Card>
 
-          {/* 3 Next-action CTAs — ordered by earning leverage */}
+          {/* 3 Next-action CTAs â€” ordered by earning leverage */}
           <div className="space-y-2 mt-3">
             <button
               onClick={() => navigate('/tasks')}
@@ -189,7 +189,7 @@ export function TaskDetail() {
               <div className="flex-1 text-left min-w-0">
                 <p className="font-extrabold text-base leading-tight">Lakuin task lain dulu</p>
                 <p className="text-xs opacity-90 mt-0.5">
-                  Cuan dobel — bisa kerjain task aktif lain selagi nunggu approval.
+                  Cuan dobel â€” bisa kerjain task aktif lain selagi nunggu approval.
                 </p>
               </div>
               <ArrowRight size={20} className="shrink-0" />
@@ -205,7 +205,7 @@ export function TaskDetail() {
               <div className="flex-1 text-left min-w-0">
                 <p className="font-extrabold text-base leading-tight">Bangun karma Reddit</p>
                 <p className="text-xs text-muted mt-0.5">
-                  Karma naik = reward task naik (Rp5K → Rp20K) + buka task premium.
+                  Karma naik = reward task naik (Rp5K â†’ Rp20K) + buka task premium.
                 </p>
               </div>
               <ArrowRight size={20} className="shrink-0 text-muted" />
@@ -232,14 +232,14 @@ export function TaskDetail() {
             onClick={() => navigate('/tasks')}
             className="w-full mt-5 text-sm text-muted font-semibold hover:text-dark tap-shrink py-2"
           >
-            ← Kembali ke daftar task
+            â† Kembali ke daftar task
           </button>
         </div>
       </Layout>
     );
   }
 
-  // ----- PREVIEW STAGE — only shown if user has MULTIPLE reddit accounts -----
+  // ----- PREVIEW STAGE â€” only shown if user has MULTIPLE reddit accounts -----
   // With the 1-account-per-user enforcement, this stage is auto-skipped via
   // the effect above. Kept here for legacy multi-account rows / admins.
   if (stage === 'preview' && accounts.length > 1) {
@@ -295,7 +295,7 @@ export function TaskDetail() {
               disabled={!selectedAccountId}
               fullWidth
             >
-              ✨ Mulai Task
+              âœ¨ Mulai Task
             </Button>
           </Card>
         </div>
@@ -303,7 +303,7 @@ export function TaskDetail() {
     );
   }
 
-  // ----- NO REDDIT ACCOUNT — show setup CTA -----
+  // ----- NO REDDIT ACCOUNT â€” show setup CTA -----
   if (accounts.length === 0) {
     return (
       <Layout userRole="army">
@@ -327,7 +327,7 @@ export function TaskDetail() {
     );
   }
 
-  // ----- SUBMIT STAGE — 3-step linear flow -----
+  // ----- SUBMIT STAGE â€” 3-step linear flow -----
   return (
     <Layout userRole="army">
       <div className="max-w-2xl mx-auto pb-24 sm:pb-0">
@@ -350,8 +350,8 @@ export function TaskDetail() {
               <h1 className="text-xl sm:text-2xl font-extrabold mb-2 leading-tight">{task.title}</h1>
               <p className="text-sm text-muted">{task.description}</p>
               <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted">
-                <span>⏱️ {minutes} min</span>
-                <span>👥 {task.current_assignments}/{task.max_assignments} dikerjakan</span>
+                <span>â±ï¸ {minutes} min</span>
+                <span>ðŸ‘¥ {task.current_assignments}/{task.max_assignments} dikerjakan</span>
               </div>
             </div>
             <div className="text-right shrink-0">
@@ -363,7 +363,7 @@ export function TaskDetail() {
           </div>
         </Card>
 
-        {/* ============ STEP 1 — BUKA TARGET ============ */}
+        {/* ============ STEP 1 â€” BUKA TARGET ============ */}
         <StepCard
           num={1}
           done={threadOpened}
@@ -393,7 +393,7 @@ export function TaskDetail() {
           )}
         </StepCard>
 
-        {/* ============ STEP 2 — LAKUKAN TASK + EXAMPLE SCREENSHOT ============ */}
+        {/* ============ STEP 2 â€” LAKUKAN TASK + EXAMPLE SCREENSHOT ============ */}
         <StepCard
           num={2}
           done={false}
@@ -404,24 +404,34 @@ export function TaskDetail() {
             : 'Ikuti brief. Komentar harus natural, membantu, dan tidak terlihat seperti spam.'
           }
         >
-          {/* Brief from admin — specific instructions for THIS task */}
+          {/* Brief from admin â€” specific instructions for THIS task */}
           {task.brief && task.brief.trim() && (
-            <div className="bg-yellow-50 ring-1 ring-yellow-300 rounded-xl p-3 mb-3">
-              <p className="text-[10px] uppercase font-bold tracking-wide text-yellow-900 mb-1">
-                📋 Brief dari admin — ikutin persis
-              </p>
-              <p className="text-sm text-yellow-950 whitespace-pre-line leading-relaxed">
-                {task.brief}
-              </p>
+            <div className="space-y-3 mb-3">
+              <div className="bg-yellow-50 ring-1 ring-yellow-300 rounded-xl p-3">
+                <p className="text-[10px] uppercase font-bold tracking-wide text-yellow-900 mb-1">
+                  Comment/Post yang harus diisi
+                </p>
+                <p className="text-sm text-yellow-950 whitespace-pre-line leading-relaxed">
+                  {splitForumBrief(task.brief).commentPost}
+                </p>
+              </div>
+              <div className="bg-sky-50 ring-1 ring-sky-300 rounded-xl p-3">
+                <p className="text-[10px] uppercase font-bold tracking-wide text-sky-900 mb-1">
+                  Standard brief platform
+                </p>
+                <p className="text-sm text-sky-950 whitespace-pre-line leading-relaxed">
+                  {splitForumBrief(task.brief).standardBrief}
+                </p>
+              </div>
             </div>
           )}
 
-          {/* Example screenshot reference — visual mock so users know
+          {/* Example screenshot reference â€” visual mock so users know
               what counts as valid proof. CSS-only, no asset weight. */}
           <ExampleScreenshot isUpvote={isUpvote} />
         </StepCard>
 
-        {/* ============ STEP 3 — UPLOAD BUKTI ============ */}
+        {/* ============ STEP 3 â€” UPLOAD BUKTI ============ */}
         <StepCard
           num={3}
           done={false}
@@ -445,7 +455,7 @@ export function TaskDetail() {
                 <X size={16} />
               </button>
               <span className="absolute bottom-2 left-2 text-[10px] font-bold bg-success text-white px-2 py-0.5 rounded-full">
-                ✓ Terupload
+                âœ“ Terupload
               </span>
             </div>
           ) : (
@@ -464,20 +474,20 @@ export function TaskDetail() {
                 {uploadingProof ? (
                   <>
                     <Upload size={28} className="text-primary animate-pulse" />
-                    <p className="text-sm font-bold text-primary">Uploading…</p>
+                    <p className="text-sm font-bold text-primary">Uploadingâ€¦</p>
                   </>
                 ) : (
                   <>
                     <Camera size={32} className="text-primary" />
                     <p className="text-sm font-bold text-dark">Tap untuk foto / pilih dari galeri</p>
-                    <p className="text-[11px] text-muted">JPG, PNG, WEBP — max 5 MB</p>
+                    <p className="text-[11px] text-muted">JPG, PNG, WEBP â€” max 5 MB</p>
                   </>
                 )}
               </div>
             </label>
           )}
 
-          {/* For comment tasks — submitted URL + platform username are required, screenshot is optional. */}
+          {/* For comment tasks â€” submitted URL + platform username are required, screenshot is optional. */}
           {!isUpvote && (
             <>
               <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
@@ -511,7 +521,7 @@ export function TaskDetail() {
               <textarea
                 value={draftComment}
                 onChange={(e) => setDraftComment(e.target.value)}
-                placeholder="Optional: cerita singkat tentang komentar kamu…"
+                placeholder="Optional: cerita singkat tentang komentar kamuâ€¦"
                 className="w-full px-4 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition resize-none text-sm"
                 rows={3}
               />
@@ -524,7 +534,7 @@ export function TaskDetail() {
             </p>
           )}
 
-          {/* Submit button — desktop inline */}
+          {/* Submit button â€” desktop inline */}
           <div className="hidden sm:block mt-5">
             <Button
               onClick={() => submitMutation.mutate()}
@@ -534,7 +544,7 @@ export function TaskDetail() {
               disabled={!canSubmit}
               fullWidth
             >
-              ✅ Submit untuk Approval
+              âœ… Submit untuk Approval
             </Button>
             {!canSubmit && (
               <p className="text-[11px] text-muted text-center mt-2">
@@ -556,7 +566,7 @@ export function TaskDetail() {
             disabled={!canSubmit}
             fullWidth
           >
-            ✅ Submit untuk Approval
+            âœ… Submit untuk Approval
           </Button>
         </div>
       </div>
@@ -565,7 +575,7 @@ export function TaskDetail() {
 }
 
 // ============================================================
-// StepCard — numbered step container with active / done states
+// StepCard â€” numbered step container with active / done states
 // ============================================================
 function StepCard({
   num, title, subtitle, active, done, children,
@@ -624,25 +634,40 @@ function platformForTask(task: any) {
   return 'Forum';
 }
 
+function splitForumBrief(raw: string | null | undefined) {
+  const text = raw || '';
+  const commentMarker = 'COMMENT/POST YANG HARUS DIISI:';
+  const detailMarker = 'DETAIL ORDER:';
+  const standardMarker = 'STANDARD BRIEF UNIVERSAL:';
+  if (!text.includes(commentMarker) && !text.includes(standardMarker)) {
+    return { commentPost: text, standardBrief: '' };
+  }
+  const afterComment = text.includes(commentMarker) ? text.split(commentMarker)[1] : text;
+  const commentPost = (afterComment.split(detailMarker)[0] || '').trim();
+  const standardStart = text.indexOf(standardMarker);
+  const standardBrief = standardStart >= 0 ? text.slice(standardStart).trim() : text.replace(commentPost, '').trim();
+  return { commentPost, standardBrief };
+}
+
 // ============================================================
-// ExampleScreenshot — CSS-only visual mock of what valid proof
+// ExampleScreenshot â€” CSS-only visual mock of what valid proof
 // looks like. Saves an asset download + always matches our brand.
 // ============================================================
 function ExampleScreenshot({ isUpvote }: { isUpvote: boolean }) {
   return (
     <div className="bg-light/60 rounded-xl p-3 ring-1 ring-black/5">
       <p className="text-[10px] uppercase font-bold tracking-wide text-muted mb-2">
-        📷 Contoh screenshot yang BENAR
+        ðŸ“· Contoh screenshot yang BENAR
       </p>
       <div className="bg-white rounded-lg p-3 ring-1 ring-black/10 shadow-inner max-w-[280px] mx-auto">
         {isUpvote ? (
           <>
-            {/* Mock of Reddit upvote button — orange = upvoted */}
+            {/* Mock of Reddit upvote button â€” orange = upvoted */}
             <div className="flex items-start gap-2.5">
               <div className="flex flex-col items-center gap-1 shrink-0">
-                <div className="text-orange-500 text-2xl leading-none font-black animate-pulse">▲</div>
+                <div className="text-orange-500 text-2xl leading-none font-black animate-pulse">â–²</div>
                 <div className="text-[10px] font-bold text-orange-500">142</div>
-                <div className="text-gray-300 text-xl leading-none">▼</div>
+                <div className="text-gray-300 text-xl leading-none">â–¼</div>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="bg-gray-200 h-2.5 rounded w-4/5 mb-1.5" />
@@ -651,7 +676,7 @@ function ExampleScreenshot({ isUpvote }: { isUpvote: boolean }) {
               </div>
             </div>
             <div className="mt-3 pt-2 border-t border-gray-100 flex items-center gap-1.5 text-[9px] text-gray-400">
-              <span>r/example</span><span>•</span><span>2h ago</span>
+              <span>r/example</span><span>â€¢</span><span>2h ago</span>
             </div>
           </>
         ) : (
@@ -676,7 +701,7 @@ function ExampleScreenshot({ isUpvote }: { isUpvote: boolean }) {
       </div>
       <p className="text-[11px] text-muted mt-2 text-center leading-snug">
         {isUpvote
-          ? '↑ Panah harus berwarna terang (orange/merah, tergantung tema). Sertakan URL bar juga biar admin verify.'
+          ? 'â†‘ Panah harus berwarna terang (orange/merah, tergantung tema). Sertakan URL bar juga biar admin verify.'
           : 'Komentar dari username kamu harus terlihat. Kalau bisa sertakan URL bar dan waktu post.'
         }
       </p>
