@@ -144,7 +144,7 @@ export function Tasks() {
   const { data: eligibleTasks = [], isLoading: tasksLoading } = useQuery<EligibleTask[]>({
     queryKey: ['eligibleTasks', user?.id],
     queryFn: () => listEligibleTasksForUser(),
-    enabled: !!user?.id && (isAdmin || !!karmaInfo?.username),
+    enabled: !!user?.id,
     refetchInterval: 120_000,
   });
 
@@ -388,7 +388,7 @@ export function Tasks() {
             Server-side filtered by karma/age/category/per-account-limit.
             Sits above everything because cash-in-hand beats CRO.
         ============================================================= */}
-        {!needsReddit && eligibleTasks.length > 0 && (
+        {eligibleTasks.length > 0 && (
           <div className="mb-5">
             <div className="flex items-baseline justify-between mb-2">
               <h2 className="text-lg sm:text-xl font-extrabold flex items-center gap-2">

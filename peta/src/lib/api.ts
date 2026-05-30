@@ -331,12 +331,17 @@ export async function getTasksForLevel(level: number) {
   return data;
 }
 
-export async function createTaskAssignment(taskId: string, redditAccountId: string) {
+export async function createTaskAssignment(taskId: string, redditAccountId?: string | null) {
+  const { data: authData, error: authErr } = await supabase.auth.getUser();
+  if (authErr) throw authErr;
+  if (!authData.user) throw new Error('Auth required');
+
   const { data, error } = await supabase
     .from('task_assignments')
     .insert({
       task_id: taskId,
-      reddit_account_id: redditAccountId,
+      user_id: authData.user.id,
+      reddit_account_id: redditAccountId || null,
       status: 'in_progress',
     })
     .select()
@@ -467,16 +472,13 @@ export async function getTotalEarnings(userId: string): Promise<{
   if (accErr) throw accErr;
   const accountIds = (accounts || []).map((a) => a.id);
 
-  let taskTotal = 0;
-  if (accountIds.length > 0) {
-    const { data, error } = await supabase
-      .from('task_assignments')
-      .select('tasks(reward_amount), status')
-      .in('reddit_account_id', accountIds)
-      .eq('status', 'approved');
-    if (error) throw error;
-    taskTotal = (data || []).reduce((sum: number, a: any) => sum + (a.tasks?.reward_amount || 0), 0);
-  }
+  const { data: taskRows, error: taskErr } = await supabase
+    .from('task_assignments')
+    .select('tasks(reward_amount), status')
+    .or(`user_id.eq.${userId},reddit_account_id.in.(${accountIds.join(',') || '00000000-0000-0000-0000-000000000000'})`)
+    .eq('status', 'approved');
+  if (taskErr) throw taskErr;
+  const taskTotal = (taskRows || []).reduce((sum: number, a: any) => sum + (a.tasks?.reward_amount || 0), 0);
 
   // 2) Credits — split by source
   const { data: credits, error: cErr } = await supabase

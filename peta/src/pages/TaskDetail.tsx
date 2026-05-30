@@ -57,7 +57,7 @@ export function TaskDetail() {
   });
 
   const startMutation = useMutation({
-    mutationFn: () => createTaskAssignment(taskId!, selectedAccountId),
+    mutationFn: () => createTaskAssignment(taskId!, selectedAccountId || null),
     onSuccess: (a: any) => {
       setAssignmentId(a.id);
       setStage('submit');
@@ -66,13 +66,11 @@ export function TaskDetail() {
   });
 
   // If user has exactly 1 reddit account (which is the enforced limit), skip
-  // the manual account-pick step and create the assignment immediately when
-  // they land on this page. Cuts one tap from the flow.
+  // the manual account-pick step. Forum tasks can also start without Reddit.
   React.useEffect(() => {
     if (
       stage === 'preview' &&
-      accounts.length === 1 &&
-      selectedAccountId &&
+      ((accounts.length === 1 && selectedAccountId) || (isForumComment && accounts.length === 0)) &&
       !startMutation.isPending &&
       !assignmentId
     ) {
@@ -303,8 +301,9 @@ export function TaskDetail() {
     );
   }
 
-  // ----- NO REDDIT ACCOUNT â€” show setup CTA -----
-  if (accounts.length === 0) {
+  // ----- NO REDDIT ACCOUNT: only block Reddit-specific tasks. Forum tasks
+  // can be completed with the external platform username submitted later.
+  if (accounts.length === 0 && !isForumComment) {
     return (
       <Layout userRole="army">
         <div className="max-w-2xl mx-auto pb-8">
