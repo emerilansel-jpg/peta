@@ -64,6 +64,11 @@ type DataForSeoResponse<T> = {
   }>;
 };
 
+type ProviderHealth = {
+  status: 'ok' | 'missing' | 'error';
+  detail?: string;
+};
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -229,6 +234,54 @@ function dataForSeoAuth() {
   const password = Deno.env.get('DATAFORSEO_PASSWORD');
   if (!login || !password) return null;
   return `Basic ${btoa(`${login}:${password}`)}`;
+}
+
+async function providerHealthCheck() {
+  const dataforseo: ProviderHealth = !Deno.env.get('DATAFORSEO_LOGIN') || !Deno.env.get('DATAFORSEO_PASSWORD')
+    ? { status: 'missing', detail: 'DATAFORSEO_LOGIN or DATAFORSEO_PASSWORD missing' }
+    : { status: 'ok' };
+  const google: ProviderHealth = !Deno.env.get('GOOGLE_SEARCH_API_KEY') || !Deno.env.get('GOOGLE_SEARCH_CX')
+    ? { status: 'missing', detail: 'GOOGLE_SEARCH_API_KEY or GOOGLE_SEARCH_CX missing' }
+    : { status: 'ok' };
+
+  if (dataforseo.status === 'ok') {
+    const dfs = await dataForSeoPost<DataForSeoLabsKeywordItem>(
+      'dataforseo_labs/google/keyword_suggestions/live',
+      [{
+        keyword: 'crm software',
+        location_code: 2840,
+        language_code: 'en',
+        include_serp_info: true,
+        include_seed_keyword: true,
+        limit: 1,
+      }]
+    ).catch((error) => ({ health_error: (error as Error).message }));
+    const error = (dfs as { health_error?: string })?.health_error;
+    const task = (dfs as DataForSeoResponse<DataForSeoLabsKeywordItem>)?.tasks?.[0];
+    const resultCount = task?.result?.length || 0;
+    if (error) {
+      dataforseo.status = 'error';
+      dataforseo.detail = error;
+    } else if (resultCount < 1) {
+      dataforseo.status = 'error';
+      dataforseo.detail = task?.status_message || 'No keyword rows returned';
+    }
+  }
+
+  if (google.status === 'ok') {
+    const result = await googleSearch('crm software')
+      .then((data) => ({ count: data?.items?.length || 0 }))
+      .catch((error) => ({ health_error: (error as Error).message }));
+    if ('health_error' in result) {
+      google.status = 'error';
+      google.detail = result.health_error;
+    } else if (result.count < 1) {
+      google.status = 'error';
+      google.detail = 'No search results returned';
+    }
+  }
+
+  return { dataforseo, google };
 }
 
 async function dataForSeoPost<T>(path: string, body: unknown): Promise<DataForSeoResponse<T> | null> {
@@ -479,6 +532,9 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await req.json();
+    if (body?.health === 'providers') {
+      return json(await providerHealthCheck());
+    }
     const seed = String(body?.seed || '').trim();
     const keyword = String(body?.keyword || '').trim();
     if (!seed && !keyword) return json({ error: 'seed or keyword required' }, 400);

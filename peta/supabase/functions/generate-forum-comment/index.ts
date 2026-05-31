@@ -290,6 +290,16 @@ Deno.serve(async (req: Request) => {
 
   try {
     const payload = await req.json() as GenerateForumCommentRequest;
+    if ((payload as GenerateForumCommentRequest & { health?: string }).health === 'providers') {
+      return json({
+        deepseek: Deno.env.get('DEEPSEEK_API_KEY')
+          ? { status: 'ok', detail: 'DEEPSEEK_API_KEY present' }
+          : { status: 'missing', detail: 'DEEPSEEK_API_KEY missing' },
+        claude: Deno.env.get('ANTHROPIC_API_KEY')
+          ? { status: 'ok', detail: 'ANTHROPIC_API_KEY present' }
+          : { status: 'missing', detail: 'ANTHROPIC_API_KEY missing' },
+      });
+    }
     if (!payload.target_url || !/^https?:\/\//i.test(payload.target_url)) {
       return json({ error: 'valid target_url required' }, 400);
     }

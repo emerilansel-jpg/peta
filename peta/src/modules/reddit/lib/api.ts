@@ -173,6 +173,36 @@ export async function updateStraightAiSettings(input: {
   return data;
 }
 
+export type ProviderHealthStatus = 'ok' | 'missing' | 'error';
+
+export type StraightProviderHealth = {
+  deepseek: { status: ProviderHealthStatus; detail?: string };
+  claude: { status: ProviderHealthStatus; detail?: string };
+  dataforseo: { status: ProviderHealthStatus; detail?: string };
+  google: { status: ProviderHealthStatus; detail?: string };
+};
+
+export async function getStraightProviderHealth(): Promise<StraightProviderHealth> {
+  const [draft, ranking] = await Promise.all([
+    supabase.functions.invoke('generate-forum-comment', {
+      body: { health: 'providers' },
+    }),
+    supabase.functions.invoke('rank-forum-pages', {
+      body: { health: 'providers' },
+    }),
+  ]);
+
+  if (draft.error) throw new Error(draft.error.message || 'Draft provider health check failed');
+  if (ranking.error) throw new Error(ranking.error.message || 'Ranking provider health check failed');
+
+  return {
+    deepseek: (draft.data as Partial<StraightProviderHealth>)?.deepseek || { status: 'missing', detail: 'No response' },
+    claude: (draft.data as Partial<StraightProviderHealth>)?.claude || { status: 'missing', detail: 'No response' },
+    dataforseo: (ranking.data as Partial<StraightProviderHealth>)?.dataforseo || { status: 'missing', detail: 'No response' },
+    google: (ranking.data as Partial<StraightProviderHealth>)?.google || { status: 'missing', detail: 'No response' },
+  };
+}
+
 export async function createForumCommentOrder(input: ForumCommentOrderInput) {
   const { data, error } = await supabase.rpc('fn_create_forum_comment_order', {
     p_target_url: input.targetUrl,

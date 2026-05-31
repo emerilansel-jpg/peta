@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react';
-import { Bot, CheckCircle2, KeyRound, Loader2, Save, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Bot, CheckCircle2, KeyRound, Loader2, RefreshCw, Save, ShieldCheck } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { AdminBreadcrumb, AdminLayout } from '../../components/AdminLayout';
 import {
   getStraightAiSettings,
+  getStraightProviderHealth,
   updateStraightAiSettings,
+  type ProviderHealthStatus,
+  type StraightProviderHealth,
   type StraightDraftProvider,
 } from '../../lib/api';
 
@@ -35,6 +38,8 @@ export function AdminSettings() {
   const [claudeModel, setClaudeModel] = useState('claude-sonnet-4-20250514');
   const [deepseekModel, setDeepseekModel] = useState('deepseek-chat');
   const [updatedAt, setUpdatedAt] = useState('');
+  const [health, setHealth] = useState<StraightProviderHealth | null>(null);
+  const [checkingHealth, setCheckingHealth] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -44,6 +49,7 @@ export function AdminSettings() {
         setClaudeModel(settings.claude_model);
         setDeepseekModel(settings.deepseek_model);
         setUpdatedAt(settings.updated_at);
+        checkHealth();
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to load settings');
       } finally {
@@ -51,6 +57,17 @@ export function AdminSettings() {
       }
     })();
   }, []);
+
+  const checkHealth = async () => {
+    setCheckingHealth(true);
+    try {
+      setHealth(await getStraightProviderHealth());
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to check provider health');
+    } finally {
+      setCheckingHealth(false);
+    }
+  };
 
   const save = async () => {
     setSaving(true);
@@ -160,9 +177,75 @@ export function AdminSettings() {
                 {updatedAt ? ` Last updated ${new Date(updatedAt).toLocaleString()}.` : ''}
               </p>
             </div>
+
+            <div className="bg-white rounded-2xl ring-1 ring-slate-200 p-6">
+              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <ShieldCheck size={18} className="text-blue-600" />
+                    <h2 className="text-lg font-bold text-slate-900">Provider Health</h2>
+                  </div>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Checks server-side secrets and live access without showing any key values.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={checkHealth}
+                  disabled={checkingHealth}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-500 text-white text-sm font-semibold"
+                >
+                  {checkingHealth ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+                  Recheck
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <HealthCard label="DeepSeek drafts" status={health?.deepseek.status} detail={health?.deepseek.detail} />
+                <HealthCard label="Claude drafts" status={health?.claude.status} detail={health?.claude.detail} />
+                <HealthCard label="DataForSEO keyword data" status={health?.dataforseo.status} detail={health?.dataforseo.detail} />
+                <HealthCard label="Google Custom Search SERP" status={health?.google.status} detail={health?.google.detail} />
+              </div>
+            </div>
           </div>
         )}
       </div>
     </AdminLayout>
+  );
+}
+
+function HealthCard({
+  label,
+  status,
+  detail,
+}: {
+  label: string;
+  status?: ProviderHealthStatus;
+  detail?: string;
+}) {
+  const normalized = status || 'missing';
+  const isOk = normalized === 'ok';
+  const isMissing = normalized === 'missing';
+  return (
+    <div className={`rounded-xl ring-1 p-4 ${
+      isOk ? 'bg-emerald-50 ring-emerald-100' : isMissing ? 'bg-slate-50 ring-slate-200' : 'bg-rose-50 ring-rose-100'
+    }`}>
+      <div className="flex items-start gap-3">
+        <div className={`w-8 h-8 rounded-lg grid place-items-center shrink-0 ${
+          isOk ? 'bg-emerald-100 text-emerald-700' : isMissing ? 'bg-slate-200 text-slate-600' : 'bg-rose-100 text-rose-700'
+        }`}>
+          {isOk ? <CheckCircle2 size={17} /> : <AlertTriangle size={17} />}
+        </div>
+        <div className="min-w-0">
+          <p className="font-bold text-slate-900">{label}</p>
+          <p className={`text-xs font-bold uppercase tracking-wide mt-1 ${
+            isOk ? 'text-emerald-700' : isMissing ? 'text-slate-500' : 'text-rose-700'
+          }`}>
+            {normalized}
+          </p>
+          {detail && <p className="text-xs text-slate-600 mt-1 break-words">{detail}</p>}
+        </div>
+      </div>
+    </div>
   );
 }
