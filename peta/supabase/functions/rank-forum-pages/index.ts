@@ -41,6 +41,19 @@ type DataForSeoKeywordItem = {
   competition_index?: number | null;
 };
 
+type DataForSeoLabsKeywordItem = {
+  keyword?: string;
+  items?: DataForSeoLabsKeywordItem[];
+  keyword_info?: {
+    search_volume?: number | null;
+    competition?: number | null;
+    competition_level?: string | null;
+  } | null;
+  keyword_properties?: {
+    keyword_difficulty?: number | null;
+  } | null;
+};
+
 type DataForSeoResponse<T> = {
   status_code?: number;
   status_message?: string;
@@ -281,6 +294,9 @@ async function dataForSeoTop10(keyword: string): Promise<SerpResult[] | null> {
 }
 
 async function dataForSeoKeywordIdeas(seed: string): Promise<KeywordIdea[] | null> {
+  const labsIdeas = await dataForSeoLabsKeywordIdeas(seed);
+  if (labsIdeas?.length) return labsIdeas;
+
   const keywords = candidateKeywords(seed).slice(0, 100);
   const volumeData = await dataForSeoPost<DataForSeoKeywordItem>(
     'keywords_data/google_ads/search_volume/live',
@@ -317,6 +333,55 @@ async function dataForSeoKeywordIdeas(seed: string): Promise<KeywordIdea[] | nul
       score,
     });
   }
+
+  return analyzed
+    .sort((a, b) => b.score - a.score)
+    .map(({ keyword, volume, competition, intent }) => ({ keyword, volume, competition, intent }));
+}
+
+async function dataForSeoLabsKeywordIdeas(seed: string): Promise<KeywordIdea[] | null> {
+  const data = await dataForSeoPost<DataForSeoLabsKeywordItem>(
+    'dataforseo_labs/google/keyword_suggestions/live',
+    [{
+      keyword: seed,
+      location_code: 2840,
+      language_name: 'English',
+      include_seed_keyword: true,
+      include_serp_info: true,
+      limit: 100,
+    }]
+  ).catch((error) => {
+    console.error('dataforseo_labs_keyword_suggestions_failed', (error as Error).message);
+    return null;
+  });
+  const resultRows = data?.tasks?.[0]?.result || [];
+  const rows = resultRows.flatMap((row) => Array.isArray(row.items) ? row.items : [row]);
+  if (!rows.length) return null;
+
+  const analyzed = rows
+    .map((row) => {
+      const keyword = String(row.keyword || '').trim();
+      const volume = Math.max(0, Number(row.keyword_info?.search_volume || 0));
+      const competitionScore = Number(row.keyword_info?.competition ?? 0.5);
+      const difficulty = Number(row.keyword_properties?.keyword_difficulty ?? 50);
+      const competitionLevel = String(row.keyword_info?.competition_level || '').toLowerCase();
+      const competition: 'Low' | 'Medium' | 'High' = competitionLevel.includes('low') || competitionScore <= 0.35
+        ? 'Low'
+        : competitionLevel.includes('high') || competitionScore >= 0.7
+          ? 'High'
+          : 'Medium';
+      const forumModifier = /forum|reddit|quora|community|discussion/i.test(keyword) ? 900 : 0;
+      const score = volume + forumModifier - (competitionScore * 700) - (difficulty * 12);
+
+      return {
+        keyword,
+        volume,
+        competition,
+        intent: `DataForSEO reports ${volume.toLocaleString()} monthly searches with ${competition.toLowerCase()} paid competition. Select it to scan Google top 10 for forum URLs.`,
+        score,
+      };
+    })
+    .filter((idea) => idea.keyword && idea.volume > 0);
 
   return analyzed
     .sort((a, b) => b.score - a.score)
@@ -423,7 +488,7 @@ Deno.serve(async (req: Request) => {
       if (dataForSeoIdeas) {
         return json({
           keyword_ideas: dataForSeoIdeas,
-          provider: 'dataforseo_google_ads_serp_opportunity_model',
+          provider: 'dataforseo_keyword_suggestions_opportunity_model',
         });
       }
 

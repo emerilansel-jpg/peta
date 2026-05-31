@@ -1,6 +1,6 @@
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { ElementType } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   ArrowRight,
   AlertCircle,
@@ -131,18 +131,16 @@ export function RedditNewOrder() {
   const sourceKeyword = searchParams.get('keyword') || '';
   const prefillUrl = searchParams.get('url') || '';
   const startsInBulk = searchParams.get('bulk') === 'ranking-forum';
-  const [bulkTargets, setBulkTargets] = useState<BulkForumTarget[]>([]);
-
-  useEffect(() => {
-    if (!startsInBulk) return;
+  const [bulkTargets] = useState<BulkForumTarget[]>(() => {
+    if (!startsInBulk) return [];
     try {
       const raw = window.localStorage.getItem(BULK_COMMENT_DRAFT_KEY);
       const parsed = raw ? JSON.parse(raw) as { targets?: BulkForumTarget[] } : null;
-      setBulkTargets(Array.isArray(parsed?.targets) ? parsed.targets : []);
+      return Array.isArray(parsed?.targets) ? parsed.targets : [];
     } catch {
-      setBulkTargets([]);
+      return [];
     }
-  }, [startsInBulk]);
+  });
 
   const handleServiceClick = (service: Service) => {
     setActiveService(service);
@@ -624,10 +622,10 @@ function ForumCommentOrderForm({
   const { balance } = useRedditCredits();
   const { createForumCommentOrder, createForumCommentOrderAsync, isCreatingForumCommentOrder } = useRedditOrders();
 
-  const [targetUrl, setTargetUrl] = useState(prefillUrl || '');
-  const [bulkQueue, setBulkQueue] = useState<BulkForumTarget[]>(bulkTargets);
+  const [targetUrl, setTargetUrl] = useState(prefillUrl || bulkTargets[0]?.url || '');
+  const [bulkQueue, setBulkQueue] = useState<BulkForumTarget[]>(() => bulkTargets);
   const [platform, setPlatform] = useState('');
-  const [wantsSuggestion, setWantsSuggestion] = useState<boolean | null>(null);
+  const [wantsSuggestion, setWantsSuggestion] = useState<boolean | null>(bulkTargets.length > 0 ? false : null);
   const [brandName, setBrandName] = useState('');
   const [brandDomain, setBrandDomain] = useState('');
   const [mentionMode, setMentionMode] = useState<'plain' | 'link'>('plain');
@@ -639,14 +637,6 @@ function ForumCommentOrderForm({
   const [newOrderId, setNewOrderId] = useState<number | null>(null);
   const [bulkOrderIds, setBulkOrderIds] = useState<number[]>([]);
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
-
-  useEffect(() => {
-    setBulkQueue(bulkTargets);
-    if (bulkTargets.length > 0) {
-      setWantsSuggestion(false);
-      setTargetUrl(bulkTargets[0]?.url || '');
-    }
-  }, [bulkTargets]);
 
   const isBulk = bulkQueue.length > 0;
   const detectedPlatform = useMemo(() => detectForumPlatform(targetUrl), [targetUrl]);

@@ -65,22 +65,33 @@ const STEPS: Array<{ id: StepId; label: string }> = [
   { id: 'review', label: 'Review' },
 ];
 
+function readRankingDraft(): Partial<RankingDraft> | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(RANKING_DRAFT_KEY);
+    return raw ? JSON.parse(raw) as Partial<RankingDraft> : null;
+  } catch {
+    window.localStorage.removeItem(RANKING_DRAFT_KEY);
+    return null;
+  }
+}
+
 export function RankingForumPage() {
   const navigate = useNavigate();
   const { balance } = useRedditCredits();
-  const [seed, setSeed] = useState('');
+  const [initialDraft] = useState<Partial<RankingDraft> | null>(() => readRankingDraft());
+  const [seed, setSeed] = useState(initialDraft?.seed || '');
   const [loading, setLoading] = useState(false);
   const [serpLoading, setSerpLoading] = useState(false);
-  const [selectedKeywords, setSelectedKeywords] = useState<KeywordIdea[]>([]);
-  const [hasAnalyzed, setHasAnalyzed] = useState(false);
-  const [ideas, setIdeas] = useState<KeywordIdea[]>([]);
-  const [forumScans, setForumScans] = useState<KeywordForumScan[]>([]);
-  const [selectedForumUrls, setSelectedForumUrls] = useState<SelectedForumUrl[]>([]);
-  const [keywordProvider, setKeywordProvider] = useState('');
+  const [selectedKeywords, setSelectedKeywords] = useState<KeywordIdea[]>(() => Array.isArray(initialDraft?.selectedKeywords) ? initialDraft.selectedKeywords : []);
+  const [hasAnalyzed, setHasAnalyzed] = useState(!!initialDraft?.hasAnalyzed);
+  const [ideas, setIdeas] = useState<KeywordIdea[]>(() => Array.isArray(initialDraft?.ideas) ? initialDraft.ideas : []);
+  const [forumScans, setForumScans] = useState<KeywordForumScan[]>(() => Array.isArray(initialDraft?.forumScans) ? initialDraft.forumScans : []);
+  const [selectedForumUrls, setSelectedForumUrls] = useState<SelectedForumUrl[]>(() => Array.isArray(initialDraft?.selectedForumUrls) ? initialDraft.selectedForumUrls : []);
+  const [keywordProvider, setKeywordProvider] = useState(initialDraft?.keywordProvider || '');
   const [notice, setNotice] = useState('');
-  const [keywordPage, setKeywordPage] = useState(0);
-  const [step, setStep] = useState<StepId>('seed');
-  const [draftLoaded, setDraftLoaded] = useState(false);
+  const [keywordPage, setKeywordPage] = useState(Number(initialDraft?.keywordPage || 0));
+  const [step, setStep] = useState<StepId>(initialDraft?.step || (initialDraft?.hasAnalyzed ? 'keywords' : 'seed'));
 
   const pageCount = Math.max(1, Math.ceil(ideas.length / KEYWORDS_PER_PAGE));
   const visibleIdeas = ideas.slice(keywordPage * KEYWORDS_PER_PAGE, (keywordPage + 1) * KEYWORDS_PER_PAGE);
@@ -88,31 +99,6 @@ export function RankingForumPage() {
   const hasEnoughCreditForBulk = selectedForumUrls.length > 0 && balance >= selectedUrlCost;
 
   useEffect(() => {
-    const raw = window.localStorage.getItem(RANKING_DRAFT_KEY);
-    if (!raw) {
-      setDraftLoaded(true);
-      return;
-    }
-    try {
-      const draft = JSON.parse(raw) as Partial<RankingDraft>;
-      setSeed(draft.seed || '');
-      setHasAnalyzed(!!draft.hasAnalyzed);
-      setIdeas(Array.isArray(draft.ideas) ? draft.ideas : []);
-      setSelectedKeywords(Array.isArray(draft.selectedKeywords) ? draft.selectedKeywords : []);
-      setForumScans(Array.isArray(draft.forumScans) ? draft.forumScans : []);
-      setSelectedForumUrls(Array.isArray(draft.selectedForumUrls) ? draft.selectedForumUrls : []);
-      setKeywordProvider(draft.keywordProvider || '');
-      setKeywordPage(Number(draft.keywordPage || 0));
-      setStep(draft.step || (draft.hasAnalyzed ? 'keywords' : 'seed'));
-    } catch {
-      window.localStorage.removeItem(RANKING_DRAFT_KEY);
-    } finally {
-      setDraftLoaded(true);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!draftLoaded) return;
     const draft: RankingDraft = {
       seed,
       hasAnalyzed,
@@ -125,7 +111,7 @@ export function RankingForumPage() {
       step,
     };
     window.localStorage.setItem(RANKING_DRAFT_KEY, JSON.stringify(draft));
-  }, [draftLoaded, seed, hasAnalyzed, ideas, selectedKeywords, forumScans, selectedForumUrls, keywordProvider, keywordPage, step]);
+  }, [seed, hasAnalyzed, ideas, selectedKeywords, forumScans, selectedForumUrls, keywordProvider, keywordPage, step]);
 
   const runAnalysis = async () => {
     if (!seed.trim()) return;
@@ -650,6 +636,7 @@ function SummaryRow({ label, value, strong }: { label: string; value: string; st
 function formatProvider(provider: string) {
   const map: Record<string, string> = {
     heuristic_keyword_model: 'estimated keyword model',
+    dataforseo_keyword_suggestions_opportunity_model: 'DataForSEO live keyword suggestions',
     dataforseo_google_ads_serp_opportunity_model: 'DataForSEO Google Ads + live keyword volume',
     dataforseo_google_organic_live: 'DataForSEO Google Organic live top 10',
     google_custom_search_opportunity_model: 'Google top-10 opportunity model',

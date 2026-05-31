@@ -9,7 +9,7 @@
 - Suggested flow asks for brand/domain and plain-text vs link mention.
 - Suggested draft appears in the textarea and can be edited or refreshed; clients do not see the internal model/provider.
 - `/reddit/ranking-forum` is a step-by-step discovery flow: seed keyword -> paginated keyword ideas -> forum URL selection -> bulk order review.
-- The keyword step can return many keyword ideas and displays 25 keywords per page with next/previous pagination.
+- The keyword step uses DataForSEO Labs Keyword Suggestions when configured, then falls back to Google Ads/Custom Search/local estimates; it displays 25 keywords per page with next/previous pagination.
 - Clients can select multiple keywords, then select multiple forum URLs from the scanned Google top-10 results.
 - The results panel only shows forum/discussion URLs found in each Google top-10 scan. Non-forum Google results are hidden; keywords with no forum URL are labeled as no forum.
 - The selected forum URL queue is checked against available credit before continuing into bulk order checkout.
