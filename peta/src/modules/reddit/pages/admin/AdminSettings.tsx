@@ -201,11 +201,36 @@ export function AdminSettings() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <HealthCard label="DeepSeek drafts" status={health?.deepseek.status} detail={health?.deepseek.detail} />
-                <HealthCard label="Claude drafts" status={health?.claude.status} detail={health?.claude.detail} />
-                <HealthCard label="DataForSEO keyword data" status={health?.dataforseo.status} detail={health?.dataforseo.detail} />
-                <HealthCard label="Google Custom Search SERP" status={health?.google.status} detail={health?.google.detail} />
-                <HealthCard label="SerpAPI Google SERP" status={health?.serpapi.status} detail={health?.serpapi.detail} />
+                <HealthCard
+                  label="DeepSeek drafts"
+                  status={health?.deepseek.status}
+                  detail={health?.deepseek.detail}
+                  hint="Ready for suggested forum-comment drafts."
+                />
+                <HealthCard
+                  label="Claude drafts"
+                  status={health?.claude.status}
+                  detail={health?.claude.detail}
+                  hint="Add ANTHROPIC_API_KEY to Supabase secrets before choosing Claude."
+                />
+                <HealthCard
+                  label="DataForSEO keyword data"
+                  status={health?.dataforseo.status}
+                  detail={health?.dataforseo.detail}
+                  hint="Top up DataForSEO until the balance is positive, then click Recheck."
+                />
+                <HealthCard
+                  label="Google Custom Search SERP"
+                  status={health?.google.status}
+                  detail={health?.google.detail}
+                  hint="Check Google Custom Search API access, CSE ID, API restrictions, and billing."
+                />
+                <HealthCard
+                  label="SerpAPI Google SERP"
+                  status={health?.serpapi.status}
+                  detail={health?.serpapi.detail}
+                  hint="Optional fallback: add SERPAPI_API_KEY to Supabase secrets if Google CSE stays blocked."
+                />
               </div>
             </div>
           </div>
@@ -219,10 +244,12 @@ function HealthCard({
   label,
   status,
   detail,
+  hint,
 }: {
   label: string;
   status?: ProviderHealthStatus;
   detail?: string;
+  hint?: string;
 }) {
   const normalized = status || 'missing';
   const isOk = normalized === 'ok';
@@ -245,6 +272,11 @@ function HealthCard({
             {normalized}
           </p>
           {detail && <p className="text-xs text-slate-600 mt-1 break-words">{detail}</p>}
+          {!isOk && hint && (
+            <p className="text-xs text-slate-700 mt-2 rounded-lg bg-white/70 ring-1 ring-slate-200 px-2 py-1.5">
+              {hint}
+            </p>
+          )}
         </div>
       </div>
     </div>
