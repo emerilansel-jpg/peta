@@ -244,26 +244,28 @@ export interface RankingForumResult {
 export async function getRankingKeywordIdeas(seed: string): Promise<{
   keyword_ideas: RankingKeywordIdea[];
   provider: string;
+  provider_notice?: string | null;
 }> {
   const { data, error } = await supabase.functions.invoke('rank-forum-pages', {
     body: { seed },
   });
   if (error) throw new Error(error.message || 'Ranking analysis failed');
   if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
-  return data as { keyword_ideas: RankingKeywordIdea[]; provider: string };
+  return data as { keyword_ideas: RankingKeywordIdea[]; provider: string; provider_notice?: string | null };
 }
 
 export async function getRankingForumResults(keyword: string): Promise<{
   serp_results: RankingForumResult[];
   provider: string;
   keyword: string;
+  provider_notice?: string | null;
 }> {
   const { data, error } = await supabase.functions.invoke('rank-forum-pages', {
     body: { keyword },
   });
   if (error) throw new Error(error.message || 'SERP scan failed');
   if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
-  return data as { serp_results: RankingForumResult[]; provider: string; keyword: string };
+  return data as { serp_results: RankingForumResult[]; provider: string; keyword: string; provider_notice?: string | null };
 }
 
 // Get user's topup history

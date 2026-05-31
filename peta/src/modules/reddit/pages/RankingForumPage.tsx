@@ -35,6 +35,7 @@ type SelectedForumUrl = {
 type KeywordForumScan = {
   keyword: string;
   provider: string;
+  providerNotice?: string | null;
   results: ForumResult[];
 };
 
@@ -125,8 +126,8 @@ export function RankingForumPage() {
       const data = await getRankingKeywordIdeas(seed.trim());
       setIdeas(ensureManyKeywordIdeas(seed.trim(), data.keyword_ideas));
       setKeywordProvider(data.provider);
-      if (data.provider === 'heuristic_keyword_model') {
-        setNotice('Live keyword data is unavailable right now, so these are clearly marked estimates. Use them for preview only until DataForSEO or Google access is restored.');
+      if (data.provider_notice || data.provider === 'heuristic_keyword_model') {
+        setNotice(data.provider_notice || 'Live keyword data is unavailable right now, so these are clearly marked estimates. Use them for preview only until live access is restored.');
       }
       setHasAnalyzed(true);
       setStep('keywords');
@@ -187,12 +188,14 @@ export function RankingForumPage() {
         return {
           keyword: idea.keyword,
           provider: data.provider,
+          providerNotice: data.provider_notice,
           results: data.serp_results.filter((result) => result.eligible),
         };
       }));
       setForumScans(scans);
-      if (scans.some((scan) => scan.provider === 'fallback_top10' || scan.provider === 'local_fallback')) {
-        setNotice('Live Google SERP access is unavailable right now, so fallback previews are clearly labeled. Verify the URL before ordering.');
+      const providerNotice = scans.find((scan) => scan.providerNotice)?.providerNotice;
+      if (providerNotice || scans.some((scan) => scan.provider === 'fallback_top10' || scan.provider === 'local_fallback')) {
+        setNotice(providerNotice || 'Live Google SERP access is unavailable right now, so fallback previews are clearly labeled. Verify the URL before ordering.');
       }
     } catch {
       setForumScans(selectedKeywords.map((idea) => ({
@@ -279,7 +282,7 @@ export function RankingForumPage() {
 
         {notice && (
           <div className="mb-5 p-3 rounded-lg bg-amber-50 ring-1 ring-amber-100 text-sm text-amber-800">
-            {notice}
+            <strong className="font-bold">Preview mode:</strong> {notice}
           </div>
         )}
 
@@ -436,6 +439,9 @@ export function RankingForumPage() {
                       <div>
                         <h3 className="font-bold text-slate-900">{scan.keyword}</h3>
                         <p className="text-xs text-slate-500 mt-0.5">Source: {formatProvider(scan.provider)}</p>
+                        {scan.providerNotice && (
+                          <p className="text-xs text-amber-700 mt-1">{scan.providerNotice}</p>
+                        )}
                       </div>
                       <span className={`self-start sm:self-auto px-2.5 py-1 rounded-full text-xs font-bold ${
                         scan.results.length ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'

@@ -545,6 +545,7 @@ Deno.serve(async (req: Request) => {
         return json({
           keyword_ideas: dataForSeoIdeas,
           provider: 'dataforseo_keyword_suggestions_opportunity_model',
+          provider_notice: null,
         });
       }
 
@@ -552,6 +553,9 @@ Deno.serve(async (req: Request) => {
       return json({
         keyword_ideas: googleIdeas || buildKeywordIdeas(seed),
         provider: googleIdeas ? 'google_custom_search_opportunity_model' : 'heuristic_keyword_model',
+        provider_notice: googleIdeas
+          ? null
+          : 'Live keyword data is unavailable right now, so this is an estimated preview rather than live search volume.',
       });
     }
 
@@ -561,6 +565,7 @@ Deno.serve(async (req: Request) => {
         serp_results: dataForSeoResults,
         provider: 'dataforseo_google_organic_live',
         keyword,
+        provider_notice: null,
       });
     }
 
@@ -569,6 +574,9 @@ Deno.serve(async (req: Request) => {
       serp_results: googleResults || fallbackTop10(keyword),
       provider: googleResults ? 'google_custom_search' : 'fallback_top10',
       keyword,
+      provider_notice: googleResults
+        ? null
+        : 'Live Google top-10 access is unavailable right now, so this is a fallback preview rather than live SERP data.',
     });
   } catch (e) {
     return json({ error: 'rank_forum_pages_failed', detail: (e as Error).message }, 500);
