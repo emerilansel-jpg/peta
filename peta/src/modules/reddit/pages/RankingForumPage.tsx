@@ -125,6 +125,9 @@ export function RankingForumPage() {
       const data = await getRankingKeywordIdeas(seed.trim());
       setIdeas(ensureManyKeywordIdeas(seed.trim(), data.keyword_ideas));
       setKeywordProvider(data.provider);
+      if (data.provider === 'heuristic_keyword_model') {
+        setNotice('Live keyword data is unavailable right now, so these are clearly marked estimates. Use them for preview only until DataForSEO or Google access is restored.');
+      }
       setHasAnalyzed(true);
       setStep('keywords');
     } catch {
@@ -188,6 +191,9 @@ export function RankingForumPage() {
         };
       }));
       setForumScans(scans);
+      if (scans.some((scan) => scan.provider === 'fallback_top10' || scan.provider === 'local_fallback')) {
+        setNotice('Live Google SERP access is unavailable right now, so fallback previews are clearly labeled. Verify the URL before ordering.');
+      }
     } catch {
       setForumScans(selectedKeywords.map((idea) => ({
         keyword: idea.keyword,
@@ -217,6 +223,11 @@ export function RankingForumPage() {
 
   const continueToBulkOrder = () => {
     if (!hasEnoughCreditForBulk) return;
+    if (selectedForumUrls.length === 1) {
+      const target = selectedForumUrls[0];
+      navigate(`/reddit/new-order?service=comments&url=${encodeURIComponent(target.url)}&keyword=${encodeURIComponent(target.keyword)}`);
+      return;
+    }
     window.localStorage.setItem(BULK_COMMENT_DRAFT_KEY, JSON.stringify({
       source: 'ranking-forum',
       createdAt: new Date().toISOString(),
@@ -328,7 +339,7 @@ export function RankingForumPage() {
               <div>
                 <h2 className="font-bold text-slate-900">Choose keyword angles</h2>
                 <p className="text-sm text-slate-500 mt-1">
-                  Showing 25 keywords per page. Select as many as needed.
+                  Showing 25 keywords per page. Select one strong keyword, or select several to compare forum URLs.
                   {keywordProvider && <span className="block text-xs mt-1">Source: {formatProvider(keywordProvider)}</span>}
                 </p>
               </div>
@@ -549,7 +560,7 @@ export function RankingForumPage() {
               </div>
               {!hasEnoughCreditForBulk && (
                 <div className="mt-4 rounded-lg bg-rose-50 ring-1 ring-rose-100 p-3 text-sm text-rose-700">
-                  You need {formatUSD(Math.max(0, selectedUrlCost - balance))} more credit before ordering this bulk queue.
+                  You need {formatUSD(Math.max(0, selectedUrlCost - balance))} more credit before ordering this queue.
                 </div>
               )}
               <button
@@ -557,7 +568,7 @@ export function RankingForumPage() {
                 disabled={!hasEnoughCreditForBulk}
                 className="mt-5 w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-semibold"
               >
-                Continue to bulk order
+                {selectedForumUrls.length === 1 ? 'Continue to comment order' : 'Continue to bulk order'}
                 <ArrowRight size={14} />
               </button>
               <button
@@ -635,14 +646,14 @@ function SummaryRow({ label, value, strong }: { label: string; value: string; st
 
 function formatProvider(provider: string) {
   const map: Record<string, string> = {
-    heuristic_keyword_model: 'estimated keyword model',
+    heuristic_keyword_model: 'estimated preview, not live keyword data',
     dataforseo_keyword_suggestions_opportunity_model: 'DataForSEO live keyword suggestions',
     dataforseo_google_ads_serp_opportunity_model: 'DataForSEO Google Ads + live keyword volume',
     dataforseo_google_organic_live: 'DataForSEO Google Organic live top 10',
     google_custom_search_opportunity_model: 'Google top-10 opportunity model',
     google_custom_search: 'Google Custom Search top 10',
-    fallback_top10: 'fallback top-10 preview',
-    local_fallback: 'local fallback',
+    fallback_top10: 'fallback preview, not live SERP data',
+    local_fallback: 'local fallback preview, not live data',
   };
   return map[provider] || provider;
 }

@@ -53,6 +53,25 @@ function cleanText(input: string, max = 9000) {
 }
 
 async function fetchThreadText(url: string): Promise<{ text: string; fetched: boolean; reason?: string }> {
+  const fetchViaReader = async (reason: string) => {
+    try {
+      const readerUrl = `https://r.jina.ai/${url}`;
+      const r = await fetch(readerUrl, {
+        headers: {
+          'User-Agent': 'StraightLtdCommentAssistant/1.0',
+          'Accept': 'text/plain, text/markdown, */*',
+        },
+        redirect: 'follow',
+      });
+      if (!r.ok) return { text: BLOCKED_TEXT, fetched: false, reason: `${reason}_reader_http_${r.status}` };
+      const text = cleanText(await r.text());
+      if (text.length < 200) return { text: BLOCKED_TEXT, fetched: false, reason: `${reason}_reader_too_little_text` };
+      return { text, fetched: true, reason: 'reader_fallback' };
+    } catch (e) {
+      return { text: BLOCKED_TEXT, fetched: false, reason: `${reason}_reader_${(e as Error).message}` };
+    }
+  };
+
   try {
     const r = await fetch(url, {
       headers: {
@@ -61,12 +80,12 @@ async function fetchThreadText(url: string): Promise<{ text: string; fetched: bo
       },
       redirect: 'follow',
     });
-    if (!r.ok) return { text: BLOCKED_TEXT, fetched: false, reason: `http_${r.status}` };
+    if (!r.ok) return await fetchViaReader(`http_${r.status}`);
     const text = cleanText(await r.text());
-    if (text.length < 200) return { text: BLOCKED_TEXT, fetched: false, reason: 'too_little_text' };
+    if (text.length < 200) return await fetchViaReader('too_little_text');
     return { text, fetched: true };
   } catch (e) {
-    return { text: BLOCKED_TEXT, fetched: false, reason: (e as Error).message };
+    return await fetchViaReader((e as Error).message);
   }
 }
 
@@ -85,6 +104,9 @@ function buildPrompt(input: GenerateForumCommentRequest, threadText: string): Pr
         'Mention the brand exactly once.',
         'Never use em dash characters.',
         'Avoid sales pitch, superlatives, coupon language, hard CTA, or unsupported claims.',
+        'Do not claim personal experience, client results, ownership, or having used the brand unless the thread context explicitly says so.',
+        'Do not write a testimonial. Frame the brand mention as an option, example, or practical resource when relevant.',
+        'Prefer 2-4 sentences with a concrete caveat or decision criterion.',
         'Sound like a real participant adding a useful angle.',
         'Match the thread tone, length, capitalization, and vocabulary.',
         'If source context is weak, write a cautious helpful comment and keep it short.',
