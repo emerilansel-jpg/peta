@@ -80,6 +80,13 @@ type ProviderHealth = {
   detail?: string;
 };
 
+type DataForSeoUserDataResult = {
+  money?: {
+    balance?: number | null;
+    total?: number | null;
+  };
+};
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
@@ -259,6 +266,12 @@ async function providerHealthCheck() {
     : { status: 'ok' };
 
   if (dataforseo.status === 'ok') {
+    const userData = await dataForSeoGet<DataForSeoUserDataResult>('appendix/user_data')
+      .catch((error) => ({ health_error: (error as Error).message }));
+    const userDataError = (userData as { health_error?: string })?.health_error;
+    const money = (userData as DataForSeoResponse<DataForSeoUserDataResult>)?.tasks?.[0]?.result?.[0]?.money;
+    const balance = typeof money?.balance === 'number' ? money.balance : null;
+
     const dfs = await dataForSeoPost<DataForSeoLabsKeywordItem>(
       'dataforseo_labs/google/keyword_suggestions/live',
       [{
@@ -275,10 +288,16 @@ async function providerHealthCheck() {
     const resultCount = task?.result?.length || 0;
     if (error) {
       dataforseo.status = 'error';
-      dataforseo.detail = error;
+      dataforseo.detail = error === 'dataforseo_http_402'
+        ? `Payment required. ${balance !== null ? `Balance: $${balance.toFixed(2)}. ` : ''}Check DataForSEO balance, subscription access, or cost limits.`
+        : userDataError
+          ? `${error}; account check also failed: ${userDataError}`
+          : error;
     } else if (resultCount < 1) {
       dataforseo.status = 'error';
       dataforseo.detail = task?.status_message || 'No keyword rows returned';
+    } else if (balance !== null) {
+      dataforseo.detail = `Balance: $${balance.toFixed(2)}`;
     }
   }
 
@@ -325,6 +344,30 @@ async function dataForSeoPost<T>(path: string, body: unknown): Promise<DataForSe
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(body),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(`dataforseo_http_${r.status}`);
+  const dfs = data as DataForSeoResponse<T>;
+  if (dfs.status_code && dfs.status_code >= 40000) {
+    throw new Error(`dataforseo_${dfs.status_code}_${dfs.status_message || 'error'}`);
+  }
+  const task = dfs.tasks?.[0];
+  if (task?.status_code && task.status_code >= 40000) {
+    throw new Error(`dataforseo_task_${task.status_code}_${task.status_message || 'error'}`);
+  }
+  return dfs;
+}
+
+async function dataForSeoGet<T>(path: string): Promise<DataForSeoResponse<T> | null> {
+  const auth = dataForSeoAuth();
+  if (!auth) return null;
+
+  const r = await fetch(`https://api.dataforseo.com/v3/${path}`, {
+    method: 'GET',
+    headers: {
+      'Authorization': auth,
+      'Content-Type': 'application/json',
+    },
   });
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(`dataforseo_http_${r.status}`);
