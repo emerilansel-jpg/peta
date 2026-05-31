@@ -27,6 +27,17 @@ type GoogleSearchResponse = {
   };
 };
 
+type SerpApiOrganicResult = {
+  title?: string;
+  link?: string;
+  position?: number;
+};
+
+type SerpApiSearchResponse = {
+  organic_results?: SerpApiOrganicResult[];
+  error?: string;
+};
+
 type DataForSeoSerpItem = {
   type?: string;
   title?: string;
@@ -243,6 +254,9 @@ async function providerHealthCheck() {
   const google: ProviderHealth = !Deno.env.get('GOOGLE_SEARCH_API_KEY') || !Deno.env.get('GOOGLE_SEARCH_CX')
     ? { status: 'missing', detail: 'GOOGLE_SEARCH_API_KEY or GOOGLE_SEARCH_CX missing' }
     : { status: 'ok' };
+  const serpapi: ProviderHealth = !Deno.env.get('SERPAPI_API_KEY')
+    ? { status: 'missing', detail: 'SERPAPI_API_KEY missing' }
+    : { status: 'ok' };
 
   if (dataforseo.status === 'ok') {
     const dfs = await dataForSeoPost<DataForSeoLabsKeywordItem>(
@@ -281,7 +295,23 @@ async function providerHealthCheck() {
     }
   }
 
-  return { dataforseo, google };
+  if (serpapi.status === 'ok') {
+    const result = await serpApiSearch('crm software')
+      .then((data) => ({ count: data?.organic_results?.length || 0, error: data?.error }))
+      .catch((error) => ({ health_error: (error as Error).message }));
+    if ('health_error' in result) {
+      serpapi.status = 'error';
+      serpapi.detail = result.health_error;
+    } else if (result.error) {
+      serpapi.status = 'error';
+      serpapi.detail = result.error;
+    } else if (result.count < 1) {
+      serpapi.status = 'error';
+      serpapi.detail = 'No organic results returned';
+    }
+  }
+
+  return { dataforseo, google, serpapi };
 }
 
 async function dataForSeoPost<T>(path: string, body: unknown): Promise<DataForSeoResponse<T> | null> {
@@ -483,6 +513,56 @@ async function googleTop10(keyword: string): Promise<SerpResult[] | null> {
   return mapGoogleResults(data);
 }
 
+async function serpApiSearch(keyword: string): Promise<SerpApiSearchResponse | null> {
+  const apiKey = Deno.env.get('SERPAPI_API_KEY');
+  if (!apiKey) return null;
+
+  const url = new URL('https://serpapi.com/search.json');
+  url.searchParams.set('engine', 'google');
+  url.searchParams.set('q', keyword);
+  url.searchParams.set('api_key', apiKey);
+  url.searchParams.set('hl', 'en');
+  url.searchParams.set('gl', 'us');
+  url.searchParams.set('num', '10');
+
+  const r = await fetch(url);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(`serpapi_http_${r.status}`);
+  const serp = data as SerpApiSearchResponse;
+  if (serp.error) throw new Error(`serpapi_${serp.error}`);
+  return serp;
+}
+
+function mapSerpApiResults(data: SerpApiSearchResponse): SerpResult[] {
+  return (data.organic_results || [])
+    .filter((item) => item.link)
+    .sort((a, b) => (a.position || 999) - (b.position || 999))
+    .slice(0, 10)
+    .map((item) => {
+      const resultUrl = String(item.link || '');
+      const eligible = isForumUrl(resultUrl);
+      return {
+        title: String(item.title || resultUrl),
+        url: resultUrl,
+        platform: platformForUrl(resultUrl),
+        reason: eligible
+          ? 'Forum or discussion-style result from live Google SERP data.'
+          : 'Skipped because this live Google result does not look like a public discussion page.',
+        eligible,
+      };
+    });
+}
+
+async function serpApiTop10(keyword: string): Promise<SerpResult[] | null> {
+  const data = await serpApiSearch(keyword).catch((error) => {
+    console.error('serpapi_top10_failed', (error as Error).message);
+    return null;
+  });
+  if (!data) return null;
+  const results = mapSerpApiResults(data);
+  return results.length ? results : null;
+}
+
 async function googleKeywordIdeas(seed: string): Promise<KeywordIdea[] | null> {
   const keywords = candidateKeywords(seed).slice(0, 30);
   const analyzed: Array<KeywordIdea & { score: number }> = [];
@@ -570,13 +650,30 @@ Deno.serve(async (req: Request) => {
     }
 
     const googleResults = await googleTop10(keyword);
+    if (googleResults) {
+      return json({
+        serp_results: googleResults,
+        provider: 'google_custom_search',
+        keyword,
+        provider_notice: null,
+      });
+    }
+
+    const serpApiResults = await serpApiTop10(keyword);
+    if (serpApiResults) {
+      return json({
+        serp_results: serpApiResults,
+        provider: 'serpapi_google_organic_live',
+        keyword,
+        provider_notice: null,
+      });
+    }
+
     return json({
-      serp_results: googleResults || fallbackTop10(keyword),
-      provider: googleResults ? 'google_custom_search' : 'fallback_top10',
+      serp_results: fallbackTop10(keyword),
+      provider: 'fallback_top10',
       keyword,
-      provider_notice: googleResults
-        ? null
-        : 'Live Google top-10 access is unavailable right now, so this is a fallback preview rather than live SERP data.',
+      provider_notice: 'Live Google top-10 access is unavailable right now, so this is a fallback preview rather than live SERP data.',
     });
   } catch (e) {
     return json({ error: 'rank_forum_pages_failed', detail: (e as Error).message }, 500);

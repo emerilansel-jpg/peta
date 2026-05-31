@@ -658,6 +658,7 @@ function formatProvider(provider: string) {
     dataforseo_google_organic_live: 'DataForSEO Google Organic live top 10',
     google_custom_search_opportunity_model: 'Google top-10 opportunity model',
     google_custom_search: 'Google Custom Search top 10',
+    serpapi_google_organic_live: 'SerpAPI Google Organic live top 10',
     fallback_top10: 'fallback preview, not live SERP data',
     local_fallback: 'local fallback preview, not live data',
   };

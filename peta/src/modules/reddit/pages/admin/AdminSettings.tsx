@@ -205,6 +205,7 @@ export function AdminSettings() {
                 <HealthCard label="Claude drafts" status={health?.claude.status} detail={health?.claude.detail} />
                 <HealthCard label="DataForSEO keyword data" status={health?.dataforseo.status} detail={health?.dataforseo.detail} />
                 <HealthCard label="Google Custom Search SERP" status={health?.google.status} detail={health?.google.detail} />
+                <HealthCard label="SerpAPI Google SERP" status={health?.serpapi.status} detail={health?.serpapi.detail} />
               </div>
             </div>
           </div>

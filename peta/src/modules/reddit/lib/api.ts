@@ -180,6 +180,7 @@ export type StraightProviderHealth = {
   claude: { status: ProviderHealthStatus; detail?: string };
   dataforseo: { status: ProviderHealthStatus; detail?: string };
   google: { status: ProviderHealthStatus; detail?: string };
+  serpapi: { status: ProviderHealthStatus; detail?: string };
 };
 
 export async function getStraightProviderHealth(): Promise<StraightProviderHealth> {
@@ -200,6 +201,7 @@ export async function getStraightProviderHealth(): Promise<StraightProviderHealt
     claude: (draft.data as Partial<StraightProviderHealth>)?.claude || { status: 'missing', detail: 'No response' },
     dataforseo: (ranking.data as Partial<StraightProviderHealth>)?.dataforseo || { status: 'missing', detail: 'No response' },
     google: (ranking.data as Partial<StraightProviderHealth>)?.google || { status: 'missing', detail: 'No response' },
+    serpapi: (ranking.data as Partial<StraightProviderHealth>)?.serpapi || { status: 'missing', detail: 'No response' },
   };
 }
 
