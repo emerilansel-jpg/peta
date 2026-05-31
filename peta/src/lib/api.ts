@@ -332,20 +332,10 @@ export async function getTasksForLevel(level: number) {
 }
 
 export async function createTaskAssignment(taskId: string, redditAccountId?: string | null) {
-  const { data: authData, error: authErr } = await supabase.auth.getUser();
-  if (authErr) throw authErr;
-  if (!authData.user) throw new Error('Auth required');
-
-  const { data, error } = await supabase
-    .from('task_assignments')
-    .insert({
-      task_id: taskId,
-      user_id: authData.user.id,
-      reddit_account_id: redditAccountId || null,
-      status: 'in_progress',
-    })
-    .select()
-    .single();
+  const { data, error } = await supabase.rpc('claim_task_assignment', {
+    p_task_id: taskId,
+    p_reddit_account_id: redditAccountId || null,
+  });
 
   if (error) throw error;
   return data;

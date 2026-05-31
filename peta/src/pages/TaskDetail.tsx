@@ -86,11 +86,17 @@ export function TaskDetail() {
 
   const startMutation = useMutation({
     mutationFn: () => createTaskAssignment(taskId!, selectedAccountId || null),
-    onSuccess: (a: any) => {
+    onSuccess: (a: { id: string }) => {
       setAssignmentId(a.id);
       setStage('submit');
     },
-    onError: (e: any) => toast.error(e?.message || 'Gagal memulai task'),
+    onError: (e: unknown) => {
+      const message = e instanceof Error ? e.message : 'Gagal memulai task';
+      toast.error(message);
+      if (/quota|penuh|tidak aktif|sudah tidak aktif/i.test(message)) {
+        setTimeout(() => navigate('/tasks'), 900);
+      }
+    },
   });
 
   // If user has exactly 1 reddit account (which is the enforced limit), skip
