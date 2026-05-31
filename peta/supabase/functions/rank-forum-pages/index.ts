@@ -25,6 +25,15 @@ type GoogleSearchResponse = {
   searchInformation?: {
     totalResults?: string;
   };
+  error?: {
+    code?: number;
+    message?: string;
+    status?: string;
+    errors?: Array<{
+      reason?: string;
+      message?: string;
+    }>;
+  };
 };
 
 type SerpApiOrganicResult = {
@@ -527,7 +536,16 @@ async function googleSearch(keyword: string): Promise<GoogleSearchResponse | nul
 
   const r = await fetch(url);
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(`google_search_${r.status}`);
+  if (!r.ok) {
+    const googleError = (data as GoogleSearchResponse)?.error;
+    const reason = googleError?.errors?.[0]?.reason || googleError?.status;
+    const message = googleError?.message || googleError?.errors?.[0]?.message;
+    throw new Error([
+      `google_search_${r.status}`,
+      reason ? `reason=${reason}` : '',
+      message ? `message=${message}` : '',
+    ].filter(Boolean).join('; '));
+  }
   return data as GoogleSearchResponse;
 }
 
@@ -570,7 +588,10 @@ async function serpApiSearch(keyword: string): Promise<SerpApiSearchResponse | n
 
   const r = await fetch(url);
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(`serpapi_http_${r.status}`);
+  if (!r.ok) {
+    const message = (data as SerpApiSearchResponse)?.error;
+    throw new Error(message ? `serpapi_http_${r.status}; message=${message}` : `serpapi_http_${r.status}`);
+  }
   const serp = data as SerpApiSearchResponse;
   if (serp.error) throw new Error(`serpapi_${serp.error}`);
   return serp;
