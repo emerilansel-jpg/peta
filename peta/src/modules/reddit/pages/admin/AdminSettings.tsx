@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Bot, CheckCircle2, KeyRound, Loader2, RefreshCw, Save, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Bot, CheckCircle2, ExternalLink, KeyRound, Loader2, RefreshCw, Save, ShieldCheck } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { AdminBreadcrumb, AdminLayout } from '../../components/AdminLayout';
 import {
@@ -212,24 +212,32 @@ export function AdminSettings() {
                   status={health?.claude.status}
                   detail={health?.claude.detail}
                   hint="Add ANTHROPIC_API_KEY to Supabase secrets before choosing Claude."
+                  actionLabel="Open Anthropic keys"
+                  actionUrl="https://console.anthropic.com/settings/keys"
                 />
                 <HealthCard
                   label="DataForSEO keyword data"
                   status={health?.dataforseo.status}
                   detail={health?.dataforseo.detail}
                   hint="Top up DataForSEO until the balance is positive, then click Recheck."
+                  actionLabel="Open DataForSEO"
+                  actionUrl="https://app.dataforseo.com"
                 />
                 <HealthCard
                   label="Google Custom Search SERP"
                   status={health?.google.status}
                   detail={health?.google.detail}
                   hint="Check Google Custom Search API access, CSE ID, API restrictions, and billing."
+                  actionLabel="Open Google API"
+                  actionUrl="https://console.cloud.google.com/apis/api/customsearch.googleapis.com"
                 />
                 <HealthCard
                   label="SerpAPI Google SERP"
                   status={health?.serpapi.status}
                   detail={health?.serpapi.detail}
                   hint="Optional fallback: add SERPAPI_API_KEY to Supabase secrets if Google CSE stays blocked."
+                  actionLabel="Open SerpAPI"
+                  actionUrl="https://serpapi.com/dashboard"
                 />
               </div>
             </div>
@@ -245,11 +253,15 @@ function HealthCard({
   status,
   detail,
   hint,
+  actionLabel,
+  actionUrl,
 }: {
   label: string;
   status?: ProviderHealthStatus;
   detail?: string;
   hint?: string;
+  actionLabel?: string;
+  actionUrl?: string;
 }) {
   const normalized = status || 'missing';
   const isOk = normalized === 'ok';
@@ -276,6 +288,17 @@ function HealthCard({
             <p className="text-xs text-slate-700 mt-2 rounded-lg bg-white/70 ring-1 ring-slate-200 px-2 py-1.5">
               {hint}
             </p>
+          )}
+          {!isOk && actionUrl && actionLabel && (
+            <a
+              href={actionUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 inline-flex items-center gap-1.5 text-xs font-bold text-slate-800 hover:text-orange-600"
+            >
+              {actionLabel}
+              <ExternalLink size={12} />
+            </a>
           )}
         </div>
       </div>
