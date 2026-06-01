@@ -1144,6 +1144,61 @@ export async function retryRejectedAssignment(assignmentId: string): Promise<voi
   if (error) throw error;
 }
 
+// Admin: list approved or rejected assignments (history tab).
+export type AssignmentHistoryRow = {
+  id: string;
+  status: 'approved' | 'rejected';
+  proof_url: string | null;
+  proof_image_url: string | null;
+  submitted_url: string | null;
+  submitted_username: string | null;
+  draft_comment: string | null;
+  admin_notes: string | null;
+  rejection_type: string;
+  created_at: string;
+  updated_at: string;
+  submitted_at: string;
+  task_id: string;
+  task_title: string;
+  task_target_url: string | null;
+  task_category: string;
+  task_type: string;
+  task_reward: number;
+  reddit_account_id: string;
+  reddit_username: string;
+  army_user_id: string;
+  army_email: string;
+  army_name: string;
+  army_whatsapp: string | null;
+};
+
+export async function adminAssignmentHistory(
+  status: 'approved' | 'rejected',
+  limit = 100,
+): Promise<AssignmentHistoryRow[]> {
+  const { data, error } = await supabase.rpc('admin_assignment_history', {
+    p_status: status,
+    p_limit: limit,
+  });
+  if (error) throw error;
+  return (data || []) as AssignmentHistoryRow[];
+}
+
+// Admin: revert an approved or rejected assignment back to 'submitted'.
+// For approved → also removes the task_reward credit + decrements
+// source order's delivered_upvotes (re-opens task if completed).
+export async function adminRevertAssignment(assignmentId: string): Promise<{
+  reverted_from: 'approved' | 'rejected';
+  new_status: 'submitted';
+  credit_removed: boolean;
+}> {
+  const { data, error } = await supabase.rpc('admin_revert_assignment', {
+    p_id: assignmentId,
+  });
+  if (error) throw error;
+  return data as { reverted_from: 'approved' | 'rejected'; new_status: 'submitted'; credit_removed: boolean };
+}
+
 // Admin: reject WITH reason + retry flag + rejection type.
 // rejectionType='quota_full' → slot penuh, bukan salah army (FOMO card).
 // rejectionType='bad_work'   → kerja jelek, army perlu perbaiki.

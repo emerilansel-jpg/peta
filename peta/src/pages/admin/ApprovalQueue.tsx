@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Check, X, ExternalLink, Clock, ImageIcon, AlertTriangle, MessageCircle } from 'lucide-react';
+import { Check, X, ExternalLink, Clock, ImageIcon, AlertTriangle, MessageCircle, RotateCcw, Edit2 } from 'lucide-react';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
-import { adminRejectAssignment, buildWhatsappLink, sendWaDm } from '../../lib/api';
+import { adminRejectAssignment, buildWhatsappLink, sendWaDm, adminAssignmentHistory, adminRevertAssignment } from '../../lib/api';
 import { toast } from '../../components/Toast';
 
 // Pre-baked rejection reasons for fast admin triage — covers ~90% of why
@@ -53,6 +53,8 @@ export function AdminApprovalQueue() {
   const [waDmPrompt, setWaDmPrompt] = useState<{ phone: string; name: string; message: string } | null>(null);
   const [waDmPhone, setWaDmPhone] = useState('');
   const [waDmSending, setWaDmSending] = useState(false);
+  // Tab filter: pending | approved | rejected.
+  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
 
   // Diagnostic — exposes auth.uid + is_admin so we can see WHY the queue
   // is empty without guessing.  Always runs (anon-callable RPC).
@@ -97,6 +99,36 @@ export function AdminApprovalQueue() {
       }));
     },
     refetchInterval: 30_000, // surface new submissions within 30s
+  });
+
+  // History queries — only fetch when the corresponding tab is active.
+  const { data: approvedList = [], refetch: refetchApproved } = useQuery({
+    queryKey: ['approvedHistory'],
+    queryFn: () => adminAssignmentHistory('approved', 100),
+    enabled: activeTab === 'approved',
+    refetchInterval: 60_000,
+  });
+  const { data: rejectedList = [], refetch: refetchRejected } = useQuery({
+    queryKey: ['rejectedHistory'],
+    queryFn: () => adminAssignmentHistory('rejected', 100),
+    enabled: activeTab === 'rejected',
+    refetchInterval: 60_000,
+  });
+
+  // Revert mutation — undoes an approve or reject back to 'submitted'.
+  const revertMutation = useMutation({
+    mutationFn: (id: string) => adminRevertAssignment(id),
+    onSuccess: (res) => {
+      toast.success(
+        res.credit_removed
+          ? 'Direvert ke pending — credit Rp dihapus dari saldo army'
+          : 'Direvert ke pending — army bisa kerjakan ulang',
+      );
+      refetch();
+      refetchApproved();
+      refetchRejected();
+    },
+    onError: (e: any) => toast.error(`Gagal revert: ${e.message || e}`),
   });
 
   const approveMutation = useMutation({
@@ -151,10 +183,42 @@ export function AdminApprovalQueue() {
 
   return (
     <Layout userRole="admin">
-      <div className="mb-5">
+      <div className="mb-4">
         <p className="text-xs uppercase tracking-wide font-bold text-muted">Admin Console</p>
         <h1 className="text-2xl sm:text-3xl font-extrabold">Approval Queue</h1>
-        <p className="text-sm text-muted">{assignments.length} task menunggu review</p>
+        <p className="text-sm text-muted">
+          {activeTab === 'pending' && `${assignments.length} task menunggu review`}
+          {activeTab === 'approved' && `${approvedList.length} task sudah di-approve (history)`}
+          {activeTab === 'rejected' && `${rejectedList.length} task di-reject (history)`}
+        </p>
+      </div>
+
+      {/* Tab strip — filter by status */}
+      <div className="flex gap-1 mb-4 bg-light rounded-xl p-1 overflow-x-auto">
+        {[
+          { key: 'pending'  as const, label: '⏳ Pending',  count: assignments.length },
+          { key: 'approved' as const, label: '✅ Approved', count: approvedList.length },
+          { key: 'rejected' as const, label: '❌ Rejected', count: rejectedList.length },
+        ].map((tab) => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex-1 px-3 py-2 rounded-lg text-xs sm:text-sm font-bold transition tap-shrink whitespace-nowrap ${
+              activeTab === tab.key
+                ? 'bg-white text-dark shadow-sm ring-1 ring-black/5'
+                : 'text-muted hover:text-dark hover:bg-white/60'
+            }`}
+          >
+            {tab.label}
+            {(activeTab === tab.key || tab.count > 0) && (
+              <span className={`ml-1.5 inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] ${
+                activeTab === tab.key ? 'bg-primary/15 text-primary' : 'bg-muted/15 text-muted'
+              }`}>
+                {tab.count}
+              </span>
+            )}
+          </button>
+        ))}
       </div>
 
       {/* Session diagnostic — only shown when something's wrong. After the
@@ -182,7 +246,7 @@ export function AdminApprovalQueue() {
         </Card>
       )}
 
-      {isLoading ? (
+      {activeTab === 'pending' && (isLoading ? (
         <div className="space-y-3"><CardSkeleton /><CardSkeleton /></div>
       ) : assignments.length === 0 ? (
         <Card className="text-center py-12">
@@ -386,7 +450,129 @@ export function AdminApprovalQueue() {
             })}
           </div>
         </>
-      )}
+      ))}
+
+      {/* ─── HISTORY VIEW (approved / rejected tabs) ─── */}
+      {activeTab !== 'pending' && (() => {
+        const rows = activeTab === 'approved' ? approvedList : rejectedList;
+        if (rows.length === 0) {
+          return (
+            <Card className="text-center py-12">
+              <div className="text-5xl mb-3">📭</div>
+              <p className="font-bold">Belum ada task {activeTab === 'approved' ? 'di-approve' : 'di-reject'}.</p>
+            </Card>
+          );
+        }
+        return (
+          <Card padding="sm" className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left">
+                  <th className="px-2 py-2 font-semibold text-muted">Direview</th>
+                  <th className="px-2 py-2 font-semibold text-muted">Task</th>
+                  <th className="px-2 py-2 font-semibold text-muted">Army</th>
+                  <th className="px-2 py-2 font-semibold text-muted">Bukti</th>
+                  {activeTab === 'rejected' && (
+                    <th className="px-2 py-2 font-semibold text-muted">Alasan</th>
+                  )}
+                  <th className="px-2 py-2 font-semibold text-muted text-right">Reward</th>
+                  <th className="px-2 py-2 font-semibold text-muted text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((a) => {
+                  const proofImage = a.proof_image_url || (/\.(png|jpe?g|gif|webp)(\?|$)/i.test(a.proof_url || '') ? a.proof_url : '');
+                  return (
+                    <tr key={a.id} className="border-b border-border last:border-0 hover:bg-light/60">
+                      <td className="px-2 py-3 align-top whitespace-nowrap">
+                        <span className="text-xs text-muted flex items-center gap-1">
+                          <Clock size={11} /> {formatSubmittedAt(a.updated_at)}
+                        </span>
+                      </td>
+                      <td className="px-2 py-3 align-top">
+                        <p className="font-bold leading-snug">{a.task_title}</p>
+                        {a.task_target_url && (
+                          <a
+                            href={a.task_target_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] text-primary font-semibold hover:underline mt-0.5"
+                          >
+                            Thread <ExternalLink size={10} />
+                          </a>
+                        )}
+                      </td>
+                      <td className="px-2 py-3 align-top text-xs">
+                        <p className="font-semibold">{a.army_name || '—'}</p>
+                        <p className="text-muted">u/{a.reddit_username}</p>
+                      </td>
+                      <td className="px-2 py-3 align-top">
+                        {proofImage ? (
+                          <button
+                            onClick={() => setLightbox({ src: proofImage!, caption: `${a.task_title} — u/${a.reddit_username}` })}
+                            className="block w-14 h-14 rounded-lg overflow-hidden ring-1 ring-border hover:ring-primary transition"
+                          >
+                            <img src={proofImage} alt="Bukti" className="w-full h-full object-cover" />
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-muted">—</span>
+                        )}
+                      </td>
+                      {activeTab === 'rejected' && (
+                        <td className="px-2 py-3 align-top text-xs max-w-[260px]">
+                          {a.rejection_type === 'quota_full' && (
+                            <span className="inline-block bg-warning/10 text-warning text-[10px] font-bold rounded px-1.5 py-0.5 mr-1">⏰ Slot habis</span>
+                          )}
+                          <span className="text-dark">{a.admin_notes || '—'}</span>
+                        </td>
+                      )}
+                      <td className="px-2 py-3 align-top text-right whitespace-nowrap font-extrabold text-primary money">
+                        Rp{a.task_reward?.toLocaleString('id-ID')}
+                      </td>
+                      <td className="px-2 py-3 align-top text-right whitespace-nowrap">
+                        <div className="flex justify-end gap-1">
+                          {activeTab === 'rejected' && a.rejection_type !== 'quota_full' && (
+                            <Button
+                              onClick={() => openRejectModal({
+                                id: a.id,
+                                tasks: { title: a.task_title },
+                                reddit_accounts: { username: a.reddit_username },
+                                army_whatsapp: a.army_whatsapp,
+                                army_name: a.army_name,
+                              })}
+                              variant="outline"
+                              size="sm"
+                              title="Edit alasan rejection"
+                            >
+                              <Edit2 size={13} />
+                            </Button>
+                          )}
+                          <Button
+                            onClick={() => {
+                              const confirmMsg = activeTab === 'approved'
+                                ? `Revert approval ini? Reward Rp${a.task_reward?.toLocaleString('id-ID')} akan dihapus dari saldo ${a.army_name}.`
+                                : `Revert rejection ini? Task balik ke pending review.`;
+                              if (!confirm(confirmMsg)) return;
+                              revertMutation.mutate(a.id);
+                            }}
+                            variant="outline"
+                            size="sm"
+                            disabled={revertMutation.isPending}
+                            title="Revert ke pending"
+                            className="!border-warning !text-warning hover:!bg-warning hover:!text-white"
+                          >
+                            <RotateCcw size={13} />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </Card>
+        );
+      })()}
 
       {/* Reject reason modal — admin must provide reason so user knows what
           to fix when they hit "Coba lagi" on the Tasks page. */}
