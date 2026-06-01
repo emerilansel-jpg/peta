@@ -51,6 +51,7 @@ export function AdminApprovalQueue() {
   const [rejectReason, setRejectReason] = useState('');
   const [rejectType, setRejectType] = useState<'bad_work' | 'quota_full'>('bad_work');
   const [waDmPrompt, setWaDmPrompt] = useState<{ phone: string; name: string; message: string } | null>(null);
+  const [waDmPhone, setWaDmPhone] = useState('');
   const [waDmSending, setWaDmSending] = useState(false);
 
   // Diagnostic — exposes auth.uid + is_admin so we can see WHY the queue
@@ -122,6 +123,7 @@ export function AdminApprovalQueue() {
             vars.reason,
             vars.allowRetry,
           );
+          setWaDmPhone(rejectTarget.phone);
           setWaDmPrompt({ phone: rejectTarget.phone, name: rejectTarget.name || rejectTarget.username, message: msg });
         }
       }
@@ -559,9 +561,21 @@ export function AdminApprovalQueue() {
                 <X size={20} />
               </button>
             </div>
-            <p className="text-sm text-muted mb-3">
+            <p className="text-sm text-muted mb-2">
               Kirim pesan ke <b className="text-dark">{waDmPrompt.name}</b> supaya mereka tau apa yang harus diperbaiki.
             </p>
+            <div className="mb-3">
+              <label className="text-xs uppercase font-bold tracking-wide text-muted block mb-1">Nomor WA tujuan:</label>
+              <input
+                type="tel"
+                value={waDmPhone}
+                onChange={(e) => setWaDmPhone(e.target.value)}
+                disabled={waDmSending}
+                placeholder="628xxxxxxxxxx"
+                className="w-full px-3 py-2 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-[#25D366] focus:bg-white transition text-sm font-mono disabled:opacity-60"
+              />
+              <p className="text-[10px] text-muted mt-1">Edit untuk test ke nomor lain sebelum kirim ke army.</p>
+            </div>
             <textarea
               value={waDmPrompt.message}
               onChange={(e) => setWaDmPrompt({ ...waDmPrompt, message: e.target.value })}
@@ -576,7 +590,7 @@ export function AdminApprovalQueue() {
                 onClick={async () => {
                   setWaDmSending(true);
                   try {
-                    const res = await sendWaDm(waDmPrompt.phone, waDmPrompt.message);
+                    const res = await sendWaDm(waDmPhone, waDmPrompt.message);
                     if (res.sent) {
                       toast.success(`WA terkirim ke ${waDmPrompt.name} ✅`);
                       setWaDmPrompt(null);
@@ -599,7 +613,7 @@ export function AdminApprovalQueue() {
               {/* Fallback: manual wa.me */}
               {!waDmSending && (
                 <a
-                  href={buildWhatsappLink(waDmPrompt.phone, waDmPrompt.message)}
+                  href={buildWhatsappLink(waDmPhone, waDmPrompt.message)}
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={() => setWaDmPrompt(null)}
