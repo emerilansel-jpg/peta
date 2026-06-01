@@ -116,15 +116,17 @@ export function AdminApprovalQueue() {
         toast.success('Rejected: quota habis — army lihat FOMO card, bukan error');
       } else {
         toast.success(vars.allowRetry ? 'Rejected — army bisa coba lagi' : 'Rejected FINAL — no retry');
-        if (rejectTarget?.phone) {
+        // Always show WA DM modal for bad_work rejections — admin can
+        // override phone to empty → fill with test number, or send to army.
+        if (rejectTarget) {
           const msg = buildRejectionWaMessage(
             rejectTarget.name || rejectTarget.username,
             rejectTarget.title,
             vars.reason,
             vars.allowRetry,
           );
-          setWaDmPhone(rejectTarget.phone);
-          setWaDmPrompt({ phone: rejectTarget.phone, name: rejectTarget.name || rejectTarget.username, message: msg });
+          setWaDmPhone(rejectTarget.phone || '');
+          setWaDmPrompt({ phone: rejectTarget.phone || '', name: rejectTarget.name || rejectTarget.username, message: msg });
         }
       }
       setRejectTarget(null);
