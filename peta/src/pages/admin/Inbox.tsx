@@ -94,30 +94,57 @@ export function AdminInbox() {
   });
 
   // Poll Spacemail IMAP for new emails. Runs on demand via the inbox icon
-  // button + auto every 60s when the page is mounted (so admin sees inbound
-  // mail without manually refreshing). WhatsApp uses webhook push, doesn't
-  // need polling.
+  // button + auto every 5 min when the page is mounted. WhatsApp uses webhook
+  // push, doesn't need polling.
+  //
+  // Error UX: track last IMAP status in state. Only toast on MANUAL click —
+  // auto-poll failures are silent (just update the indicator) so an outage
+  // upstream doesn't spam the admin every minute.
+  const [imapStatus, setImapStatus] = React.useState<{
+    ok: boolean; error: string | null; lastChecked: number;
+  }>({ ok: true, error: null, lastChecked: 0 });
+  const manualPollRef = React.useRef(false);
+
   const pollMutation = useMutation({
     mutationFn: () => pollInboxEmail(),
     onSuccess: (r) => {
-      if (r.error || !r.ok) {
-        toast.error(`IMAP fetch gagal: ${r.error || (r.errors[0] || 'unknown')}`);
-      } else if (r.processed > 0) {
-        toast.success(`+${r.processed} email baru${r.skipped ? ` (${r.skipped} skip)` : ''}`);
-      } else if (r.skipped > 0) {
-        // Silent — bounces/auto-replies filtered out
+      const failed = !!r.error || !r.ok;
+      setImapStatus({
+        ok: !failed,
+        error: failed ? (r.error || r.errors?.[0] || 'unknown') : null,
+        lastChecked: Date.now(),
+      });
+      if (manualPollRef.current) {
+        if (failed) {
+          toast.error(`IMAP fetch gagal: ${r.error || (r.errors?.[0] || 'unknown')}`);
+        } else if (r.processed > 0) {
+          toast.success(`+${r.processed} email baru${r.skipped ? ` (${r.skipped} skip)` : ''}`);
+        } else {
+          toast.success('Inbox up-to-date');
+        }
+        manualPollRef.current = false;
       }
-      // Silent on 0/0 to avoid noise on every auto-poll
       queryClient.invalidateQueries({ queryKey: ['inbox-threads'] });
     },
-    onError: (e: any) => toast.error(`Poll failed: ${e.message || e}`),
+    onError: (e: any) => {
+      setImapStatus({ ok: false, error: e?.message || String(e), lastChecked: Date.now() });
+      if (manualPollRef.current) {
+        toast.error(`Poll failed: ${e.message || e}`);
+        manualPollRef.current = false;
+      }
+    },
   });
 
+  const triggerManualPoll = () => {
+    manualPollRef.current = true;
+    pollMutation.mutate();
+  };
+
   React.useEffect(() => {
-    // Trigger immediately on mount, then every 60s.
+    // Auto-poll every 5 min when on Email/All tab — silent failures.
     if (filter === 'all' || filter === 'email') {
       pollMutation.mutate();
-      const id = setInterval(() => pollMutation.mutate(), 60_000);
+      const id = setInterval(() => pollMutation.mutate(), 300_000);
       return () => clearInterval(id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -139,12 +166,17 @@ export function AdminInbox() {
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button
-              onClick={() => pollMutation.mutate()}
+              onClick={triggerManualPoll}
               disabled={pollMutation.isPending}
-              title="Fetch dari Spacemail (IMAP)"
-              className="p-2 rounded-lg text-muted hover:bg-light tap-shrink disabled:opacity-50"
+              title={imapStatus.ok ? 'Fetch dari Spacemail (IMAP)' : `IMAP error: ${imapStatus.error}`}
+              className={`relative p-2 rounded-lg tap-shrink disabled:opacity-50 ${
+                imapStatus.ok ? 'text-muted hover:bg-light' : 'text-danger hover:bg-danger/10'
+              }`}
             >
               <Mail size={16} className={pollMutation.isPending ? 'animate-pulse text-primary' : ''} />
+              {!imapStatus.ok && imapStatus.lastChecked > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-danger rounded-full ring-2 ring-white" />
+              )}
             </button>
             <button
               onClick={() => threadsQuery.refetch()}
@@ -275,6 +307,17 @@ export function AdminInbox() {
                 <div className="flex-1 overflow-y-auto px-3 sm:px-5 py-4 space-y-2 bg-light/50">
                   {messagesQuery.isLoading ? (
                     <p className="text-sm text-muted text-center">Loading messages…</p>
+                  ) : messagesQuery.isError ? (
+                    <div className="bg-danger/10 ring-1 ring-danger/30 rounded-lg p-3 text-xs text-danger">
+                      <p className="font-bold mb-1">⚠ Gagal load pesan</p>
+                      <p className="break-all">{(messagesQuery.error as any)?.message || String(messagesQuery.error)}</p>
+                      <button
+                        onClick={() => messagesQuery.refetch()}
+                        className="mt-2 text-primary font-bold hover:underline"
+                      >
+                        Coba lagi
+                      </button>
+                    </div>
                   ) : messages.length === 0 ? (
                     <p className="text-sm text-muted text-center">Belum ada pesan.</p>
                   ) : (

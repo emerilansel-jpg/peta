@@ -128,13 +128,31 @@ export function AdminTaskQueue() {
     onSuccess: () => { toast.success('Status diupdate'); refetch(); },
   });
 
-  // Straight Ltd order queue → import into PeTa tasks. The list shows
+  // B2B (Straight) order queue → import into PeTa tasks. The list shows
   // pending orders that haven't been imported yet; admin can one-click
   // import each, or batch-import all at once.
   const { data: pendingOrders = [], isLoading: ordersLoading } = useQuery({
     queryKey: ['pendingRedditOrders'],
     queryFn: listPendingRedditOrders,
   });
+
+  // Per-task status breakdown (approved / submitted / in_progress / rejected).
+  // Powers the admin chips that show "5 cair · 3 pending · 2 sisa" so the
+  // operator can scan slot utilization without opening each task.
+  const { data: breakdownRows = [] } = useQuery({
+    queryKey: ['adminTaskBreakdown'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('admin_task_breakdown');
+      if (error) throw error;
+      return (data || []) as Array<{ task_id: string; approved: number; submitted: number; in_progress: number; rejected: number }>;
+    },
+    refetchInterval: 30_000,
+  });
+  const breakdownMap = React.useMemo(() => {
+    const m: Record<string, { approved: number; submitted: number; in_progress: number; rejected: number }> = {};
+    for (const r of breakdownRows) m[r.task_id] = r;
+    return m;
+  }, [breakdownRows]);
 
   const importOrderMutation = useMutation({
     mutationFn: (orderId: number) => importRedditOrder({ orderId }),
@@ -233,7 +251,7 @@ export function AdminTaskQueue() {
         <Card className="mb-5 bg-warning/5 ring-warning/30">
           <div className="flex items-start justify-between gap-3 mb-3 flex-wrap">
             <div>
-              <p className="text-xs uppercase tracking-wide font-bold text-warning">Order Queue · Straight Ltd</p>
+              <p className="text-xs uppercase tracking-wide font-bold text-warning">B2B Order Queue</p>
               <h2 className="text-lg sm:text-xl font-extrabold">
                 {pendingOrders.length} order belum di-import
               </h2>
@@ -354,10 +372,37 @@ export function AdminTaskQueue() {
                   Rp{t.reward_amount.toLocaleString('id-ID')}
                 </p>
               </div>
+              {/* ============================================================
+                  Slot breakdown chips — quick-scan ops view. Each chip is a
+                  status bucket; the "sisa" chip = max - approved - submitted
+                  - in_progress (free slots admins can still fulfill).
+                  ============================================================ */}
+              {(() => {
+                const bk = breakdownMap[t.id] || { approved: 0, submitted: 0, in_progress: 0, rejected: 0 };
+                const taken = bk.approved + bk.submitted + bk.in_progress;
+                const sisa = Math.max(0, (t.max_assignments || 0) - taken);
+                return (
+                  <div className="flex items-center gap-1.5 flex-wrap mb-2 text-[11px] font-bold">
+                    <span className="bg-success/10 text-success px-2 py-0.5 rounded-full">✅ {bk.approved} cair</span>
+                    <span className="bg-warning/10 text-warning px-2 py-0.5 rounded-full">⏳ {bk.submitted} pending</span>
+                    {bk.in_progress > 0 && (
+                      <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">▶ {bk.in_progress} jalan</span>
+                    )}
+                    {bk.rejected > 0 && (
+                      <span className="bg-danger/10 text-danger px-2 py-0.5 rounded-full">✗ {bk.rejected} ditolak</span>
+                    )}
+                    <span className={`px-2 py-0.5 rounded-full ${
+                      sisa === 0
+                        ? 'bg-light text-muted'
+                        : 'bg-primary/10 text-primary'
+                    }`}>
+                      🎟️ {sisa} sisa dari {t.max_assignments}
+                    </span>
+                  </div>
+                );
+              })()}
               <div className="flex items-center justify-between text-xs gap-2 flex-wrap">
                 <div className="flex items-center gap-2 text-muted flex-wrap">
-                  <span>{t.current_assignments}/{t.max_assignments}</span>
-                  <span>•</span>
                   <span>min lvl {t.min_level}</span>
                   <span>•</span>
                   <span className={`px-2 py-0.5 rounded-full font-bold ${

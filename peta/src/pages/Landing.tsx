@@ -156,7 +156,7 @@ export function Landing() {
           </div>
           <div className="flex flex-col items-center gap-1">
             <Wallet size={20} className="text-primary" />
-            <span className="font-semibold">Min cair Rp150K</span>
+            <span className="font-semibold">Cair anytime, no min</span>
           </div>
         </div>
       </section>
@@ -295,7 +295,7 @@ export function Landing() {
           </p>
           <p className="text-sm text-muted">
             Ajak 10 teman = <b className="text-primary money">Rp200.000</b> langsung masuk saldo.
-            Cair kalau total ≥ Rp150K.
+            Cair anytime setelah kerja Rp100K dari task (anti-farming).
           </p>
         </div>
       </section>
@@ -306,7 +306,7 @@ export function Landing() {
           <h2 className="text-2xl sm:text-3xl font-extrabold mb-6">Pertanyaan singkat</h2>
           <div className="space-y-2 max-w-2xl">
             {[
-              ['Beneran dibayar?', 'Ya. Min payout Rp150.000, transfer dalam 24 jam kerja ke rekening / e-wallet kamu. Bukti bayar PeTa Army sebelumnya bisa kamu lihat di grup WhatsApp setelah daftar.'],
+              ['Beneran dibayar?', 'Ya. Saldo dari task cair kapan aja, berapapun (no minimum). Bonus signup + referral kebuka setelah kerja Rp100K dari task (anti-farming). Transfer max 24 jam kerja ke rekening / e-wallet kamu.'],
               ['Butuh skill khusus?', 'Tidak. Kalau bisa baca & nulis komentar sopan dalam Bahasa Indonesia, kamu udah cukup. Reward kecil dulu (Rp5K), naik seiring level.'],
               ['Aman buat akun saya?', 'Aman. Kami tidak login ke akun Reddit kamu, tidak post atas namamu, tidak minta password. Tiap komen kamu ketik & kirim sendiri.'],
               ['Berapa cuan realistis?', 'Tergantung level + jumlah task yang kamu ambil. Reward per komen Rp5.000 (level 0) – Rp20.000 (level 5). Tanpa janji muluk angka mingguan — yang jelas, tiap task selesai = saldo kamu langsung naik.'],

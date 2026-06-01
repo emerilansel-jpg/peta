@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "PeTa WA Verifier",
+  "version": "1.0.0",
+  "description": "Auto-verify army yang ketik 'peta' di grup WhatsApp PeTa → credit Rp5.000 otomatis.",
+  "permissions": ["storage", "alarms"],
+  "host_permissions": [
+    "https://web.whatsapp.com/*",
+    "https://yorlsgzsawchpeeazcvi.supabase.co/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://web.whatsapp.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "PeTa WA Verifier"
+  }
+}

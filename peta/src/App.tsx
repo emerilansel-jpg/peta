@@ -41,6 +41,7 @@ import { AdminApprovalQueue } from './pages/admin/ApprovalQueue';
 import { AdminTeam } from './pages/admin/Team';
 import { AdminPayroll } from './pages/admin/Payroll';
 import { AdminBroadcast } from './pages/admin/Broadcast';
+import { AdminBroadcastSettings } from './pages/admin/BroadcastSettings';
 import { AdminInbox } from './pages/admin/Inbox';
 import { AdminSecrets } from './pages/admin/Secrets';
 import { AdminWaBot } from './pages/admin/WaBot';
@@ -144,6 +145,7 @@ function App() {
           <Route path="/admin/team" element={<AdminGuard><AdminTeam /></AdminGuard>} />
           <Route path="/admin/payroll" element={<AdminGuard><AdminPayroll /></AdminGuard>} />
           <Route path="/admin/broadcast" element={<AdminGuard><AdminBroadcast /></AdminGuard>} />
+          <Route path="/admin/broadcast-settings" element={<AdminGuard><AdminBroadcastSettings /></AdminGuard>} />
           <Route path="/admin/inbox" element={<AdminGuard><AdminInbox /></AdminGuard>} />
           <Route path="/admin/secrets" element={<AdminGuard><AdminSecrets /></AdminGuard>} />
           <Route path="/admin/wa-bot" element={<AdminGuard><AdminWaBot /></AdminGuard>} />

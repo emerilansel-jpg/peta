@@ -1,9 +1,9 @@
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, ExternalLink, Check, Camera, Link as LinkIcon, X, Upload,
-  ArrowRight, MessageCircle, Target, Sparkles,
+  ArrowRight, MessageCircle, Target, Sparkles, ShieldCheck,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
@@ -18,6 +18,7 @@ import { toast } from '../components/Toast';
 type Stage = 'preview' | 'submit' | 'done';
 
 export function TaskDetail() {
+  const queryClient = useQueryClient();
   const { taskId } = useParams();
   const navigate = useNavigate();
   const [, setUser] = React.useState<any>(null);
@@ -31,6 +32,12 @@ export function TaskDetail() {
   const [assignmentId, setAssignmentId] = React.useState<string>('');
   const [threadOpened, setThreadOpened] = React.useState(false);
   const [confetti, setConfetti] = React.useState(false);
+  // WARP reminder — Reddit blocks Indonesian IPs, army users hit blank
+  // page if they click thread without WARP running. Dismissable per-device
+  // so it doesn't nag once the user has set up WARP.
+  const [warpDismissed, setWarpDismissed] = React.useState<boolean>(
+    () => typeof window !== 'undefined' && localStorage.getItem('warp_reminder_dismissed') === '1'
+  );
 
   React.useEffect(() => {
     (async () => {
@@ -90,6 +97,11 @@ export function TaskDetail() {
       setStage('done');
       setConfetti(true);
       toast.success('Tersubmit! Admin verify dalam max 3 hari kerja.');
+      // Refresh the eligibility list so the task disappears from /tasks
+      // for this user immediately (per_account_limit enforces 1 attempt).
+      queryClient.invalidateQueries({ queryKey: ['eligibleTasks'] });
+      queryClient.invalidateQueries({ queryKey: ['myAssignments'] });
+      queryClient.invalidateQueries({ queryKey: ['layoutPendingCount'] });
     },
     onError: (e: any) => toast.error(e?.message || 'Gagal submit task'),
   });
@@ -352,6 +364,50 @@ export function TaskDetail() {
           </div>
         </Card>
 
+        {/* ============================================================
+            WARP REMINDER — sits right above Step 1 because that's where
+            the user is one click away from a blank "site can't be reached"
+            page. Reddit blocks Indonesian IPs; WARP routes them through
+            Cloudflare and unblocks reliably. Dismissable so it doesn't
+            nag once the user has set things up.
+            ============================================================ */}
+        {!warpDismissed && (
+          <Card className="mb-3 ring-2 ring-warning/40 bg-warning/5">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-warning/15 grid place-items-center shrink-0">
+                <ShieldCheck size={20} className="text-warning" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-extrabold text-sm leading-tight text-dark">
+                  🛡️ Nyalain WARP dulu, baru klik Reddit
+                </p>
+                <p className="text-xs text-muted mt-0.5 leading-snug">
+                  Reddit blokir IP Indonesia. Tanpa WARP, thread bakal blank / error.
+                </p>
+                <div className="flex flex-wrap gap-2 mt-2.5">
+                  <a
+                    href="https://1.1.1.1/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 bg-warning text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-warning/90 tap-shrink"
+                  >
+                    Install WARP <ExternalLink size={12} />
+                  </a>
+                  <button
+                    onClick={() => {
+                      localStorage.setItem('warp_reminder_dismissed', '1');
+                      setWarpDismissed(true);
+                    }}
+                    className="inline-flex items-center gap-1.5 bg-white text-success px-3 py-1.5 rounded-lg text-xs font-bold ring-1 ring-success/40 hover:bg-success/5 tap-shrink"
+                  >
+                    <Check size={12} /> WARP udah jalan
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* ============ STEP 1 — BUKA THREAD REDDIT ============ */}
         <StepCard
           num={1}
@@ -591,8 +647,10 @@ function StepCard({
 }
 
 // ============================================================
-// ExampleScreenshot — CSS-only visual mock of what valid proof
-// looks like. Saves an asset download + always matches our brand.
+// ExampleScreenshot — Real Reddit screenshot for upvote tasks so
+// the army sees EXACTLY what an upvoted comment looks like (orange
+// arrow + incremented count). Falls back to CSS mock for comments
+// until a sample-comment proof image is hosted.
 // ============================================================
 function ExampleScreenshot({ isUpvote }: { isUpvote: boolean }) {
   return (
@@ -600,49 +658,37 @@ function ExampleScreenshot({ isUpvote }: { isUpvote: boolean }) {
       <p className="text-[10px] uppercase font-bold tracking-wide text-muted mb-2">
         📷 Contoh screenshot yang BENAR
       </p>
-      <div className="bg-white rounded-lg p-3 ring-1 ring-black/10 shadow-inner max-w-[280px] mx-auto">
-        {isUpvote ? (
-          <>
-            {/* Mock of Reddit upvote button — orange = upvoted */}
-            <div className="flex items-start gap-2.5">
-              <div className="flex flex-col items-center gap-1 shrink-0">
-                <div className="text-orange-500 text-2xl leading-none font-black animate-pulse">▲</div>
-                <div className="text-[10px] font-bold text-orange-500">142</div>
-                <div className="text-gray-300 text-xl leading-none">▼</div>
+      {isUpvote ? (
+        <div className="bg-white rounded-lg ring-1 ring-black/10 shadow-inner overflow-hidden max-w-[520px] mx-auto">
+          <img
+            src="/upvote-example.png"
+            alt="Contoh upvote yang benar — panah orange di komentar Reddit"
+            className="w-full h-auto block"
+            loading="lazy"
+          />
+        </div>
+      ) : (
+        <div className="bg-white rounded-lg p-3 ring-1 ring-black/10 shadow-inner max-w-[280px] mx-auto">
+          {/* Mock of a Reddit comment thread with user's comment highlighted */}
+          <div className="flex items-start gap-2">
+            <div className="w-6 h-6 bg-primary/20 rounded-full shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-[9px] font-bold text-primary mb-1">u/kamu</div>
+              <div className="bg-primary/10 ring-1 ring-primary/30 rounded-md p-2">
+                <div className="bg-gray-300 h-1.5 rounded w-full mb-1" />
+                <div className="bg-gray-300 h-1.5 rounded w-4/5 mb-1" />
+                <div className="bg-gray-300 h-1.5 rounded w-2/3" />
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="bg-gray-200 h-2.5 rounded w-4/5 mb-1.5" />
-                <div className="bg-gray-100 h-1.5 rounded w-3/5 mb-2" />
-                <div className="bg-gray-100 h-1.5 rounded w-2/5" />
-              </div>
-            </div>
-            <div className="mt-3 pt-2 border-t border-gray-100 flex items-center gap-1.5 text-[9px] text-gray-400">
-              <span>r/example</span><span>•</span><span>2h ago</span>
-            </div>
-          </>
-        ) : (
-          <>
-            {/* Mock of a Reddit comment thread with user's comment highlighted */}
-            <div className="flex items-start gap-2">
-              <div className="w-6 h-6 bg-primary/20 rounded-full shrink-0" />
-              <div className="flex-1 min-w-0">
-                <div className="text-[9px] font-bold text-primary mb-1">u/kamu</div>
-                <div className="bg-primary/10 ring-1 ring-primary/30 rounded-md p-2">
-                  <div className="bg-gray-300 h-1.5 rounded w-full mb-1" />
-                  <div className="bg-gray-300 h-1.5 rounded w-4/5 mb-1" />
-                  <div className="bg-gray-300 h-1.5 rounded w-2/3" />
-                </div>
-                <div className="flex gap-2 mt-1.5 text-[8px] text-gray-400">
-                  <span>▲ 8</span><span>Reply</span><span>Share</span>
-                </div>
+              <div className="flex gap-2 mt-1.5 text-[8px] text-gray-400">
+                <span>▲ 8</span><span>Reply</span><span>Share</span>
               </div>
             </div>
-          </>
-        )}
-      </div>
+          </div>
+        </div>
+      )}
       <p className="text-[11px] text-muted mt-2 text-center leading-snug">
         {isUpvote
-          ? '↑ Panah harus berwarna terang (orange/merah, tergantung tema). Sertakan URL bar juga biar admin verify.'
+          ? '↑ Panah upvote harus ORANGE (artinya udah di-klik). Sertakan URL bar Reddit juga biar admin verify.'
           : '↑ Komentar dari u/akun kamu harus kelihatan. Termasuk waktu post.'
         }
       </p>

@@ -389,10 +389,32 @@ export async function getPayoutHistory(userId: string) {
 // runs server-side and can't be bypassed by editing client JS. The userId
 // argument is kept for backwards-compat callers but the RPC reads auth.uid()
 // for authorization.
-export async function requestPayout(_userId: string, amount: number) {
-  const { data, error } = await supabase.rpc('request_payout', { p_amount: amount });
+export type PayoutMethod = {
+  payment_type: 'bank' | 'ewallet';
+  provider: string;          // 'BCA' | 'BRI' | 'Mandiri' | 'BNI' | 'GoPay' | 'OVO' | 'DANA' | 'ShopeePay' | 'LinkAja' | etc
+  account_number: string;
+  account_holder_name: string;
+  user_note?: string;
+};
+
+export async function requestPayout(_userId: string, amount: number, method?: PayoutMethod) {
+  const { data, error } = await supabase.rpc('request_payout', {
+    p_amount: amount,
+    p_payment_type: method?.payment_type ?? null,
+    p_provider: method?.provider ?? null,
+    p_account_number: method?.account_number ?? null,
+    p_account_holder_name: method?.account_holder_name ?? null,
+    p_user_note: method?.user_note ?? null,
+  });
   if (error) throw error;
   return data;
+}
+
+// Returns null if user has no prior payout (first-time withdrawer)
+export async function getLastPaymentMethod(): Promise<PayoutMethod | null> {
+  const { data, error } = await supabase.rpc('get_last_payment_method');
+  if (error) throw error;
+  return data as PayoutMethod | null;
 }
 
 // Lightweight pre-check so the UI can show a friendly message
@@ -479,20 +501,34 @@ export async function getTotalEarnings(userId: string): Promise<{
   let signupBonus = 0;
   let referralCredits = 0;
   let otherCredits = 0;
+  // Categorization MUST match server-side validate_payout_eligibility RPC.
+  //   signupBonus (locked behind 100K task floor):
+  //     signup_bonus, karma_milestone, wa_group_verified
+  //     — all "earned via onboarding/engagement" bonuses, need task floor to unlock.
+  //   referralCredits (locked behind 100K task floor):
+  //     referral_bonus_referrer / _referee
+  //   otherCredits (always cashable, admin override only):
+  //     manual_adjustment + any future cashable source
+  //   task_reward (skipped here, canonical source = task_assignments JOIN tasks above)
   (credits || []).forEach((c: any) => {
     const amt = c.amount || 0;
-    if (c.source === 'signup_bonus') {
-      signupBonus += amt;
-    } else if (c.source === 'referral_bonus_referrer' || c.source === 'referral_bonus_referee') {
-      referralCredits += amt;
-    } else if (c.source === 'task_reward') {
-      // Skip — already counted via task_assignments JOIN tasks above.
-      // tg_on_assignment_approved mirrors approved assignment into user_credits
-      // for ledger history; we use task_assignments as canonical to match
-      // the server-side validate_payout_eligibility math.
-    } else {
-      // manual_adjustment + karma_milestone + future cashable credits.
-      otherCredits += amt;
+    switch (c.source) {
+      case 'signup_bonus':
+      case 'karma_milestone':
+      case 'wa_group_verified':
+        signupBonus += amt;
+        break;
+      case 'referral_bonus_referrer':
+      case 'referral_bonus_referee':
+        referralCredits += amt;
+        break;
+      case 'task_reward':
+        // Skip — counted via task_assignments above
+        break;
+      case 'manual_adjustment':
+      default:
+        otherCredits += amt;
+        break;
     }
   });
 

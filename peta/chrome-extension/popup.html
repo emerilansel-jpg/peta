@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <title>PeTa WA Verifier</title>
+  <style>
+    :root {
+      --primary: #FF6B6B;
+      --success: #06D6A0;
+      --warning: #FFB740;
+      --danger: #EF4444;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --bg: #ffffff;
+      --light: #f9fafb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      width: 340px;
+      margin: 0;
+      padding: 14px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      font-size: 13px;
+      color: #111827;
+      background: var(--bg);
+    }
+    h1 { font-size: 16px; margin: 0 0 10px; font-weight: 800; }
+    h2 { font-size: 11px; margin: 14px 0 6px; font-weight: 800; text-transform: uppercase; color: var(--muted); letter-spacing: 0.05em; }
+    .row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; }
+    label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px; font-weight: 600; }
+    input[type=text], input[type=password] {
+      width: 100%; padding: 8px 10px; border: 1.5px solid var(--border); border-radius: 8px; font-size: 13px; outline: none; transition: border-color 0.15s;
+    }
+    input:focus { border-color: var(--primary); }
+    button {
+      width: 100%; padding: 9px 12px; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.15s;
+    }
+    button.primary { background: var(--primary); color: white; }
+    button.primary:hover { background: #ff5252; }
+    button.secondary { background: var(--light); color: #111827; border: 1.5px solid var(--border); }
+    button.secondary:hover { background: #f3f4f6; }
+    .badge {
+      display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 800; letter-spacing: 0.04em;
+    }
+    .badge.ok { background: rgba(6, 214, 160, 0.15); color: var(--success); }
+    .badge.warn { background: rgba(255, 183, 64, 0.15); color: #d97706; }
+    .badge.err { background: rgba(239, 68, 68, 0.15); color: var(--danger); }
+    .toggle { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+    .toggle input { width: 16px; height: 16px; cursor: pointer; }
+    .stat { background: var(--light); padding: 8px 10px; border-radius: 8px; font-size: 12px; }
+    .stat-num { font-size: 18px; font-weight: 800; color: var(--primary); }
+    .stats-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
+    .help { font-size: 11px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+    .footer { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 11px; color: var(--muted); text-align: center; }
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .divider { height: 1px; background: var(--border); margin: 12px 0; }
+  </style>
+</head>
+<body>
+  <h1>PeTa WA Verifier</h1>
+  <div class="row">
+    <span id="status-text" style="font-size:12px;">Loading...</span>
+    <span id="status-badge" class="badge warn">…</span>
+  </div>
+
+  <div class="divider"></div>
+
+  <h2>Konfigurasi</h2>
+  <label>Nama Grup WhatsApp</label>
+  <input type="text" id="group-name" placeholder="contoh: PeTa Army" />
+  <p class="help">Persis sama dengan judul grup di WA Web. Bisa partial match (case insensitive).</p>
+
+  <div style="margin-top:10px"></div>
+
+  <label>Extension Token</label>
+  <input type="password" id="token" placeholder="Paste dari /admin/wa-bot" />
+  <p class="help">Diberikan admin PeTa di halaman <code>/admin/wa-bot</code> setelah login.</p>
+
+  <div style="margin-top:10px"></div>
+
+  <label class="toggle">
+    <input type="checkbox" id="enabled" />
+    <span><strong>Aktifkan auto-verify</strong></span>
+  </label>
+  <p class="help">Saat ON, extension monitor pesan di grup dan auto-credit Rp5K kalau army ketik "peta".</p>
+
+  <div style="margin-top:12px">
+    <button class="primary" id="save-btn">Simpan</button>
+  </div>
+  <div style="margin-top:6px">
+    <button class="secondary" id="test-btn">Test Connection</button>
+  </div>
+
+  <h2>Stats Sesi Ini</h2>
+  <div class="stats-grid">
+    <div class="stat"><div class="stat-num" id="stat-scanned">0</div><div>Scanned</div></div>
+    <div class="stat"><div class="stat-num" id="stat-triggered">0</div><div>Triggered</div></div>
+    <div class="stat"><div class="stat-num" id="stat-verified">0</div><div>Verified</div></div>
+  </div>
+
+  <div class="footer">
+    Buka <a href="https://web.whatsapp.com/" target="_blank">web.whatsapp.com</a> + login burner phone. Extension polls every 3s.
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
