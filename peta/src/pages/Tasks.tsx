@@ -158,7 +158,13 @@ export function Tasks() {
     refetchInterval: 120_000,
   });
   const pendingAssignments = myAssignments.filter((a) => a.status === 'submitted');
-  const rejectedAssignments = myAssignments.filter((a) => a.status === 'rejected');
+  const allRejected = myAssignments.filter((a) => a.status === 'rejected');
+  // Quota-full rejections are NOT the user's fault — admin rejected because slot ran out.
+  // Separate them from genuine work-quality rejections so we don't shame the user.
+  const isQuotaFull = (a: { can_retry: boolean; admin_notes: string | null }) =>
+    !a.can_retry && !!a.admin_notes?.toLowerCase().includes('quota');
+  const quotaFullRejections = allRejected.filter(isQuotaFull);
+  const rejectedAssignments = allRejected.filter((a) => !isQuotaFull(a));
   const pendingValue = pendingAssignments.reduce((sum, a) => sum + (a.task_reward || 0), 0);
 
   const retryMutation = useMutation({
@@ -274,10 +280,15 @@ export function Tasks() {
             FAST. Each row shows the admin's reason. Final rejections
             (can_retry=false) get a different "no retry" treatment.
         ============================================================= */}
+        {/* ============================================================
+            REAL REJECTIONS — user's work was rejected by admin.
+            Only shows when admin rejected due to work quality, not quota.
+            Quota-full rejections are shown separately below as FOMO cards.
+        ============================================================= */}
         {rejectedAssignments.length > 0 && (
           <div className="mb-4">
             <h2 className="text-base sm:text-lg font-extrabold flex items-center gap-1.5 mb-2">
-              ⚠️ Task ditolak
+              ⚠️ Task perlu diperbaiki
               <span className="text-xs font-bold text-danger bg-danger/10 px-2 py-0.5 rounded-full">
                 {rejectedAssignments.length}
               </span>
@@ -308,7 +319,7 @@ export function Tasks() {
                     {a.admin_notes && (
                       <div className="bg-white ring-1 ring-danger/30 rounded-lg p-2 mb-2">
                         <p className="text-[10px] uppercase font-bold tracking-wide text-danger mb-0.5">
-                          Alasan ditolak
+                          Catatan admin
                         </p>
                         <p className="text-xs text-dark leading-snug whitespace-pre-wrap">{a.admin_notes}</p>
                       </div>
@@ -316,10 +327,10 @@ export function Tasks() {
                     {isFinal ? (
                       <div className="bg-white ring-1 ring-danger/20 rounded-lg p-2 text-center">
                         <p className="text-xs font-bold text-danger">
-                          ⛔ Reject final — task ini tidak bisa di-submit ulang
+                          ⛔ Tidak bisa di-submit ulang
                         </p>
                         <p className="text-[10px] text-muted mt-0.5">
-                          Lakuin task lain di bawah untuk earn dari ulang.
+                          Kerjain task lain di bawah untuk earn lagi.
                         </p>
                       </div>
                     ) : (
@@ -453,6 +464,38 @@ export function Tasks() {
               Admin lagi siapin task baru. Pantau grup WA biar dapat duluan.
             </p>
           </Card>
+        )}
+
+        {/* ============================================================
+            QUOTA-FULL SLOTS — task was full before user could get in.
+            NOT the user's fault. Show as subtle FOMO nudge, not error.
+            Goal: redirect energy to WA group for future early access.
+        ============================================================= */}
+        {quotaFullRejections.length > 0 && (
+          <div className="mb-5 bg-muted/5 ring-1 ring-border rounded-2xl p-4">
+            <p className="font-extrabold text-sm mb-0.5">
+              😅 {quotaFullRejections.length === 1 ? 'Ada 1 task' : `Ada ${quotaFullRejections.length} task`} yang slotnya habis duluan
+            </p>
+            <p className="text-xs text-muted mb-3 leading-snug">
+              Army lain lebih cepet ngambil slot-nya. Bukan salah kamu — tinggal nunggu task baru aja.
+            </p>
+            <div className="space-y-1.5 mb-3">
+              {quotaFullRejections.map((a) => (
+                <div key={a.id} className="flex items-center justify-between text-xs bg-white ring-1 ring-border rounded-lg px-3 py-2 opacity-60">
+                  <p className="font-bold truncate mr-2">{a.task_title}</p>
+                  <p className="text-muted money shrink-0 line-through">Rp{a.task_reward.toLocaleString('id-ID')}</p>
+                </div>
+              ))}
+            </div>
+            <a
+              href={WHATSAPP_GROUP_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center gap-2 w-full bg-[#25D366] text-white font-extrabold text-sm rounded-xl py-2.5 tap-shrink hover:brightness-105"
+            >
+              💬 Join grup WA — dapat notif task baru pertama
+            </a>
+          </div>
         )}
 
         {/* ============================================================
