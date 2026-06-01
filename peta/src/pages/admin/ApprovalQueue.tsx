@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Check, X, ExternalLink, Clock, ImageIcon, AlertTriangle } from 'lucide-react';
+import { Check, X, ExternalLink, Clock, ImageIcon, AlertTriangle, MessageCircle } from 'lucide-react';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
-import { adminRejectAssignment } from '../../lib/api';
+import { adminRejectAssignment, buildWhatsappLink } from '../../lib/api';
 import { toast } from '../../components/Toast';
 
 // Pre-baked rejection reasons for fast admin triage — covers ~90% of why
@@ -19,6 +19,13 @@ const REJECT_PRESETS = [
   'Komentar kena auto-remove sama Reddit. Coba di subreddit lain atau pakai akun karma lebih tinggi.',
   'Bukan thread yang diminta. Cek URL target di brief task.',
 ];
+
+function buildRejectionWaMessage(name: string, taskTitle: string, reason: string, allowRetry: boolean): string {
+  const retry = allowRetry
+    ? 'Masih bisa coba lagi kok! Perbaiki sesuai feedback di atas, terus submit ulang ya. 💪'
+    : 'Submission ini sudah final, tidak bisa diretry. Tapi masih banyak task lain yang bisa kamu coba!';
+  return `Halo ${name} 👋\n\nSubmission task *"${taskTitle}"* baru aja direview dan belum bisa diapprove nih.\n\n*Alasan:*\n${reason}\n\n${retry}\n\nCek app PeTa untuk detail.\n— Admin PeTa 🏆`;
+}
 
 // Format like "Sen, 13 Mei 2026 · 17:42" (Bahasa Indonesia day + 24h time).
 function formatSubmittedAt(iso: string | null | undefined): string {
@@ -40,9 +47,10 @@ export function AdminApprovalQueue() {
   const [lightbox, setLightbox] = useState<{ src: string; caption?: string } | null>(null);
   // Reject reason modal — opens when admin clicks reject. Forces them to
   // provide a reason so the army member knows what to fix when they retry.
-  const [rejectTarget, setRejectTarget] = useState<{ id: string; title: string; username: string } | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<{ id: string; title: string; username: string; phone?: string; name?: string } | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [rejectType, setRejectType] = useState<'bad_work' | 'quota_full'>('bad_work');
+  const [waDmPrompt, setWaDmPrompt] = useState<{ phone: string; name: string; message: string } | null>(null);
 
   // Diagnostic — exposes auth.uid + is_admin so we can see WHY the queue
   // is empty without guessing.  Always runs (anon-callable RPC).
@@ -83,6 +91,7 @@ export function AdminApprovalQueue() {
         reddit_accounts: { username: r.reddit_username },
         army_email: r.army_email,
         army_name: r.army_name,
+        army_whatsapp: r.army_whatsapp,
       }));
     },
     refetchInterval: 30_000, // surface new submissions within 30s
@@ -105,6 +114,15 @@ export function AdminApprovalQueue() {
         toast.success('Rejected: quota habis — army lihat FOMO card, bukan error');
       } else {
         toast.success(vars.allowRetry ? 'Rejected — army bisa coba lagi' : 'Rejected FINAL — no retry');
+        if (rejectTarget?.phone) {
+          const msg = buildRejectionWaMessage(
+            rejectTarget.name || rejectTarget.username,
+            rejectTarget.title,
+            vars.reason,
+            vars.allowRetry,
+          );
+          setWaDmPrompt({ phone: rejectTarget.phone, name: rejectTarget.name || rejectTarget.username, message: msg });
+        }
       }
       setRejectTarget(null);
       setRejectReason('');
@@ -121,6 +139,8 @@ export function AdminApprovalQueue() {
       id: a.id,
       title: a.tasks?.title || 'Task',
       username: a.reddit_accounts?.username || '?',
+      phone: a.army_whatsapp || undefined,
+      name: a.army_name || undefined,
     });
   };
 
@@ -513,6 +533,56 @@ export function AdminApprovalQueue() {
               💡 <b>Kerja jelek + coba lagi</b>: typical case, screenshot salah / kurang jelas. <br />
               💡 <b>Kerja jelek + final</b>: cheating / screenshot palsu / berkali-kali gagal.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* WA DM prompt — appears after bad_work rejection if the army member has a WA number registered. */}
+      {waDmPrompt && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setWaDmPrompt(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-extrabold flex items-center gap-2 text-[#25D366]">
+                <MessageCircle size={20} /> Kirim Notif WA?
+              </h3>
+              <button onClick={() => setWaDmPrompt(null)} className="p-1 text-muted hover:text-dark">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-sm text-muted mb-3">
+              Kirim pesan ke <b className="text-dark">{waDmPrompt.name}</b> supaya mereka tau apa yang harus diperbaiki.
+            </p>
+            <textarea
+              value={waDmPrompt.message}
+              onChange={(e) => setWaDmPrompt({ ...waDmPrompt, message: e.target.value })}
+              rows={8}
+              className="w-full px-3 py-2.5 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-[#25D366] focus:bg-white transition text-xs font-mono leading-relaxed mb-4"
+            />
+            <div className="space-y-2">
+              <a
+                href={buildWhatsappLink(waDmPrompt.phone, waDmPrompt.message)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setWaDmPrompt(null)}
+                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-[#25D366] hover:brightness-110 text-white font-extrabold text-sm transition tap-shrink"
+              >
+                <MessageCircle size={16} /> Kirim WA ke {waDmPrompt.name}
+              </a>
+              <button
+                onClick={() => setWaDmPrompt(null)}
+                className="w-full text-xs text-muted hover:text-dark font-semibold py-2"
+              >
+                Lewati (jangan kirim)
+              </button>
+            </div>
           </div>
         </div>
       )}
