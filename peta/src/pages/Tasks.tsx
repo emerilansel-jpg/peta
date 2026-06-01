@@ -159,12 +159,10 @@ export function Tasks() {
   });
   const pendingAssignments = myAssignments.filter((a) => a.status === 'submitted');
   const allRejected = myAssignments.filter((a) => a.status === 'rejected');
-  // Quota-full rejections are NOT the user's fault — admin rejected because slot ran out.
-  // Separate them from genuine work-quality rejections so we don't shame the user.
-  const isQuotaFull = (a: { can_retry: boolean; admin_notes: string | null }) =>
-    !a.can_retry && !!a.admin_notes?.toLowerCase().includes('quota');
-  const quotaFullRejections = allRejected.filter(isQuotaFull);
-  const rejectedAssignments = allRejected.filter((a) => !isQuotaFull(a));
+  // Quota-full rejections: admin explicitly selected "Slot Habis" when rejecting.
+  // Stored as rejection_type='quota_full' in DB — no fragile string matching.
+  const quotaFullRejections = allRejected.filter((a) => a.rejection_type === 'quota_full');
+  const rejectedAssignments = allRejected.filter((a) => a.rejection_type !== 'quota_full');
   const pendingValue = pendingAssignments.reduce((sum, a) => sum + (a.task_reward || 0), 0);
 
   const retryMutation = useMutation({

@@ -42,6 +42,7 @@ export function AdminApprovalQueue() {
   // provide a reason so the army member knows what to fix when they retry.
   const [rejectTarget, setRejectTarget] = useState<{ id: string; title: string; username: string } | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [rejectType, setRejectType] = useState<'bad_work' | 'quota_full'>('bad_work');
 
   // Diagnostic — exposes auth.uid + is_admin so we can see WHY the queue
   // is empty without guessing.  Always runs (anon-callable RPC).
@@ -97,12 +98,17 @@ export function AdminApprovalQueue() {
   });
 
   const rejectMutation = useMutation({
-    mutationFn: ({ id, reason, allowRetry }: { id: string; reason: string; allowRetry: boolean }) =>
-      adminRejectAssignment(id, reason, allowRetry),
+    mutationFn: ({ id, reason, allowRetry, rejectionType }: { id: string; reason: string; allowRetry: boolean; rejectionType: 'bad_work' | 'quota_full' }) =>
+      adminRejectAssignment(id, reason, allowRetry, rejectionType),
     onSuccess: (_, vars) => {
-      toast.success(vars.allowRetry ? 'Rejected — army bisa coba lagi' : 'Rejected FINAL — no retry');
+      if (vars.rejectionType === 'quota_full') {
+        toast.success('Rejected: quota habis — army lihat FOMO card, bukan error');
+      } else {
+        toast.success(vars.allowRetry ? 'Rejected — army bisa coba lagi' : 'Rejected FINAL — no retry');
+      }
       setRejectTarget(null);
       setRejectReason('');
+      setRejectType('bad_work');
       refetch();
     },
     onError: (e: any) => toast.error(`Gagal reject: ${e.message || e}`),
@@ -110,6 +116,7 @@ export function AdminApprovalQueue() {
 
   const openRejectModal = (a: any) => {
     setRejectReason('');
+    setRejectType('bad_work');
     setRejectTarget({
       id: a.id,
       title: a.tasks?.title || 'Task',
@@ -380,44 +387,94 @@ export function AdminApprovalQueue() {
             <p className="text-sm text-muted mb-1">
               <b className="text-dark">{rejectTarget.title}</b> · u/{rejectTarget.username}
             </p>
-            <p className="text-xs text-muted mb-3">
-              Alasan reject akan ditampilkan ke army member supaya mereka tau apa yang harus diperbaiki.
-            </p>
 
-            <p className="text-xs uppercase font-bold tracking-wide text-muted mb-1.5">
-              Quick pick:
+            {/* ── Step 1: Pilih jenis reject ── */}
+            <p className="text-xs uppercase font-bold tracking-wide text-muted mb-1.5 mt-3">
+              Kenapa di-reject?
             </p>
-            <div className="flex flex-wrap gap-1.5 mb-3">
-              {REJECT_PRESETS.map((preset, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setRejectReason(preset)}
-                  className="text-[11px] bg-light hover:bg-danger/10 text-dark hover:text-danger rounded-full px-2.5 py-1 ring-1 ring-black/5 tap-shrink text-left max-w-full truncate"
-                  title={preset}
-                >
-                  {preset.length > 50 ? preset.slice(0, 50) + '…' : preset}
-                </button>
-              ))}
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <button
+                onClick={() => setRejectType('bad_work')}
+                className={`rounded-xl p-2.5 text-left ring-2 transition text-xs ${
+                  rejectType === 'bad_work'
+                    ? 'ring-danger bg-danger/10 font-extrabold text-danger'
+                    : 'ring-border bg-light text-muted hover:ring-danger/40'
+                }`}
+              >
+                <p className="font-bold mb-0.5">❌ Kerja jelek</p>
+                <p className="text-[10px] leading-snug">Bukti salah, curang, atau tidak sesuai brief. Army perlu perbaiki.</p>
+              </button>
+              <button
+                onClick={() => setRejectType('quota_full')}
+                className={`rounded-xl p-2.5 text-left ring-2 transition text-xs ${
+                  rejectType === 'quota_full'
+                    ? 'ring-warning bg-warning/10 font-extrabold text-warning'
+                    : 'ring-border bg-light text-muted hover:ring-warning/40'
+                }`}
+              >
+                <p className="font-bold mb-0.5">⏰ Slot habis</p>
+                <p className="text-[10px] leading-snug">Task sudah penuh diambil army lain. Bukan salah mereka.</p>
+              </button>
             </div>
 
-            <p className="text-xs uppercase font-bold tracking-wide text-muted mb-1.5">
-              Alasan (wajib):
-            </p>
-            <textarea
-              value={rejectReason}
-              onChange={(e) => setRejectReason(e.target.value)}
-              placeholder="Tulis alasan rejection (min 10 huruf). Yang dilihat army member."
-              rows={4}
-              autoFocus
-              className="w-full px-3 py-2.5 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-danger focus:bg-white transition text-sm mb-3"
-            />
+            {/* ── Step 2: Tulis alasan (hanya tampil untuk bad_work) ── */}
+            {rejectType === 'bad_work' && (
+              <>
+                <p className="text-xs uppercase font-bold tracking-wide text-muted mb-1.5">
+                  Quick pick alasan:
+                </p>
+                <div className="flex flex-wrap gap-1.5 mb-3">
+                  {REJECT_PRESETS.map((preset, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setRejectReason(preset)}
+                      className="text-[11px] bg-light hover:bg-danger/10 text-dark hover:text-danger rounded-full px-2.5 py-1 ring-1 ring-black/5 tap-shrink text-left max-w-full truncate"
+                      title={preset}
+                    >
+                      {preset.length > 50 ? preset.slice(0, 50) + '…' : preset}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs uppercase font-bold tracking-wide text-muted mb-1.5">
+                  Alasan (wajib, dilihat army):
+                </p>
+                <textarea
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                  placeholder="Tulis alasan rejection (min 10 huruf). Yang dilihat army member."
+                  rows={3}
+                  autoFocus
+                  className="w-full px-3 py-2.5 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-danger focus:bg-white transition text-sm mb-3"
+                />
+              </>
+            )}
+            {rejectType === 'quota_full' && (
+              <div className="bg-warning/5 ring-1 ring-warning/30 rounded-xl p-3 mb-3 text-xs text-warning">
+                <p className="font-bold mb-1">Yang army lihat di app:</p>
+                <p className="text-dark">😅 Slotnya habis duluan — army lain lebih cepet. Bukan salah kamu.</p>
+                <p className="mt-1">+ tombol join grup WA untuk dapat notif task baru pertama.</p>
+              </div>
+            )}
 
             <p className="text-[11px] uppercase font-bold tracking-wide text-muted mb-2">
-              Pilih jenis rejection:
+              Pilih aksi:
             </p>
             <div className="space-y-2">
+              {rejectType === 'quota_full' ? (
+                <Button
+                  onClick={() => rejectMutation.mutate({ id: rejectTarget.id, reason: 'Slot task sudah penuh diambil army lain.', allowRetry: false, rejectionType: 'quota_full' })}
+                  loading={rejectMutation.isPending}
+                  variant="primary"
+                  size="md"
+                  fullWidth
+                  className="!bg-warning hover:!brightness-110"
+                >
+                  ⏰ Reject (Slot Habis) — army lihat FOMO card
+                </Button>
+              ) : (
+                <>
               <Button
-                onClick={() => rejectMutation.mutate({ id: rejectTarget.id, reason: rejectReason, allowRetry: true })}
+                onClick={() => rejectMutation.mutate({ id: rejectTarget.id, reason: rejectReason, allowRetry: true, rejectionType: 'bad_work' })}
                 loading={rejectMutation.isPending && rejectMutation.variables?.allowRetry === true}
                 disabled={rejectReason.trim().length < 10 || rejectMutation.isPending}
                 variant="primary"
@@ -430,7 +487,7 @@ export function AdminApprovalQueue() {
               <Button
                 onClick={() => {
                   if (!confirm('Yakin reject FINAL? Army member tidak bisa coba lagi untuk task ini. Pakai jika curang / cheating / berkali-kali gagal.')) return;
-                  rejectMutation.mutate({ id: rejectTarget.id, reason: rejectReason, allowRetry: false });
+                  rejectMutation.mutate({ id: rejectTarget.id, reason: rejectReason, allowRetry: false, rejectionType: 'bad_work' });
                 }}
                 loading={rejectMutation.isPending && rejectMutation.variables?.allowRetry === false}
                 disabled={rejectReason.trim().length < 10 || rejectMutation.isPending}
@@ -441,6 +498,8 @@ export function AdminApprovalQueue() {
               >
                 ⛔ Reject FINAL (tidak bisa coba lagi)
               </Button>
+                </>
+              )}
               <button
                 onClick={() => setRejectTarget(null)}
                 disabled={rejectMutation.isPending}
@@ -450,8 +509,9 @@ export function AdminApprovalQueue() {
               </button>
             </div>
             <p className="text-[10px] text-muted/80 mt-3 leading-snug">
-              💡 <b>Coba lagi</b>: typical case, user lupa screenshot bagus / salah klik. <br />
-              💡 <b>Final</b>: kalau jelas cheating (screenshot palsu, akun bukan punya sendiri, atau berkali-kali submit asal).
+              💡 <b>Slot habis</b>: slot penuh, bukan salah army — army lihat FOMO card, bukan error merah. <br />
+              💡 <b>Kerja jelek + coba lagi</b>: typical case, screenshot salah / kurang jelas. <br />
+              💡 <b>Kerja jelek + final</b>: cheating / screenshot palsu / berkali-kali gagal.
             </p>
           </div>
         </div>

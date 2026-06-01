@@ -1107,6 +1107,7 @@ export type MyAssignmentRow = {
   status: 'submitted' | 'rejected' | 'in_progress' | 'approved';
   admin_notes: string | null;
   can_retry: boolean;
+  rejection_type: 'quota_full' | 'bad_work' | null;
   proof_url: string | null;
   draft_comment: string | null;
   created_at: string;
@@ -1130,13 +1131,21 @@ export async function retryRejectedAssignment(assignmentId: string): Promise<voi
   if (error) throw error;
 }
 
-// Admin: reject WITH reason + retry flag. allow_retry=true (default) lets
-// the army member re-upload proof. false = final reject, no retry.
-export async function adminRejectAssignment(assignmentId: string, reason: string, allowRetry = true): Promise<void> {
+// Admin: reject WITH reason + retry flag + rejection type.
+// rejectionType='quota_full' → slot penuh, bukan salah army (FOMO card).
+// rejectionType='bad_work'   → kerja jelek, army perlu perbaiki.
+// allowRetry is auto-forced false for quota_full (server enforces).
+export async function adminRejectAssignment(
+  assignmentId: string,
+  reason: string,
+  allowRetry = true,
+  rejectionType: 'quota_full' | 'bad_work' = 'bad_work',
+): Promise<void> {
   const { error } = await supabase.rpc('admin_reject_assignment', {
     p_assignment_id: assignmentId,
     p_reason: reason,
-    p_can_retry: allowRetry,
+    p_allow_retry: allowRetry,
+    p_rejection_type: rejectionType,
   });
   if (error) throw error;
 }
