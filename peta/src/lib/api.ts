@@ -982,6 +982,19 @@ export async function retryPendingWhatsapp(opts: { olderThanMinutes?: number } =
   return data;
 }
 
+// Send a single WhatsApp DM via Fonnte (admin-only, uses FONNTE_TOKEN from
+// app_secrets). Falls back with { sent: false, error } if token not set.
+export async function sendWaDm(phone: string, message: string): Promise<{
+  sent: boolean;
+  error?: string;
+}> {
+  const { data, error } = await supabase.functions.invoke('send-wa-dm', {
+    body: { phone, message },
+  });
+  if (error) return { sent: false, error: error.message || String(error) };
+  return data as { sent: boolean; error?: string };
+}
+
 // Build a wa.me deeplink for a single recipient. Normalizes Indonesian
 // numbers (08… → 628…) and URL-encodes the message body.
 export function buildWhatsappLink(phone: string, message: string): string {

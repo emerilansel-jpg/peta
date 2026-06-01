@@ -6,7 +6,7 @@ import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
-import { adminRejectAssignment, buildWhatsappLink } from '../../lib/api';
+import { adminRejectAssignment, buildWhatsappLink, sendWaDm } from '../../lib/api';
 import { toast } from '../../components/Toast';
 
 // Pre-baked rejection reasons for fast admin triage — covers ~90% of why
@@ -51,6 +51,7 @@ export function AdminApprovalQueue() {
   const [rejectReason, setRejectReason] = useState('');
   const [rejectType, setRejectType] = useState<'bad_work' | 'quota_full'>('bad_work');
   const [waDmPrompt, setWaDmPrompt] = useState<{ phone: string; name: string; message: string } | null>(null);
+  const [waDmSending, setWaDmSending] = useState(false);
 
   // Diagnostic — exposes auth.uid + is_admin so we can see WHY the queue
   // is empty without guessing.  Always runs (anon-callable RPC).
@@ -537,11 +538,12 @@ export function AdminApprovalQueue() {
         </div>
       )}
 
-      {/* WA DM prompt — appears after bad_work rejection if the army member has a WA number registered. */}
+      {/* WA DM prompt — appears after bad_work rejection if the army member has a WA number registered.
+          Primary: auto-send via Fonnte. Fallback: manual wa.me link. */}
       {waDmPrompt && (
         <div
           className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-fade-in"
-          onClick={() => setWaDmPrompt(null)}
+          onClick={() => !waDmSending && setWaDmPrompt(null)}
           role="dialog"
           aria-modal="true"
         >
@@ -553,7 +555,7 @@ export function AdminApprovalQueue() {
               <h3 className="text-lg font-extrabold flex items-center gap-2 text-[#25D366]">
                 <MessageCircle size={20} /> Kirim Notif WA?
               </h3>
-              <button onClick={() => setWaDmPrompt(null)} className="p-1 text-muted hover:text-dark">
+              <button onClick={() => setWaDmPrompt(null)} disabled={waDmSending} className="p-1 text-muted hover:text-dark disabled:opacity-40">
                 <X size={20} />
               </button>
             </div>
@@ -563,22 +565,53 @@ export function AdminApprovalQueue() {
             <textarea
               value={waDmPrompt.message}
               onChange={(e) => setWaDmPrompt({ ...waDmPrompt, message: e.target.value })}
-              rows={8}
-              className="w-full px-3 py-2.5 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-[#25D366] focus:bg-white transition text-xs font-mono leading-relaxed mb-4"
+              rows={7}
+              disabled={waDmSending}
+              className="w-full px-3 py-2.5 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-[#25D366] focus:bg-white transition text-xs font-mono leading-relaxed mb-4 disabled:opacity-60"
             />
             <div className="space-y-2">
-              <a
-                href={buildWhatsappLink(waDmPrompt.phone, waDmPrompt.message)}
-                target="_blank"
-                rel="noopener noreferrer"
-                onClick={() => setWaDmPrompt(null)}
-                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-[#25D366] hover:brightness-110 text-white font-extrabold text-sm transition tap-shrink"
+              {/* Primary: auto-send via Fonnte */}
+              <button
+                disabled={waDmSending}
+                onClick={async () => {
+                  setWaDmSending(true);
+                  try {
+                    const res = await sendWaDm(waDmPrompt.phone, waDmPrompt.message);
+                    if (res.sent) {
+                      toast.success(`WA terkirim ke ${waDmPrompt.name} ✅`);
+                      setWaDmPrompt(null);
+                    } else {
+                      toast.error(`Fonnte gagal: ${res.error || 'unknown error'}`);
+                    }
+                  } catch (e: any) {
+                    toast.error(`Error: ${e.message || String(e)}`);
+                  } finally {
+                    setWaDmSending(false);
+                  }
+                }}
+                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-[#25D366] hover:brightness-110 disabled:opacity-60 text-white font-extrabold text-sm transition tap-shrink"
               >
-                <MessageCircle size={16} /> Kirim WA ke {waDmPrompt.name}
-              </a>
+                {waDmSending
+                  ? <><span className="animate-spin">⏳</span> Mengirim...</>
+                  : <><MessageCircle size={16} /> Kirim Otomatis via Fonnte</>
+                }
+              </button>
+              {/* Fallback: manual wa.me */}
+              {!waDmSending && (
+                <a
+                  href={buildWhatsappLink(waDmPrompt.phone, waDmPrompt.message)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => setWaDmPrompt(null)}
+                  className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl ring-1 ring-[#25D366]/40 text-[#25D366] hover:bg-[#25D366]/5 font-semibold text-xs transition"
+                >
+                  <MessageCircle size={13} /> Kirim Manual via WA Web
+                </a>
+              )}
               <button
                 onClick={() => setWaDmPrompt(null)}
-                className="w-full text-xs text-muted hover:text-dark font-semibold py-2"
+                disabled={waDmSending}
+                className="w-full text-xs text-muted hover:text-dark font-semibold py-2 disabled:opacity-40"
               >
                 Lewati (jangan kirim)
               </button>
