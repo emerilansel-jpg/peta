@@ -625,7 +625,7 @@ function ForumCommentOrderForm({
   const [targetUrl, setTargetUrl] = useState(prefillUrl || bulkTargets[0]?.url || '');
   const [bulkQueue, setBulkQueue] = useState<BulkForumTarget[]>(() => bulkTargets);
   const [platform, setPlatform] = useState('');
-  const [wantsSuggestion, setWantsSuggestion] = useState<boolean | null>(bulkTargets.length > 0 ? false : null);
+  const [wantsSuggestion, setWantsSuggestion] = useState<boolean | null>(null);
   const [brandName, setBrandName] = useState('');
   const [brandDomain, setBrandDomain] = useState('');
   const [mentionMode, setMentionMode] = useState<'plain' | 'link'>('plain');
@@ -684,10 +684,6 @@ function ForumCommentOrderForm({
   };
 
   const handleSuggestionChoice = (choice: boolean) => {
-    if (isBulk && choice) {
-      toast.error('Suggested comments are only available for one URL at a time. Bulk orders use your supplied comment/instructions.');
-      return;
-    }
     setWantsSuggestion(choice);
     if (!choice && !commentText) {
       setCommentText('');
@@ -719,15 +715,16 @@ function ForumCommentOrderForm({
         targetUrl: target.url,
         platform: target.platform || detectForumPlatform(target.url) || null,
         commentText: commentText.trim(),
-        useSuggestedComment: false,
+        useSuggestedComment: !!wantsSuggestion,
         brandName: brandName.trim() || null,
         brandDomain: brandDomain.trim() || null,
-        brandMentionMode: null,
+        brandMentionMode: wantsSuggestion ? mentionMode : null,
         sourceKeyword: target.keyword || sourceKeyword || null,
         notes: [
           notes.trim(),
           `bulk_source=ranking_forum`,
           `bulk_target_title=${target.title}`,
+          wantsSuggestion ? 'bulk_suggested=per_thread_draft_from_brief' : '',
         ].filter(Boolean).join('\n') || null,
       }))).then((orders) => {
         const ids = orders.map((order: { id?: number } | null) => order?.id).filter(Boolean) as number[];
@@ -927,21 +924,22 @@ function ForumCommentOrderForm({
             <button
               type="button"
               onClick={() => handleSuggestionChoice(true)}
-              disabled={isBulk}
               className={`text-left p-5 rounded-xl border-2 transition ${
-                wantsSuggestion === true ? 'border-orange-500 bg-orange-50' : isBulk ? 'border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed' : 'border-slate-200 hover:border-slate-300'
+                wantsSuggestion === true ? 'border-orange-500 bg-orange-50' : 'border-slate-200 hover:border-slate-300'
               }`}
             >
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles size={17} className="text-orange-600" />
-                <span className="font-bold text-slate-900">Yes, use suggested comment</span>
+                <span className="font-bold text-slate-900">Yes, write it for me</span>
               </div>
               <p className="text-sm text-slate-600 leading-relaxed">
-                +10% price. Our editorial assistant reviews the public conversation, adapts to the thread's tone,
-                and drafts a useful reply with one natural brand mention. You review, edit, and approve the final wording before ordering.
+                {isBulk
+                  ? 'Our editorial assistant writes a unique comment for every selected thread — adapted to each conversation, with one natural brand mention. Give us a short brief below.'
+                  : "+10% price. Our editorial assistant reviews the public conversation, adapts to the thread's tone, and drafts a useful reply with one natural brand mention. You review, edit, and approve before ordering."}
               </p>
-              <p className="mt-3 text-sm font-bold text-orange-700">{formatUSD(SUGGESTED_COMMENT_PRICE_CENTS)}</p>
-              {isBulk && <p className="mt-2 text-xs font-semibold text-slate-500">Single URL only</p>}
+              <p className="mt-3 text-sm font-bold text-orange-700">
+                {formatUSD(SUGGESTED_COMMENT_PRICE_CENTS)}{isBulk ? ' / comment' : ''}
+              </p>
             </button>
             <button
               type="button"
@@ -955,9 +953,13 @@ function ForumCommentOrderForm({
                 <span className="font-bold text-slate-900">No, I will write it</span>
               </div>
               <p className="text-sm text-slate-600 leading-relaxed">
-                Paste your own final comment. We only place it on the target thread.
+                {isBulk
+                  ? 'Paste one comment or instruction and we place it on every selected thread.'
+                  : 'Paste your own final comment. We only place it on the target thread.'}
               </p>
-              <p className="mt-3 text-sm font-bold text-slate-900">{formatUSD(FORUM_COMMENT_PRICE_CENTS)}</p>
+              <p className="mt-3 text-sm font-bold text-slate-900">
+                {formatUSD(FORUM_COMMENT_PRICE_CENTS)}{isBulk ? ' / comment' : ''}
+              </p>
             </button>
           </div>
         </div>
@@ -1009,20 +1011,30 @@ function ForumCommentOrderForm({
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={regenerateDraft}
-              disabled={isGenerating}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold"
-            >
-              {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <RefreshCcw size={14} />}
-              {isGenerating ? 'Preparing draft...' : (commentText ? 'Refresh suggested comment' : 'Create suggested comment')}
-            </button>
-            {generationMeta && (
-              <p className="text-xs text-orange-900">
-                {generationMeta.fetchedContext
-                  ? 'Draft prepared from the public thread context. Review tone, claims, and brand mention before checkout.'
-                  : 'Draft prepared with limited thread context. Review carefully before checkout.'}
+            {!isBulk && (
+              <>
+                <button
+                  type="button"
+                  onClick={regenerateDraft}
+                  disabled={isGenerating}
+                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold"
+                >
+                  {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <RefreshCcw size={14} />}
+                  {isGenerating ? 'Preparing draft...' : (commentText ? 'Refresh suggested comment' : 'Create suggested comment')}
+                </button>
+                {generationMeta && (
+                  <p className="text-xs text-orange-900">
+                    {generationMeta.fetchedContext
+                      ? 'Draft prepared from the public thread context. Review tone, claims, and brand mention before checkout.'
+                      : 'Draft prepared with limited thread context. Review carefully before checkout.'}
+                  </p>
+                )}
+              </>
+            )}
+            {isBulk && (
+              <p className="text-xs text-orange-900 leading-relaxed">
+                We draft a unique comment for each of the {bulkQueue.length} selected threads from your brief below —
+                each one is reviewed by our editorial team before it goes live. No need to write every comment yourself.
               </p>
             )}
           </div>
@@ -1031,18 +1043,34 @@ function ForumCommentOrderForm({
         <div>
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
             <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">3</span>
-            {isBulk ? 'Comment / instruction for all selected URLs' : 'Final comment'}
+            {isBulk && wantsSuggestion
+              ? 'Brief for every draft'
+              : isBulk
+              ? 'Comment / instruction for all selected URLs'
+              : 'Final comment'}
           </label>
           <textarea
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
-            placeholder={isBulk ? 'Paste the exact comment or shared instruction to apply to all selected forum URLs...' : wantsSuggestion ? 'Generate a suggestion, then edit it before ordering...' : 'Paste the exact comment you want us to place...'}
+            placeholder={
+              isBulk && wantsSuggestion
+                ? 'Describe what each comment should say — the angle, the key point, the tone. We turn this into a unique draft per thread...'
+                : isBulk
+                ? 'Paste the exact comment or shared instruction to apply to all selected forum URLs...'
+                : wantsSuggestion
+                ? 'Generate a suggestion, then edit it before ordering...'
+                : 'Paste the exact comment you want us to place...'
+            }
             rows={7}
             className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-y text-slate-900"
             required
           />
           <p className="mt-2 text-xs text-slate-500">
-            {isBulk ? 'This same comment/instruction will be attached to every URL in the bulk queue.' : 'You can edit the comment before checkout. Regenerating replaces this text.'}
+            {isBulk && wantsSuggestion
+              ? `We turn this brief into a unique, thread-aware comment for each of the ${bulkQueue.length} selected pages. Min 20 characters.`
+              : isBulk
+              ? 'This same comment/instruction will be attached to every URL in the bulk queue.'
+              : 'You can edit the comment before checkout. Regenerating replaces this text.'}
           </p>
         </div>
 
@@ -1067,7 +1095,7 @@ function ForumCommentOrderForm({
           {wantsSuggestion && (
             <div className="flex justify-between text-sm mb-2">
               <span className="text-slate-600">Suggested comment assistant (+10%)</span>
-              <span className="text-slate-900 font-semibold">{formatUSD(SUGGESTED_COMMENT_PRICE_CENTS - FORUM_COMMENT_PRICE_CENTS)}</span>
+              <span className="text-slate-900 font-semibold">{formatUSD(SUGGESTED_COMMENT_PRICE_CENTS - FORUM_COMMENT_PRICE_CENTS)} x {isBulk ? bulkQueue.length : 1}</span>
             </div>
           )}
           <div className="flex justify-between pt-3 mt-3 border-t border-slate-200">

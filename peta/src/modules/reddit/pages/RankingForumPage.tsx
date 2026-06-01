@@ -1,11 +1,10 @@
-import type { ElementType } from 'react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   ArrowRight,
-  BarChart3,
   Check,
+  CheckCheck,
   ChevronLeft,
   ChevronRight,
   ExternalLink,
@@ -14,8 +13,8 @@ import {
   Sparkles,
   Target,
   Trash2,
-  TrendingDown,
   Wallet,
+  XCircle,
 } from 'lucide-react';
 import { RedditLayout } from '../components/RedditLayout';
 import { useRedditCredits } from '../hooks/useRedditCredits';
@@ -163,6 +162,12 @@ export function RankingForumPage() {
     navigate(-1);
   };
 
+  const resetScansForSelectionChange = () => {
+    setForumScans([]);
+    setSelectedForumUrls([]);
+    setNotice('');
+  };
+
   const toggleKeyword = (idea: KeywordIdea) => {
     setSelectedKeywords((current) => {
       const exists = current.some((item) => item.keyword === idea.keyword);
@@ -170,9 +175,22 @@ export function RankingForumPage() {
         ? current.filter((item) => item.keyword !== idea.keyword)
         : [...current, idea];
     });
-    setForumScans([]);
-    setSelectedForumUrls([]);
-    setNotice('');
+    resetScansForSelectionChange();
+  };
+
+  const addKeywords = (batch: KeywordIdea[]) => {
+    setSelectedKeywords((current) => {
+      const seen = new Set(current.map((item) => item.keyword));
+      const additions = batch.filter((idea) => !seen.has(idea.keyword));
+      return additions.length ? [...current, ...additions] : current;
+    });
+    resetScansForSelectionChange();
+  };
+
+  const removeKeywords = (batch: KeywordIdea[]) => {
+    const drop = new Set(batch.map((idea) => idea.keyword));
+    setSelectedKeywords((current) => current.filter((item) => !drop.has(item.keyword)));
+    resetScansForSelectionChange();
   };
 
   const scanSelectedKeywords = async () => {
@@ -209,13 +227,15 @@ export function RankingForumPage() {
     }
   };
 
+  const toForumUrlItem = (keyword: string, result: ForumResult): SelectedForumUrl => ({
+    keyword,
+    title: result.title,
+    url: result.url,
+    platform: result.platform,
+  });
+
   const toggleForumUrl = (keyword: string, result: ForumResult) => {
-    const item: SelectedForumUrl = {
-      keyword,
-      title: result.title,
-      url: result.url,
-      platform: result.platform,
-    };
+    const item = toForumUrlItem(keyword, result);
     setSelectedForumUrls((current) => {
       const exists = current.some((selected) => selected.url === result.url);
       return exists
@@ -223,6 +243,23 @@ export function RankingForumPage() {
         : [...current, item];
     });
   };
+
+  const addForumUrls = (items: SelectedForumUrl[]) => {
+    setSelectedForumUrls((current) => {
+      const seen = new Set(current.map((item) => item.url));
+      const additions = items.filter((item) => !seen.has(item.url));
+      return additions.length ? [...current, ...additions] : current;
+    });
+  };
+
+  const removeForumUrls = (items: SelectedForumUrl[]) => {
+    const drop = new Set(items.map((item) => item.url));
+    setSelectedForumUrls((current) => current.filter((selected) => !drop.has(selected.url)));
+  };
+
+  const allForumItems = forumScans.flatMap((scan) => scan.results.map((result) => toForumUrlItem(scan.keyword, result)));
+  const totalForumUrls = allForumItems.length;
+  const allForumSelected = totalForumUrls > 0 && selectedForumUrls.length >= totalForumUrls;
 
   const continueToBulkOrder = () => {
     if (!hasEnoughCreditForBulk) return;
@@ -340,10 +377,12 @@ export function RankingForumPage() {
           <section className="bg-white rounded-2xl ring-1 ring-slate-200 overflow-hidden">
             <div className="px-6 py-5 border-b border-slate-100 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
               <div>
-                <h2 className="font-bold text-slate-900">Choose keyword angles</h2>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h2 className="font-bold text-slate-900">Tap the angles you want</h2>
+                  {keywordProvider && <DataFreshnessBadge live={isLiveProvider(keywordProvider)} />}
+                </div>
                 <p className="text-sm text-slate-500 mt-1">
-                  Showing 25 keywords per page. Select one strong keyword, or select several to compare forum URLs.
-                  {keywordProvider && <span className="block text-xs mt-1">Source: {formatProvider(keywordProvider)}</span>}
+                  Tap as many keywords as you like — each one is a separate angle we'll scan for forum pages.
                 </p>
               </div>
               <div className="flex flex-wrap items-center gap-2">
@@ -361,28 +400,54 @@ export function RankingForumPage() {
               </div>
             </div>
 
-            <div className="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+            {/* Quick bulk-select toolbar — built for clients clicking dozens at once */}
+            <div className="px-6 py-3 border-b border-slate-100 flex flex-wrap items-center gap-x-4 gap-y-2">
+              <span className="text-xs font-semibold text-slate-500">
+                Page shows {visibleIdeas.length} angles
+              </span>
+              <button
+                onClick={() => addKeywords(visibleIdeas)}
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-orange-600 hover:text-orange-700"
+              >
+                <CheckCheck size={15} />
+                Select all on page
+              </button>
+              <button
+                onClick={() => removeKeywords(visibleIdeas)}
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-700"
+              >
+                <XCircle size={15} />
+                Clear this page
+              </button>
+              <span className="ml-auto flex items-center gap-3 text-xs text-slate-400">
+                <LegendDot className="bg-emerald-500" label="Low" />
+                <LegendDot className="bg-amber-500" label="Medium" />
+                <LegendDot className="bg-rose-500" label="High" />
+                <span className="hidden sm:inline">competition</span>
+              </span>
+            </div>
+
+            {/* Bird-eye chip cloud: dense, scannable, one-tap select */}
+            <div className="p-4 flex flex-wrap gap-2">
               {visibleIdeas.map((idea) => {
                 const selected = selectedKeywords.some((item) => item.keyword === idea.keyword);
                 return (
                   <button
                     key={idea.keyword}
                     onClick={() => toggleKeyword(idea)}
-                    className={`text-left p-4 rounded-xl border-2 transition ${
-                      selected ? 'border-orange-500 bg-orange-50' : 'border-slate-200 hover:border-slate-300 bg-white'
+                    title={idea.intent}
+                    className={`group inline-flex items-center gap-2 pl-3 pr-3 py-2 rounded-full border transition ${
+                      selected
+                        ? 'border-orange-500 bg-orange-500 text-white shadow-sm'
+                        : 'border-slate-200 bg-white text-slate-700 hover:border-orange-300 hover:bg-orange-50'
                     }`}
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="font-bold text-slate-900">{idea.keyword}</p>
-                        <p className="text-xs text-slate-500 mt-1">{idea.intent}</p>
-                      </div>
-                      {selected && <Check size={18} className="text-orange-600 shrink-0" />}
-                    </div>
-                    <div className="mt-4 grid grid-cols-2 gap-2">
-                      <Metric icon={BarChart3} label="Est. volume" value={idea.volume.toLocaleString()} />
-                      <Metric icon={TrendingDown} label="Competition" value={idea.competition} />
-                    </div>
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${selected ? 'bg-white/80' : competitionDotClass(idea.competition)}`} />
+                    <span className="text-sm font-semibold">{idea.keyword}</span>
+                    <span className={`text-[11px] font-medium ${selected ? 'text-white/75' : 'text-slate-400'}`}>
+                      {formatVolume(idea.volume)}
+                    </span>
+                    {selected && <Check size={14} className="shrink-0" />}
                   </button>
                 );
               })}
@@ -390,8 +455,8 @@ export function RankingForumPage() {
 
             <StickyAction>
               <div>
-                <p className="font-bold text-slate-900">{selectedKeywords.length} keywords selected</p>
-                <p className="text-xs text-slate-500">More selected keywords means more chances to find forum URLs.</p>
+                <p className="font-bold text-slate-900">{selectedKeywords.length} angle{selectedKeywords.length === 1 ? '' : 's'} selected</p>
+                <p className="text-xs text-slate-500">More angles = more forum pages to choose from.</p>
               </div>
               <button
                 onClick={scanSelectedKeywords}
@@ -399,7 +464,7 @@ export function RankingForumPage() {
                 className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-semibold"
               >
                 {serpLoading ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
-                Scan selected keywords
+                Scan {selectedKeywords.length || ''} keyword{selectedKeywords.length === 1 ? '' : 's'}
               </button>
             </StickyAction>
           </section>
@@ -407,18 +472,29 @@ export function RankingForumPage() {
 
         {step === 'forums' && (
           <section className="bg-white rounded-2xl ring-1 ring-slate-200 overflow-hidden">
-            <div className="px-6 py-5 border-b border-slate-100">
-              <h2 className="font-bold text-slate-900">Select forum URLs</h2>
-              <p className="text-sm text-slate-500 mt-1">
-                Non-forum Google results are hidden. Select multiple forum URLs to bulk order.
-              </p>
+            <div className="px-6 py-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <div>
+                <h2 className="font-bold text-slate-900">Pick the forum pages to comment on</h2>
+                <p className="text-sm text-slate-500 mt-1">
+                  Only live discussion pages are shown — articles and sales pages are filtered out.
+                </p>
+              </div>
+              {!serpLoading && totalForumUrls > 0 && (
+                <button
+                  onClick={() => (allForumSelected ? removeForumUrls(allForumItems) : addForumUrls(allForumItems))}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white ring-1 ring-slate-200 hover:ring-orange-300 text-sm font-semibold text-slate-700 self-start"
+                >
+                  {allForumSelected ? <XCircle size={15} /> : <CheckCheck size={15} />}
+                  {allForumSelected ? 'Clear all' : `Select all ${totalForumUrls}`}
+                </button>
+              )}
             </div>
 
             {serpLoading ? (
               <div className="p-12 text-center">
                 <Loader2 size={28} className="mx-auto text-orange-500 mb-3 animate-spin" />
                 <p className="font-semibold text-slate-900">Scanning selected keywords...</p>
-                <p className="text-sm text-slate-500 mt-1">Finding forum URLs in each Google top 10.</p>
+                <p className="text-sm text-slate-500 mt-1">Finding live forum pages for each angle.</p>
               </div>
             ) : !forumScans.length ? (
               <div className="p-12 text-center">
@@ -432,69 +508,90 @@ export function RankingForumPage() {
                 </button>
               </div>
             ) : (
-              <div className="p-4 space-y-3">
-                {forumScans.map((scan) => (
-                  <div key={scan.keyword} className="p-4 rounded-xl ring-1 ring-slate-200">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
-                      <div>
-                        <h3 className="font-bold text-slate-900">{scan.keyword}</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">Source: {formatProvider(scan.provider)}</p>
-                        {scan.providerNotice && (
-                          <p className="text-xs text-amber-700 mt-1">{scan.providerNotice}</p>
+              <div className="divide-y divide-slate-100">
+                {forumScans.map((scan) => {
+                  const scanItems = scan.results.map((result) => toForumUrlItem(scan.keyword, result));
+                  const scanSelectedCount = scanItems.filter((item) => selectedForumUrls.some((sel) => sel.url === item.url)).length;
+                  const scanAllSelected = scanItems.length > 0 && scanSelectedCount >= scanItems.length;
+                  return (
+                    <div key={scan.keyword} className="px-4 sm:px-6 py-4">
+                      {/* Group header: keyword + freshness + per-group select-all */}
+                      <div className="flex items-center justify-between gap-3 mb-2.5">
+                        <div className="flex items-center gap-2 min-w-0 flex-wrap">
+                          <h3 className="font-bold text-slate-900 truncate">{scan.keyword}</h3>
+                          <DataFreshnessBadge live={isLiveProvider(scan.provider)} />
+                          <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                            scan.results.length ? 'bg-slate-100 text-slate-600' : 'bg-slate-50 text-slate-400'
+                          }`}>
+                            {scan.results.length ? `${scan.results.length} page${scan.results.length === 1 ? '' : 's'}` : 'none found'}
+                          </span>
+                        </div>
+                        {scanItems.length > 0 && (
+                          <button
+                            onClick={() => (scanAllSelected ? removeForumUrls(scanItems) : addForumUrls(scanItems))}
+                            className="shrink-0 text-xs font-semibold text-orange-600 hover:text-orange-700 inline-flex items-center gap-1"
+                          >
+                            {scanAllSelected ? <XCircle size={13} /> : <CheckCheck size={13} />}
+                            {scanAllSelected ? 'Clear' : 'All'}
+                          </button>
                         )}
                       </div>
-                      <span className={`self-start sm:self-auto px-2.5 py-1 rounded-full text-xs font-bold ${
-                        scan.results.length ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
-                      }`}>
-                        {scan.results.length ? `${scan.results.length} forum URL${scan.results.length === 1 ? '' : 's'}` : 'No forum'}
-                      </span>
-                    </div>
+                      {scan.providerNotice && (
+                        <p className="text-xs text-amber-700 mb-2">{scan.providerNotice}</p>
+                      )}
 
-                    {scan.results.length ? (
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
-                        {scan.results.map((result) => {
-                          const selected = selectedForumUrls.some((item) => item.url === result.url);
-                          return (
-                            <button
-                              key={result.url}
-                              onClick={() => toggleForumUrl(scan.keyword, result)}
-                              className={`text-left rounded-lg ring-1 p-3 transition ${
-                                selected ? 'bg-orange-50 ring-orange-300' : 'bg-slate-50 ring-slate-100 hover:ring-slate-300'
-                              }`}
-                            >
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                  <div className="flex items-center gap-2 mb-1">
-                                    <span className="px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 text-[10px] font-bold uppercase">
-                                      {result.platform}
-                                    </span>
-                                  </div>
-                                  <p className="text-sm font-semibold text-slate-900">{result.title}</p>
-                                  <p className="text-xs text-slate-500 mt-1 break-all">{result.url}</p>
-                                </div>
-                                <span className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 ${
-                                  selected ? 'bg-orange-500 text-white' : 'bg-white text-slate-300 ring-1 ring-slate-200'
-                                }`}>
-                                  <Check size={14} />
-                                </span>
+                      {scan.results.length ? (
+                        <div className="space-y-1.5">
+                          {scan.results.map((result) => {
+                            const selected = selectedForumUrls.some((item) => item.url === result.url);
+                            return (
+                              <div
+                                key={result.url}
+                                className={`flex items-center gap-3 rounded-lg ring-1 pl-2.5 pr-2 py-2 transition ${
+                                  selected ? 'bg-orange-50 ring-orange-300' : 'bg-white ring-slate-150 hover:ring-orange-200'
+                                }`}
+                              >
+                                <button
+                                  onClick={() => toggleForumUrl(scan.keyword, result)}
+                                  className="flex items-center gap-3 min-w-0 flex-1 text-left"
+                                >
+                                  <span className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${
+                                    selected ? 'bg-orange-500 text-white' : 'bg-slate-100 text-transparent ring-1 ring-slate-200'
+                                  }`}>
+                                    <Check size={13} />
+                                  </span>
+                                  <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold uppercase shrink-0">
+                                    {result.platform}
+                                  </span>
+                                  <span className="text-sm font-medium text-slate-900 truncate">{result.title}</span>
+                                </button>
+                                <a
+                                  href={result.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-white shrink-0"
+                                  aria-label="Open page in new tab"
+                                  title="Open page"
+                                >
+                                  <ExternalLink size={14} />
+                                </a>
                               </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <div className="rounded-lg bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-500">
-                        No forum URL found in Google top 10 for this keyword.
-                      </div>
-                    )}
-                  </div>
-                ))}
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-slate-400">No live forum page in the top results for this angle.</p>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
 
             <StickyAction>
               <div>
-                <p className="font-bold text-slate-900">{selectedForumUrls.length} forum URLs selected</p>
+                <p className="font-bold text-slate-900">{selectedForumUrls.length} forum page{selectedForumUrls.length === 1 ? '' : 's'} selected</p>
                 <p className="text-xs text-slate-500">Estimated order cost: {formatUSD(selectedUrlCost)}</p>
               </div>
               <button
@@ -502,7 +599,7 @@ export function RankingForumPage() {
                 disabled={!selectedForumUrls.length}
                 className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-semibold"
               >
-                Review selected URLs
+                Review selected pages
                 <ArrowRight size={14} />
               </button>
             </StickyAction>
@@ -650,31 +747,46 @@ function SummaryRow({ label, value, strong }: { label: string; value: string; st
   );
 }
 
-function formatProvider(provider: string) {
-  const map: Record<string, string> = {
-    heuristic_keyword_model: 'estimated preview, not live keyword data',
-    dataforseo_keyword_suggestions_opportunity_model: 'DataForSEO live keyword suggestions',
-    dataforseo_google_ads_serp_opportunity_model: 'DataForSEO Google Ads + live keyword volume',
-    dataforseo_google_organic_live: 'DataForSEO Google Organic live top 10',
-    google_custom_search_opportunity_model: 'Google top-10 opportunity model',
-    google_custom_search: 'Google Custom Search top 10',
-    serpapi_google_organic_live: 'SerpAPI Google Organic live top 10',
-    fallback_top10: 'fallback preview, not live SERP data',
-    local_fallback: 'local fallback preview, not live data',
-  };
-  return map[provider] || provider;
+// Provider names are internal — never surfaced to clients. We only expose
+// whether the data is live or an estimated preview.
+const PREVIEW_PROVIDERS = new Set(['heuristic_keyword_model', 'fallback_top10', 'local_fallback']);
+
+function isLiveProvider(provider: string) {
+  return !!provider && !PREVIEW_PROVIDERS.has(provider);
 }
 
-function Metric({ icon: Icon, label, value }: { icon: ElementType; label: string; value: string }) {
+function DataFreshnessBadge({ live }: { live: boolean }) {
   return (
-    <div className="rounded-lg bg-white/70 ring-1 ring-slate-200 px-3 py-2">
-      <div className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-slate-500 font-bold">
-        <Icon size={11} />
-        {label}
-      </div>
-      <p className="text-sm font-bold text-slate-900 mt-0.5">{value}</p>
-    </div>
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${
+        live ? 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100' : 'bg-amber-50 text-amber-700 ring-1 ring-amber-100'
+      }`}
+    >
+      <span className={`w-1.5 h-1.5 rounded-full ${live ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+      {live ? 'Live data' : 'Preview estimate'}
+    </span>
   );
+}
+
+function LegendDot({ className, label }: { className: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      <span className={`w-2 h-2 rounded-full ${className}`} />
+      {label}
+    </span>
+  );
+}
+
+function competitionDotClass(competition: string) {
+  const c = (competition || '').toLowerCase();
+  if (c === 'low') return 'bg-emerald-500';
+  if (c === 'high') return 'bg-rose-500';
+  return 'bg-amber-500';
+}
+
+function formatVolume(volume: number) {
+  if (volume >= 1000) return `${(volume / 1000).toFixed(volume >= 10000 ? 0 : 1)}k`;
+  return volume.toLocaleString();
 }
 
 function ensureManyKeywordIdeas(seed: string, remoteIdeas: KeywordIdea[]) {
