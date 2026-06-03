@@ -301,7 +301,22 @@ export async function checkAiVisibility(input: AiVisibilityInput): Promise<AiVis
   });
   if (error) throw new Error(error.message || 'AI visibility check failed');
   if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
-  return data as AiVisibilityResult;
+  const r = data as Partial<AiVisibilityResult> | null;
+  // Defensive: if the edge function returns an unexpected shape (e.g. it hasn't
+  // been redeployed with the citation_check action yet), degrade to "unavailable"
+  // instead of letting the UI read undefined fields.
+  if (!r || !r.google_organic || !r.ai_overview) {
+    return {
+      keyword: input.keyword.trim(),
+      brand: input.brand?.trim() || null,
+      domain: input.domain?.trim() || null,
+      google_organic: { found: false, position: null, url: null },
+      ai_overview: { present: false, brand_mentioned: false },
+      provider: 'unavailable',
+      checked_at: '',
+    };
+  }
+  return r as AiVisibilityResult;
 }
 
 // ============ Waitlist (Forum Mentions / GEO front-door) ============
