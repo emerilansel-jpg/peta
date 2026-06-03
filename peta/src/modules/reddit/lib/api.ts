@@ -270,6 +270,43 @@ export async function getRankingForumResults(keyword: string): Promise<{
   return data as { serp_results: RankingForumResult[]; provider: string; keyword: string; provider_notice?: string | null };
 }
 
+// ============ Waitlist (Forum Mentions / GEO front-door) ============
+
+export interface JoinWaitlistInput {
+  email: string;
+  seedKeyword?: string | null;
+  brand?: string | null;
+  website?: string | null;
+  notes?: string | null;
+}
+
+export interface JoinWaitlistResult {
+  joined: boolean;
+  reason?: 'already_on_list' | string;
+  id?: string;
+}
+
+// Anon-callable: add an email to the Straight forum-mentions waitlist.
+// Returns { joined:false, reason:'already_on_list' } if the email is a dup.
+export async function joinWaitlist(input: JoinWaitlistInput): Promise<JoinWaitlistResult> {
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : null;
+  const { data, error } = await supabase.rpc('join_waitlist', {
+    p_email: input.email.trim(),
+    p_seed_keyword: input.seedKeyword?.trim() || null,
+    p_brand: input.brand?.trim() || null,
+    p_website: input.website?.trim() || null,
+    p_notes: input.notes?.trim() || null,
+    p_user_agent: ua,
+  });
+  if (error) {
+    const msg = (error.message || '').includes('invalid_email')
+      ? 'Please enter a valid email address.'
+      : (error.message || 'Failed to join the waitlist');
+    throw new Error(msg);
+  }
+  return data as JoinWaitlistResult;
+}
+
 // Get user's topup history
 export async function getTopupHistory() {
   const { data: { user } } = await supabase.auth.getUser();

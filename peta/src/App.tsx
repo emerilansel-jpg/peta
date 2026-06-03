@@ -26,6 +26,7 @@ import { RedditLogin } from './modules/reddit/pages/RedditLogin';
 import { RedditReviews } from './modules/reddit/pages/RedditReviews';
 import { RedditFeatureRequests } from './modules/reddit/pages/RedditFeatureRequests';
 import { RankingForumPage } from './modules/reddit/pages/RankingForumPage';
+import { WaitlistPage } from './modules/reddit/pages/WaitlistPage';
 import { AdminOverview } from './modules/reddit/pages/admin/AdminOverview';
 import { AdminOrders as RedditAdminOrders } from './modules/reddit/pages/admin/AdminOrders';
 import { AdminTickets as RedditAdminTickets } from './modules/reddit/pages/admin/AdminTickets';
@@ -118,6 +119,7 @@ function App() {
 
           {/* Reddit Upvotes Routes */}
           <Route path="/reddit" element={<RedditLanding />} />
+          <Route path="/reddit/waitlist" element={<WaitlistPage />} />
           <Route path="/reddit/signup" element={<RedditSignup />} />
           <Route path="/reddit/login" element={<RedditLogin />} />
           <Route path="/reddit/dashboard" element={<RedditDashboard />} />
