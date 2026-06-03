@@ -270,6 +270,40 @@ export async function getRankingForumResults(keyword: string): Promise<{
   return data as { serp_results: RankingForumResult[]; provider: string; keyword: string; provider_notice?: string | null };
 }
 
+// ============ AI / Google Visibility (GEO) check ============
+
+export interface AiVisibilityInput {
+  keyword: string;
+  brand?: string | null;
+  domain?: string | null;
+}
+
+export interface AiVisibilityResult {
+  keyword: string;
+  brand: string | null;
+  domain: string | null;
+  google_organic: { found: boolean; position: number | null; url: string | null };
+  ai_overview: { present: boolean; brand_mentioned: boolean };
+  provider: string;
+  checked_at: string;
+}
+
+// Checks whether a brand/domain is visible in Google's organic top 10 and in
+// Google's AI Overview for a keyword. Server-side via the rank-forum-pages fn.
+export async function checkAiVisibility(input: AiVisibilityInput): Promise<AiVisibilityResult> {
+  const { data, error } = await supabase.functions.invoke('rank-forum-pages', {
+    body: {
+      citation_check: true,
+      keyword: input.keyword.trim(),
+      brand: input.brand?.trim() || '',
+      domain: input.domain?.trim() || '',
+    },
+  });
+  if (error) throw new Error(error.message || 'AI visibility check failed');
+  if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
+  return data as AiVisibilityResult;
+}
+
 // ============ Waitlist (Forum Mentions / GEO front-door) ============
 
 export interface JoinWaitlistInput {

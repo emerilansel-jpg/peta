@@ -428,6 +428,82 @@ async function dataForSeoTop10(keyword: string): Promise<SerpResult[] | null> {
   return items.length ? mapDataForSeoSerpItems(items) : null;
 }
 
+// ---- AI / Google visibility (GEO) citation check ----
+type CitationResult = {
+  keyword: string;
+  brand: string | null;
+  domain: string | null;
+  google_organic: { found: boolean; position: number | null; url: string | null };
+  ai_overview: { present: boolean; brand_mentioned: boolean };
+  provider: string;
+  checked_at: string;
+};
+
+function normHost(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .replace(/\/.*$/, '')
+    .trim();
+}
+
+// Given a keyword + brand/domain, check whether the brand is visible in Google's
+// organic top 10 AND in Google's AI Overview (an LLM-generated answer) for that
+// query. Uses the same DataForSEO live SERP call as dataForSeoTop10.
+async function checkCitation(keyword: string, brand: string, domain: string): Promise<CitationResult> {
+  const checked_at = new Date().toISOString();
+  const brandNorm = brand.trim().toLowerCase();
+  const brandSlug = brandNorm.replace(/\s+/g, '');
+  const domainNorm = domain ? normHost(domain) : '';
+  const result: CitationResult = {
+    keyword,
+    brand: brand || null,
+    domain: domain || null,
+    google_organic: { found: false, position: null, url: null },
+    ai_overview: { present: false, brand_mentioned: false },
+    provider: 'dataforseo_google_organic_live',
+    checked_at,
+  };
+
+  const data = await dataForSeoPost<{ items?: DataForSeoSerpItem[] }>(
+    'serp/google/organic/live/advanced',
+    [{ keyword, location_code: 2840, language_code: 'en', depth: 10 }]
+  ).catch((error) => {
+    console.error('citation_check_failed', (error as Error).message);
+    return null;
+  });
+  if (!data) return { ...result, provider: 'unavailable' };
+
+  const items = (data?.tasks?.[0]?.result?.[0]?.items || []) as Array<DataForSeoSerpItem & { description?: string }>;
+
+  for (const item of items) {
+    if (item?.type !== 'organic') continue;
+    const url = String(item.url || '');
+    let host = '';
+    try { host = new URL(url).hostname.replace(/^www\./, '').toLowerCase(); } catch { host = ''; }
+    const haystack = `${String(item.title || '')} ${String(item.description || '')} ${url}`.toLowerCase();
+    const domainMatch = !!domainNorm && host.includes(domainNorm);
+    const brandMatch = !!brandNorm && (haystack.includes(brandNorm) || (brandSlug.length > 2 && host.includes(brandSlug)));
+    if (domainMatch || brandMatch) {
+      result.google_organic = { found: true, position: Number(item.rank_group) || null, url };
+      break;
+    }
+  }
+
+  const aiItem = items.find((it) => it?.type === 'ai_overview');
+  if (aiItem) {
+    result.ai_overview.present = true;
+    const blob = JSON.stringify(aiItem).toLowerCase();
+    result.ai_overview.brand_mentioned = !!(
+      (domainNorm && blob.includes(domainNorm)) ||
+      (brandNorm && blob.includes(brandNorm))
+    );
+  }
+
+  return result;
+}
+
 async function dataForSeoKeywordIdeas(seed: string): Promise<KeywordIdea[] | null> {
   const labsIdeas = await dataForSeoLabsKeywordIdeas(seed);
   if (labsIdeas?.length) return labsIdeas;
@@ -678,6 +754,15 @@ Deno.serve(async (req: Request) => {
     const body = await req.json();
     if (body?.health === 'providers') {
       return json(await providerHealthCheck());
+    }
+    if (body?.citation_check) {
+      const checkKeyword = String(body?.keyword || '').trim();
+      if (!checkKeyword) return json({ error: 'keyword required' }, 400);
+      return json(await checkCitation(
+        checkKeyword,
+        String(body?.brand || '').trim(),
+        String(body?.domain || '').trim(),
+      ));
     }
     const seed = String(body?.seed || '').trim();
     const keyword = String(body?.keyword || '').trim();

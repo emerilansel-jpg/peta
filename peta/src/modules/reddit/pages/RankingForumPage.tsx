@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'react-hot-toast';
 import {
   ArrowLeft,
   ArrowRight,
@@ -7,8 +8,12 @@ import {
   CheckCheck,
   ChevronLeft,
   ChevronRight,
+  Edit3,
   ExternalLink,
+  Eye,
+  Link as LinkIcon,
   Loader2,
+  RefreshCcw,
   Search,
   Sparkles,
   Target,
@@ -17,9 +22,11 @@ import {
   XCircle,
 } from 'lucide-react';
 import { RedditLayout } from '../components/RedditLayout';
+import { EmailWhitelistNotice } from '../components/EmailWhitelistNotice';
 import { useRedditCredits } from '../hooks/useRedditCredits';
-import { formatUSD, getRankingForumResults, getRankingKeywordIdeas } from '../lib/api';
-import type { RankingForumResult, RankingKeywordIdea } from '../lib/api';
+import { useRedditOrders } from '../hooks/useRedditOrders';
+import { checkAiVisibility, formatUSD, generateForumComment, getRankingForumResults, getRankingKeywordIdeas } from '../lib/api';
+import type { AiVisibilityResult, RankingForumResult, RankingKeywordIdea } from '../lib/api';
 
 type KeywordIdea = RankingKeywordIdea;
 type ForumResult = RankingForumResult;
@@ -40,6 +47,8 @@ type KeywordForumScan = {
 
 type RankingDraft = {
   seed: string;
+  brand: string;
+  domain: string;
   hasAnalyzed: boolean;
   ideas: KeywordIdea[];
   selectedKeywords: KeywordIdea[];
@@ -47,21 +56,26 @@ type RankingDraft = {
   selectedForumUrls: SelectedForumUrl[];
   keywordProvider: string;
   keywordPage: number;
+  wantsSuggestion: boolean | null;
+  mentionMode: 'plain' | 'link';
+  commentText: string;
   step: StepId;
 };
 
-type StepId = 'seed' | 'keywords' | 'forums' | 'review';
+type StepId = 'seed' | 'keywords' | 'forums' | 'comment' | 'review';
 
 const SEED_EXAMPLES = ['crm software', 'ai writing tool', 'email marketing', 'project management'];
 const KEYWORDS_PER_PAGE = 25;
 const RANKING_DRAFT_KEY = 'straight:ranking-forum:draft:v2';
 const BULK_COMMENT_DRAFT_KEY = 'straight:forum-comment-bulk:v1';
 const FORUM_COMMENT_PRICE_CENTS = 500;
+const SUGGESTED_COMMENT_PRICE_CENTS = 550;
 
 const STEPS: Array<{ id: StepId; label: string }> = [
   { id: 'seed', label: 'Seed' },
   { id: 'keywords', label: 'Keywords' },
   { id: 'forums', label: 'Forum URLs' },
+  { id: 'comment', label: 'Comment' },
   { id: 'review', label: 'Review' },
 ];
 
@@ -79,6 +93,7 @@ function readRankingDraft(): Partial<RankingDraft> | null {
 export function RankingForumPage() {
   const navigate = useNavigate();
   const { balance } = useRedditCredits();
+  const { createForumCommentOrderAsync, isCreatingForumCommentOrder } = useRedditOrders();
   const [initialDraft] = useState<Partial<RankingDraft> | null>(() => readRankingDraft());
   const [seed, setSeed] = useState(initialDraft?.seed || '');
   const [loading, setLoading] = useState(false);
@@ -92,15 +107,29 @@ export function RankingForumPage() {
   const [notice, setNotice] = useState('');
   const [keywordPage, setKeywordPage] = useState(Number(initialDraft?.keywordPage || 0));
   const [step, setStep] = useState<StepId>(initialDraft?.step || (initialDraft?.hasAnalyzed ? 'keywords' : 'seed'));
+  // GEO campaign: brand + comment + order state
+  const [brand, setBrand] = useState(initialDraft?.brand || '');
+  const [domain, setDomain] = useState(initialDraft?.domain || '');
+  const [wantsSuggestion, setWantsSuggestion] = useState<boolean | null>(initialDraft?.wantsSuggestion ?? null);
+  const [mentionMode, setMentionMode] = useState<'plain' | 'link'>(initialDraft?.mentionMode || 'plain');
+  const [commentText, setCommentText] = useState(initialDraft?.commentText || '');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [baseline, setBaseline] = useState<AiVisibilityResult | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [placedCount, setPlacedCount] = useState(0);
 
   const pageCount = Math.max(1, Math.ceil(ideas.length / KEYWORDS_PER_PAGE));
   const visibleIdeas = ideas.slice(keywordPage * KEYWORDS_PER_PAGE, (keywordPage + 1) * KEYWORDS_PER_PAGE);
-  const selectedUrlCost = selectedForumUrls.length * FORUM_COMMENT_PRICE_CENTS;
+  const unitCost = wantsSuggestion ? SUGGESTED_COMMENT_PRICE_CENTS : FORUM_COMMENT_PRICE_CENTS;
+  const selectedUrlCost = selectedForumUrls.length * unitCost;
   const hasEnoughCreditForBulk = selectedForumUrls.length > 0 && balance >= selectedUrlCost;
+  const primaryKeyword = selectedKeywords[0]?.keyword || selectedForumUrls[0]?.keyword || seed;
 
   useEffect(() => {
     const draft: RankingDraft = {
       seed,
+      brand,
+      domain,
       hasAnalyzed,
       ideas,
       selectedKeywords,
@@ -108,10 +137,26 @@ export function RankingForumPage() {
       selectedForumUrls,
       keywordProvider,
       keywordPage,
+      wantsSuggestion,
+      mentionMode,
+      commentText,
       step,
     };
     window.localStorage.setItem(RANKING_DRAFT_KEY, JSON.stringify(draft));
-  }, [seed, hasAnalyzed, ideas, selectedKeywords, forumScans, selectedForumUrls, keywordProvider, keywordPage, step]);
+  }, [seed, brand, domain, hasAnalyzed, ideas, selectedKeywords, forumScans, selectedForumUrls, keywordProvider, keywordPage, wantsSuggestion, mentionMode, commentText, step]);
+
+  // Fetch AI-visibility baseline when entering the forums step (if brand provided).
+  useEffect(() => {
+    if (step !== 'forums' || baseline) return;
+    if (!brand.trim() && !domain.trim()) return;
+    if (!primaryKeyword.trim()) return;
+    let cancelled = false;
+    checkAiVisibility({ keyword: primaryKeyword, brand: brand || null, domain: domain || null })
+      .then((res) => { if (!cancelled) setBaseline(res); })
+      .catch(() => { if (!cancelled) setBaseline(null); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step]);
 
   const runAnalysis = async () => {
     if (!seed.trim()) return;
@@ -144,6 +189,8 @@ export function RankingForumPage() {
   const resetDraft = () => {
     window.localStorage.removeItem(RANKING_DRAFT_KEY);
     setSeed('');
+    setBrand('');
+    setDomain('');
     setHasAnalyzed(false);
     setIdeas([]);
     setSelectedKeywords([]);
@@ -151,12 +198,17 @@ export function RankingForumPage() {
     setSelectedForumUrls([]);
     setKeywordProvider('');
     setKeywordPage(0);
+    setWantsSuggestion(null);
+    setMentionMode('plain');
+    setCommentText('');
+    setBaseline(null);
     setStep('seed');
     setNotice('');
   };
 
   const goBack = () => {
-    if (step === 'review') return setStep('forums');
+    if (step === 'review') return setStep('comment');
+    if (step === 'comment') return setStep('forums');
     if (step === 'forums') return setStep('keywords');
     if (step === 'keywords') return setStep('seed');
     navigate(-1);
@@ -261,23 +313,79 @@ export function RankingForumPage() {
   const totalForumUrls = allForumItems.length;
   const allForumSelected = totalForumUrls > 0 && selectedForumUrls.length >= totalForumUrls;
 
-  const continueToBulkOrder = () => {
-    if (!hasEnoughCreditForBulk) return;
-    if (selectedForumUrls.length === 1) {
-      const target = selectedForumUrls[0];
-      navigate(`/reddit/new-order?service=comments&url=${encodeURIComponent(target.url)}&keyword=${encodeURIComponent(target.keyword)}`);
-      return;
+  const needsBrand = wantsSuggestion === true;
+  const commentReady = commentText.trim().length >= 20
+    && (!needsBrand || !!(brand.trim() || domain.trim()));
+
+  const regenerateDraft = async () => {
+    const target = selectedForumUrls[0];
+    if (!target) { toast.error('Select at least one forum page first'); return; }
+    if (!brand.trim() && !domain.trim()) { toast.error('Add your brand or domain first'); return; }
+    setIsGenerating(true);
+    try {
+      const res = await generateForumComment({
+        targetUrl: target.url,
+        platform: target.platform || 'forum',
+        brandName: brand.trim() || null,
+        brandDomain: domain.trim() || null,
+        mentionMode,
+        extraInstructions: null,
+      });
+      setCommentText(res.comment);
+      toast.success('Draft ready — review and edit before placing the order.');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Draft assistant failed';
+      toast.error(msg.toLowerCase().includes('api_key not configured')
+        ? 'Draft assistant is not configured yet. Write the comment yourself, or contact support.'
+        : msg);
+    } finally {
+      setIsGenerating(false);
     }
-    window.localStorage.setItem(BULK_COMMENT_DRAFT_KEY, JSON.stringify({
-      source: 'ranking-forum',
-      createdAt: new Date().toISOString(),
-      targets: selectedForumUrls,
-    }));
-    navigate('/reddit/new-order?service=comments&bulk=ranking-forum');
+  };
+
+  const placeOrders = async () => {
+    if (!hasEnoughCreditForBulk || !selectedForumUrls.length) return;
+    if (commentText.trim().length < 20) { toast.error('Comment / brief must be at least 20 characters'); return; }
+    try {
+      const orders = await Promise.all(selectedForumUrls.map((target) => createForumCommentOrderAsync({
+        targetUrl: target.url,
+        platform: target.platform || null,
+        commentText: commentText.trim(),
+        useSuggestedComment: !!wantsSuggestion,
+        brandName: brand.trim() || null,
+        brandDomain: domain.trim() || null,
+        brandMentionMode: wantsSuggestion ? mentionMode : null,
+        sourceKeyword: target.keyword || primaryKeyword || null,
+        notes: [
+          'bulk_source=ranking_forum',
+          `bulk_target_title=${target.title}`,
+          wantsSuggestion ? 'bulk_suggested=per_thread_draft_from_brief' : '',
+        ].filter(Boolean).join('\n') || null,
+      })));
+      setPlacedCount(orders.length);
+      window.localStorage.removeItem(BULK_COMMENT_DRAFT_KEY);
+      window.localStorage.removeItem(RANKING_DRAFT_KEY);
+      toast.success(`${orders.length} comment order${orders.length === 1 ? '' : 's'} placed.`);
+      setShowSuccess(true);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to place orders');
+    }
   };
 
   return (
     <RedditLayout>
+      {showSuccess && (
+        <EmailWhitelistNotice
+          variant="modal"
+          headline={placedCount > 1 ? 'Comment orders placed' : 'Comment order placed'}
+          context={`${placedCount} order${placedCount === 1 ? '' : 's'} created`}
+          primaryLabel="Got it — show me my orders"
+          onDismiss={() => {
+            setShowSuccess(false);
+            navigate('/reddit/orders');
+          }}
+        />
+      )}
       <div className="p-6 md:p-10 max-w-7xl mx-auto">
         <div className="mb-6 flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           <div>
@@ -323,6 +431,25 @@ export function RankingForumPage() {
           </div>
         )}
 
+        {baseline && baseline.provider !== 'unavailable' && (brand.trim() || domain.trim()) && step !== 'seed' && step !== 'keywords' && (
+          <div className={`mb-5 p-4 rounded-xl ring-1 text-sm ${
+            (baseline.google_organic.found || (baseline.ai_overview.present && baseline.ai_overview.brand_mentioned))
+              ? 'bg-emerald-50 ring-emerald-100 text-emerald-800'
+              : 'bg-slate-900 ring-slate-800 text-white'
+          }`}>
+            <div className="flex items-start gap-2">
+              <Eye size={16} className="shrink-0 mt-0.5" />
+              <div>
+                {(baseline.google_organic.found || (baseline.ai_overview.present && baseline.ai_overview.brand_mentioned)) ? (
+                  <span><strong>{brand || domain}</strong> already shows up for &ldquo;{baseline.keyword}&rdquo;. More mentions reinforce it.</span>
+                ) : (
+                  <span>Right now <strong>{brand || domain}</strong> is <strong>not</strong> mentioned in Google&rsquo;s top 10 or AI Overview for &ldquo;{baseline.keyword}&rdquo;. Placing these comments is how you get cited.</span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
         {step === 'seed' && (
           <section className="bg-white rounded-2xl ring-1 ring-slate-200 p-6 md:p-8">
             <label className="block text-sm font-semibold text-slate-900 mb-2">
@@ -361,6 +488,32 @@ export function RankingForumPage() {
                 </button>
               ))}
             </div>
+
+            <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                  Brand <span className="text-slate-400 font-normal">(optional — for AI drafts & visibility)</span>
+                </label>
+                <input
+                  value={brand}
+                  onChange={(e) => setBrand(e.target.value)}
+                  placeholder="Your brand"
+                  className="w-full px-4 py-3 rounded-lg ring-1 ring-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-900"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-slate-900 mb-1.5">
+                  Website <span className="text-slate-400 font-normal">(optional)</span>
+                </label>
+                <input
+                  value={domain}
+                  onChange={(e) => setDomain(e.target.value)}
+                  placeholder="yourdomain.com"
+                  className="w-full px-4 py-3 rounded-lg ring-1 ring-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-900"
+                />
+              </div>
+            </div>
+
             {hasAnalyzed && (
               <button
                 onClick={() => setStep('keywords')}
@@ -595,11 +748,110 @@ export function RankingForumPage() {
                 <p className="text-xs text-slate-500">Estimated order cost: {formatUSD(selectedUrlCost)}</p>
               </div>
               <button
-                onClick={() => setStep('review')}
+                onClick={() => setStep('comment')}
                 disabled={!selectedForumUrls.length}
                 className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-semibold"
               >
-                Review selected pages
+                Choose comment
+                <ArrowRight size={14} />
+              </button>
+            </StickyAction>
+          </section>
+        )}
+
+        {step === 'comment' && (
+          <section className="bg-white rounded-2xl ring-1 ring-slate-200 p-6 md:p-8 space-y-7">
+            <div>
+              <h2 className="font-bold text-slate-900">How should the comment be written?</h2>
+              <p className="text-sm text-slate-500 mt-1">
+                One comment/brief applies to all {selectedForumUrls.length} selected page{selectedForumUrls.length === 1 ? '' : 's'}.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setWantsSuggestion(true)}
+                className={`text-left p-5 rounded-xl border-2 transition ${wantsSuggestion === true ? 'border-orange-500 bg-orange-50' : 'border-slate-200 hover:border-slate-300'}`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Sparkles size={17} className="text-orange-600" />
+                  <span className="font-bold text-slate-900">Yes, write it for me</span>
+                </div>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  Our editorial assistant drafts a helpful, on-context reply with one natural brand mention. You review &amp; edit before ordering.
+                </p>
+                <p className="mt-3 text-sm font-bold text-orange-700">{formatUSD(SUGGESTED_COMMENT_PRICE_CENTS)} / comment</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setWantsSuggestion(false)}
+                className={`text-left p-5 rounded-xl border-2 transition ${wantsSuggestion === false ? 'border-slate-900 bg-slate-50' : 'border-slate-200 hover:border-slate-300'}`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <Edit3 size={17} className="text-slate-700" />
+                  <span className="font-bold text-slate-900">No, I will write it</span>
+                </div>
+                <p className="text-sm text-slate-600 leading-relaxed">
+                  Paste one comment or instruction and we place it on every selected page.
+                </p>
+                <p className="mt-3 text-sm font-bold text-slate-900">{formatUSD(FORUM_COMMENT_PRICE_CENTS)} / comment</p>
+              </button>
+            </div>
+
+            {wantsSuggestion === true && (
+              <div className="space-y-5 rounded-xl bg-orange-50/50 ring-1 ring-orange-100 p-5">
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 mb-2">Brand or domain</label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <input value={brand} onChange={(e) => setBrand(e.target.value)} placeholder="Brand name" className="w-full px-4 py-3 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-900" />
+                    <input value={domain} onChange={(e) => setDomain(e.target.value)} placeholder="yourdomain.com" className="w-full px-4 py-3 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-900" />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-900 mb-2">Mention style</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => setMentionMode('plain')} className={`py-3 rounded-lg text-sm font-semibold border-2 transition ${mentionMode === 'plain' ? 'border-orange-500 bg-white text-orange-700' : 'border-orange-100 bg-white/70 text-slate-700'}`}>Plain text mention</button>
+                    <button type="button" onClick={() => setMentionMode('link')} className={`py-3 rounded-lg text-sm font-semibold border-2 transition inline-flex items-center justify-center gap-2 ${mentionMode === 'link' ? 'border-orange-500 bg-white text-orange-700' : 'border-orange-100 bg-white/70 text-slate-700'}`}><LinkIcon size={14} /> Include link</button>
+                  </div>
+                </div>
+                <button type="button" onClick={regenerateDraft} disabled={isGenerating} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold disabled:opacity-60">
+                  {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <RefreshCcw size={14} />}
+                  {isGenerating ? 'Preparing draft...' : (commentText ? 'Refresh draft' : 'Create draft')}
+                </button>
+                <p className="text-xs text-orange-900">We draft from the first selected page as context, then reuse your brief for each page. Review before checkout.</p>
+              </div>
+            )}
+
+            {wantsSuggestion !== null && (
+              <div>
+                <label className="block text-sm font-semibold text-slate-900 mb-2">
+                  {wantsSuggestion ? 'Draft / brief (applies to all pages)' : 'Comment / instruction (applies to all pages)'}
+                </label>
+                <textarea
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value)}
+                  placeholder={wantsSuggestion ? 'Generate a draft, then edit it before ordering...' : 'Paste the exact comment you want us to place...'}
+                  rows={7}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 resize-y text-slate-900"
+                />
+                <p className="mt-2 text-xs text-slate-500">Minimum 20 characters. {commentText.trim().length} entered.</p>
+              </div>
+            )}
+
+            <StickyAction>
+              <div>
+                <p className="font-bold text-slate-900">{selectedForumUrls.length} page{selectedForumUrls.length === 1 ? '' : 's'} · {formatUSD(selectedUrlCost)}</p>
+                <p className="text-xs text-slate-500">
+                  {wantsSuggestion === null ? 'Choose how the comment is written' : commentReady ? 'Ready to review' : 'Add your comment / brief (min 20 chars)'}
+                </p>
+              </div>
+              <button
+                onClick={() => setStep('review')}
+                disabled={wantsSuggestion === null || !commentReady}
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-semibold"
+              >
+                Review &amp; approve
                 <ArrowRight size={14} />
               </button>
             </StickyAction>
@@ -657,7 +909,8 @@ export function RankingForumPage() {
               <h3 className="font-bold text-slate-900">Credit check</h3>
               <div className="mt-4 space-y-3">
                 <SummaryRow label="Selected URLs" value={String(selectedForumUrls.length)} />
-                <SummaryRow label="Price per URL" value={formatUSD(FORUM_COMMENT_PRICE_CENTS)} />
+                <SummaryRow label="Comment type" value={wantsSuggestion ? 'AI-assisted' : 'Self-written'} />
+                <SummaryRow label="Price per page" value={formatUSD(unitCost)} />
                 <SummaryRow label="Estimated total" value={formatUSD(selectedUrlCost)} strong />
                 <SummaryRow label="Available credit" value={formatUSD(balance)} />
               </div>
@@ -667,13 +920,30 @@ export function RankingForumPage() {
                 </div>
               )}
               <button
-                onClick={continueToBulkOrder}
-                disabled={!hasEnoughCreditForBulk}
+                onClick={placeOrders}
+                disabled={!hasEnoughCreditForBulk || !commentReady || isCreatingForumCommentOrder}
                 className="mt-5 w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-semibold"
               >
-                {selectedForumUrls.length === 1 ? 'Continue to comment order' : 'Continue to bulk order'}
-                <ArrowRight size={14} />
+                {isCreatingForumCommentOrder ? (
+                  <>
+                    <Loader2 size={16} className="animate-spin" />
+                    Placing...
+                  </>
+                ) : (
+                  <>
+                    {`Place ${selectedForumUrls.length} comment order${selectedForumUrls.length === 1 ? '' : 's'}`}
+                    <ArrowRight size={14} />
+                  </>
+                )}
               </button>
+              {!commentReady && (
+                <button
+                  onClick={() => setStep('comment')}
+                  className="mt-2 w-full text-xs font-semibold text-amber-700 hover:text-amber-900"
+                >
+                  ← Add your comment first
+                </button>
+              )}
               <button
                 onClick={() => navigate('/reddit/topup')}
                 className="mt-2 w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-white ring-1 ring-slate-200 hover:ring-orange-300 text-slate-700 text-sm font-semibold"
@@ -692,7 +962,7 @@ export function RankingForumPage() {
 function StepNav({ step }: { step: StepId }) {
   const activeIndex = STEPS.findIndex((item) => item.id === step);
   return (
-    <div className="mb-6 grid grid-cols-2 md:grid-cols-4 gap-2">
+    <div className="mb-6 grid grid-cols-2 md:grid-cols-5 gap-2">
       {STEPS.map((item, index) => {
         const active = item.id === step;
         const done = index < activeIndex;
