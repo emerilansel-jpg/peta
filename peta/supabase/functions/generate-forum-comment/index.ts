@@ -92,7 +92,7 @@ async function fetchThreadText(url: string): Promise<{ text: string; fetched: bo
 function buildPrompt(input: GenerateForumCommentRequest, threadText: string): PromptMessage[] {
   const brand = input.brand_name || input.brand_domain || '';
   const linkInstruction = input.mention_mode === 'link'
-    ? 'Use one hyperlink exactly once for the brand/domain mention.'
+    ? 'Include the brand domain exactly once as a plain URL written out in full (for example https://example.com). NEVER use markdown link syntax like [text](url) or any HTML — forums show it as raw text.'
     : 'Use one plain-text brand mention exactly once. Do not include a URL.';
 
   return [
@@ -199,21 +199,31 @@ function sanitizeComment(comment: string, input: GenerateForumCommentRequest) {
     return next.trim();
   }
 
+  // Link mode: forums rarely render markdown, so emit a PLAIN URL — never
+  // [text](url). First flatten any markdown links the model produced to bare URLs.
+  next = next.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/gi, '$2').trim();
+
   if (!domain) return next;
 
   const href = `https://${domain}`;
-  const markdownLink = new RegExp(`\\[([^\\]]+)\\]\\(https?:\\/\\/[^)]+\\)`, 'i');
-  if (markdownLink.test(next)) {
-    return next.replace(markdownLink, `[${brand}](${href})`).trim();
-  }
+  const escapedDomain = domain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+  // Already contains a bare URL to the domain → leave as-is.
+  if (new RegExp(`https?:\\/\\/(www\\.)?${escapedDomain}`, 'i').test(next)) {
+    return next.trim();
+  }
+  // Bare domain without protocol → upgrade to a full URL.
+  if (new RegExp(`\\b(www\\.)?${escapedDomain}\\b`, 'i').test(next)) {
+    return next.replace(new RegExp(`\\b(www\\.)?${escapedDomain}\\b`, 'i'), href).trim();
+  }
+  // Brand name present → put the plain URL right after the first mention.
   const escapedBrand = brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const brandRegex = new RegExp(`\\b${escapedBrand}\\b`, 'i');
   if (brandRegex.test(next)) {
-    return next.replace(brandRegex, `[${brand}](${href})`).trim();
+    return next.replace(brandRegex, `${brand} (${href})`).trim();
   }
-
-  return `${next} [${brand}](${href})`.trim();
+  // Fallback → append the plain URL.
+  return `${next} ${href}`.trim();
 }
 
 async function generateWithDeepSeek(messages: PromptMessage[], model: string) {

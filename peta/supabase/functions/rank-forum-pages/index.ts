@@ -112,8 +112,21 @@ const FORUM_HOSTS = [
   'stackexchange.com',
   'stackoverflow.com',
   'producthunt.com',
+  'news.ycombinator.com',
+  'city-data.com',
+  'proboards.com',
+  'forumotion.',
+  'tapatalk.com',
+  'lemmy.',
   'discourse.',
 ];
+
+// Generic forum-software URL fingerprints (phpBB / vBulletin / XenForo / SMF /
+// Discourse / Vanilla etc.) — so small/niche forums are caught too, not just
+// the big platforms above.
+const FORUM_PATH_RE = /(\/forums?\b|\/community\b|\/communities\b|\/discussions?\b|\/questions?\b|\/threads?\b|\/topic[\/=]|\/board[\/s]|\/viewtopic|\/showthread|\/viewforum|\/forumdisplay|index\.php\?topic=|\/t\/\d|\/posts?\/\d)/i;
+const FORUM_SUBDOMAIN_RE = /^(forums?|community|communities|discuss|discussion|boards?|talk|bbs|answers|ask)\./i;
+const FORUM_HOST_HINT_RE = /(forum|phpbb|vbulletin|discourse|proboards|tapatalk|smf)/i;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -229,8 +242,16 @@ function platformForUrl(url: string) {
 
 function isForumUrl(url: string) {
   const low = url.toLowerCase();
-  return FORUM_HOSTS.some((host) => low.includes(host))
-    || /\/(forum|community|questions|discussion|threads?|t)\//i.test(low);
+  if (FORUM_HOSTS.some((host) => low.includes(host))) return true;
+  if (FORUM_PATH_RE.test(low)) return true;
+  try {
+    const host = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+    if (FORUM_SUBDOMAIN_RE.test(host)) return true;
+    if (FORUM_HOST_HINT_RE.test(host)) return true;
+  } catch {
+    // ignore unparseable URLs
+  }
+  return false;
 }
 
 function fallbackTop10(keyword: string): SerpResult[] {
