@@ -2,16 +2,20 @@
 //
 // Pending payouts list with payment method details so admin can transfer +
 // mark paid with a transaction reference. Also supports rejection with reason
-// (e.g. "rekening tidak valid").
+// (e.g. "rekening tidak valid"). After "Mark as Paid", a WA modal opens so the
+// admin can DM the army member a transfer confirmation + broadcast social proof
+// to the WA group.
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Download, Check, X, Copy } from 'lucide-react';
+import { Download, Check, X, Copy, MessageCircle, Users } from 'lucide-react';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
+import { buildWhatsappLink, sendWaDm } from '../../lib/api';
 import { toast } from '../../components/Toast';
+import { WaGroupSender } from '../../components/WaGroupSender';
 
 type FilterStatus = 'pending' | 'paid' | 'cancelled' | 'all';
 
@@ -26,14 +30,33 @@ function fmtTimeAgo(iso: string | null): string {
   return `${Math.floor(h / 24)}h lalu`;
 }
 
-function copy(text: string, label = 'Copied') {
+function copyToClipboard(text: string, label = 'Copied') {
   navigator.clipboard.writeText(text);
   toast.success(label);
+}
+
+function buildPayoutDmMsg(name: string, amount: number, provider: string, accountNumber: string, accountHolderName: string): string {
+  return `Halo ${name}! 💸\n\nTransfer kamu berhasil dikirim!\n\n✅ Nominal: *Rp${amount.toLocaleString('id-ID')}*\n✅ ${provider} · ${accountNumber}\n✅ a.n. ${accountHolderName}\n\nBiasanya masuk dalam beberapa menit — max 1 jam. Kalau belum masuk setelah 1 jam, balas pesan ini ya!\n\nMakasih udah kerja keras di PeTa 🙏 Saldo kamu cair — siap ambil task lagi? Masih banyak yang menanti! 💪🔥\n\n— Admin PeTa 🏆`;
+}
+
+function buildPayoutGroupMsg(amount: number): string {
+  return `💸 *TRANSFER SUKSES!*\n\nMember PeTa baru aja terima Rp${amount.toLocaleString('id-ID')} dari hasil kerjain task. Langsung cair ke rekening — *KAPAN AJA, BERAPAPUN, nggak ada tahan-tahan!*\n\nMau dapet yang sama?\n✅ Task masih ada\n✅ Income cair ke bank/e-wallet kapan aja\n✅ Berapapun, nggak ada minimum\n✅ Daftar GRATIS\n\n👉 *https://penghasilantambahan.com*\n\nYuk gasss sebelum slot habis! ⚡`;
 }
 
 export function AdminPayroll() {
   const qc = useQueryClient();
   const [filter, setFilter] = useState<FilterStatus>('pending');
+
+  // Payout WA modal state
+  const [payoutWaTarget, setPayoutWaTarget] = useState<{
+    armyName: string; armyPhone: string; amount: number;
+    provider: string; accountNumber: string; accountHolderName: string;
+  } | null>(null);
+  const [payoutWaTab, setPayoutWaTab] = useState<'dm' | 'group'>('dm');
+  const [payoutWaDmPhone, setPayoutWaDmPhone] = useState('');
+  const [payoutWaDmMsg, setPayoutWaDmMsg] = useState('');
+  const [payoutWaGroupMsg, setPayoutWaGroupMsg] = useState('');
+  const [payoutWaSending, setPayoutWaSending] = useState(false);
 
   const { data: payouts = [], isLoading } = useQuery({
     queryKey: ['adminPayouts', filter],
@@ -46,17 +69,31 @@ export function AdminPayroll() {
   });
 
   const markPaid = useMutation({
-    mutationFn: async ({ id, ref, note }: { id: string; ref?: string; note?: string }) => {
+    mutationFn: async ({ id, ref, note, payout }: { id: string; ref?: string; note?: string; payout: any }) => {
       const { error } = await supabase.rpc('admin_mark_payout_paid', {
         p_payout_id: id,
         p_paid_reference: ref || null,
         p_admin_note: note || null,
       });
       if (error) throw error;
+      return payout;
     },
-    onSuccess: () => {
+    onSuccess: (payout) => {
       toast.success('Marked as paid ✅');
-      qc.invalidateQueries({ queryKey: ['adminPayouts'] });
+      // NOTE: don't refresh the list yet — keep the row in place while the
+      // admin reads/sends the WA modal. Refresh happens in closePayoutModal().
+      // Open WA modal to notify army member + broadcast social proof
+      const name = payout.users?.full_name || payout.users?.email || 'member';
+      const phone = payout.users?.whatsapp || '';
+      const amount = payout.amount || 0;
+      const provider = payout.provider || '—';
+      const accountNumber = payout.account_number || '—';
+      const accountHolderName = payout.account_holder_name || '—';
+      setPayoutWaDmMsg(buildPayoutDmMsg(name, amount, provider, accountNumber, accountHolderName));
+      setPayoutWaGroupMsg(buildPayoutGroupMsg(amount));
+      setPayoutWaDmPhone(phone);
+      setPayoutWaTab('dm');
+      setPayoutWaTarget({ armyName: name, armyPhone: phone, amount, provider, accountNumber, accountHolderName });
     },
     onError: (e: any) => toast.error(`Gagal: ${e.message || e}`),
   });
@@ -76,12 +113,19 @@ export function AdminPayroll() {
     onError: (e: any) => toast.error(`Gagal: ${e.message || e}`),
   });
 
+  // Close the post-payout WA modal and only then refresh the list, so the
+  // paid row stays put until the admin finishes the WA confirmation flow.
+  const closePayoutModal = () => {
+    setPayoutWaTarget(null);
+    qc.invalidateQueries({ queryKey: ['adminPayouts'] });
+  };
+
   const handleMarkPaid = (p: any) => {
     const ref = prompt(
       `Mark payout Rp${p.amount.toLocaleString('id-ID')} ke ${p.account_holder_name} as PAID?\n\nTransaction reference / receipt number (opsional):`
     );
     if (ref === null) return; // cancelled
-    markPaid.mutate({ id: p.id, ref: ref.trim() || undefined });
+    markPaid.mutate({ id: p.id, ref: ref.trim() || undefined, payout: p });
   };
 
   const handleReject = (p: any) => {
@@ -223,7 +267,7 @@ export function AdminPayroll() {
                       </p>
                       <p className="font-mono text-base">
                         <button
-                          onClick={() => copy(p.account_number, 'Nomor disalin')}
+                          onClick={() => copyToClipboard(p.account_number, 'Nomor disalin')}
                           className="hover:text-primary inline-flex items-center gap-1"
                         >
                           {p.account_number} <Copy size={12} />
@@ -241,7 +285,7 @@ export function AdminPayroll() {
                 </div>
               ) : (
                 <div className="bg-warning/10 ring-1 ring-warning/30 rounded-xl p-3 mb-3 text-xs text-warning">
-                  ⚠️ Old payout (pre-2026-05-25) — no payment method recorded. DM user untuk minta data rekening/e-wallet.
+                  ⚠️ Old payout — no payment method recorded. DM user untuk minta data rekening/e-wallet.
                 </div>
               )}
 
@@ -278,6 +322,146 @@ export function AdminPayroll() {
               )}
             </Card>
           ))}
+        </div>
+      )}
+
+      {/* Payout WA modal — appears after admin marks a payout as paid.
+          Tab 1: WA DM to army user (auto-send via Fonnte + manual fallback)
+          Tab 2: WA Group broadcast (copy message + open group link) */}
+      {payoutWaTarget && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => !payoutWaSending && closePayoutModal()}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl p-5 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-lg font-extrabold flex items-center gap-2 text-success">
+                  <Check size={20} /> Transfer Terkirim! 💸
+                </h3>
+                <p className="text-xs text-muted mt-0.5">
+                  <b className="text-dark">{payoutWaTarget.armyName}</b> · <span className="money font-bold text-primary">Rp{payoutWaTarget.amount.toLocaleString('id-ID')}</span> → {payoutWaTarget.provider}
+                </p>
+              </div>
+              <button onClick={() => !payoutWaSending && closePayoutModal()} disabled={payoutWaSending} className="p-1 text-muted hover:text-dark disabled:opacity-40">
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Tab switch: DM | Group */}
+            <div className="flex gap-1 mb-4 bg-light rounded-xl p-1">
+              <button
+                onClick={() => setPayoutWaTab('dm')}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition ${
+                  payoutWaTab === 'dm' ? 'bg-white text-dark shadow-sm ring-1 ring-black/5' : 'text-muted hover:text-dark'
+                }`}
+              >
+                <MessageCircle size={13} /> DM ke Army
+              </button>
+              <button
+                onClick={() => setPayoutWaTab('group')}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition ${
+                  payoutWaTab === 'group' ? 'bg-white text-dark shadow-sm ring-1 ring-black/5' : 'text-muted hover:text-dark'
+                }`}
+              >
+                <Users size={13} /> WA Group
+              </button>
+            </div>
+
+            {/* ─── Tab: DM ke Army ─── */}
+            {payoutWaTab === 'dm' && (
+              <>
+                <p className="text-sm text-muted mb-2">
+                  Konfirmasi transfer ke <b className="text-dark">{payoutWaTarget.armyName}</b> + semangatin ambil task lagi.
+                </p>
+                <div className="mb-3">
+                  <label className="text-xs uppercase font-bold tracking-wide text-muted block mb-1">Nomor WA tujuan:</label>
+                  <input
+                    type="tel"
+                    value={payoutWaDmPhone}
+                    onChange={(e) => setPayoutWaDmPhone(e.target.value)}
+                    disabled={payoutWaSending}
+                    placeholder="628xxxxxxxxxx"
+                    className="w-full px-3 py-2 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-[#25D366] focus:bg-white transition text-sm font-mono disabled:opacity-60"
+                  />
+                  <p className="text-[10px] text-muted mt-1">Edit nomor untuk test sebelum kirim ke army.</p>
+                </div>
+                <textarea
+                  value={payoutWaDmMsg}
+                  onChange={(e) => setPayoutWaDmMsg(e.target.value)}
+                  rows={9}
+                  disabled={payoutWaSending}
+                  className="w-full px-3 py-2.5 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-[#25D366] focus:bg-white transition text-xs font-mono leading-relaxed mb-4 disabled:opacity-60"
+                />
+                <div className="space-y-2">
+                  <button
+                    disabled={payoutWaSending || !payoutWaDmPhone}
+                    onClick={async () => {
+                      setPayoutWaSending(true);
+                      try {
+                        const res = await sendWaDm(payoutWaDmPhone, payoutWaDmMsg);
+                        if (res.sent) {
+                          toast.success(`WA konfirmasi terkirim ke ${payoutWaTarget.armyName} ✅`);
+                          setPayoutWaTab('group');
+                        } else {
+                          toast.error(`Fonnte gagal: ${res.error || 'unknown error'}`);
+                        }
+                      } catch (e: any) {
+                        toast.error(`Error: ${e.message || String(e)}`);
+                      } finally {
+                        setPayoutWaSending(false);
+                      }
+                    }}
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-[#25D366] hover:brightness-110 disabled:opacity-60 text-white font-extrabold text-sm transition tap-shrink"
+                  >
+                    {payoutWaSending
+                      ? <><span className="animate-spin">⏳</span> Mengirim...</>
+                      : <><MessageCircle size={16} /> Kirim Konfirmasi via Fonnte</>
+                    }
+                  </button>
+                  {!payoutWaSending && (
+                    <a
+                      href={buildWhatsappLink(payoutWaDmPhone, payoutWaDmMsg)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setPayoutWaTab('group')}
+                      className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl ring-1 ring-[#25D366]/40 text-[#25D366] hover:bg-[#25D366]/5 font-semibold text-xs transition"
+                    >
+                      <MessageCircle size={13} /> Kirim Manual via WA Web
+                    </a>
+                  )}
+                  <button onClick={() => setPayoutWaTab('group')} disabled={payoutWaSending} className="w-full text-xs text-muted hover:text-dark font-semibold py-1 disabled:opacity-40">
+                    Skip → Lanjut ke WA Group
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* ─── Tab: WA Group Broadcast ─── */}
+            {payoutWaTab === 'group' && (
+              <>
+                <p className="text-sm text-muted mb-2">
+                  Broadcast ke grup WA untuk create social proof + dorong member lain.
+                </p>
+                <textarea
+                  value={payoutWaGroupMsg}
+                  onChange={(e) => setPayoutWaGroupMsg(e.target.value)}
+                  rows={9}
+                  className="w-full px-3 py-2.5 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-[#25D366] focus:bg-white transition text-xs font-mono leading-relaxed mb-4"
+                />
+                <WaGroupSender message={payoutWaGroupMsg} />
+                <button onClick={closePayoutModal} className="w-full text-xs text-muted hover:text-dark font-semibold py-2 mt-2">
+                  Selesai (tutup)
+                </button>
+              </>
+            )}
+          </div>
         </div>
       )}
     </Layout>

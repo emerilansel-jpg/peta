@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Check, X, ExternalLink, Clock, ImageIcon, AlertTriangle, MessageCircle, RotateCcw, Edit2 } from 'lucide-react';
+import { Check, X, ExternalLink, Clock, ImageIcon, AlertTriangle, MessageCircle, RotateCcw, Edit2, Users } from 'lucide-react';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
@@ -8,6 +8,7 @@ import { CardSkeleton } from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
 import { adminRejectAssignment, buildWhatsappLink, sendWaDm, adminAssignmentHistory, adminRevertAssignment } from '../../lib/api';
 import { toast } from '../../components/Toast';
+import { WaGroupSender } from '../../components/WaGroupSender';
 
 // Pre-baked rejection reasons for fast admin triage — covers ~90% of why
 // upvote/comment proofs get rejected. Admin can override with custom text.
@@ -25,6 +26,14 @@ function buildRejectionWaMessage(name: string, taskTitle: string, reason: string
     ? 'Masih bisa coba lagi kok! Perbaiki sesuai feedback di atas, terus submit ulang ya. 💪'
     : 'Submission ini sudah final, tidak bisa diretry. Tapi masih banyak task lain yang bisa kamu coba!';
   return `Halo ${name} 👋\n\nSubmission task *"${taskTitle}"* baru aja direview dan belum bisa diapprove nih.\n\n*Alasan:*\n${reason}\n\n${retry}\n\nCek app PeTa untuk detail.\n— Admin PeTa 🏆`;
+}
+
+function buildApprovalDmMsg(name: string, taskTitle: string, rewardAmount: number): string {
+  return `Halo ${name}! 🎉\n\nSELAMAT — task *"${taskTitle}"* kamu udah di-APPROVE sama admin!\n\n💰 *Rp${rewardAmount.toLocaleString('id-ID')}* udah masuk saldo kamu SEKARANG. Bisa langsung cair kapan aja — BERAPAPUN, nggak ada minimum!\n\nCara narik:\n1. Buka PeTa → Earnings\n2. Klik *"Tarik Sekarang"*\n3. Transfer max 24 jam ke rekening kamu ✅\n\nMantap banget kerjanya! Yuk ambil task lagi biar saldo makin tebal 🔥\n\nKeep it up, ${name}! 💪\n— Admin PeTa 🏆`;
+}
+
+function buildApprovalGroupMsg(): string {
+  return `🔥 *Ada member baru aja dapat bayaran dari PeTa!*\n\nTask approved dan income langsung masuk saldo — bisa cair *KAPAN AJA*, berapapun! Nggak ada minimum.\n\nKamu mau dapet yang sama?\n✅ Task masih ada\n✅ Daftar gratis\n✅ Income cair kapan aja ke bank/e-wallet kamu\n\n👉 *https://penghasilantambahan.com*\n\nAyo gasss sebelum slot habis! ⚡\n\n_(Udah daftar? Langsung buka app dan cek task baru hari ini!)_`;
 }
 
 // Format like "Sen, 13 Mei 2026 · 17:42" (Bahasa Indonesia day + 24h time).
@@ -53,6 +62,13 @@ export function AdminApprovalQueue() {
   const [waDmPrompt, setWaDmPrompt] = useState<{ phone: string; name: string; message: string } | null>(null);
   const [waDmPhone, setWaDmPhone] = useState('');
   const [waDmSending, setWaDmSending] = useState(false);
+  // Approval WA modal — opens after admin approves a task.
+  const [approveWaTarget, setApproveWaTarget] = useState<{ taskTitle: string; rewardAmount: number; armyName: string; armyPhone: string } | null>(null);
+  const [approveWaTab, setApproveWaTab] = useState<'dm' | 'group'>('dm');
+  const [approveWaDmPhone, setApproveWaDmPhone] = useState('');
+  const [approveWaDmMsg, setApproveWaDmMsg] = useState('');
+  const [approveWaGroupMsg, setApproveWaGroupMsg] = useState('');
+  const [approveWaSending, setApproveWaSending] = useState(false);
   // Tab filter: pending | approved | rejected.
   const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected'>('pending');
 
@@ -98,7 +114,9 @@ export function AdminApprovalQueue() {
         army_whatsapp: r.army_whatsapp,
       }));
     },
-    refetchInterval: 30_000, // surface new submissions within 30s
+    // Pause the 30s auto-refetch while the approval WA modal is open, so the
+    // row the admin is acting on doesn't vanish out from under them mid-read.
+    refetchInterval: approveWaTarget ? false : 30_000,
   });
 
   // History queries — only fetch when the corresponding tab is active.
@@ -132,11 +150,27 @@ export function AdminApprovalQueue() {
   });
 
   const approveMutation = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, assignment }: { id: string; assignment: any }) => {
       const { error } = await supabase.from('task_assignments').update({ status: 'approved' }).eq('id', id);
       if (error) throw error;
+      return assignment;
     },
-    onSuccess: () => { toast.success('Approved ✅'); refetch(); },
+    onSuccess: (assignment) => {
+      toast.success('Approved ✅');
+      // NOTE: deliberately DON'T refetch here. Keep the approved row visible in
+      // the pending list while the admin reads/sends the WA modal — refetch
+      // happens in closeApproveModal() once they're done (see Q2 fix). The 30s
+      // auto-refetch is also paused while the modal is open.
+      const name = assignment.army_name || assignment.reddit_accounts?.username || 'kamu';
+      const taskTitle = assignment.tasks?.title || 'Task';
+      const reward = assignment.tasks?.reward_amount || 0;
+      const phone = assignment.army_whatsapp || '';
+      setApproveWaDmMsg(buildApprovalDmMsg(name, taskTitle, reward));
+      setApproveWaGroupMsg(buildApprovalGroupMsg());
+      setApproveWaDmPhone(phone);
+      setApproveWaTab('dm');
+      setApproveWaTarget({ taskTitle, rewardAmount: reward, armyName: name, armyPhone: phone });
+    },
     onError: () => toast.error('Gagal approve'),
   });
 
@@ -168,6 +202,14 @@ export function AdminApprovalQueue() {
     },
     onError: (e: any) => toast.error(`Gagal reject: ${e.message || e}`),
   });
+
+  // Close the post-approve WA modal AND only then refresh the queue, so the
+  // approved row stays in the pending tab until the admin finishes the WA flow.
+  const closeApproveModal = () => {
+    setApproveWaTarget(null);
+    refetch();
+    refetchApproved();
+  };
 
   const openRejectModal = (a: any) => {
     setRejectReason('');
@@ -337,7 +379,7 @@ export function AdminApprovalQueue() {
                       <td className="px-2 py-3 align-top text-right whitespace-nowrap">
                         <div className="flex justify-end gap-1">
                           <Button
-                            onClick={() => approveMutation.mutate(a.id)}
+                            onClick={() => approveMutation.mutate({ id: a.id, assignment: a })}
                             variant="success"
                             size="sm"
                             disabled={approveMutation.isPending}
@@ -427,7 +469,7 @@ export function AdminApprovalQueue() {
 
                   <div className="flex gap-2 mt-3">
                     <Button
-                      onClick={() => approveMutation.mutate(a.id)}
+                      onClick={() => approveMutation.mutate({ id: a.id, assignment: a })}
                       variant="success"
                       size="sm"
                       loading={approveMutation.isPending}
@@ -724,6 +766,146 @@ export function AdminApprovalQueue() {
               💡 <b>Kerja jelek + coba lagi</b>: typical case, screenshot salah / kurang jelas. <br />
               💡 <b>Kerja jelek + final</b>: cheating / screenshot palsu / berkali-kali gagal.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Approval WA modal — appears after admin approves a task. Offers two channels:
+          1. WA DM to army user (auto-send via Fonnte + manual fallback)
+          2. WA Group broadcast (copy message + open group link) */}
+      {approveWaTarget && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => !approveWaSending && closeApproveModal()}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl p-5 max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-lg font-extrabold flex items-center gap-2 text-success">
+                  <Check size={20} /> Task Approved! 🎉
+                </h3>
+                <p className="text-xs text-muted mt-0.5">
+                  <b className="text-dark">{approveWaTarget.armyName}</b> · {approveWaTarget.taskTitle} · <span className="money font-bold text-primary">Rp{approveWaTarget.rewardAmount.toLocaleString('id-ID')}</span>
+                </p>
+              </div>
+              <button onClick={() => !approveWaSending && closeApproveModal()} disabled={approveWaSending} className="p-1 text-muted hover:text-dark disabled:opacity-40">
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Tab switch: DM | Group */}
+            <div className="flex gap-1 mb-4 bg-light rounded-xl p-1">
+              <button
+                onClick={() => setApproveWaTab('dm')}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition ${
+                  approveWaTab === 'dm' ? 'bg-white text-dark shadow-sm ring-1 ring-black/5' : 'text-muted hover:text-dark'
+                }`}
+              >
+                <MessageCircle size={13} /> DM ke Army
+              </button>
+              <button
+                onClick={() => setApproveWaTab('group')}
+                className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition ${
+                  approveWaTab === 'group' ? 'bg-white text-dark shadow-sm ring-1 ring-black/5' : 'text-muted hover:text-dark'
+                }`}
+              >
+                <Users size={13} /> WA Group
+              </button>
+            </div>
+
+            {/* ─── Tab: DM ke Army ─── */}
+            {approveWaTab === 'dm' && (
+              <>
+                <p className="text-sm text-muted mb-2">
+                  Kirim selamat + reminder income bisa cair sekarang ke <b className="text-dark">{approveWaTarget.armyName}</b>.
+                </p>
+                <div className="mb-3">
+                  <label className="text-xs uppercase font-bold tracking-wide text-muted block mb-1">Nomor WA tujuan:</label>
+                  <input
+                    type="tel"
+                    value={approveWaDmPhone}
+                    onChange={(e) => setApproveWaDmPhone(e.target.value)}
+                    disabled={approveWaSending}
+                    placeholder="628xxxxxxxxxx"
+                    className="w-full px-3 py-2 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-[#25D366] focus:bg-white transition text-sm font-mono disabled:opacity-60"
+                  />
+                  <p className="text-[10px] text-muted mt-1">Edit nomor untuk test sebelum kirim ke army.</p>
+                </div>
+                <textarea
+                  value={approveWaDmMsg}
+                  onChange={(e) => setApproveWaDmMsg(e.target.value)}
+                  rows={8}
+                  disabled={approveWaSending}
+                  className="w-full px-3 py-2.5 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-[#25D366] focus:bg-white transition text-xs font-mono leading-relaxed mb-4 disabled:opacity-60"
+                />
+                <div className="space-y-2">
+                  <button
+                    disabled={approveWaSending || !approveWaDmPhone}
+                    onClick={async () => {
+                      setApproveWaSending(true);
+                      try {
+                        const res = await sendWaDm(approveWaDmPhone, approveWaDmMsg);
+                        if (res.sent) {
+                          toast.success(`WA terkirim ke ${approveWaTarget.armyName} ✅`);
+                          setApproveWaTab('group');
+                        } else {
+                          toast.error(`Fonnte gagal: ${res.error || 'unknown error'}`);
+                        }
+                      } catch (e: any) {
+                        toast.error(`Error: ${e.message || String(e)}`);
+                      } finally {
+                        setApproveWaSending(false);
+                      }
+                    }}
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-[#25D366] hover:brightness-110 disabled:opacity-60 text-white font-extrabold text-sm transition tap-shrink"
+                  >
+                    {approveWaSending
+                      ? <><span className="animate-spin">⏳</span> Mengirim...</>
+                      : <><MessageCircle size={16} /> Kirim Otomatis via Fonnte</>
+                    }
+                  </button>
+                  {!approveWaSending && (
+                    <a
+                      href={buildWhatsappLink(approveWaDmPhone, approveWaDmMsg)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setApproveWaTab('group')}
+                      className="flex items-center justify-center gap-1.5 w-full py-2 rounded-xl ring-1 ring-[#25D366]/40 text-[#25D366] hover:bg-[#25D366]/5 font-semibold text-xs transition"
+                    >
+                      <MessageCircle size={13} /> Kirim Manual via WA Web
+                    </a>
+                  )}
+                  <button onClick={() => setApproveWaTab('group')} disabled={approveWaSending} className="w-full text-xs text-muted hover:text-dark font-semibold py-1 disabled:opacity-40">
+                    Skip → Lanjut ke WA Group
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* ─── Tab: WA Group Broadcast ─── */}
+            {approveWaTab === 'group' && (
+              <>
+                <p className="text-sm text-muted mb-2">
+                  Kirim ke grup WA PeTa untuk dorong member lain ambil task juga.
+                </p>
+                <textarea
+                  value={approveWaGroupMsg}
+                  onChange={(e) => setApproveWaGroupMsg(e.target.value)}
+                  rows={8}
+                  className="w-full px-3 py-2.5 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-[#25D366] focus:bg-white transition text-xs font-mono leading-relaxed mb-4"
+                />
+                <WaGroupSender message={approveWaGroupMsg} />
+                <button onClick={closeApproveModal} className="w-full text-xs text-muted hover:text-dark font-semibold py-2 mt-2">
+                  Selesai (tutup)
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

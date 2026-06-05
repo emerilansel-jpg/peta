@@ -995,6 +995,38 @@ export async function sendWaDm(phone: string, message: string): Promise<{
   return data as { sent: boolean; error?: string };
 }
 
+// ── WA Group send (via Fonnte) ──────────────────────────────────────────────
+// The PeTa army WA group can be blasted via the same Fonnte device used for
+// DMs, AS LONG AS the bot number is a member of the group. A group is addressed
+// by its JID (…@g.us), discovered automatically from inbound webhook messages
+// (see admin_list_discovered_wa_groups). send-wa-dm passes …@g.us targets to
+// Fonnte raw (no phone normalization), so we can reuse it.
+export async function sendWaGroup(jid: string, message: string): Promise<{ sent: boolean; error?: string }> {
+  return sendWaDm(jid, message);
+}
+
+// Returns the configured PeTa group JID, or null if not set / placeholder.
+export async function getWaGroupJid(): Promise<string | null> {
+  const { data, error } = await supabase.rpc('get_wa_group_jid');
+  if (error) return null;
+  return (data as string | null) || null;
+}
+
+export type DiscoveredWaGroup = { jid: string; device: string; msgs: number; last_seen: string; sample: string };
+
+// Lists WhatsApp groups the Fonnte bot has seen inbound messages from. Used to
+// let the admin pick which group is the PeTa army group (one-time).
+export async function listDiscoveredWaGroups(): Promise<DiscoveredWaGroup[]> {
+  const { data, error } = await supabase.rpc('admin_list_discovered_wa_groups');
+  if (error) return [];
+  return (data || []) as DiscoveredWaGroup[];
+}
+
+export async function setWaGroupJid(jid: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_set_wa_group_jid', { p_jid: jid });
+  if (error) throw error;
+}
+
 // Build a wa.me deeplink for a single recipient. Normalizes Indonesian
 // numbers (08… → 628…) and URL-encodes the message body.
 export function buildWhatsappLink(phone: string, message: string): string {

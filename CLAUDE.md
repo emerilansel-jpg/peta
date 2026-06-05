@@ -112,12 +112,12 @@ Onboarding bonuses (total **Rp50.000**):
 
 ## Payout rules
 
-Min payout: **Rp150.000** per request.
+Min payout: **No minimum** — task earnings cair berapapun, kapan aja.
 
 **Eligibility gates (server-enforced via `validate_payout_eligibility` RPC, reasons returned as JSON):**
 
 1. **Holding period** — 7 days account age **OR** 5 approved tasks before payout opens (`reason: 'holding_period'`)
-2. **Earnings floor** — must have **Rp150K from approved task rewards + `signup_bonus` credits** before ANY payout (including referral balance) bisa cair (`reason: 'earnings_floor'`). Closes "panen referral lalu kabur" loophole.
+2. **Bonus floor** — bonus (signup + referral credits) locked until **Rp100K from approved task rewards** (`reason: 'earnings_floor'`). Task earnings themselves have NO floor. Closes "panen referral lalu kabur" loophole.
 3. **Weekly cap** — Rp500.000 outflow per user per 7d (`reason: 'weekly_cap'`); admin override via direct UPDATE.
 
 `getTotalEarnings(userId)` returns `{earned, referral, fromWork, total}`:
