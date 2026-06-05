@@ -199,29 +199,29 @@ function sanitizeComment(comment: string, input: GenerateForumCommentRequest) {
     return next.trim();
   }
 
-  // Link mode: army members paste a BARE domain (example.com) — never https://,
-  // www, or markdown [text](url). Flatten markdown to its URL, then reduce any
-  // full URL of the domain down to just the bare domain.
+  // Link mode: a bare domain woven naturally into the sentence — never https://,
+  // www, markdown [text](url), or the unnatural "Brand (domain.com)" parenthetical
+  // (real people don't write "plumbingforyou (plumbing.com)").
   next = next.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/gi, '$2').trim();
 
   if (!domain) return next;
 
   const escapedDomain = domain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  // Any full URL (with/without www/path) of the domain → bare domain.
-  next = next.replace(new RegExp(`https?:\\/\\/(www\\.)?${escapedDomain}(\\/[^\\s)]*)?`, 'gi'), domain).trim();
-  // A leftover www.domain → bare domain.
-  next = next.replace(new RegExp(`\\bwww\\.${escapedDomain}\\b`, 'gi'), domain).trim();
-
-  // Bare domain already present → done.
-  if (new RegExp(`\\b${escapedDomain}\\b`, 'i').test(next)) return next.trim();
-  // Brand name present → put the bare domain right after the first mention.
   const escapedBrand = brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const brandRegex = new RegExp(`\\b${escapedBrand}\\b`, 'i');
-  if (brandRegex.test(next)) {
-    return next.replace(brandRegex, `${brand} (${domain})`).trim();
-  }
-  // Fallback → append the bare domain.
-  return `${next} ${domain}`.trim();
+
+  // Full URL / www → bare domain.
+  next = next.replace(new RegExp(`https?:\\/\\/(www\\.)?${escapedDomain}(\\/[^\\s)]*)?`, 'gi'), domain);
+  next = next.replace(new RegExp(`\\bwww\\.${escapedDomain}\\b`, 'gi'), domain);
+  // "Brand (domain.com)" → just the bare domain (kill the awkward parenthetical).
+  next = next.replace(new RegExp(`\\b${escapedBrand}\\b\\s*\\(\\s*${escapedDomain}\\s*\\)`, 'gi'), domain);
+  // Any leftover "(domain.com)" → bare domain.
+  next = next.replace(new RegExp(`\\(\\s*${escapedDomain}\\s*\\)`, 'gi'), domain);
+  next = next.replace(/\s{2,}/g, ' ').trim();
+
+  // Domain already present → done.
+  if (new RegExp(`\\b${escapedDomain}\\b`, 'i').test(next)) return next.trim();
+  // Domain absent → add it as a short natural sentence (no parenthetical).
+  return `${next} Their site is ${domain}.`.trim();
 }
 
 async function generateWithDeepSeek(messages: PromptMessage[], model: string) {
