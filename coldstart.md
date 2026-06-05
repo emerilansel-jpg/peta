@@ -1,6 +1,6 @@
 # Cold Start Handoff - Straight Ltd + PeTa
 
-Last updated: 2026-06-02
+Last updated: 2026-06-04
 
 Workspace:
 
@@ -325,13 +325,58 @@ Frontend createTaskAssignment calls the RPC instead of direct insert.
 
 Latest production duplicate test passed using temporary data and cleanup.
 
-Uncommitted local PeTa admin enhancement:
+## PeTa Session 2026-06-04 (WhatsApp + Approval/Payroll) — PeTa ONLY
+
+User constraint this session: only touch penghasilantambahan.com (PeTa). Do NOT
+touch straight.ltd in any way.
+
+CRITICAL — active PeTa dev/build/deploy runs from the WORKTREE, not the main dir:
 
 ```text
-peta/src/pages/admin/ApprovalQueue.tsx imports MessageCircle and buildWhatsappLink.
-After rejecting a submission, admin can open a WhatsApp DM prompt to notify the army member with an editable rejection message.
-This is not yet committed in the current worktree.
-Review the copy and behavior before deploy.
+Worktree: D:\Claude Cowork\Reddit Army Local\.claude\worktrees\wonderful-torvalds-23e4c8
+Branch:   staging   (latest PeTa admin work is committed + pushed here, commit e1f4a23)
+The main project dir (...\Reddit Army Local\peta) is on branch `main` and is STALE —
+its lib/api.ts lacks sendWaDm/adminAssignmentHistory/adminRevertAssignment and will NOT build.
+ALWAYS edit + build + deploy from the worktree. Deploying a build from the stale main dir
+ships the OLD admin UI (no Pending/Approved/Rejected tabs, no WA modals) — this regression
+happened once this session and had to be re-deployed from the worktree.
+Verify prod after deploy: curl https://www.penghasilantambahan.com and match the main-<hash>.js bundle.
+```
+
+Shipped (committed on `staging`, deployed to prod = penghasilantambahan.com):
+
+```text
+ApprovalQueue: Pending / Approved / Rejected sub-tabs (history + revert/edit).
+Post-approve WA modal: DM the army member (congrats + "income cair sekarang") and
+  group blast (social proof + recruit). Approved row stays in the Pending tab until the
+  admin closes the modal; the 30s auto-refetch is paused while the modal is open.
+Payroll post "Mark as Paid" WA modal: transfer-confirmation DM + group social-proof blast.
+New component peta/src/components/WaGroupSender.tsx: Fonnte group auto-send (when a group
+  JID is configured) + auto-discovered group picker + manual copy/open-group fallback.
+api.ts helpers: sendWaGroup / getWaGroupJid / listDiscoveredWaGroups / setWaGroupJid.
+Edge fn send-wa-dm v2: targets containing '@' (group JID ...@g.us) are sent RAW (no 08->62
+  normalization), so the same function handles DMs and group sends.
+New RPCs (staging+prod): get_wa_group_jid, admin_set_wa_group_jid, admin_list_discovered_wa_groups.
+New table wa_group_registry(jid PK, name, last_seen).
+inbox-receive-whatsapp v12: auto-captures any inbound group JID into wa_group_registry, and
+  auto-locks app_secrets.PETA_WA_GROUP_JID when a 'peta'-trigger group message arrives.
+CLAUDE.md: payout rules updated (no task minimum; bonus floor Rp100K from approved tasks).
+```
+
+OPEN ISSUE — WA bot offline (blocks group auto-send + army 'peta' bonus):
+
+```text
+The Evolution API instance 'peta-bot' (http://46.250.239.138:8080) is DISCONNECTED
+(connectionState = "connecting" = logged out). Last processed 'peta' group verify in
+wa_extension_log was 2026-05-25, so the army "ketik peta = Rp5K bonus" flow has been DOWN
+~10 days, and the real PeTa Army group JID was never captured (app_secrets.PETA_WA_GROUP_JID
+is the placeholder 'TBD_autocapture_pending', so the Fonnte group button stays hidden).
+Fonnte device token cannot list groups (get-group/get-devices -> "unknown user").
+FIX (needs the user's phone): re-scan the Evolution peta-bot QR to bring it back online.
+Once online, the next 'peta' group message auto-locks the correct JID and restores the bonus flow.
+Meanwhile the manual group blast (copy -> open group -> paste) works, and 1:1 WA DMs work via Fonnte.
+NOTE: the only group ever auto-discovered (120363423604703110@g.us) is an English SEO-client
+chat (likely Straight-adjacent) — do NOT send PeTa marketing there.
 ```
 
 ## Build And Deploy Commands
