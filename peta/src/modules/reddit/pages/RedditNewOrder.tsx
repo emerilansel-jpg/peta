@@ -26,11 +26,15 @@ import { RedditLayout } from '../components/RedditLayout';
 import { EmailWhitelistNotice } from '../components/EmailWhitelistNotice';
 import { useRedditCredits } from '../hooks/useRedditCredits';
 import { useRedditOrders } from '../hooks/useRedditOrders';
-import { calculateCost, formatUSD, generateForumComment, getPricePerUpvoteUSD, submitFeatureRequest } from '../lib/api';
+import { formatUSD, generateForumComment, submitFeatureRequest, straightPrice, straightEnabled, straightPlatformKey } from '../lib/api';
+import { useStraightPricing } from '../hooks/useStraightPricing';
 
 const PRESET_QUANTITIES = [25, 50, 100, 250, 500];
-const FORUM_COMMENT_PRICE_CENTS = 500;
-const SUGGESTED_COMMENT_PRICE_CENTS = 550;
+// Legacy fallbacks — only used until the pricing matrix loads (or before the
+// migration is applied). The matrix (straight_pricing) is the source of truth.
+const FALLBACK_UPVOTE_CENTS = 50;
+const FALLBACK_COMMENT_PLAIN_CENTS = 500;
+const FALLBACK_COMMENT_LINK_CENTS = 550;
 const BULK_COMMENT_DRAFT_KEY = 'straight:forum-comment-bulk:v1';
 
 interface Service {
@@ -39,7 +43,7 @@ interface Service {
   name: string;
   icon: ElementType;
   description: string;
-  status: 'active' | 'coming_soon' | 'request';
+  status: 'active' | 'coming_soon' | 'request' | 'paused';
   badge?: string;
   iconBg: string;
   iconColor: string;
@@ -51,7 +55,7 @@ const SERVICES: Service[] = [
     platform: 'Reddit',
     name: 'Upvotes',
     icon: ArrowUp,
-    description: 'High-retention upvotes from aged accounts',
+    description: 'High-retention upvotes for Reddit & other forums',
     status: 'active',
     iconBg: 'bg-orange-100',
     iconColor: 'text-orange-600',
@@ -142,7 +146,27 @@ export function RedditNewOrder() {
     }
   });
 
+  const pricing = useStraightPricing();
+  // Reflect admin on/off toggles: an "active" service whose matrix rows are all
+  // OFF shows as paused (and can't be opened). The order RPCs enforce this too.
+  const services = useMemo(() => SERVICES.map((s) => {
+    if (s.id === 'reddit-upvote') {
+      const on = straightEnabled(pricing, 'reddit_upvote', true) || straightEnabled(pricing, 'forum_upvote', true);
+      return { ...s, status: on ? s.status : 'paused' as const };
+    }
+    if (s.id === 'reddit-comment') {
+      const on = ['reddit_comment_plain', 'reddit_comment_link', 'forum_comment_plain', 'forum_comment_link']
+        .some((k) => straightEnabled(pricing, k, true));
+      return { ...s, status: on ? s.status : 'paused' as const };
+    }
+    return s;
+  }), [pricing]);
+
   const handleServiceClick = (service: Service) => {
+    if (service.status === 'paused') {
+      toast('This service is paused right now. Check back soon.');
+      return;
+    }
     setActiveService(service);
     if (service.status === 'active') {
       setView(service.id as ViewMode);
@@ -160,7 +184,7 @@ export function RedditNewOrder() {
 
   return (
     <RedditLayout>
-      {view === 'select' && <ServiceSelector services={SERVICES} onSelect={handleServiceClick} />}
+      {view === 'select' && <ServiceSelector services={services} onSelect={handleServiceClick} />}
       {view === 'reddit-upvote' && <RedditUpvoteOrderForm onBack={handleBack} />}
       {view === 'reddit-comment' && (
         <ForumCommentOrderForm
@@ -244,6 +268,7 @@ function ServiceCard({ service, onClick, featured }: { service: Service; onClick
   const isActive = service.status === 'active';
   const isComingSoon = service.status === 'coming_soon';
   const isRequest = service.status === 'request';
+  const isPaused = service.status === 'paused';
 
   return (
     <button
@@ -253,6 +278,8 @@ function ServiceCard({ service, onClick, featured }: { service: Service; onClick
           ? 'border-orange-300 bg-gradient-to-br from-orange-50 to-amber-50 hover:border-orange-500 hover:shadow-lg'
           : isActive
           ? 'border-emerald-300 bg-white hover:border-emerald-500 hover:shadow-lg ring-1 ring-emerald-100'
+          : isPaused
+          ? 'border-slate-200 bg-slate-50 opacity-70 cursor-not-allowed'
           : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md'
       }`}
     >
@@ -260,6 +287,11 @@ function ServiceCard({ service, onClick, featured }: { service: Service; onClick
       {isActive && (
         <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-bold uppercase tracking-wider">
           Active
+        </span>
+      )}
+      {isPaused && (
+        <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[10px] font-bold uppercase tracking-wider">
+          Paused
         </span>
       )}
       {isComingSoon && service.badge && (
@@ -284,7 +316,8 @@ function ServiceCard({ service, onClick, featured }: { service: Service; onClick
         {isActive && 'Order now'}
         {isComingSoon && 'Notify me'}
         {isRequest && 'Submit request'}
-        <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+        {isPaused && 'Unavailable'}
+        {!isPaused && <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />}
       </div>
     </button>
   );
@@ -297,6 +330,7 @@ function RedditUpvoteOrderForm({ onBack }: { onBack: () => void }) {
   const navigate = useNavigate();
   const { balance } = useRedditCredits();
   const { createOrder, isCreating } = useRedditOrders();
+  const pricing = useStraightPricing();
 
   const [threadUrl, setThreadUrl] = useState('');
   const [upvotes, setUpvotes] = useState(50);
@@ -305,20 +339,33 @@ function RedditUpvoteOrderForm({ onBack }: { onBack: () => void }) {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [newOrderInfo, setNewOrderInfo] = useState<{ id?: number; cost: number } | null>(null);
 
-  const cost = calculateCost(upvotes);
+  // Upvotes work on any forum URL now. Reddit vs other-forum are priced
+  // separately via the matrix; default to reddit before a URL is typed.
+  const platform: 'reddit' | 'forum' = /reddit\.com/i.test(threadUrl) ? 'reddit' : (threadUrl.trim() ? 'forum' : 'reddit');
+  const pricePerUpvote = straightPrice(pricing, `${platform}_upvote`, FALLBACK_UPVOTE_CENTS);
+  const upvoteEnabled = straightEnabled(pricing, `${platform}_upvote`, true);
+  const redditRate = straightPrice(pricing, 'reddit_upvote', FALLBACK_UPVOTE_CENTS);
+  const forumRate = straightPrice(pricing, 'forum_upvote', FALLBACK_UPVOTE_CENTS);
+  const cost = upvotes * pricePerUpvote;
   const hasEnoughCredit = balance >= cost;
-  const isValidUrl = /^https?:\/\/(www\.)?reddit\.com\//.test(threadUrl.trim());
+  const isValidUrl = /^https?:\/\/[^\s.]+\.[^\s]+/i.test(threadUrl.trim());
   const subredditMatch = threadUrl.match(/reddit\.com\/r\/([^/]+)/);
   const subreddit = subredditMatch?.[1] || null;
+  let targetHost = '';
+  try { targetHost = new URL(threadUrl.trim()).hostname.replace(/^www\./, ''); } catch { targetHost = ''; }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!upvoteEnabled) {
+      toast.error(`Upvotes for ${platform === 'reddit' ? 'Reddit' : 'this platform'} are paused right now.`);
+      return;
+    }
     if (!threadUrl.trim()) {
-      toast.error('Please enter a Reddit URL');
+      toast.error('Please enter a page URL');
       return;
     }
     if (!isValidUrl) {
-      toast.error('URL must start with https://reddit.com/');
+      toast.error('Enter a valid URL, like https://reddit.com/... or https://community.example.com/...');
       return;
     }
     if (!hasEnoughCredit) {
@@ -381,8 +428,12 @@ function RedditUpvoteOrderForm({ onBack }: { onBack: () => void }) {
             <ArrowUp size={20} className="text-orange-600" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Reddit Upvotes</h1>
-            <p className="text-sm text-slate-500">${getPricePerUpvoteUSD().toFixed(2)} per upvote · High retention guarantee</p>
+            <h1 className="text-2xl font-bold text-slate-900">Upvotes</h1>
+            <p className="text-sm text-slate-500">
+              {redditRate === forumRate
+                ? `${formatUSD(pricePerUpvote)} per upvote`
+                : `Reddit ${formatUSD(redditRate)} · other forums ${formatUSD(forumRate)} per upvote`} · High retention guarantee
+            </p>
           </div>
         </div>
       </div>
@@ -401,30 +452,39 @@ function RedditUpvoteOrderForm({ onBack }: { onBack: () => void }) {
         </button>
       </div>
 
+      {!upvoteEnabled && (
+        <div className="mb-6 p-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 text-sm text-amber-900 flex items-start gap-2">
+          <AlertCircle size={16} className="shrink-0 mt-0.5 text-amber-500" />
+          <p><span className="font-semibold">{platform === 'reddit' ? 'Reddit' : 'Other-forum'} upvotes are paused right now.</span> This service is temporarily unavailable — please check back soon.</p>
+        </div>
+      )}
+
       <form onSubmit={handleSubmit} className="bg-white rounded-2xl ring-1 ring-slate-200 p-8 space-y-8">
         <div>
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
             <span className="w-6 h-6 rounded-full bg-orange-500 text-white text-xs font-bold flex items-center justify-center">1</span>
-            Reddit URL
+            Page URL <span className="text-slate-400 font-normal">(Reddit or any forum)</span>
           </label>
           <input
             type="url"
             value={threadUrl}
             onChange={(e) => setThreadUrl(e.target.value)}
-            placeholder="https://reddit.com/r/example/comments/..."
+            placeholder="https://reddit.com/r/... or https://community.example.com/..."
             className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-slate-900"
             required
           />
           {threadUrl && !isValidUrl && (
             <p className="mt-2 text-xs text-rose-600 flex items-center gap-1">
               <AlertCircle size={12} />
-              URL must start with https://reddit.com/
+              Enter a valid URL (https://...)
             </p>
           )}
-          {isValidUrl && subreddit && (
+          {isValidUrl && (
             <p className="mt-2 text-xs text-emerald-600 flex items-center gap-1">
               <Check size={12} />
-              Target: r/{subreddit}
+              {subreddit ? `Target: r/${subreddit}` : targetHost ? `Target: ${targetHost}` : 'Valid URL'}
+              {' · '}
+              <span className="font-semibold">{platform === 'reddit' ? 'Reddit' : 'Other forum'} rate {formatUSD(pricePerUpvote)}/upvote</span>
             </p>
           )}
         </div>
@@ -470,7 +530,7 @@ function RedditUpvoteOrderForm({ onBack }: { onBack: () => void }) {
             />
           </div>
           <p className="mt-2 text-xs text-slate-500">
-            ${getPricePerUpvoteUSD().toFixed(2)} per upvote · 1 to 10,000 per order
+            {formatUSD(pricePerUpvote)} per upvote · 1 to 10,000 per order
           </p>
         </div>
 
@@ -495,7 +555,7 @@ function RedditUpvoteOrderForm({ onBack }: { onBack: () => void }) {
           </div>
           <div className="flex justify-between text-sm mb-2">
             <span className="text-slate-600">Price per upvote</span>
-            <span className="text-slate-900 font-semibold">${getPricePerUpvoteUSD().toFixed(2)}</span>
+            <span className="text-slate-900 font-semibold">{formatUSD(pricePerUpvote)}</span>
           </div>
           <div className="flex justify-between pt-3 mt-3 border-t border-slate-200">
             <span className="text-slate-900 font-bold">Total</span>
@@ -522,11 +582,11 @@ function RedditUpvoteOrderForm({ onBack }: { onBack: () => void }) {
 
         <button
           type="submit"
-          disabled={!isValidUrl || !hasEnoughCredit || isCreating}
+          disabled={!isValidUrl || !hasEnoughCredit || isCreating || !upvoteEnabled}
           className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-semibold transition shadow-lg shadow-orange-500/20"
         >
-          Review order
-          <ArrowRight size={18} />
+          {upvoteEnabled ? 'Review order' : 'Upvotes paused'}
+          {upvoteEnabled && <ArrowRight size={18} />}
         </button>
       </form>
 
@@ -621,6 +681,7 @@ function ForumCommentOrderForm({
   const navigate = useNavigate();
   const { balance } = useRedditCredits();
   const { createForumCommentOrder, createForumCommentOrderAsync, isCreatingForumCommentOrder } = useRedditOrders();
+  const pricing = useStraightPricing();
 
   const [targetUrl, setTargetUrl] = useState(prefillUrl || bulkTargets[0]?.url || '');
   const [bulkQueue, setBulkQueue] = useState<BulkForumTarget[]>(() => bulkTargets);
@@ -640,8 +701,24 @@ function ForumCommentOrderForm({
 
   const isBulk = bulkQueue.length > 0;
   const detectedPlatform = useMemo(() => detectForumPlatform(targetUrl), [targetUrl]);
-  const unitCost = wantsSuggestion ? SUGGESTED_COMMENT_PRICE_CENTS : FORUM_COMMENT_PRICE_CENTS;
-  const cost = unitCost * (isBulk ? bulkQueue.length : 1);
+  // Price comes from the matrix: {reddit|forum}_comment_{plain|link}. Link price
+  // applies only when an AI-suggested comment with a brand link is requested.
+  const mode: 'plain' | 'link' = wantsSuggestion === true && mentionMode === 'link' ? 'link' : 'plain';
+  const priceFor = (url: string) =>
+    straightPrice(
+      pricing,
+      `${straightPlatformKey(url)}_comment_${mode}`,
+      mode === 'link' ? FALLBACK_COMMENT_LINK_CENTS : FALLBACK_COMMENT_PLAIN_CENTS
+    );
+  const enabledFor = (url: string) =>
+    straightEnabled(pricing, `${straightPlatformKey(url)}_comment_${mode}`, true);
+  const unitCost = priceFor(targetUrl);
+  const cost = isBulk ? bulkQueue.reduce((sum, t) => sum + priceFor(t.url), 0) : unitCost;
+  const commentEnabled = isBulk ? bulkQueue.every((t) => enabledFor(t.url)) : enabledFor(targetUrl);
+  // Base (plain) price for the representative target — shown on the choice cards.
+  const repUrl = isBulk ? (bulkQueue[0]?.url || '') : targetUrl;
+  const cardBasePrice = straightPrice(pricing, `${straightPlatformKey(repUrl)}_comment_plain`, FALLBACK_COMMENT_PLAIN_CENTS);
+  const cardLinkPrice = straightPrice(pricing, `${straightPlatformKey(repUrl)}_comment_link`, FALLBACK_COMMENT_LINK_CENTS);
   const hasEnoughCredit = balance >= cost;
   const isValidUrl = isBulk || /^https?:\/\/[^\s.]+\.[^\s]+/i.test(targetUrl.trim());
   const needsBrand = wantsSuggestion === true;
@@ -692,6 +769,10 @@ function ForumCommentOrderForm({
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!commentEnabled) {
+      toast.error('Comment placement is paused right now.');
+      return;
+    }
     if (!isValidUrl) {
       toast.error('Enter a valid URL, like https://reddit.com/... or https://community.hubspot.com/...');
       return;
@@ -934,11 +1015,11 @@ function ForumCommentOrderForm({
               </div>
               <p className="text-sm text-slate-600 leading-relaxed">
                 {isBulk
-                  ? 'Our editorial assistant writes a unique comment for every selected thread — adapted to each conversation, with one natural brand mention. Give us a short brief below.'
-                  : "+10% price. Our editorial assistant reviews the public conversation, adapts to the thread's tone, and drafts a useful reply with one natural brand mention. You review, edit, and approve before ordering."}
+                  ? 'AI draft included. Our editorial assistant writes a unique comment for every selected thread — adapted to each conversation, with one natural brand mention. Give us a short brief below.'
+                  : "AI draft included. Our editorial assistant reviews the public conversation, adapts to the thread's tone, and drafts a useful reply with one natural brand mention. You review, edit, and approve before ordering."}
               </p>
               <p className="mt-3 text-sm font-bold text-orange-700">
-                {formatUSD(SUGGESTED_COMMENT_PRICE_CENTS)}{isBulk ? ' / comment' : ''}
+                {formatUSD(cardBasePrice)}{cardLinkPrice !== cardBasePrice ? ` · ${formatUSD(cardLinkPrice)} with link` : ''}{isBulk ? ' / comment' : ''}
               </p>
             </button>
             <button
@@ -958,7 +1039,7 @@ function ForumCommentOrderForm({
                   : 'Paste your own final comment. We only place it on the target thread.'}
               </p>
               <p className="mt-3 text-sm font-bold text-slate-900">
-                {formatUSD(FORUM_COMMENT_PRICE_CENTS)}{isBulk ? ' / comment' : ''}
+                {formatUSD(cardBasePrice)}{isBulk ? ' / comment' : ''}
               </p>
             </button>
           </div>
@@ -1087,15 +1168,22 @@ function ForumCommentOrderForm({
           />
         </div>
 
+        {!commentEnabled && (
+          <div className="p-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 text-sm text-amber-900 flex items-start gap-2">
+            <AlertCircle size={16} className="shrink-0 mt-0.5 text-amber-500" />
+            <p><span className="font-semibold">Comment placement is paused right now.</span> {mode === 'link' ? 'Comments with a link' : 'Plain comments'} for this platform are temporarily unavailable.</p>
+          </div>
+        )}
+
         <div className="p-5 rounded-xl bg-slate-50 ring-1 ring-slate-200">
           <div className="flex justify-between text-sm mb-2">
-            <span className="text-slate-600">Standard comment placement</span>
-            <span className="text-slate-900 font-semibold">{formatUSD(FORUM_COMMENT_PRICE_CENTS)} x {isBulk ? bulkQueue.length : 1}</span>
+            <span className="text-slate-600">Comment placement{mode === 'link' ? ' · with link' : ' · plain text'}</span>
+            <span className="text-slate-900 font-semibold">{isBulk ? `${bulkQueue.length} pages` : formatUSD(unitCost)}</span>
           </div>
           {wantsSuggestion && (
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-slate-600">Suggested comment assistant (+10%)</span>
-              <span className="text-slate-900 font-semibold">{formatUSD(SUGGESTED_COMMENT_PRICE_CENTS - FORUM_COMMENT_PRICE_CENTS)} x {isBulk ? bulkQueue.length : 1}</span>
+              <span className="text-slate-600">AI draft assist</span>
+              <span className="text-emerald-700 font-semibold">Included</span>
             </div>
           )}
           <div className="flex justify-between pt-3 mt-3 border-t border-slate-200">
@@ -1112,7 +1200,7 @@ function ForumCommentOrderForm({
 
         <button
           type="submit"
-          disabled={!isValidUrl || wantsSuggestion === null || !hasEnoughCredit || isCreatingForumCommentOrder}
+          disabled={!isValidUrl || wantsSuggestion === null || !hasEnoughCredit || isCreatingForumCommentOrder || bulkSubmitting || !commentEnabled}
           className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-semibold transition shadow-lg shadow-orange-500/20"
         >
           {isCreatingForumCommentOrder || bulkSubmitting ? (

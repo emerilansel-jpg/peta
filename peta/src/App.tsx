@@ -26,6 +26,8 @@ import { RedditLogin } from './modules/reddit/pages/RedditLogin';
 import { RedditReviews } from './modules/reddit/pages/RedditReviews';
 import { RedditFeatureRequests } from './modules/reddit/pages/RedditFeatureRequests';
 import { RankingForumPage } from './modules/reddit/pages/RankingForumPage';
+import { WaitlistPage } from './modules/reddit/pages/WaitlistPage';
+import { AiVisibilityPage } from './modules/reddit/pages/AiVisibilityPage';
 import { AdminOverview } from './modules/reddit/pages/admin/AdminOverview';
 import { AdminOrders as RedditAdminOrders } from './modules/reddit/pages/admin/AdminOrders';
 import { AdminTickets as RedditAdminTickets } from './modules/reddit/pages/admin/AdminTickets';
@@ -118,6 +120,7 @@ function App() {
 
           {/* Reddit Upvotes Routes */}
           <Route path="/reddit" element={<RedditLanding />} />
+          <Route path="/reddit/waitlist" element={<WaitlistPage />} />
           <Route path="/reddit/signup" element={<RedditSignup />} />
           <Route path="/reddit/login" element={<RedditLogin />} />
           <Route path="/reddit/dashboard" element={<RedditDashboard />} />
@@ -128,6 +131,7 @@ function App() {
           <Route path="/reddit/reviews" element={<RedditReviews />} />
           <Route path="/reddit/feature-requests" element={<RedditFeatureRequests />} />
           <Route path="/reddit/ranking-forum" element={<RankingForumPage />} />
+          <Route path="/reddit/ai-visibility" element={<AiVisibilityPage />} />
           {/* Reddit Admin Routes */}
           <Route path="/reddit/admin" element={<AdminGuard><AdminOverview /></AdminGuard>} />
           <Route path="/reddit/admin/orders" element={<AdminGuard><RedditAdminOrders /></AdminGuard>} />

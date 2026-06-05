@@ -112,8 +112,21 @@ const FORUM_HOSTS = [
   'stackexchange.com',
   'stackoverflow.com',
   'producthunt.com',
+  'news.ycombinator.com',
+  'city-data.com',
+  'proboards.com',
+  'forumotion.',
+  'tapatalk.com',
+  'lemmy.',
   'discourse.',
 ];
+
+// Generic forum-software URL fingerprints (phpBB / vBulletin / XenForo / SMF /
+// Discourse / Vanilla etc.) — so small/niche forums are caught too, not just
+// the big platforms above.
+const FORUM_PATH_RE = /(\/forums?\b|\/community\b|\/communities\b|\/discussions?\b|\/questions?\b|\/threads?\b|\/topic[\/=]|\/board[\/s]|\/viewtopic|\/showthread|\/viewforum|\/forumdisplay|index\.php\?topic=|\/t\/\d|\/posts?\/\d)/i;
+const FORUM_SUBDOMAIN_RE = /^(forums?|community|communities|discuss|discussion|boards?|talk|bbs|answers|ask)\./i;
+const FORUM_HOST_HINT_RE = /(forum|phpbb|vbulletin|discourse|proboards|tapatalk|smf)/i;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -229,8 +242,16 @@ function platformForUrl(url: string) {
 
 function isForumUrl(url: string) {
   const low = url.toLowerCase();
-  return FORUM_HOSTS.some((host) => low.includes(host))
-    || /\/(forum|community|questions|discussion|threads?|t)\//i.test(low);
+  if (FORUM_HOSTS.some((host) => low.includes(host))) return true;
+  if (FORUM_PATH_RE.test(low)) return true;
+  try {
+    const host = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+    if (FORUM_SUBDOMAIN_RE.test(host)) return true;
+    if (FORUM_HOST_HINT_RE.test(host)) return true;
+  } catch {
+    // ignore unparseable URLs
+  }
+  return false;
 }
 
 function fallbackTop10(keyword: string): SerpResult[] {
@@ -426,6 +447,82 @@ async function dataForSeoTop10(keyword: string): Promise<SerpResult[] | null> {
   });
   const items = data?.tasks?.[0]?.result?.[0]?.items || [];
   return items.length ? mapDataForSeoSerpItems(items) : null;
+}
+
+// ---- AI / Google visibility (GEO) citation check ----
+type CitationResult = {
+  keyword: string;
+  brand: string | null;
+  domain: string | null;
+  google_organic: { found: boolean; position: number | null; url: string | null };
+  ai_overview: { present: boolean; brand_mentioned: boolean };
+  provider: string;
+  checked_at: string;
+};
+
+function normHost(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .replace(/\/.*$/, '')
+    .trim();
+}
+
+// Given a keyword + brand/domain, check whether the brand is visible in Google's
+// organic top 10 AND in Google's AI Overview (an LLM-generated answer) for that
+// query. Uses the same DataForSEO live SERP call as dataForSeoTop10.
+async function checkCitation(keyword: string, brand: string, domain: string): Promise<CitationResult> {
+  const checked_at = new Date().toISOString();
+  const brandNorm = brand.trim().toLowerCase();
+  const brandSlug = brandNorm.replace(/\s+/g, '');
+  const domainNorm = domain ? normHost(domain) : '';
+  const result: CitationResult = {
+    keyword,
+    brand: brand || null,
+    domain: domain || null,
+    google_organic: { found: false, position: null, url: null },
+    ai_overview: { present: false, brand_mentioned: false },
+    provider: 'live_serp',
+    checked_at,
+  };
+
+  const data = await dataForSeoPost<{ items?: DataForSeoSerpItem[] }>(
+    'serp/google/organic/live/advanced',
+    [{ keyword, location_code: 2840, language_code: 'en', depth: 10 }]
+  ).catch((error) => {
+    console.error('citation_check_failed', (error as Error).message);
+    return null;
+  });
+  if (!data) return { ...result, provider: 'unavailable' };
+
+  const items = (data?.tasks?.[0]?.result?.[0]?.items || []) as Array<DataForSeoSerpItem & { description?: string }>;
+
+  for (const item of items) {
+    if (item?.type !== 'organic') continue;
+    const url = String(item.url || '');
+    let host = '';
+    try { host = new URL(url).hostname.replace(/^www\./, '').toLowerCase(); } catch { host = ''; }
+    const haystack = `${String(item.title || '')} ${String(item.description || '')} ${url}`.toLowerCase();
+    const domainMatch = !!domainNorm && host.includes(domainNorm);
+    const brandMatch = !!brandNorm && (haystack.includes(brandNorm) || (brandSlug.length > 2 && host.includes(brandSlug)));
+    if (domainMatch || brandMatch) {
+      result.google_organic = { found: true, position: Number(item.rank_group) || null, url };
+      break;
+    }
+  }
+
+  const aiItem = items.find((it) => it?.type === 'ai_overview');
+  if (aiItem) {
+    result.ai_overview.present = true;
+    const blob = JSON.stringify(aiItem).toLowerCase();
+    result.ai_overview.brand_mentioned = !!(
+      (domainNorm && blob.includes(domainNorm)) ||
+      (brandNorm && blob.includes(brandNorm))
+    );
+  }
+
+  return result;
 }
 
 async function dataForSeoKeywordIdeas(seed: string): Promise<KeywordIdea[] | null> {
@@ -679,6 +776,15 @@ Deno.serve(async (req: Request) => {
     if (body?.health === 'providers') {
       return json(await providerHealthCheck());
     }
+    if (body?.citation_check) {
+      const checkKeyword = String(body?.keyword || '').trim();
+      if (!checkKeyword) return json({ error: 'keyword required' }, 400);
+      return json(await checkCitation(
+        checkKeyword,
+        String(body?.brand || '').trim(),
+        String(body?.domain || '').trim(),
+      ));
+    }
     const seed = String(body?.seed || '').trim();
     const keyword = String(body?.keyword || '').trim();
     if (!seed && !keyword) return json({ error: 'seed or keyword required' }, 400);
@@ -688,7 +794,7 @@ Deno.serve(async (req: Request) => {
       if (dataForSeoIdeas) {
         return json({
           keyword_ideas: dataForSeoIdeas,
-          provider: 'dataforseo_keyword_suggestions_opportunity_model',
+          provider: 'live_keyword_data',
           provider_notice: null,
         });
       }
@@ -696,7 +802,7 @@ Deno.serve(async (req: Request) => {
       const googleIdeas = await googleKeywordIdeas(seed);
       return json({
         keyword_ideas: googleIdeas || buildKeywordIdeas(seed),
-        provider: googleIdeas ? 'google_custom_search_opportunity_model' : 'heuristic_keyword_model',
+        provider: googleIdeas ? 'live_keyword_data' : 'heuristic_keyword_model',
         provider_notice: googleIdeas
           ? null
           : 'Live keyword data is unavailable right now, so this is an estimated preview rather than live search volume.',
@@ -707,7 +813,7 @@ Deno.serve(async (req: Request) => {
     if (dataForSeoResults) {
       return json({
         serp_results: dataForSeoResults,
-        provider: 'dataforseo_google_organic_live',
+        provider: 'live_serp',
         keyword,
         provider_notice: null,
       });
@@ -717,7 +823,7 @@ Deno.serve(async (req: Request) => {
     if (googleResults) {
       return json({
         serp_results: googleResults,
-        provider: 'google_custom_search',
+        provider: 'live_serp',
         keyword,
         provider_notice: null,
       });
@@ -727,7 +833,7 @@ Deno.serve(async (req: Request) => {
     if (serpApiResults) {
       return json({
         serp_results: serpApiResults,
-        provider: 'serpapi_google_organic_live',
+        provider: 'live_serp',
         keyword,
         provider_notice: null,
       });
@@ -740,6 +846,8 @@ Deno.serve(async (req: Request) => {
       provider_notice: 'Live Google top-10 access is unavailable right now, so this is a fallback preview rather than live SERP data.',
     });
   } catch (e) {
-    return json({ error: 'rank_forum_pages_failed', detail: (e as Error).message }, 500);
+    // Log the real error server-side; return a generic message (no vendor names).
+    console.error('rank_forum_pages_failed', (e as Error).message);
+    return json({ error: 'rank_forum_pages_failed' }, 500);
   }
 });

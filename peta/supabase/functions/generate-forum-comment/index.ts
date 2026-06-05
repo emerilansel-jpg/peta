@@ -92,7 +92,7 @@ async function fetchThreadText(url: string): Promise<{ text: string; fetched: bo
 function buildPrompt(input: GenerateForumCommentRequest, threadText: string): PromptMessage[] {
   const brand = input.brand_name || input.brand_domain || '';
   const linkInstruction = input.mention_mode === 'link'
-    ? 'Use one hyperlink exactly once for the brand/domain mention.'
+    ? 'Include the brand domain exactly once as a bare domain only (for example example.com) — do NOT add https://, http://, www, or markdown link syntax like [text](url). Just the plain domain, the way a real person types it.'
     : 'Use one plain-text brand mention exactly once. Do not include a URL.';
 
   return [
@@ -199,21 +199,29 @@ function sanitizeComment(comment: string, input: GenerateForumCommentRequest) {
     return next.trim();
   }
 
+  // Link mode: a bare domain woven naturally into the sentence — never https://,
+  // www, markdown [text](url), or the unnatural "Brand (domain.com)" parenthetical
+  // (real people don't write "plumbingforyou (plumbing.com)").
+  next = next.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/gi, '$2').trim();
+
   if (!domain) return next;
 
-  const href = `https://${domain}`;
-  const markdownLink = new RegExp(`\\[([^\\]]+)\\]\\(https?:\\/\\/[^)]+\\)`, 'i');
-  if (markdownLink.test(next)) {
-    return next.replace(markdownLink, `[${brand}](${href})`).trim();
-  }
-
+  const escapedDomain = domain.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const escapedBrand = brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  const brandRegex = new RegExp(`\\b${escapedBrand}\\b`, 'i');
-  if (brandRegex.test(next)) {
-    return next.replace(brandRegex, `[${brand}](${href})`).trim();
-  }
 
-  return `${next} [${brand}](${href})`.trim();
+  // Full URL / www → bare domain.
+  next = next.replace(new RegExp(`https?:\\/\\/(www\\.)?${escapedDomain}(\\/[^\\s)]*)?`, 'gi'), domain);
+  next = next.replace(new RegExp(`\\bwww\\.${escapedDomain}\\b`, 'gi'), domain);
+  // "Brand (domain.com)" → just the bare domain (kill the awkward parenthetical).
+  next = next.replace(new RegExp(`\\b${escapedBrand}\\b\\s*\\(\\s*${escapedDomain}\\s*\\)`, 'gi'), domain);
+  // Any leftover "(domain.com)" → bare domain.
+  next = next.replace(new RegExp(`\\(\\s*${escapedDomain}\\s*\\)`, 'gi'), domain);
+  next = next.replace(/\s{2,}/g, ' ').trim();
+
+  // Domain already present → done.
+  if (new RegExp(`\\b${escapedDomain}\\b`, 'i').test(next)) return next.trim();
+  // Domain absent → add it as a short natural sentence (no parenthetical).
+  return `${next} Their site is ${domain}.`.trim();
 }
 
 async function generateWithDeepSeek(messages: PromptMessage[], model: string) {
@@ -319,17 +327,14 @@ Deno.serve(async (req: Request) => {
       : await generateWithDeepSeek(messages, model);
 
     if (generation.error === 'DRAFT_PROVIDER_NOT_CONFIGURED') {
-      return json({
-        error: 'DRAFT_PROVIDER_NOT_CONFIGURED',
-        provider: settings.draft_provider,
-      }, 500);
+      // Keep the provider name out of client-facing responses (privacy wall).
+      console.error('draft_provider_not_configured', { provider: settings.draft_provider });
+      return json({ error: 'DRAFT_PROVIDER_NOT_CONFIGURED' }, 500);
     }
     if (generation.error) {
-      return json({
-        error: generation.error,
-        provider: settings.draft_provider,
-        detail: generation.detail,
-      }, 502);
+      // Log provider + raw detail server-side only; never leak to the client.
+      console.error('draft_generation_failed', { provider: settings.draft_provider, detail: generation.detail });
+      return json({ error: 'draft_generation_failed' }, 502);
     }
 
     let comment = generation.comment || '';

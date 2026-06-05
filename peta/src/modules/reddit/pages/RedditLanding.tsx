@@ -13,6 +13,8 @@ import {
   Clock,
   BarChart3,
   Headphones,
+  Sparkles,
+  MessagesSquare,
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 
@@ -259,6 +261,63 @@ export function RedditLanding() {
                 </div>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      {/* Forum Mentions / GEO — New product teaser */}
+      <section className="py-20 bg-gradient-to-br from-slate-900 to-slate-800 text-white">
+        <div className="max-w-5xl mx-auto px-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+            <div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/20 border border-orange-500/30 text-xs font-bold uppercase tracking-wider text-orange-300 mb-5">
+                <Sparkles size={12} />
+                New — Private beta
+              </div>
+              <h2 className="text-3xl md:text-4xl font-bold tracking-tight leading-tight">
+                Beyond Reddit.<br />
+                Get mentioned where{' '}
+                <span className="text-orange-400">Google and AI look.</span>
+              </h2>
+              <p className="mt-4 text-slate-300 leading-relaxed">
+                Quora, HubSpot Community, and niche forums still rank in Google's top 10 — and
+                they're what AI assistants read when answering your customers' questions.
+                We find those pages and place helpful, on-context mentions of your brand.
+              </p>
+              <ul className="mt-5 space-y-2.5">
+                {[
+                  'You give one keyword — we build the full keyword list',
+                  "We surface forum pages already in Google's top 10",
+                  'You write the comment or we do — you approve first',
+                  'Live proof + check if AI assistants mention you',
+                ].map((line) => (
+                  <li key={line} className="flex items-start gap-2.5 text-slate-300 text-sm">
+                    <Check size={16} className="text-orange-400 shrink-0 mt-0.5" />
+                    {line}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="lg:pl-6">
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
+                <div className="w-14 h-14 mx-auto rounded-xl bg-orange-500/20 flex items-center justify-center mb-5">
+                  <MessagesSquare size={26} className="text-orange-400" />
+                </div>
+                <h3 className="text-xl font-bold text-white">Join the waitlist</h3>
+                <p className="mt-2 text-slate-400 text-sm leading-relaxed">
+                  Tell us your topic. We'll prepare your first keyword list
+                  before your spot opens up — free.
+                </p>
+                <button
+                  onClick={() => navigate('/reddit/waitlist')}
+                  className="mt-6 w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-semibold shadow-lg shadow-orange-500/20 transition-all"
+                >
+                  Get early access
+                  <ArrowRight size={17} />
+                </button>
+                <p className="mt-3 text-xs text-slate-500">No spam. Early access only.</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>

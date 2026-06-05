@@ -85,6 +85,9 @@ export async function createRedditOrder(
     if (error.message.includes('insufficient_credits')) {
       throw new Error('Insufficient credits. Please top up your account.');
     }
+    if (error.message.includes('service_disabled')) {
+      throw new Error('This service is paused right now. Please check back soon.');
+    }
     throw error;
   }
 
@@ -173,6 +176,61 @@ export async function updateStraightAiSettings(input: {
   return data;
 }
 
+// ============ Straight pricing matrix (admin-configurable) ============
+
+export type StraightPricingRow = {
+  key: string;
+  platform: 'reddit' | 'forum';
+  service: 'upvote' | 'comment' | 'thread';
+  mention_mode: 'none' | 'plain' | 'link';
+  label: string;
+  price_cents: number;
+  enabled: boolean;
+  sort_order: number;
+};
+
+// Reads the pricing matrix. Returns [] on error so callers can fall back to
+// hardcoded defaults (e.g. before the migration is applied).
+export async function getStraightPricing(): Promise<StraightPricingRow[]> {
+  try {
+    const { data, error } = await supabase
+      .from('straight_pricing')
+      .select('key,platform,service,mention_mode,label,price_cents,enabled,sort_order')
+      .order('sort_order');
+    if (error || !data) return [];
+    return data as StraightPricingRow[];
+  } catch {
+    return [];
+  }
+}
+
+export async function adminSetStraightPricing(key: string, priceCents: number, enabled: boolean) {
+  const { error } = await supabase.rpc('admin_set_straight_pricing', {
+    p_key: key,
+    p_price_cents: priceCents,
+    p_enabled: enabled,
+  });
+  if (error) throw error;
+}
+
+// Matrix lookup helpers. Both fall back gracefully when the row is missing
+// (e.g. before the migration is applied, or if getStraightPricing() errored
+// and returned []), so callers keep working with legacy defaults.
+export function straightPrice(rows: StraightPricingRow[], key: string, fallbackCents: number): number {
+  const row = rows.find((r) => r.key === key);
+  return row ? row.price_cents : fallbackCents;
+}
+
+export function straightEnabled(rows: StraightPricingRow[], key: string, fallback = true): boolean {
+  const row = rows.find((r) => r.key === key);
+  return row ? row.enabled : fallback;
+}
+
+// Platform bucket for the pricing matrix: reddit URLs vs every other forum.
+export function straightPlatformKey(url: string | null | undefined): 'reddit' | 'forum' {
+  return /reddit\.com/i.test(url || '') ? 'reddit' : 'forum';
+}
+
 export type ProviderHealthStatus = 'ok' | 'missing' | 'error';
 
 export type StraightProviderHealth = {
@@ -222,6 +280,9 @@ export async function createForumCommentOrder(input: ForumCommentOrderInput) {
     if (error.message.includes('insufficient_credits')) {
       throw new Error('Insufficient credits. Please top up your account.');
     }
+    if (error.message.includes('service_disabled')) {
+      throw new Error('This service is paused right now. Please check back soon.');
+    }
     throw error;
   }
 
@@ -268,6 +329,92 @@ export async function getRankingForumResults(keyword: string): Promise<{
   if (error) throw new Error(error.message || 'SERP scan failed');
   if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
   return data as { serp_results: RankingForumResult[]; provider: string; keyword: string; provider_notice?: string | null };
+}
+
+// ============ AI / Google Visibility (GEO) check ============
+
+export interface AiVisibilityInput {
+  keyword: string;
+  brand?: string | null;
+  domain?: string | null;
+}
+
+export interface AiVisibilityResult {
+  keyword: string;
+  brand: string | null;
+  domain: string | null;
+  google_organic: { found: boolean; position: number | null; url: string | null };
+  ai_overview: { present: boolean; brand_mentioned: boolean };
+  provider: string;
+  checked_at: string;
+}
+
+// Checks whether a brand/domain is visible in Google's organic top 10 and in
+// Google's AI Overview for a keyword. Server-side via the rank-forum-pages fn.
+export async function checkAiVisibility(input: AiVisibilityInput): Promise<AiVisibilityResult> {
+  const { data, error } = await supabase.functions.invoke('rank-forum-pages', {
+    body: {
+      citation_check: true,
+      keyword: input.keyword.trim(),
+      brand: input.brand?.trim() || '',
+      domain: input.domain?.trim() || '',
+    },
+  });
+  if (error) throw new Error(error.message || 'AI visibility check failed');
+  if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
+  const r = data as Partial<AiVisibilityResult> | null;
+  // Defensive: if the edge function returns an unexpected shape (e.g. it hasn't
+  // been redeployed with the citation_check action yet), degrade to "unavailable"
+  // instead of letting the UI read undefined fields.
+  if (!r || !r.google_organic || !r.ai_overview) {
+    return {
+      keyword: input.keyword.trim(),
+      brand: input.brand?.trim() || null,
+      domain: input.domain?.trim() || null,
+      google_organic: { found: false, position: null, url: null },
+      ai_overview: { present: false, brand_mentioned: false },
+      provider: 'unavailable',
+      checked_at: '',
+    };
+  }
+  return r as AiVisibilityResult;
+}
+
+// ============ Waitlist (Forum Mentions / GEO front-door) ============
+
+export interface JoinWaitlistInput {
+  email: string;
+  seedKeyword?: string | null;
+  brand?: string | null;
+  website?: string | null;
+  notes?: string | null;
+}
+
+export interface JoinWaitlistResult {
+  joined: boolean;
+  reason?: 'already_on_list' | string;
+  id?: string;
+}
+
+// Anon-callable: add an email to the Straight forum-mentions waitlist.
+// Returns { joined:false, reason:'already_on_list' } if the email is a dup.
+export async function joinWaitlist(input: JoinWaitlistInput): Promise<JoinWaitlistResult> {
+  const ua = typeof navigator !== 'undefined' ? navigator.userAgent : null;
+  const { data, error } = await supabase.rpc('join_waitlist', {
+    p_email: input.email.trim(),
+    p_seed_keyword: input.seedKeyword?.trim() || null,
+    p_brand: input.brand?.trim() || null,
+    p_website: input.website?.trim() || null,
+    p_notes: input.notes?.trim() || null,
+    p_user_agent: ua,
+  });
+  if (error) {
+    const msg = (error.message || '').includes('invalid_email')
+      ? 'Please enter a valid email address.'
+      : (error.message || 'Failed to join the waitlist');
+    throw new Error(msg);
+  }
+  return data as JoinWaitlistResult;
 }
 
 // Get user's topup history
