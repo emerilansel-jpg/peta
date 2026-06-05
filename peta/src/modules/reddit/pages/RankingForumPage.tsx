@@ -39,6 +39,7 @@ type SelectedForumUrl = {
 
 type KeywordForumScan = {
   keyword: string;
+  volume: number;
   provider: string;
   providerNotice?: string | null;
   results: ForumResult[];
@@ -53,6 +54,7 @@ type RankingDraft = {
   forumScans: KeywordForumScan[];
   selectedForumUrls: SelectedForumUrl[];
   keywordProvider: string;
+  ideasCount: number;
   wantsSuggestion: boolean | null;
   mentionMode: 'plain' | 'link';
   commentText: string;
@@ -97,6 +99,7 @@ export function RankingForumPage() {
   const [forumScans, setForumScans] = useState<KeywordForumScan[]>(() => Array.isArray(initialDraft?.forumScans) ? initialDraft.forumScans : []);
   const [selectedForumUrls, setSelectedForumUrls] = useState<SelectedForumUrl[]>(() => Array.isArray(initialDraft?.selectedForumUrls) ? initialDraft.selectedForumUrls : []);
   const [keywordProvider, setKeywordProvider] = useState(initialDraft?.keywordProvider || '');
+  const [ideasCount, setIdeasCount] = useState(initialDraft?.ideasCount || 0);
   const [notice, setNotice] = useState('');
   const [step, setStep] = useState<StepId>(initialDraft?.step || 'seed');
   const [wantsSuggestion, setWantsSuggestion] = useState<boolean | null>(initialDraft?.wantsSuggestion ?? null);
@@ -116,11 +119,11 @@ export function RankingForumPage() {
 
   useEffect(() => {
     const draft: RankingDraft = {
-      seed, brand, domain, forumScans, selectedForumUrls, keywordProvider,
+      seed, brand, domain, forumScans, selectedForumUrls, keywordProvider, ideasCount,
       wantsSuggestion, mentionMode, commentText, drafts, step,
     };
     window.localStorage.setItem(RANKING_DRAFT_KEY, JSON.stringify(draft));
-  }, [seed, brand, domain, forumScans, selectedForumUrls, keywordProvider, wantsSuggestion, mentionMode, commentText, drafts, step]);
+  }, [seed, brand, domain, forumScans, selectedForumUrls, keywordProvider, ideasCount, wantsSuggestion, mentionMode, commentText, drafts, step]);
 
   // AI-visibility baseline when entering the forums step (if brand provided).
   useEffect(() => {
@@ -146,6 +149,7 @@ export function RankingForumPage() {
           const data = await getRankingForumResults(idea.keyword);
           return {
             keyword: idea.keyword,
+            volume: idea.volume,
             provider: data.provider,
             providerNotice: data.provider_notice,
             results: data.serp_results.filter((r) => r.eligible),
@@ -153,6 +157,7 @@ export function RankingForumPage() {
         } catch {
           return {
             keyword: idea.keyword,
+            volume: idea.volume,
             provider: 'local_fallback',
             results: buildGoogleTop10Results(idea.keyword).filter((r) => r.eligible),
           } as KeywordForumScan;
@@ -192,6 +197,7 @@ export function RankingForumPage() {
       setKeywordProvider('local_fallback');
       setNotice('Live keyword analysis is unavailable right now, showing a local estimate.');
     }
+    setIdeasCount(ideas.length);
     setLoading(false);
     setStep('forums');
     await scanForumsForIdeas(ideas);
@@ -207,7 +213,7 @@ export function RankingForumPage() {
   const resetDraft = () => {
     window.localStorage.removeItem(RANKING_DRAFT_KEY);
     setSeed(''); setBrand(''); setDomain('');
-    setForumScans([]); setSelectedForumUrls([]); setKeywordProvider('');
+    setForumScans([]); setSelectedForumUrls([]); setKeywordProvider(''); setIdeasCount(0);
     setWantsSuggestion(null); setMentionMode('plain'); setCommentText(''); setDrafts({});
     setBaseline(null); setStep('seed'); setNotice('');
   };
@@ -366,10 +372,6 @@ export function RankingForumPage() {
             <button onClick={resetDraft} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-white ring-1 ring-slate-200 hover:ring-slate-300 text-slate-700 text-sm font-semibold">
               Clear draft
             </button>
-            <button onClick={() => navigate('/reddit/new-order?service=comments')} className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold">
-              Skip to comments
-              <ArrowRight size={14} />
-            </button>
           </div>
         </div>
 
@@ -459,7 +461,10 @@ export function RankingForumPage() {
               <div>
                 <h2 className="font-bold text-slate-900">Keywords with forum pages in Google&rsquo;s top 10</h2>
                 <p className="text-sm text-slate-500 mt-1">
-                  Only keywords whose top results contain a real discussion page are shown. Pick the pages to comment on.
+                  {ideasCount > 0 && (
+                    <><strong className="text-slate-700">{ideasCount.toLocaleString()} keywords</strong> extracted from your seed · scanned the top {TOP_KEYWORDS_TO_SCAN} by volume · </>
+                  )}
+                  <strong className="text-slate-700">{forumScans.length}</strong> have a real forum page. Pick the pages to comment on.
                 </p>
               </div>
               <div className="flex items-center gap-2 self-start">
@@ -502,6 +507,11 @@ export function RankingForumPage() {
                       <div className="flex items-center justify-between gap-3 mb-2.5">
                         <div className="flex items-center gap-2 min-w-0 flex-wrap">
                           <h3 className="font-bold text-slate-900 truncate">{scan.keyword}</h3>
+                          {scan.volume > 0 && (
+                            <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 ring-1 ring-emerald-100" title="Estimated monthly searches">
+                              {formatVolume(scan.volume)}/mo
+                            </span>
+                          )}
                           <DataFreshnessBadge live={isLiveProvider(scan.provider)} />
                           <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600">
                             {scan.results.length} forum page{scan.results.length === 1 ? '' : 's'}
@@ -804,6 +814,11 @@ function DataFreshnessBadge({ live }: { live: boolean }) {
       {live ? 'Live data' : 'Preview estimate'}
     </span>
   );
+}
+
+function formatVolume(volume: number) {
+  if (volume >= 1000) return `${(volume / 1000).toFixed(volume >= 10000 ? 0 : 1)}k`;
+  return volume.toLocaleString();
 }
 
 function ensureManyKeywordIdeas(seed: string, remoteIdeas: KeywordIdea[]) {
