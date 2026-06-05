@@ -173,6 +173,43 @@ export async function updateStraightAiSettings(input: {
   return data;
 }
 
+// ============ Straight pricing matrix (admin-configurable) ============
+
+export type StraightPricingRow = {
+  key: string;
+  platform: 'reddit' | 'forum';
+  service: 'upvote' | 'comment' | 'thread';
+  mention_mode: 'none' | 'plain' | 'link';
+  label: string;
+  price_cents: number;
+  enabled: boolean;
+  sort_order: number;
+};
+
+// Reads the pricing matrix. Returns [] on error so callers can fall back to
+// hardcoded defaults (e.g. before the migration is applied).
+export async function getStraightPricing(): Promise<StraightPricingRow[]> {
+  try {
+    const { data, error } = await supabase
+      .from('straight_pricing')
+      .select('key,platform,service,mention_mode,label,price_cents,enabled,sort_order')
+      .order('sort_order');
+    if (error || !data) return [];
+    return data as StraightPricingRow[];
+  } catch {
+    return [];
+  }
+}
+
+export async function adminSetStraightPricing(key: string, priceCents: number, enabled: boolean) {
+  const { error } = await supabase.rpc('admin_set_straight_pricing', {
+    p_key: key,
+    p_price_cents: priceCents,
+    p_enabled: enabled,
+  });
+  if (error) throw error;
+}
+
 export type ProviderHealthStatus = 'ok' | 'missing' | 'error';
 
 export type StraightProviderHealth = {

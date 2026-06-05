@@ -24,8 +24,8 @@ import { RedditLayout } from '../components/RedditLayout';
 import { EmailWhitelistNotice } from '../components/EmailWhitelistNotice';
 import { useRedditCredits } from '../hooks/useRedditCredits';
 import { useRedditOrders } from '../hooks/useRedditOrders';
-import { checkAiVisibility, formatUSD, generateForumComment, getRankingForumResults, getRankingKeywordIdeas } from '../lib/api';
-import type { AiVisibilityResult, RankingForumResult, RankingKeywordIdea } from '../lib/api';
+import { checkAiVisibility, formatUSD, generateForumComment, getRankingForumResults, getRankingKeywordIdeas, getStraightPricing } from '../lib/api';
+import type { AiVisibilityResult, RankingForumResult, RankingKeywordIdea, StraightPricingRow } from '../lib/api';
 
 type KeywordIdea = RankingKeywordIdea;
 type ForumResult = RankingForumResult;
@@ -111,10 +111,23 @@ export function RankingForumPage() {
   const [baseline, setBaseline] = useState<AiVisibilityResult | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
   const [placedCount, setPlacedCount] = useState(0);
+  const [pricing, setPricing] = useState<StraightPricingRow[]>([]);
 
-  const unitCost = wantsSuggestion ? SUGGESTED_COMMENT_PRICE_CENTS : FORUM_COMMENT_PRICE_CENTS;
-  const selectedUrlCost = selectedForumUrls.length * unitCost;
-  const hasEnoughCreditForBulk = selectedForumUrls.length > 0 && balance >= selectedUrlCost;
+  // Comment costs come from the admin pricing matrix (per platform + plain/link),
+  // with hardcoded fallbacks if the table isn't available yet.
+  const commentMode: 'plain' | 'link' = (wantsSuggestion && mentionMode === 'link') ? 'link' : 'plain';
+  const platformOf = (url: string) => (/(^|\.)reddit\.com/i.test(url) ? 'reddit' : 'forum');
+  const commentPriceFor = (url: string): { cents: number; enabled: boolean } => {
+    const row = pricing.find((r) => r.key === `${platformOf(url)}_comment_${commentMode}`);
+    if (row) return { cents: row.price_cents, enabled: row.enabled };
+    return { cents: commentMode === 'link' ? SUGGESTED_COMMENT_PRICE_CENTS : FORUM_COMMENT_PRICE_CENTS, enabled: true };
+  };
+  const priceCents = (key: string, fallback: number) => pricing.find((r) => r.key === key)?.price_cents ?? fallback;
+  const repPlain = priceCents('forum_comment_plain', FORUM_COMMENT_PRICE_CENTS);
+  const repLink = priceCents('forum_comment_link', SUGGESTED_COMMENT_PRICE_CENTS);
+  const selectedUrlCost = selectedForumUrls.reduce((sum, t) => sum + commentPriceFor(t.url).cents, 0);
+  const disabledSelected = selectedForumUrls.filter((t) => !commentPriceFor(t.url).enabled);
+  const hasEnoughCreditForBulk = selectedForumUrls.length > 0 && balance >= selectedUrlCost && disabledSelected.length === 0;
   const primaryKeyword = selectedForumUrls[0]?.keyword || forumScans[0]?.keyword || seed;
 
   useEffect(() => {
@@ -124,6 +137,11 @@ export function RankingForumPage() {
     };
     window.localStorage.setItem(RANKING_DRAFT_KEY, JSON.stringify(draft));
   }, [seed, brand, domain, forumScans, selectedForumUrls, keywordProvider, ideasCount, wantsSuggestion, mentionMode, commentText, drafts, step]);
+
+  // Load admin pricing once on mount (falls back to defaults if unavailable).
+  useEffect(() => {
+    getStraightPricing().then(setPricing).catch(() => setPricing([]));
+  }, []);
 
   // AI-visibility baseline when entering the forums step (if brand provided).
   useEffect(() => {
@@ -256,11 +274,11 @@ export function RankingForumPage() {
 
   const hasBrand = !!(brand.trim() || domain.trim());
   // Each selected page must end up with its OWN comment — never the same text twice.
-  const commentReady = wantsSuggestion === false
+  const commentReady = disabledSelected.length === 0 && (wantsSuggestion === false
     ? commentText.trim().length >= 20
     : wantsSuggestion === true
       ? hasBrand && selectedForumUrls.length > 0 && selectedForumUrls.every((t) => (drafts[t.url] || '').trim().length >= 20)
-      : false;
+      : false);
 
   const draftSingle = async (target: SelectedForumUrl) => {
     const res = await generateForumComment({
@@ -582,7 +600,7 @@ export function RankingForumPage() {
                 <p className="text-sm text-slate-600 leading-relaxed">
                   AI writes a <strong>unique</strong> comment per page, drafted from that thread, with one natural brand mention. You review &amp; edit each before ordering.
                 </p>
-                <p className="mt-3 text-sm font-bold text-orange-700">{formatUSD(SUGGESTED_COMMENT_PRICE_CENTS)} / comment</p>
+                <p className="mt-3 text-sm font-bold text-orange-700">{formatUSD(repPlain)} / comment · {formatUSD(repLink)} with link</p>
               </button>
               <button type="button" onClick={() => setWantsSuggestion(false)} className={`text-left p-5 rounded-xl border-2 transition ${wantsSuggestion === false ? 'border-slate-900 bg-slate-50' : 'border-slate-200 hover:border-slate-300'}`}>
                 <div className="flex items-center gap-2 mb-2">
@@ -592,7 +610,7 @@ export function RankingForumPage() {
                 <p className="text-sm text-slate-600 leading-relaxed">
                   Give one guideline. Our writer creates a <strong>unique</strong> comment for each thread following it — never copy-pasted.
                 </p>
-                <p className="mt-3 text-sm font-bold text-slate-900">{formatUSD(FORUM_COMMENT_PRICE_CENTS)} / comment</p>
+                <p className="mt-3 text-sm font-bold text-slate-900">{formatUSD(repPlain)} / comment</p>
               </button>
             </div>
 
@@ -733,11 +751,16 @@ export function RankingForumPage() {
               <div className="mt-4 space-y-3">
                 <SummaryRow label="Pages" value={String(selectedForumUrls.length)} />
                 <SummaryRow label="Comment type" value={wantsSuggestion ? 'AI (unique/page)' : 'Guideline (unique/page)'} />
-                <SummaryRow label="Price per page" value={formatUSD(unitCost)} />
+                <SummaryRow label="Link in comment" value={commentMode === 'link' ? 'Yes' : 'No'} />
                 <SummaryRow label="Estimated total" value={formatUSD(selectedUrlCost)} strong />
                 <SummaryRow label="Available credit" value={formatUSD(balance)} />
               </div>
-              {!hasEnoughCreditForBulk && (
+              {disabledSelected.length > 0 && (
+                <div className="mt-4 rounded-lg bg-amber-50 ring-1 ring-amber-100 p-3 text-sm text-amber-800">
+                  {disabledSelected.length} selected page{disabledSelected.length === 1 ? '' : 's'} need a service that&rsquo;s currently turned off ({commentMode === 'link' ? 'comment with link' : 'comment'}). Switch the mention style or remove those pages.
+                </div>
+              )}
+              {balance < selectedUrlCost && (
                 <div className="mt-4 rounded-lg bg-rose-50 ring-1 ring-rose-100 p-3 text-sm text-rose-700">
                   You need {formatUSD(Math.max(0, selectedUrlCost - balance))} more credit before ordering this queue.
                 </div>
