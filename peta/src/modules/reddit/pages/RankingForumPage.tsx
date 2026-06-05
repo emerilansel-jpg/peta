@@ -123,8 +123,11 @@ export function RankingForumPage() {
     return { cents: commentMode === 'link' ? SUGGESTED_COMMENT_PRICE_CENTS : FORUM_COMMENT_PRICE_CENTS, enabled: true };
   };
   const priceCents = (key: string, fallback: number) => pricing.find((r) => r.key === key)?.price_cents ?? fallback;
-  const repPlain = priceCents('forum_comment_plain', FORUM_COMMENT_PRICE_CENTS);
-  const repLink = priceCents('forum_comment_link', SUGGESTED_COMMENT_PRICE_CENTS);
+  // Representative card price follows the platform of the first selected page, so
+  // the "$X / comment" label matches what's actually charged (reddit vs forum).
+  const repPlatform = platformOf(selectedForumUrls[0]?.url || '');
+  const repPlain = priceCents(`${repPlatform}_comment_plain`, FORUM_COMMENT_PRICE_CENTS);
+  const repLink = priceCents(`${repPlatform}_comment_link`, SUGGESTED_COMMENT_PRICE_CENTS);
   const selectedUrlCost = selectedForumUrls.reduce((sum, t) => sum + commentPriceFor(t.url).cents, 0);
   const disabledSelected = selectedForumUrls.filter((t) => !commentPriceFor(t.url).enabled);
   const hasEnoughCreditForBulk = selectedForumUrls.length > 0 && balance >= selectedUrlCost && disabledSelected.length === 0;
@@ -632,7 +635,7 @@ export function RankingForumPage() {
                       <button type="button" onClick={() => setMentionMode('link')} className={`py-3 rounded-lg text-sm font-semibold border-2 transition inline-flex items-center justify-center gap-2 ${mentionMode === 'link' ? 'border-orange-500 bg-white text-orange-700' : 'border-orange-100 bg-white/70 text-slate-700'}`}><LinkIcon size={14} /> Include link</button>
                     </div>
                     {mentionMode === 'link' && (
-                      <p className="mt-2 text-xs text-orange-900">The link is inserted as a plain URL (e.g. https://yourdomain.com) — never as markdown.</p>
+                      <p className="mt-2 text-xs text-orange-900">The link appears as a bare domain (e.g. yourdomain.com) — never https:// or markdown.</p>
                     )}
                   </div>
                   <button type="button" onClick={generateAllDrafts} disabled={generatingAll || !hasBrand} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-semibold">
@@ -844,6 +847,8 @@ function formatVolume(volume: number) {
   return volume.toLocaleString();
 }
 
+const MAX_KEYWORD_IDEAS = 200;
+
 function ensureManyKeywordIdeas(seed: string, remoteIdeas: KeywordIdea[]) {
   const seen = new Set<string>();
   return [...remoteIdeas, ...buildKeywordIdeas(seed)].filter((idea) => {
@@ -851,7 +856,7 @@ function ensureManyKeywordIdeas(seed: string, remoteIdeas: KeywordIdea[]) {
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
-  });
+  }).slice(0, MAX_KEYWORD_IDEAS);
 }
 
 function buildKeywordIdeas(seed: string): KeywordIdea[] {

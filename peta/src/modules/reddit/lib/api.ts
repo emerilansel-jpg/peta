@@ -85,6 +85,9 @@ export async function createRedditOrder(
     if (error.message.includes('insufficient_credits')) {
       throw new Error('Insufficient credits. Please top up your account.');
     }
+    if (error.message.includes('service_disabled')) {
+      throw new Error('This service is paused right now. Please check back soon.');
+    }
     throw error;
   }
 
@@ -210,6 +213,24 @@ export async function adminSetStraightPricing(key: string, priceCents: number, e
   if (error) throw error;
 }
 
+// Matrix lookup helpers. Both fall back gracefully when the row is missing
+// (e.g. before the migration is applied, or if getStraightPricing() errored
+// and returned []), so callers keep working with legacy defaults.
+export function straightPrice(rows: StraightPricingRow[], key: string, fallbackCents: number): number {
+  const row = rows.find((r) => r.key === key);
+  return row ? row.price_cents : fallbackCents;
+}
+
+export function straightEnabled(rows: StraightPricingRow[], key: string, fallback = true): boolean {
+  const row = rows.find((r) => r.key === key);
+  return row ? row.enabled : fallback;
+}
+
+// Platform bucket for the pricing matrix: reddit URLs vs every other forum.
+export function straightPlatformKey(url: string | null | undefined): 'reddit' | 'forum' {
+  return /reddit\.com/i.test(url || '') ? 'reddit' : 'forum';
+}
+
 export type ProviderHealthStatus = 'ok' | 'missing' | 'error';
 
 export type StraightProviderHealth = {
@@ -258,6 +279,9 @@ export async function createForumCommentOrder(input: ForumCommentOrderInput) {
   if (error) {
     if (error.message.includes('insufficient_credits')) {
       throw new Error('Insufficient credits. Please top up your account.');
+    }
+    if (error.message.includes('service_disabled')) {
+      throw new Error('This service is paused right now. Please check back soon.');
     }
     throw error;
   }

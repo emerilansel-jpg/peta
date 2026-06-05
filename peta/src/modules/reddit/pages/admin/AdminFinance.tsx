@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { DollarSign, TrendingUp, CreditCard, ArrowDownCircle, ArrowUpCircle, RefreshCw, ShoppingCart } from 'lucide-react';
 import { AdminLayout, AdminBreadcrumb } from '../../components/AdminLayout';
+import { ServicePricingCard } from '../../components/ServicePricingCard';
 import { supabase } from '../../../../lib/supabase';
 import { formatUSD } from '../../lib/api';
 import { useRealtimeRefresh } from '../../hooks/useRealtimeRefresh';
@@ -193,6 +194,11 @@ export function AdminFinance() {
           <p className="text-xs text-slate-500 mt-3">
             ℹ️ "Revenue" above = actual PayPal top-ups received. "Order value" = credits spent on completed orders.
           </p>
+        </div>
+
+        {/* Service pricing matrix — the revenue lever lives with the money it drives */}
+        <div className="mb-8">
+          <ServicePricingCard />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

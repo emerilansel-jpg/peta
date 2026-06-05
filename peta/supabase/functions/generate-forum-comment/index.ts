@@ -327,17 +327,14 @@ Deno.serve(async (req: Request) => {
       : await generateWithDeepSeek(messages, model);
 
     if (generation.error === 'DRAFT_PROVIDER_NOT_CONFIGURED') {
-      return json({
-        error: 'DRAFT_PROVIDER_NOT_CONFIGURED',
-        provider: settings.draft_provider,
-      }, 500);
+      // Keep the provider name out of client-facing responses (privacy wall).
+      console.error('draft_provider_not_configured', { provider: settings.draft_provider });
+      return json({ error: 'DRAFT_PROVIDER_NOT_CONFIGURED' }, 500);
     }
     if (generation.error) {
-      return json({
-        error: generation.error,
-        provider: settings.draft_provider,
-        detail: generation.detail,
-      }, 502);
+      // Log provider + raw detail server-side only; never leak to the client.
+      console.error('draft_generation_failed', { provider: settings.draft_provider, detail: generation.detail });
+      return json({ error: 'draft_generation_failed' }, 502);
     }
 
     let comment = generation.comment || '';

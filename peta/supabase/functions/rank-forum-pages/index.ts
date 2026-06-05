@@ -483,7 +483,7 @@ async function checkCitation(keyword: string, brand: string, domain: string): Pr
     domain: domain || null,
     google_organic: { found: false, position: null, url: null },
     ai_overview: { present: false, brand_mentioned: false },
-    provider: 'dataforseo_google_organic_live',
+    provider: 'live_serp',
     checked_at,
   };
 
@@ -794,7 +794,7 @@ Deno.serve(async (req: Request) => {
       if (dataForSeoIdeas) {
         return json({
           keyword_ideas: dataForSeoIdeas,
-          provider: 'dataforseo_keyword_suggestions_opportunity_model',
+          provider: 'live_keyword_data',
           provider_notice: null,
         });
       }
@@ -802,7 +802,7 @@ Deno.serve(async (req: Request) => {
       const googleIdeas = await googleKeywordIdeas(seed);
       return json({
         keyword_ideas: googleIdeas || buildKeywordIdeas(seed),
-        provider: googleIdeas ? 'google_custom_search_opportunity_model' : 'heuristic_keyword_model',
+        provider: googleIdeas ? 'live_keyword_data' : 'heuristic_keyword_model',
         provider_notice: googleIdeas
           ? null
           : 'Live keyword data is unavailable right now, so this is an estimated preview rather than live search volume.',
@@ -813,7 +813,7 @@ Deno.serve(async (req: Request) => {
     if (dataForSeoResults) {
       return json({
         serp_results: dataForSeoResults,
-        provider: 'dataforseo_google_organic_live',
+        provider: 'live_serp',
         keyword,
         provider_notice: null,
       });
@@ -823,7 +823,7 @@ Deno.serve(async (req: Request) => {
     if (googleResults) {
       return json({
         serp_results: googleResults,
-        provider: 'google_custom_search',
+        provider: 'live_serp',
         keyword,
         provider_notice: null,
       });
@@ -833,7 +833,7 @@ Deno.serve(async (req: Request) => {
     if (serpApiResults) {
       return json({
         serp_results: serpApiResults,
-        provider: 'serpapi_google_organic_live',
+        provider: 'live_serp',
         keyword,
         provider_notice: null,
       });
@@ -846,6 +846,8 @@ Deno.serve(async (req: Request) => {
       provider_notice: 'Live Google top-10 access is unavailable right now, so this is a fallback preview rather than live SERP data.',
     });
   } catch (e) {
-    return json({ error: 'rank_forum_pages_failed', detail: (e as Error).message }, 500);
+    // Log the real error server-side; return a generic message (no vendor names).
+    console.error('rank_forum_pages_failed', (e as Error).message);
+    return json({ error: 'rank_forum_pages_failed' }, 500);
   }
 });
