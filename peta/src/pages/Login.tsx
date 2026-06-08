@@ -77,7 +77,7 @@ export function Login() {
                 <label className="block text-xs font-bold text-dark uppercase tracking-wide">Password</label>
                 <button
                   type="button"
-                  onClick={() => toast.success('Hubungi admin untuk reset password.')}
+                  onClick={() => navigate('/forgot-password')}
                   className="text-xs text-primary font-semibold hover:underline"
                 >
                   Lupa password?

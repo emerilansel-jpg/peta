@@ -613,3 +613,20 @@ Verified Ranking Forum end-to-end on production: live keyword ideas + live SERP 
 both provider_notice=null (true live data, not fallback preview).
 Ranking Forum CAN now be reported to user as having live SERP/keyword data.
 ```
+
+
+Done 2026-06-09 (this session):
+
+```text
+Forgot password flow deployed:
+- /forgot-password page — army input email, Supabase kirim reset link
+- /reset-password page — terima token dari email hash, set password baru
+- Login.tsx "Lupa password?" sekarang navigasi ke /forgot-password (bukan hubungi admin)
+
+WhatsApp auth assessment:
+- Reset link via WA: BISA, tapi butuh custom token + Evolution API (bukan native Supabase)
+- Login via WA number: BISA, tapi butuh custom OTP flow (Supabase ga support WA natif)
+- Stabilitas: Evolution API = unofficial WA Web. Ban risk tinggi. Email lebih stabil buat auth critical.
+- Biaya: Evolution free (self-hosted), VPS ~Rp75K/bulan. Official WA Business API = bayar + butuh Meta approval.
+Rekomendasi: pakai email reset (sudah jadi). WA login = nice-to-have tapi jangan jadi primary auth.
+```
