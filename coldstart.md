@@ -651,17 +651,6 @@ WhatsApp auth assessment:
 Rekomendasi: pakai email reset (sudah jadi). WA login = nice-to-have tapi jangan jadi primary auth.
 ```
 
-Done 2025-07-08 (this session):
-
-```text
-UX/CRO Task Card Redesign recommendation delivered:
-- Problem: "Brief Lengkap" field mixes Indonesian header with English comment text → army members accidentally copy Indonesian text
-- Solution: Consolidate all Indonesian instructions to "Deskripsi" only; "Brief Lengkap" becomes dark-themed "Copy-Paste Comment" block with one-click copy button
-- Deliverable: Interactive HTML mockup with side-by-side current vs recommended design + 7-point implementation checklist
-- File: [2025-07-08]_UX_CRO_TaskCard_Redesign.html
-- CRO impact estimate: 60-80% error reduction, 3-5x faster copy action, fewer rejected submissions
-```
-
 Done 2025-07-09 (this session):
 
 ```text
@@ -702,4 +691,25 @@ Ranking Forum UX fix — disabled platform early warning:
      first — "X page(s) from a paused platform — remove them to continue" —
      instead of the misleading "Every page needs its own draft" message.
 - Build verified: tsc + vite build pass from main project dir.
+```
+
+Done 2026-07-10 (this session):
+
+```text
+HubSpot / non-Reddit upvote order fix — "service paused" error:
+- Problem: user tries to order upvotes for HubSpot community URL
+  (community.hubspot.com), gets "This service is paused right now" error.
+  Root cause: fn_create_reddit_upvote_order still hardcoded to check
+  'reddit_upvote' pricing matrix key for ALL URLs. Non-reddit.com URLs
+  should route to 'forum_upvote' key. Additionally, forum_upvote was
+  seeded as enabled=false in straight_pricing table.
+- Fix applied to production database via Supabase SQL Editor:
+  1. UPDATE straight_pricing SET enabled=true WHERE key='forum_upvote'
+  2. CREATE OR REPLACE FUNCTION fn_create_reddit_upvote_order with
+     v_platform := CASE WHEN URL LIKE '%reddit.com%' THEN 'reddit' ELSE 'forum' END
+     and v_price_per_upvote := fn_straight_unit_price(v_platform || '_upvote', 50)
+  3. REVOKE/GRANT permissions restored after CREATE OR REPLACE
+- Migration file updated: peta/supabase/migrations/20260605100000_upvote_any_url_platform_price.sql
+- Commit: cf2267f pushed to origin/main
+- Verification: SQL Editor returned "Success. No rows returned"
 ```
