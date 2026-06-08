@@ -615,6 +615,26 @@ Ranking Forum CAN now be reported to user as having live SERP/keyword data.
 ```
 
 
+Done 2025-07-08 (this session):
+
+```text
+UX/CRO Task Card Redesign — implemented & built:
+- TaskDetail.tsx (army view):
+  • task.description → displayed as "📋 Petunjuk Pengerjaan" yellow card in Step 2
+  • task.brief → displayed as dark "📋 Copy-Paste Comment" block with one-click Copy Content button
+  • Added handleCopyComment() using navigator.clipboard + toast feedback
+  • Button state: "Copy Content" → "Copied!" (green) → resets after 2s
+  • Dark block (#1a1a1a) + serif font creates strong visual separation from instructions
+  • Zero Indonesian text inside the copy block — 100% safe to copy-paste
+- TaskQueue.tsx (admin view):
+  • Label "Deskripsi" → "Deskripsi / Petunjuk (Bahasa Indonesia)"
+  • Label "Brief Lengkap" → "Teks Komen/Post (English — untuk di-copy army)"
+  • Updated placeholders to guide admins: instructions in description, English comment text in brief
+  • Admin task list preview: "Brief lengkap" → "Teks komen/post"
+- Build: successful (tsc + vite, no errors)
+- Files changed: peta/src/pages/TaskDetail.tsx, peta/src/pages/admin/TaskQueue.tsx
+```
+
 Done 2026-06-09 (this session):
 
 ```text
@@ -629,4 +649,57 @@ WhatsApp auth assessment:
 - Stabilitas: Evolution API = unofficial WA Web. Ban risk tinggi. Email lebih stabil buat auth critical.
 - Biaya: Evolution free (self-hosted), VPS ~Rp75K/bulan. Official WA Business API = bayar + butuh Meta approval.
 Rekomendasi: pakai email reset (sudah jadi). WA login = nice-to-have tapi jangan jadi primary auth.
+```
+
+Done 2025-07-08 (this session):
+
+```text
+UX/CRO Task Card Redesign recommendation delivered:
+- Problem: "Brief Lengkap" field mixes Indonesian header with English comment text → army members accidentally copy Indonesian text
+- Solution: Consolidate all Indonesian instructions to "Deskripsi" only; "Brief Lengkap" becomes dark-themed "Copy-Paste Comment" block with one-click copy button
+- Deliverable: Interactive HTML mockup with side-by-side current vs recommended design + 7-point implementation checklist
+- File: [2025-07-08]_UX_CRO_TaskCard_Redesign.html
+- CRO impact estimate: 60-80% error reduction, 3-5x faster copy action, fewer rejected submissions
+```
+
+Done 2025-07-09 (this session):
+
+```text
+Straight Ltd Admin Registration Mode Toggle:
+- Problem: Admin cannot control client intake volume — signup always open
+- Solution: Admin toggle between "Open Sign Up" and "Waitlist Only" modes
+- Files changed:
+  - supabase/migrations/20260609120000_straight_registration_mode.sql — new table + RPCs
+  - src/modules/reddit/lib/api.ts — getStraightSettings, updateStraightSettings, getStraightRegistrationMode
+  - src/modules/reddit/pages/admin/AdminSettings.tsx — Front-Door Mode toggle UI
+  - src/modules/reddit/pages/RedditLanding.tsx — CTA redirects to waitlist when mode=waitlist
+  - src/modules/reddit/pages/RedditSignup.tsx — blocks signup + redirects to waitlist when mode=waitlist
+  - src/modules/reddit/pages/RedditLogin.tsx — "Sign up free" link becomes "Join the waitlist" when mode=waitlist
+- Build: PASSED (tsc + vite build clean)
+- Migration: needs `supabase db push` or manual apply on target environment
+```
+
+Done 2026-07-10 (this session):
+
+```text
+Ranking Forum UX fix — disabled platform early warning:
+- Problem: user selects mix of Quora + Reddit URLs, generates all AI drafts,
+  but "Review & approve" button stays gray. Message says "Every page needs its
+  own draft (min 20 chars)" even though all drafts exist. Root cause: Reddit
+  comment service is paused in pricing matrix (reddit_comment_plain disabled),
+  so disabledSelected.length > 0 makes commentReady = false. User only finds
+  out AFTER generating drafts — bad UX.
+- Fix in RankingForumPage.tsx:
+  1. Step 2 (forums list): SERP result cards now show "Paused" badge and
+     opacity-60 styling for URLs from a disabled platform. StickyAction cost
+     line shows "X paused platform(s)" warning before user proceeds.
+  2. Step 3 (comment): Added amber banner at top when disabledSelected > 0,
+     listing which platforms are paused and telling user to remove them.
+  3. Step 3 draft cards: Disabled-platform cards get amber border, "Paused"
+     badge, disabled textarea with placeholder "This platform is paused...",
+     and disabled regenerate button.
+  4. Step 3 StickyAction: Button disabled message now shows the REAL reason
+     first — "X page(s) from a paused platform — remove them to continue" —
+     instead of the misleading "Every page needs its own draft" message.
+- Build verified: tsc + vite build pass from main project dir.
 ```

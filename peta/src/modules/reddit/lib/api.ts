@@ -176,6 +176,38 @@ export async function updateStraightAiSettings(input: {
   return data;
 }
 
+// ============ Straight registration mode (admin-configurable) ============
+
+export type StraightRegistrationMode = 'signup' | 'waitlist';
+
+export type StraightSettings = {
+  registration_mode: StraightRegistrationMode;
+  updated_at: string;
+};
+
+export async function getStraightSettings(): Promise<StraightSettings> {
+  const { data, error } = await supabase.rpc('admin_get_straight_settings');
+  if (error) throw error;
+  return (Array.isArray(data) ? data[0] : data) as StraightSettings;
+}
+
+export async function updateStraightSettings(input: {
+  registrationMode: StraightRegistrationMode;
+}) {
+  const { data, error } = await supabase.rpc('admin_update_straight_settings', {
+    p_registration_mode: input.registrationMode,
+  });
+  if (error) throw error;
+  return data;
+}
+
+// Public: get current registration mode (no auth required)
+export async function getStraightRegistrationMode(): Promise<StraightRegistrationMode> {
+  const { data, error } = await supabase.rpc('get_straight_registration_mode');
+  if (error) throw error;
+  return (data as StraightRegistrationMode) || 'signup';
+}
+
 // ============ Straight pricing matrix (admin-configurable) ============
 
 export type StraightPricingRow = {

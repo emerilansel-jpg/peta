@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Bot, CheckCircle2, ExternalLink, KeyRound, Loader2, RefreshCw, Save, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Bot, CheckCircle2, ExternalLink, KeyRound, Loader2, RefreshCw, Save, ShieldCheck, Users } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { AdminBreadcrumb, AdminLayout } from '../../components/AdminLayout';
 import {
   getStraightAiSettings,
   getStraightProviderHealth,
   updateStraightAiSettings,
+  getStraightSettings,
+  updateStraightSettings,
   type ProviderHealthStatus,
   type StraightProviderHealth,
   type StraightDraftProvider,
+  type StraightRegistrationMode,
 } from '../../lib/api';
 
 const PROVIDERS: Array<{
@@ -40,15 +43,23 @@ export function AdminSettings() {
   const [updatedAt, setUpdatedAt] = useState('');
   const [health, setHealth] = useState<StraightProviderHealth | null>(null);
   const [checkingHealth, setCheckingHealth] = useState(false);
+  const [regMode, setRegMode] = useState<StraightRegistrationMode>('signup');
+  const [regModeUpdatedAt, setRegModeUpdatedAt] = useState('');
+  const [savingRegMode, setSavingRegMode] = useState(false);
 
   useEffect(() => {
     (async () => {
       try {
-        const settings = await getStraightAiSettings();
-        setProvider(settings.draft_provider);
-        setClaudeModel(settings.claude_model);
-        setDeepseekModel(settings.deepseek_model);
-        setUpdatedAt(settings.updated_at);
+        const [aiSettings, straightSettings] = await Promise.all([
+          getStraightAiSettings(),
+          getStraightSettings(),
+        ]);
+        setProvider(aiSettings.draft_provider);
+        setClaudeModel(aiSettings.claude_model);
+        setDeepseekModel(aiSettings.deepseek_model);
+        setUpdatedAt(aiSettings.updated_at);
+        setRegMode(straightSettings.registration_mode);
+        setRegModeUpdatedAt(straightSettings.updated_at);
         checkHealth();
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to load settings');
@@ -87,6 +98,20 @@ export function AdminSettings() {
     }
   };
 
+  const saveRegMode = async () => {
+    setSavingRegMode(true);
+    try {
+      await updateStraightSettings({ registrationMode: regMode });
+      toast.success('Registration mode updated');
+      const next = await getStraightSettings();
+      setRegModeUpdatedAt(next.updated_at);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save registration mode');
+    } finally {
+      setSavingRegMode(false);
+    }
+  };
+
   return (
     <AdminLayout>
       <div className="p-6 md:p-10 max-w-5xl mx-auto">
@@ -119,6 +144,73 @@ export function AdminSettings() {
           </div>
         ) : (
           <div className="space-y-6">
+            {/* Registration Mode Toggle */}
+            <div className="bg-white rounded-2xl ring-1 ring-slate-200 p-6">
+              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Users size={18} className="text-orange-600" />
+                    <h2 className="text-lg font-bold text-slate-900">Front-Door Mode</h2>
+                  </div>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Control whether new visitors can sign up directly or must join the waitlist first.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={saveRegMode}
+                  disabled={savingRegMode}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-500 text-white text-sm font-semibold"
+                >
+                  {savingRegMode ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                  Save mode
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setRegMode('signup')}
+                  className={`text-left rounded-2xl border-2 p-5 transition ${
+                    regMode === 'signup' ? 'border-orange-500 bg-orange-50' : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-bold text-slate-900">Open Sign Up</p>
+                      <p className="text-sm text-slate-600 mt-1 leading-relaxed">
+                        Visitors can create an account and access the dashboard immediately. Use this when you want to accept new clients.
+                      </p>
+                    </div>
+                    {regMode === 'signup' && <CheckCircle2 size={22} className="text-orange-600 shrink-0" />}
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRegMode('waitlist')}
+                  className={`text-left rounded-2xl border-2 p-5 transition ${
+                    regMode === 'waitlist' ? 'border-orange-500 bg-orange-50' : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-bold text-slate-900">Waitlist Only</p>
+                      <p className="text-sm text-slate-600 mt-1 leading-relaxed">
+                        All CTA buttons redirect to the waitlist page. New signups are blocked. Use this to control intake volume.
+                      </p>
+                    </div>
+                    {regMode === 'waitlist' && <CheckCircle2 size={22} className="text-orange-600 shrink-0" />}
+                  </div>
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-500 mt-4">
+                {regModeUpdatedAt ? `Last updated ${new Date(regModeUpdatedAt).toLocaleString()}.` : ''}
+                Changes take effect immediately across the landing page, nav, and signup page.
+              </p>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {PROVIDERS.map((item) => {
                 const active = provider === item.id;

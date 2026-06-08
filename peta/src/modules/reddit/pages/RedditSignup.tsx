@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft, Check, Loader2, Shield, Lock } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../../../lib/supabase';
+import { getStraightRegistrationMode } from '../lib/api';
 import { WebsiteFieldCRO } from '../components/WebsiteFieldCRO';
 
 function GoogleLogo() {
@@ -40,6 +41,19 @@ export function RedditSignup() {
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+
+  useEffect(() => {
+    getStraightRegistrationMode()
+      .then((mode) => {
+        if (mode === 'waitlist') {
+          setBlocked(true);
+          toast('Sign up is currently closed. Join the waitlist instead.', { icon: '🔒' });
+          setTimeout(() => navigate('/reddit/waitlist'), 1500);
+        }
+      })
+      .catch(() => { /* fail open — allow signup if RPC fails */ });
+  }, [navigate]);
 
   const pwdScore = (() => {
     if (!password) return { score: 0, label: '', color: 'bg-slate-200' };
@@ -277,13 +291,18 @@ export function RedditSignup() {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || blocked}
               className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold shadow-lg shadow-orange-500/20"
             >
               {loading ? (
                 <>
                   <Loader2 size={16} className="animate-spin" />
                   Creating account...
+                </>
+              ) : blocked ? (
+                <>
+                  <Lock size={16} />
+                  Sign up closed
                 </>
               ) : (
                 'Create account'
