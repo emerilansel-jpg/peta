@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import {
+  AlertCircle,
   ArrowLeft,
   ArrowRight,
   Bot,
@@ -546,14 +547,18 @@ export function RankingForumPage() {
                       <div className="space-y-1.5">
                         {scan.results.map((result) => {
                           const selected = selectedForumUrls.some((item) => item.url === result.url);
+                          const isDisabledPlatform = !commentPriceFor(result.url).enabled;
                           return (
-                            <div key={result.url} className={`flex items-center gap-3 rounded-lg ring-1 pl-2.5 pr-2 py-2 transition ${selected ? 'bg-orange-50 ring-orange-300' : 'bg-white ring-slate-150 hover:ring-orange-200'}`}>
+                            <div key={result.url} className={`flex items-center gap-3 rounded-lg ring-1 pl-2.5 pr-2 py-2 transition ${selected ? 'bg-orange-50 ring-orange-300' : 'bg-white ring-slate-150 hover:ring-orange-200'} ${isDisabledPlatform ? 'opacity-60' : ''}`}>
                               <button onClick={() => toggleForumUrl(scan.keyword, result)} className="flex items-center gap-3 min-w-0 flex-1 text-left">
                                 <span className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${selected ? 'bg-orange-500 text-white' : 'bg-slate-100 text-transparent ring-1 ring-slate-200'}`}>
                                   <Check size={13} />
                                 </span>
                                 <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold uppercase shrink-0">{result.platform}</span>
                                 <span className="text-sm font-medium text-slate-900 truncate">{result.title}</span>
+                                {isDisabledPlatform && (
+                                  <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[10px] font-bold uppercase shrink-0">Paused</span>
+                                )}
                               </button>
                               <a href={result.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-white shrink-0" aria-label="Open page" title="Open page">
                                 <ExternalLink size={14} />
@@ -572,7 +577,12 @@ export function RankingForumPage() {
               <StickyAction>
                 <div>
                   <p className="font-bold text-slate-900">{selectedForumUrls.length} forum page{selectedForumUrls.length === 1 ? '' : 's'} selected</p>
-                  <p className="text-xs text-slate-500">Estimated order cost: {formatUSD(selectedUrlCost)}</p>
+                  <p className="text-xs text-slate-500">
+                    Estimated order cost: {formatUSD(selectedUrlCost)}
+                    {disabledSelected.length > 0 && (
+                      <span className="text-amber-600 font-semibold"> · {disabledSelected.length} paused platform{disabledSelected.length === 1 ? '' : 's'}</span>
+                    )}
+                  </p>
                 </div>
                 <button onClick={() => setStep('comment')} disabled={!selectedForumUrls.length} className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-semibold">
                   Choose comment
@@ -586,6 +596,18 @@ export function RankingForumPage() {
         {/* STEP: COMMENT */}
         {step === 'comment' && (
           <section className="bg-white rounded-2xl ring-1 ring-slate-200 p-6 md:p-8 space-y-7">
+            {disabledSelected.length > 0 && (
+              <div className="p-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 text-sm text-amber-900 flex items-start gap-2">
+                <AlertCircle size={16} className="shrink-0 mt-0.5 text-amber-500" />
+                <div>
+                  <p className="font-semibold">{disabledSelected.length} selected page{disabledSelected.length === 1 ? '' : 's'} from a paused platform</p>
+                  <p className="text-amber-700 text-xs mt-0.5">
+                    {disabledSelected.map((t) => t.platform).join(', ')} comment placement is currently turned off in settings. Remove {disabledSelected.length === 1 ? 'it' : 'them'} to continue, or switch the mention style.
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div>
               <h2 className="font-bold text-slate-900">How should the comments be written?</h2>
               <p className="text-sm text-slate-500 mt-1">
@@ -649,14 +671,19 @@ export function RankingForumPage() {
 
                 {/* Per-page draft cards */}
                 <div className="space-y-3">
-                  {selectedForumUrls.map((target) => (
-                    <div key={target.url} className="rounded-xl ring-1 ring-slate-200 p-4">
+                  {selectedForumUrls.map((target) => {
+                    const isDisabledPlatform = !commentPriceFor(target.url).enabled;
+                    return (
+                    <div key={target.url} className={`rounded-xl ring-1 p-4 ${isDisabledPlatform ? 'ring-amber-300 bg-amber-50/30' : 'ring-slate-200'}`}>
                       <div className="flex items-center justify-between gap-2 mb-2">
                         <div className="flex items-center gap-2 min-w-0">
                           <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold uppercase shrink-0">{target.platform}</span>
                           <span className="text-sm font-semibold text-slate-900 truncate">{target.title}</span>
+                          {isDisabledPlatform && (
+                            <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[10px] font-bold uppercase shrink-0">Paused</span>
+                          )}
                         </div>
-                        <button type="button" onClick={() => regenerateOne(target)} disabled={genBusy[target.url] || generatingAll} className="shrink-0 inline-flex items-center gap-1 text-xs font-semibold text-orange-600 hover:text-orange-700 disabled:opacity-50">
+                        <button type="button" onClick={() => regenerateOne(target)} disabled={genBusy[target.url] || generatingAll || isDisabledPlatform} className="shrink-0 inline-flex items-center gap-1 text-xs font-semibold text-orange-600 hover:text-orange-700 disabled:opacity-50">
                           {genBusy[target.url] ? <Loader2 size={12} className="animate-spin" /> : <RefreshCcw size={12} />}
                           {drafts[target.url] ? 'Regenerate' : 'Generate'}
                         </button>
@@ -664,13 +691,15 @@ export function RankingForumPage() {
                       <textarea
                         value={drafts[target.url] || ''}
                         onChange={(e) => setDrafts((cur) => ({ ...cur, [target.url]: e.target.value }))}
-                        placeholder="Generate a unique draft for this page, or write it yourself..."
+                        placeholder={isDisabledPlatform ? 'This platform is paused — remove it to continue' : 'Generate a unique draft for this page, or write it yourself...'}
                         rows={4}
-                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 resize-y text-sm text-slate-900"
+                        disabled={isDisabledPlatform}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 resize-y text-sm text-slate-900 disabled:bg-slate-100 disabled:text-slate-400"
                       />
                       <p className="mt-1 text-[11px] text-slate-400">{(drafts[target.url] || '').trim().length} chars (min 20)</p>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -696,7 +725,15 @@ export function RankingForumPage() {
               <div>
                 <p className="font-bold text-slate-900">{selectedForumUrls.length} page{selectedForumUrls.length === 1 ? '' : 's'} · {formatUSD(selectedUrlCost)}</p>
                 <p className="text-xs text-slate-500">
-                  {wantsSuggestion === null ? 'Choose how the comments are written' : commentReady ? 'Ready to review' : wantsSuggestion ? 'Every page needs its own draft (min 20 chars)' : 'Add your guideline (min 20 chars)'}
+                  {disabledSelected.length > 0
+                    ? `${disabledSelected.length} page${disabledSelected.length === 1 ? '' : 's'} from a paused platform — remove them to continue`
+                    : wantsSuggestion === null
+                    ? 'Choose how the comments are written'
+                    : commentReady
+                    ? 'Ready to review'
+                    : wantsSuggestion
+                    ? 'Every page needs its own draft (min 20 chars)'
+                    : 'Add your guideline (min 20 chars)'}
                 </p>
               </div>
               <button onClick={() => setStep('review')} disabled={wantsSuggestion === null || !commentReady} className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-semibold">
