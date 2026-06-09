@@ -671,13 +671,16 @@ Straight Ltd Admin Registration Mode Toggle:
 Done 2026-07-10 (this session):
 
 ```text
-Ranking Forum UX fix — disabled platform early warning:
+Ranking Forum UX fix — disabled platform early warning + hasBrand bug:
 - Problem: user selects mix of Quora + Reddit URLs, generates all AI drafts,
   but "Review & approve" button stays gray. Message says "Every page needs its
-  own draft (min 20 chars)" even though all drafts exist. Root cause: Reddit
-  comment service is paused in pricing matrix (reddit_comment_plain disabled),
-  so disabledSelected.length > 0 makes commentReady = false. User only finds
-  out AFTER generating drafts — bad UX.
+  own draft (min 20 chars)" even though all drafts exist.
+- Root cause #1 (paused platform): Reddit comment service is paused in pricing
+  matrix (reddit_comment_plain disabled), so disabledSelected.length > 0 makes
+  commentReady = false. User only finds out AFTER generating drafts — bad UX.
+- Root cause #2 (hasBrand bug): commentReady logic required hasBrand=true even
+  though UI label says "Brand (optional)". When user leaves brand empty with
+  all drafts generated, commentReady = false. Button gray, message lies.
 - Fix in RankingForumPage.tsx:
   1. Step 2 (forums list): SERP result cards now show "Paused" badge and
      opacity-60 styling for URLs from a disabled platform. StickyAction cost
@@ -688,9 +691,11 @@ Ranking Forum UX fix — disabled platform early warning:
      badge, disabled textarea with placeholder "This platform is paused...",
      and disabled regenerate button.
   4. Step 3 StickyAction: Button disabled message now shows the REAL reason
-     first — "X page(s) from a paused platform — remove them to continue" —
-     instead of the misleading "Every page needs its own draft" message.
-- Build verified: tsc + vite build pass from main project dir.
+     first — paused platform, missing drafts, or missing brand — instead of
+     the generic misleading "Every page needs its own draft" message.
+  5. commentReady: removed hasBrand requirement. Brand still required to
+     GENERATE new drafts (toast error unchanged), but existing drafts can proceed.
+- Build + deploy verified: tsc + vite build pass, wrangler deploy to prod.
 ```
 
 Done 2026-07-10 (this session):
@@ -712,4 +717,78 @@ HubSpot / non-Reddit upvote order fix — "service paused" error:
 - Migration file updated: peta/supabase/migrations/20260605100000_upvote_any_url_platform_price.sql
 - Commit: cf2267f pushed to origin/main
 - Verification: SQL Editor returned "Success. No rows returned"
+```
+
+Done 2026-06-08 (this session):
+
+```text
+Forgot password via email + WhatsApp (Fonnte) — FULL IMPLEMENTATION:
+- Problem: Login page "Lupa password?" showed toast "Hubungi admin" instead of
+  actual reset flow. User requested forgot password + WA delivery + WA login possibility.
+- Solution implemented:
+  1. New page /forgot-password — army member inputs email or WA number.
+     • Email method: Supabase native resetPasswordForEmail with redirect to /reset-password
+     • WA method: Edge function send-wa-password-reset generates token, stores in
+       password_reset_tokens table (15min expiry), sends reset link via Fonnte API
+  2. New page /reset-password — handles BOTH email reset (Supabase hash in URL)
+     AND WA reset (?token= query param). WA path: verify token RPC → update password
+     via admin_update_user_password RPC → consume token RPC.
+  3. Login.tsx updated: "Lupa password?" now navigates to /forgot-password
+  4. App.tsx: added /forgot-password and /reset-password routes
+  5. api.ts: added sendWaPasswordReset() helper
+  6. Edge function: peta/supabase/functions/send-wa-password-reset/index.ts
+     • Looks up user by WA number in users.whatsapp column
+     • Generates 32-char random token
+     • Stores in password_reset_tokens with 15min expiry
+     • Sends via Fonnte API with reset URL
+  7. DB migration: 20260609000000_password_reset_tokens.sql
+     • Table: password_reset_tokens (id, user_id, token, method, expires_at, used_at)
+     • RPCs: verify_password_reset_token, consume_password_reset_token,
+       admin_update_user_password (service_role only)
+- Build: PASSED (tsc + vite build clean)
+- Git: pushed to origin/main (commits 24a36ef → 748417f → 40c9ad2 → c39e4e6)
+- Vercel deployment: BLOCKED — see "Vercel Deployment Issue" section below
+```
+
+Vercel Deployment Issue (2026-06-08):
+
+```text
+Problem: Vercel not auto-deploying since May 14. Latest deployed commit: 98bf8e5 (May 14).
+Newer commits (including forgot password 24a36ef, HubSpot fix cf2267f) NOT deployed.
+Root cause discovered via WebBridge browser inspection:
+  • Team "n311311-6290s-projects" is PAUSED on Vercel dashboard
+  • Hobby plan edge request limit exceeded: 1.9M / 1M (190% of quota)
+  • Billing cycle resets at 10pm daily (SE Asia time, UTC+7)
+  • When paused, ALL deployments are blocked — GitHub webhooks still fire but
+    Vercel check suites stay "queued" forever
+Attempted fixes:
+  • GitHub deployment API — created deployment but Vercel ignored it (team paused)
+  • Trivial commit push — same result, check suite queued indefinitely
+  • No "unpause" button found in Vercel UI (Hobby plan limitation)
+Resolution plan:
+  • Cron job scheduled: 2026-06-08 22:30 SE Asia time (30min after billing reset)
+  • Job will check if team unpaused, then deploy latest main branch
+  • If still paused after reset: need Vercel Pro upgrade ($20/mo) or contact support
+Current status: WAITING for billing cycle reset
+```
+
+Updated Git State (2026-06-08):
+
+```text
+Recent commits on main:
+c39e4e6 chore: remove deployment trigger file
+40c9ad2 trigger: force Vercel redeploy
+748417f docs(coldstart): HubSpot forum upvote fix applied to prod
+cf2267f fix(straight): add missing GRANT on fn_create_reddit_upvote_order + enable forum_upvote
+f90bf83 fix(ranking-forum): early disabled-platform warning on paused platforms
+24a36ef feat: forgot password via email + WhatsApp (Fonnte)
+```
+
+Updated Secret Status:
+
+```text
+New secret added to Supabase (staging + production):
+FONNTE_TOKEN — for WA password reset edge function
+
+Existing Fonnte token already configured for broadcast/group features.
 ```

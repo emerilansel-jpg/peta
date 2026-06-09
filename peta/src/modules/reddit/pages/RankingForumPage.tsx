@@ -281,7 +281,7 @@ export function RankingForumPage() {
   const commentReady = disabledSelected.length === 0 && (wantsSuggestion === false
     ? commentText.trim().length >= 20
     : wantsSuggestion === true
-      ? hasBrand && selectedForumUrls.length > 0 && selectedForumUrls.every((t) => (drafts[t.url] || '').trim().length >= 20)
+      ? selectedForumUrls.length > 0 && selectedForumUrls.every((t) => (drafts[t.url] || '').trim().length >= 20)
       : false);
 
   const draftSingle = async (target: SelectedForumUrl) => {
@@ -732,7 +732,9 @@ export function RankingForumPage() {
                     : commentReady
                     ? 'Ready to review'
                     : wantsSuggestion
-                    ? 'Every page needs its own draft (min 20 chars)'
+                    ? (selectedForumUrls.some((t) => (drafts[t.url] || '').trim().length < 20)
+                      ? 'Every page needs its own draft (min 20 chars)'
+                      : 'Add your brand or domain to generate drafts')
                     : 'Add your guideline (min 20 chars)'}
                 </p>
               </div>
