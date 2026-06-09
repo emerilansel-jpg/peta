@@ -1,6 +1,6 @@
 # Cold Start Handoff - Straight Ltd + PeTa
 
-Last updated: 2026-06-04
+Last updated: 2026-06-08
 
 Workspace:
 
@@ -41,23 +41,18 @@ D:\Claude Cowork\Reddit Army Local\image (1).png
 Recent commits on `main`:
 
 ```text
-284aa0e Straight Ranking Forum UX: bird-eye select, hide provider, bulk suggested
-1ddf761 Improve ranking provider error details
-f00cd47 Add provider dashboard links to health cards
-47348be Add provider health remediation hints
-8aeb0e7 Show DataForSEO balance in provider health
-e87476b Add SerpAPI ranking provider fallback
-3f0cc03 Show ranking provider preview notices
-c9a77b8 Add Straight provider health checks
-e5b1cbf Improve ranking fallback UX and comment context fetch
-fe42608 Enforce task quotas and duplicate comment blocking
-2291d14 Improve ranking forum persistence and DataForSEO parsing
+c39e4e6 chore: remove deployment trigger file
+40c9ad2 trigger: force Vercel redeploy
+748417f docs(coldstart): HubSpot forum upvote fix applied to prod
+cf2267f fix(straight): add missing GRANT on fn_create_reddit_upvote_order + enable forum_upvote
+f90bf83 fix(ranking-forum): early disabled-platform warning on paused platforms
+24a36ef feat: forgot password via email + WhatsApp (Fonnte)
 ```
 
 Expected dirty state at handoff:
 
 ```text
- M peta/src/pages/admin/ApprovalQueue.tsx
+ M peta/src/modules/reddit/pages/RankingForumPage.tsx
 ?? coldstart.md
 ?? "image (1).png"
 ```
@@ -67,7 +62,7 @@ Notes:
 ```text
 coldstart.md is this handoff file.
 image (1).png is unrelated and must be preserved.
-peta/src/pages/admin/ApprovalQueue.tsx has an uncommitted local enhancement for WhatsApp DM prompts after rejection. Review before committing or deploying.
+RankingForumPage.tsx has uncommitted local changes (disabled-platform warning UX).
 ```
 
 ## Stack
@@ -87,7 +82,8 @@ Supabase Postgres/Auth/Edge Functions
 Deployment:
 
 ```text
-Cloudflare Pages via wrangler
+Vercel (frontend) + Supabase Edge Functions
+Production domain: https://www.penghasilantambahan.com
 ```
 
 Important production domains:
