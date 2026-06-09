@@ -384,11 +384,24 @@ cd "D:\Claude Cowork\Reddit Army Local\peta"
 npm.cmd run build
 ```
 
-Deploy frontend to Cloudflare Pages:
+Deploy frontend to Vercel (auto-deploy from GitHub main branch when team is active):
+
+```text
+Vercel auto-deploys from GitHub pushes to main branch.
+When team is paused (quota exceeded), deployments are blocked.
+See "Vercel Deployment Issue" section for workaround.
+```
+
+Manual deployment workaround when auto-deploy is blocked:
 
 ```powershell
+# Option 1: Push a trivial commit to trigger fresh build
 cd "D:\Claude Cowork\Reddit Army Local\peta"
-npx.cmd wrangler pages deploy dist --project-name=peta --branch=main --commit-dirty=true
+git commit --allow-empty -m "trigger: force redeploy"
+git push origin main
+
+# Option 2: Create GitHub deployment via API (bypasses status checks)
+# Requires GitHub token with repo scope
 ```
 
 Deploy Edge Functions to staging:
@@ -396,7 +409,7 @@ Deploy Edge Functions to staging:
 ```powershell
 cd "D:\Claude Cowork\Reddit Army Local\peta"
 $env:SUPABASE_ACCESS_TOKEN='<secure-token>'
-npx.cmd supabase functions deploy generate-forum-comment rank-forum-pages --project-ref duxzxizedtvnopfihllz --use-api
+npx.cmd supabase functions deploy send-wa-password-reset --project-ref duxzxizedtvnopfihllz --use-api
 ```
 
 Deploy Edge Functions to production:
@@ -404,7 +417,7 @@ Deploy Edge Functions to production:
 ```powershell
 cd "D:\Claude Cowork\Reddit Army Local\peta"
 $env:SUPABASE_ACCESS_TOKEN='<secure-token>'
-npx.cmd supabase functions deploy generate-forum-comment rank-forum-pages --project-ref yorlsgzsawchpeeazcvi --use-api
+npx.cmd supabase functions deploy send-wa-password-reset --project-ref yorlsgzsawchpeeazcvi --use-api
 ```
 
 Apply DB migrations only after reviewing the SQL:
