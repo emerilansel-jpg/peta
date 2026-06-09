@@ -1,6 +1,11 @@
 # Cold Start Handoff - Straight Ltd + PeTa
 
-Last updated: 2026-06-04
+> ⚠️ LATEST (2026-06-10): read **`docs/CHECKPOINT_20260610_audit_round.md`** FIRST — it supersedes the
+> git-state and paths below. Active repo is now **`G:\SF Project\peta-main`** (NOT the `D:\Claude Cowork`
+> path below). Latest work is on branch **`fix/audit-2026-06-09`** — committed, NOT pushed/merged, and
+> **prod is already live with it** (deployed to BOTH Pages projects `peta` + `straight`).
+
+Last updated: 2026-06-04 (audit round 2026-06-09/10 — see checkpoint linked above)
 
 Workspace:
 
