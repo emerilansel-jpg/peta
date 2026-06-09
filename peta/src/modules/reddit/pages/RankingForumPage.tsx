@@ -104,7 +104,9 @@ export function RankingForumPage() {
   const [step, setStep] = useState<StepId>(initialDraft?.step || 'seed');
   const [wantsSuggestion, setWantsSuggestion] = useState<boolean | null>(initialDraft?.wantsSuggestion ?? null);
   const [mentionMode, setMentionMode] = useState<'plain' | 'link'>(initialDraft?.mentionMode || 'plain');
-  const [commentText, setCommentText] = useState(initialDraft?.commentText || '');
+  // commentText is retained only for draft back-compat; self-mode now writes
+  // per-page comments into drafts[] (see the comment step).
+  const [commentText] = useState(initialDraft?.commentText || '');
   const [drafts, setDrafts] = useState<Record<string, string>>(() => (initialDraft?.drafts && typeof initialDraft.drafts === 'object') ? initialDraft.drafts : {});
   const [generatingAll, setGeneratingAll] = useState(false);
   const [genBusy, setGenBusy] = useState<Record<string, boolean>>({});
@@ -115,12 +117,17 @@ export function RankingForumPage() {
 
   // Comment costs come from the admin pricing matrix (per platform + plain/link),
   // with hardcoded fallbacks if the table isn't available yet.
+  // "Let AI write it" is a +10% premium over the base comment price; writing it
+  // yourself pays the base. Link mention only applies in AI mode.
+  const AI_WRITE_MULTIPLIER = 1.1;
   const commentMode: 'plain' | 'link' = (wantsSuggestion && mentionMode === 'link') ? 'link' : 'plain';
   const platformOf = (url: string) => (/(^|\.)reddit\.com/i.test(url) ? 'reddit' : 'forum');
   const commentPriceFor = (url: string): { cents: number; enabled: boolean } => {
     const row = pricing.find((r) => r.key === `${platformOf(url)}_comment_${commentMode}`);
-    if (row) return { cents: row.price_cents, enabled: row.enabled };
-    return { cents: commentMode === 'link' ? SUGGESTED_COMMENT_PRICE_CENTS : FORUM_COMMENT_PRICE_CENTS, enabled: true };
+    const base = row ? row.price_cents : (commentMode === 'link' ? SUGGESTED_COMMENT_PRICE_CENTS : FORUM_COMMENT_PRICE_CENTS);
+    const enabled = row ? row.enabled : true;
+    // +10% when AI writes it; self-written pays the base.
+    return { cents: wantsSuggestion ? Math.round(base * AI_WRITE_MULTIPLIER) : base, enabled };
   };
   const priceCents = (key: string, fallback: number) => pricing.find((r) => r.key === key)?.price_cents ?? fallback;
   // Representative card price follows the platform of the first selected page, so
@@ -128,6 +135,8 @@ export function RankingForumPage() {
   const repPlatform = platformOf(selectedForumUrls[0]?.url || '');
   const repPlain = priceCents(`${repPlatform}_comment_plain`, FORUM_COMMENT_PRICE_CENTS);
   const repLink = priceCents(`${repPlatform}_comment_link`, SUGGESTED_COMMENT_PRICE_CENTS);
+  const repPlainAi = Math.round(repPlain * AI_WRITE_MULTIPLIER);
+  const repLinkAi = Math.round(repLink * AI_WRITE_MULTIPLIER);
   const selectedUrlCost = selectedForumUrls.reduce((sum, t) => sum + commentPriceFor(t.url).cents, 0);
   const disabledSelected = selectedForumUrls.filter((t) => !commentPriceFor(t.url).enabled);
   const hasEnoughCreditForBulk = selectedForumUrls.length > 0 && balance >= selectedUrlCost && disabledSelected.length === 0;
@@ -235,7 +244,7 @@ export function RankingForumPage() {
     window.localStorage.removeItem(RANKING_DRAFT_KEY);
     setSeed(''); setBrand(''); setDomain('');
     setForumScans([]); setSelectedForumUrls([]); setKeywordProvider(''); setIdeasCount(0);
-    setWantsSuggestion(null); setMentionMode('plain'); setCommentText(''); setDrafts({});
+    setWantsSuggestion(null); setMentionMode('plain'); setDrafts({});
     setBaseline(null); setStep('seed'); setNotice('');
   };
 
@@ -277,11 +286,11 @@ export function RankingForumPage() {
 
   const hasBrand = !!(brand.trim() || domain.trim());
   // Each selected page must end up with its OWN comment — never the same text twice.
-  const commentReady = disabledSelected.length === 0 && (wantsSuggestion === false
-    ? commentText.trim().length >= 20
-    : wantsSuggestion === true
-      ? hasBrand && selectedForumUrls.length > 0 && selectedForumUrls.every((t) => (drafts[t.url] || '').trim().length >= 20)
-      : false);
+  // Both modes need a unique comment per page (min 20 chars). AI fills drafts[]
+  // via the generator; self-write has the client type each one directly.
+  const commentReady = disabledSelected.length === 0 && wantsSuggestion !== null
+    && selectedForumUrls.length > 0
+    && selectedForumUrls.every((t) => (drafts[t.url] || '').trim().length >= 20);
 
   const draftSingle = async (target: SelectedForumUrl) => {
     const res = await generateForumComment({
@@ -335,7 +344,7 @@ export function RankingForumPage() {
     if (!hasEnoughCreditForBulk || !selectedForumUrls.length || !commentReady) return;
     try {
       const orders = await Promise.all(selectedForumUrls.map((target) => {
-        const text = wantsSuggestion ? (drafts[target.url] || '').trim() : commentText.trim();
+        const text = (drafts[target.url] || '').trim();
         return createForumCommentOrderAsync({
           targetUrl: target.url,
           platform: target.platform || null,
@@ -348,7 +357,7 @@ export function RankingForumPage() {
           notes: [
             'bulk_source=ranking_forum',
             `bulk_target_title=${target.title}`,
-            wantsSuggestion ? 'comment=ai_unique_per_page' : 'comment=client_guideline_unique_per_thread',
+            wantsSuggestion ? 'comment=ai_unique_per_page' : 'comment=client_written_per_page',
           ].join('\n'),
         });
       }));
@@ -603,15 +612,16 @@ export function RankingForumPage() {
                 <p className="text-sm text-slate-600 leading-relaxed">
                   AI writes a <strong>unique</strong> comment per page, drafted from that thread, with one natural brand mention. You review &amp; edit each before ordering.
                 </p>
-                <p className="mt-3 text-sm font-bold text-orange-700">{formatUSD(repPlain)} / comment · {formatUSD(repLink)} with link</p>
+                <p className="mt-3 text-sm font-bold text-orange-700">{formatUSD(repPlainAi)} / comment · {formatUSD(repLinkAi)} with link</p>
+                <p className="text-[11px] text-orange-600/80 mt-0.5">+10% — AI writes it, you review &amp; edit each</p>
               </button>
               <button type="button" onClick={() => setWantsSuggestion(false)} className={`text-left p-5 rounded-xl border-2 transition ${wantsSuggestion === false ? 'border-slate-900 bg-slate-50' : 'border-slate-200 hover:border-slate-300'}`}>
                 <div className="flex items-center gap-2 mb-2">
                   <Edit3 size={17} className="text-slate-700" />
-                  <span className="font-bold text-slate-900">I&rsquo;ll give a guideline</span>
+                  <span className="font-bold text-slate-900">I&rsquo;ll write it myself</span>
                 </div>
                 <p className="text-sm text-slate-600 leading-relaxed">
-                  Give one guideline. Our writer creates a <strong>unique</strong> comment for each thread following it — never copy-pasted.
+                  Write your own <strong>unique</strong> comment for each page. We post exactly what you write.
                 </p>
                 <p className="mt-3 text-sm font-bold text-slate-900">{formatUSD(repPlain)} / comment</p>
               </button>
@@ -675,31 +685,57 @@ export function RankingForumPage() {
               </div>
             )}
 
-            {/* Self mode: one guideline, worker writes unique per thread */}
+            {/* Self mode: client writes their OWN unique comment for each page */}
             {wantsSuggestion === false && (
-              <div>
-                <label className="block text-sm font-semibold text-slate-900 mb-2">Your guideline (applies to every page)</label>
-                <textarea
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  placeholder="e.g. Mention our brand as a helpful option when people ask about X. Keep it casual, no hard sell..."
-                  rows={6}
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 resize-y text-slate-900"
-                />
-                <p className="mt-2 text-xs text-slate-500">
-                  Minimum 20 characters. {commentText.trim().length} entered. Our writer turns this into a <strong>unique</strong> comment per thread — never copy-pasted.
+              <div className="space-y-3">
+                <p className="text-sm text-slate-600">
+                  Write your own comment for each page below. Each must be unique (min 20 chars) — we post exactly what you write.
                 </p>
+                {selectedForumUrls.map((target) => (
+                  <div key={target.url} className="rounded-xl ring-1 ring-slate-200 p-4">
+                    <div className="flex items-center gap-2 mb-2 min-w-0">
+                      <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold uppercase shrink-0">{target.platform}</span>
+                      <span className="text-sm font-semibold text-slate-900 truncate">{target.title}</span>
+                    </div>
+                    <textarea
+                      value={drafts[target.url] || ''}
+                      onChange={(e) => setDrafts((cur) => ({ ...cur, [target.url]: e.target.value }))}
+                      placeholder="Write your comment for this page..."
+                      rows={4}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 resize-y text-sm text-slate-900"
+                    />
+                    <p className="mt-1 text-[11px] text-slate-400">{(drafts[target.url] || '').trim().length} chars (min 20)</p>
+                  </div>
+                ))}
               </div>
             )}
 
             <StickyAction>
               <div>
                 <p className="font-bold text-slate-900">{selectedForumUrls.length} page{selectedForumUrls.length === 1 ? '' : 's'} · {formatUSD(selectedUrlCost)}</p>
-                <p className="text-xs text-slate-500">
-                  {wantsSuggestion === null ? 'Choose how the comments are written' : commentReady ? 'Ready to review' : wantsSuggestion ? 'Every page needs its own draft (min 20 chars)' : 'Add your guideline (min 20 chars)'}
+                <p className={`text-xs flex items-center gap-1.5 ${commentReady ? 'text-emerald-600' : 'text-amber-600 font-semibold'}`}>
+                  {commentReady && <Check size={13} />}
+                  {wantsSuggestion === null ? 'First: choose how the comments are written' : commentReady ? 'Ready to review' : wantsSuggestion ? 'Each page needs its own draft (min 20 chars)' : 'Write a comment for each page (min 20 chars)'}
                 </p>
               </div>
-              <button onClick={() => setStep('review')} disabled={wantsSuggestion === null || !commentReady} className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-semibold">
+              {/* Button stays clickable so it can explain what's missing — a disabled
+                  button that does nothing on tap reads as "broken". */}
+              <button
+                onClick={() => {
+                  if (wantsSuggestion === null) {
+                    toast.error('First choose how the comments are written — "Let AI write it" or "I’ll write it myself".');
+                    return;
+                  }
+                  if (!commentReady) {
+                    toast.error(wantsSuggestion
+                      ? 'Each selected page needs its own draft (min 20 characters).'
+                      : 'Write a comment for each selected page (min 20 characters).');
+                    return;
+                  }
+                  setStep('review');
+                }}
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold"
+              >
                 Review &amp; approve
                 <ArrowRight size={14} />
               </button>
@@ -714,12 +750,12 @@ export function RankingForumPage() {
               <div className="px-6 py-5 border-b border-slate-100">
                 <h2 className="font-bold text-slate-900">Review queue</h2>
                 <p className="text-sm text-slate-500 mt-1">
-                  {wantsSuggestion ? 'Each page has its own unique AI draft.' : 'Each page gets a unique comment written from your guideline.'}
+                  {wantsSuggestion ? 'Each page has its own unique AI draft.' : 'Each page has the unique comment you wrote.'}
                 </p>
               </div>
               <div className="p-4 space-y-2">
                 {selectedForumUrls.map((item) => {
-                  const preview = wantsSuggestion ? (drafts[item.url] || '') : commentText;
+                  const preview = drafts[item.url] || '';
                   return (
                     <div key={item.url} className="rounded-xl bg-slate-50 ring-1 ring-slate-100 p-4">
                       <div className="flex items-start justify-between gap-3">
@@ -753,7 +789,7 @@ export function RankingForumPage() {
               <h3 className="font-bold text-slate-900">Credit check</h3>
               <div className="mt-4 space-y-3">
                 <SummaryRow label="Pages" value={String(selectedForumUrls.length)} />
-                <SummaryRow label="Comment type" value={wantsSuggestion ? 'AI (unique/page)' : 'Guideline (unique/page)'} />
+                <SummaryRow label="Comment type" value={wantsSuggestion ? 'AI +10% (unique/page)' : 'You wrote it (unique/page)'} />
                 <SummaryRow label="Link in comment" value={commentMode === 'link' ? 'Yes' : 'No'} />
                 <SummaryRow label="Estimated total" value={formatUSD(selectedUrlCost)} strong />
                 <SummaryRow label="Available credit" value={formatUSD(balance)} />

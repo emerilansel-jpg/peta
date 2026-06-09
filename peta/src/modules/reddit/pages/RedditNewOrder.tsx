@@ -704,12 +704,17 @@ function ForumCommentOrderForm({
   // Price comes from the matrix: {reddit|forum}_comment_{plain|link}. Link price
   // applies only when an AI-suggested comment with a brand link is requested.
   const mode: 'plain' | 'link' = wantsSuggestion === true && mentionMode === 'link' ? 'link' : 'plain';
-  const priceFor = (url: string) =>
-    straightPrice(
+  // "Let AI write it" is a +10% premium over the base comment price; self-written
+  // pays the base. Mirrors fn_create_forum_comment_order so display == charge.
+  const AI_WRITE_MULTIPLIER = 1.1;
+  const priceFor = (url: string) => {
+    const base = straightPrice(
       pricing,
       `${straightPlatformKey(url)}_comment_${mode}`,
       mode === 'link' ? FALLBACK_COMMENT_LINK_CENTS : FALLBACK_COMMENT_PLAIN_CENTS
     );
+    return wantsSuggestion === true ? Math.round(base * AI_WRITE_MULTIPLIER) : base;
+  };
   const enabledFor = (url: string) =>
     straightEnabled(pricing, `${straightPlatformKey(url)}_comment_${mode}`, true);
   const unitCost = priceFor(targetUrl);
@@ -1011,7 +1016,7 @@ function ForumCommentOrderForm({
             >
               <div className="flex items-center gap-2 mb-2">
                 <Sparkles size={17} className="text-orange-600" />
-                <span className="font-bold text-slate-900">Yes, write it for me</span>
+                <span className="font-bold text-slate-900">Let AI write it</span>
               </div>
               <p className="text-sm text-slate-600 leading-relaxed">
                 {isBulk
@@ -1019,8 +1024,9 @@ function ForumCommentOrderForm({
                   : "AI draft included. Our editorial assistant reviews the public conversation, adapts to the thread's tone, and drafts a useful reply with one natural brand mention. You review, edit, and approve before ordering."}
               </p>
               <p className="mt-3 text-sm font-bold text-orange-700">
-                {formatUSD(cardBasePrice)}{cardLinkPrice !== cardBasePrice ? ` · ${formatUSD(cardLinkPrice)} with link` : ''}{isBulk ? ' / comment' : ''}
+                {formatUSD(Math.round(cardBasePrice * AI_WRITE_MULTIPLIER))}{cardLinkPrice !== cardBasePrice ? ` · ${formatUSD(Math.round(cardLinkPrice * AI_WRITE_MULTIPLIER))} with link` : ''}{isBulk ? ' / comment' : ''}
               </p>
+              <p className="text-[11px] text-orange-600/80 mt-0.5">+10% — AI writes it, you approve</p>
             </button>
             <button
               type="button"
@@ -1031,7 +1037,7 @@ function ForumCommentOrderForm({
             >
               <div className="flex items-center gap-2 mb-2">
                 <Edit3 size={17} className="text-slate-700" />
-                <span className="font-bold text-slate-900">No, I will write it</span>
+                <span className="font-bold text-slate-900">I&rsquo;ll write it myself</span>
               </div>
               <p className="text-sm text-slate-600 leading-relaxed">
                 {isBulk
@@ -1182,8 +1188,8 @@ function ForumCommentOrderForm({
           </div>
           {wantsSuggestion && (
             <div className="flex justify-between text-sm mb-2">
-              <span className="text-slate-600">AI draft assist</span>
-              <span className="text-emerald-700 font-semibold">Included</span>
+              <span className="text-slate-600">AI write</span>
+              <span className="text-emerald-700 font-semibold">+10% (in price)</span>
             </div>
           )}
           <div className="flex justify-between pt-3 mt-3 border-t border-slate-200">

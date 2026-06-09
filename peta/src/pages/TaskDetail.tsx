@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import {
   ArrowLeft, ExternalLink, Check, Camera, Link as LinkIcon, X, Upload,
-  ArrowRight, MessageCircle, Target, Sparkles,
+  ArrowRight, MessageCircle, Target, Sparkles, Copy,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
@@ -435,9 +435,27 @@ export function TaskDetail() {
           {task.brief && task.brief.trim() && (
             <div className="space-y-3 mb-3">
               <div className="bg-yellow-50 ring-1 ring-yellow-300 rounded-xl p-3">
-                <p className="text-[10px] uppercase font-bold tracking-wide text-yellow-900 mb-1">
-                  Komentar yang harus diposting
-                </p>
+                <div className="flex items-center justify-between gap-2 mb-1">
+                  <p className="text-[10px] uppercase font-bold tracking-wide text-yellow-900">
+                    Komentar yang harus diposting
+                  </p>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const text = splitForumBrief(task.brief).commentPost.trim();
+                      try {
+                        await navigator.clipboard.writeText(text);
+                        toast.success('Komentar disalin! Tinggal paste — jangan diedit.');
+                      } catch {
+                        toast.error('Gagal menyalin otomatis. Copy manual ya.');
+                      }
+                    }}
+                    className="shrink-0 inline-flex items-center gap-1 text-[11px] font-bold text-yellow-900 bg-yellow-200 hover:bg-yellow-300 active:bg-yellow-300 rounded-lg px-2.5 py-1.5 tap-shrink"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    Copy komentar
+                  </button>
+                </div>
                 <p className="text-sm text-yellow-950 whitespace-pre-line leading-relaxed">
                   {splitForumBrief(task.brief).commentPost}
                 </p>

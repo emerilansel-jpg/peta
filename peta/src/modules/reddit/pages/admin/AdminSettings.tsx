@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Bot, CheckCircle2, ExternalLink, KeyRound, Loader2, RefreshCw, Save, ShieldCheck } from 'lucide-react';
+import { AlertTriangle, Bot, CheckCircle2, DoorOpen, ExternalLink, KeyRound, ListChecks, Loader2, RefreshCw, Save, ShieldCheck, UserPlus } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { AdminBreadcrumb, AdminLayout } from '../../components/AdminLayout';
 import {
   getStraightAiSettings,
   getStraightProviderHealth,
   updateStraightAiSettings,
+  getFrontDoorMode,
+  adminSetFrontDoorMode,
   type ProviderHealthStatus,
   type StraightProviderHealth,
   type StraightDraftProvider,
+  type FrontDoorMode,
 } from '../../lib/api';
 
 const PROVIDERS: Array<{
@@ -40,6 +43,8 @@ export function AdminSettings() {
   const [updatedAt, setUpdatedAt] = useState('');
   const [health, setHealth] = useState<StraightProviderHealth | null>(null);
   const [checkingHealth, setCheckingHealth] = useState(false);
+  const [frontDoorMode, setFrontDoorMode] = useState<FrontDoorMode>('signup');
+  const [savingFrontDoor, setSavingFrontDoor] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -49,6 +54,7 @@ export function AdminSettings() {
         setClaudeModel(settings.claude_model);
         setDeepseekModel(settings.deepseek_model);
         setUpdatedAt(settings.updated_at);
+        setFrontDoorMode(await getFrontDoorMode());
         checkHealth();
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to load settings');
@@ -66,6 +72,23 @@ export function AdminSettings() {
       toast.error(error instanceof Error ? error.message : 'Failed to check provider health');
     } finally {
       setCheckingHealth(false);
+    }
+  };
+
+  const saveFrontDoor = async (mode: FrontDoorMode) => {
+    const prev = frontDoorMode;
+    setFrontDoorMode(mode); // optimistic
+    setSavingFrontDoor(true);
+    try {
+      await adminSetFrontDoorMode(mode);
+      toast.success(mode === 'waitlist'
+        ? 'Front door set to Waitlist — new visitors join the waitlist.'
+        : 'Front door set to Open signup.');
+    } catch (error) {
+      setFrontDoorMode(prev); // revert
+      toast.error(error instanceof Error ? error.message : 'Failed to update front door');
+    } finally {
+      setSavingFrontDoor(false);
     }
   };
 
@@ -119,6 +142,57 @@ export function AdminSettings() {
           </div>
         ) : (
           <div className="space-y-6">
+            <div className="bg-white rounded-2xl ring-1 ring-slate-200 p-6">
+              <div className="flex items-center gap-2 mb-1">
+                <DoorOpen size={18} className="text-orange-600" />
+                <h2 className="text-lg font-bold text-slate-900">Front door — who can join</h2>
+              </div>
+              <p className="text-sm text-slate-500 mb-4">
+                Controls the public landing CTA. Switch to <strong>Waitlist only</strong> to throttle new clients —
+                the primary buttons route to the waitlist instead of open signup. Saved instantly.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => saveFrontDoor('signup')}
+                  disabled={savingFrontDoor}
+                  className={`text-left rounded-2xl border-2 p-5 transition disabled:opacity-60 ${
+                    frontDoorMode === 'signup' ? 'border-orange-500 bg-orange-50' : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <UserPlus size={18} className="text-slate-700" />
+                        <p className="text-lg font-bold text-slate-900">Open signup</p>
+                      </div>
+                      <p className="text-sm text-slate-600 mt-1 leading-relaxed">Anyone can create an account and order right away.</p>
+                    </div>
+                    {frontDoorMode === 'signup' && <CheckCircle2 size={22} className="text-orange-600 shrink-0" />}
+                  </div>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => saveFrontDoor('waitlist')}
+                  disabled={savingFrontDoor}
+                  className={`text-left rounded-2xl border-2 p-5 transition disabled:opacity-60 ${
+                    frontDoorMode === 'waitlist' ? 'border-orange-500 bg-orange-50' : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <ListChecks size={18} className="text-slate-700" />
+                        <p className="text-lg font-bold text-slate-900">Waitlist only</p>
+                      </div>
+                      <p className="text-sm text-slate-600 mt-1 leading-relaxed">New visitors join a waitlist. Existing clients can still sign in.</p>
+                    </div>
+                    {frontDoorMode === 'waitlist' && <CheckCircle2 size={22} className="text-orange-600 shrink-0" />}
+                  </div>
+                </button>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {PROVIDERS.map((item) => {
                 const active = provider === item.id;

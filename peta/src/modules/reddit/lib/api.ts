@@ -231,6 +231,32 @@ export function straightPlatformKey(url: string | null | undefined): 'reddit' | 
   return /reddit\.com/i.test(url || '') ? 'reddit' : 'forum';
 }
 
+// ============ Front door mode (admin-controllable signup vs waitlist) ============
+
+export type FrontDoorMode = 'signup' | 'waitlist';
+
+// Public read (anon-allowed). The landing uses this to pick its primary CTA.
+// Falls back to 'signup' on any error / before the migration is applied, so the
+// landing never breaks.
+export async function getFrontDoorMode(): Promise<FrontDoorMode> {
+  try {
+    const { data, error } = await supabase
+      .from('straight_site_settings')
+      .select('front_door_mode')
+      .eq('id', true)
+      .maybeSingle();
+    if (error || !data) return 'signup';
+    return (data.front_door_mode as FrontDoorMode) || 'signup';
+  } catch {
+    return 'signup';
+  }
+}
+
+export async function adminSetFrontDoorMode(mode: FrontDoorMode) {
+  const { error } = await supabase.rpc('admin_set_front_door_mode', { p_mode: mode });
+  if (error) throw error;
+}
+
 export type ProviderHealthStatus = 'ok' | 'missing' | 'error';
 
 export type StraightProviderHealth = {

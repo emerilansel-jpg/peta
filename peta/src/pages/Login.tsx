@@ -16,7 +16,21 @@ export function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      let loginEmail = email.trim();
+      // Login with WhatsApp number: no '@' = treat as phone, resolve to the
+      // account email first, then use the normal password sign-in (no SMS cost).
+      if (loginEmail && !loginEmail.includes('@')) {
+        const { data: resolved, error: rpcErr } = await supabase.rpc('get_email_by_whatsapp', {
+          p_whatsapp: loginEmail,
+        });
+        if (rpcErr) throw rpcErr;
+        if (!resolved) {
+          toast.error('Nomor WhatsApp ini belum terdaftar. Cek lagi atau pakai email ya.');
+          return;
+        }
+        loginEmail = resolved as string;
+      }
+      const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
       if (error) throw error;
       toast.success('Login berhasil! 🎉');
       navigate('/tasks');
@@ -59,15 +73,15 @@ export function Login() {
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>
-              <label className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">Email</label>
+              <label className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">Email atau No. WhatsApp</label>
               <input
-                type="email"
+                type="text"
                 inputMode="email"
-                autoComplete="email"
+                autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full min-h-[48px] px-4 py-3 text-base bg-light border-2 border-transparent rounded-xl focus:outline-none focus:border-primary focus:bg-white transition-all"
-                placeholder="kamu@email.com"
+                placeholder="kamu@email.com atau 0812xxxx"
                 required
               />
             </div>
@@ -77,7 +91,7 @@ export function Login() {
                 <label className="block text-xs font-bold text-dark uppercase tracking-wide">Password</label>
                 <button
                   type="button"
-                  onClick={() => toast.success('Hubungi admin untuk reset password.')}
+                  onClick={() => navigate('/forgot-password')}
                   className="text-xs text-primary font-semibold hover:underline"
                 >
                   Lupa password?

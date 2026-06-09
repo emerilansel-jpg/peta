@@ -4,6 +4,30 @@ Reverse-chronological. Most recent first. Each entry lists what shipped, why, an
 
 ---
 
+## 2026-06-09 — Audit round: pricing fix, auth UX, +10% AI, waitlist toggle, WA reset
+
+Branch `fix/audit-2026-06-09` (worked from `G:\SF Project\peta-main` — note the repo moved off the old `D:\Claude Cowork\Reddit Army Local` path the docs reference).
+
+**Shipped (live now):**
+- **Re-enabled all `reddit_*` rows in `straight_pricing` on prod** — they had been left `enabled=false` (only `forum_*` on), so any reddit.com order was silently blocked. Done via `admin_set_straight_pricing` RPC over REST (prices kept at seed values).
+
+**Built on the branch (compiles; pending prod deploy + migration apply):**
+- **Army copy-comment button** (`TaskDetail.tsx`) — copies ONLY the comment text, not the Indonesian instructions.
+- **Straight "Review & approve" UX** (`RankingForumPage.tsx`) — button no longer disabled-with-no-reason; it's always clickable and toasts exactly what's missing (it was never a Reddit issue).
+- **+10% AI-write pricing** — "Let AI write it" = base comment price ×1.10, "I'll write it myself" = base (client writes their own per-page comment). Mirrored in UI (`RankingForumPage.tsx` + `RedditNewOrder.tsx`) AND `fn_create_forum_comment_order` so display == charge. Migration `20260609140000`.
+- **Admin front-door toggle** (signup vs waitlist) — new `straight_site_settings` singleton (anon-readable) + `admin_set_front_door_mode` RPC; `RedditLanding` CTAs conditional; toggle card in `AdminSettings`. Migration `20260609120000`.
+- **Forgot password (email)** — `ForgotPassword.tsx` + `UpdatePassword.tsx` + routes; Login "Lupa password?" now navigates instead of a fake toast. Needs Auth redirect-URL allowlist + SMTP.
+- **Login with WhatsApp number** — `get_email_by_whatsapp` RPC (resolve → normal password sign-in, no SMS cost). Migration `20260609130000`.
+- **Password reset via WhatsApp OTP (Fonnte free)** — plain-text 6-digit code (no URL, so it passes Fonnte's free-plan link block). Table `wa_password_reset` + `get_user_id_by_whatsapp` (migration `20260609150000`); edge fns `wa-reset-request` / `wa-reset-confirm`; `ResetWhatsApp.tsx`. Hashed, 10-min, single-use, 5-attempt cap, 45s cooldown.
+- **PayPal (#8) prep** — frontend is complete; documented `VITE_PAYPAL_CLIENT_ID` in `.env.example`/`.env.production`. Still needs LIVE client id + live `PAYPAL_CLIENT_ID/SECRET` secrets + confirm `paypal-capture` edge fn deployed (it's deployed-only, not in repo).
+
+**Gotchas:**
+- `wrangler` isn't logged in and the `supabase` CLI here is signed into a different org (no access to the PeTa projects), so deploy + migration apply must be done with the owner's auth.
+- `fn_create_forum_comment_order` lives in two migrations now (`20260605090000` then `20260609140000`); the latter adds the +10% AI premium — apply in order.
+- Fonnte FREE strips/blocks URLs ("invalid message request on free package"), which is why password reset uses an OTP code, not a link.
+
+---
+
 ## 2026-05-21 — WhatsApp Verifier Bot end-to-end
 
 **Shipped:**

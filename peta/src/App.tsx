@@ -13,6 +13,9 @@ import { TaskDetail } from './pages/TaskDetail';
 import { KarmaMission } from './pages/KarmaMission';
 import { Account } from './pages/Account';
 import { Earnings } from './pages/Earnings';
+import { ForgotPassword } from './pages/ForgotPassword';
+import { UpdatePassword } from './pages/UpdatePassword';
+import { ResetWhatsApp } from './pages/ResetWhatsApp';
 
 // Reddit Upvotes Pages
 import { RedditLanding } from './modules/reddit/pages/RedditLanding';
@@ -109,6 +112,9 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/update-password" element={<UpdatePassword />} />
+          <Route path="/reset-whatsapp" element={<ResetWhatsApp />} />
           <Route path="/onboarding" element={<Onboarding />} />
 
           {/* Army Routes */}
