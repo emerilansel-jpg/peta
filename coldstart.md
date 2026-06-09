@@ -674,7 +674,11 @@ Straight Ltd Admin Registration Mode Toggle:
   - src/modules/reddit/pages/RedditSignup.tsx — blocks signup + redirects to waitlist when mode=waitlist
   - src/modules/reddit/pages/RedditLogin.tsx — "Sign up free" link becomes "Join the waitlist" when mode=waitlist
 - Build: PASSED (tsc + vite build clean)
-- Migration: needs `supabase db push` or manual apply on target environment
+- Migration: APPLIED via Supabase SQL Editor in browser (WebBridge)
+  - Table straight_settings created
+  - RPCs admin_get_straight_settings, admin_update_straight_settings, get_straight_registration_mode created
+  - Default mode: signup
+  - Verified: SELECT get_straight_registration_mode() → 'signup'
 ```
 
 Done 2026-07-10 (this session):
