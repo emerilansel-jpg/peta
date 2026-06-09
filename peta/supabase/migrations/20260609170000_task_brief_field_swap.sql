@@ -142,3 +142,11 @@ SET
   brief = trim(split_part(split_part(brief, 'DETAIL ORDER:', 1), 'COMMENT/POST YANG HARUS DIISI:', 2))
 WHERE brief LIKE '%COMMENT/POST YANG HARUS DIISI:%'
   AND brief LIKE '%DETAIL ORDER:%';
+
+-- Edge case: brief is just the comment marker + comment, with no instructions
+-- block (no 'DETAIL ORDER:'). Strip the marker, leaving the bare comment;
+-- description is left untouched.
+UPDATE public.tasks
+SET brief = btrim(split_part(brief, 'COMMENT/POST YANG HARUS DIISI:', 2), E' \t\n\r')
+WHERE brief LIKE '%COMMENT/POST YANG HARUS DIISI:%'
+  AND brief NOT LIKE '%DETAIL ORDER:%';
