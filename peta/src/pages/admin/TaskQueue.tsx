@@ -275,22 +275,6 @@ export function AdminTaskQueue() {
   const pausedCount = tasks.filter((t) => t.status === 'paused').length;
   const openSlots = tasks.reduce((sum, t) => sum + Math.max(0, Number(t.max_assignments || 0) - Number(t.current_assignments || 0)), 0);
 
-  const applyStandardBrief = (mode: 'create' | 'edit') => {
-    if (mode === 'create') {
-      const parts = splitForumBrief(form.brief);
-      setForm({
-        ...form,
-        brief: combineForumBrief(parts.commentPost, standardBriefForPlatform(platformForUrl(form.target_url, form.task_category), form.target_url)),
-      });
-      return;
-    }
-    const parts = splitForumBrief(editForm.brief);
-    setEditForm({
-      ...editForm,
-      brief: combineForumBrief(parts.commentPost, standardBriefForPlatform(platformForUrl(editForm.target_url, editForm.task_category), editForm.target_url)),
-    });
-  };
-
   return (
     <Layout userRole="admin">
       <div className="flex items-start justify-between gap-3 mb-4">
@@ -531,13 +515,15 @@ export function AdminTaskQueue() {
                         type="button"
                         onClick={() => {
                           const next = { ...form, task_category: cat, reward_amount: String(defaultReward) };
-                          if (cat === 'forum_comment' && !form.brief.trim()) {
-                            next.brief = buildStandardBriefTemplate(platformForUrl(form.target_url, cat), form.target_url);
+                          if (cat === 'forum_comment') {
+                            if (!form.description.trim()) {
+                              next.description = standardBriefForPlatform(platformForUrl(form.target_url, cat), form.target_url);
+                            }
                             next.wa_group_draft = buildWaGroupDraft({
                               title: form.title,
                               platform: platformForUrl(form.target_url, cat),
                               reward: Number(defaultReward),
-                              commentPost: splitForumBrief(next.brief).commentPost,
+                              commentPost: form.brief,
                             });
                           }
                           setForm(next);
@@ -565,13 +551,15 @@ export function AdminTaskQueue() {
                   />
                 </Field>
 
-                <Field label="Deskripsi">
+                <Field label={form.task_category === 'reddit_upvote' ? 'Deskripsi' : 'Brief lengkap / cara posting (dilihat member)'}>
                   <textarea
                     value={form.description}
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    placeholder="Penjelasan singkat task & instruksi..."
-                    className={inputCls + ' min-h-[100px] resize-none'}
-                    rows={4}
+                    placeholder={form.task_category === 'reddit_upvote'
+                      ? 'Penjelasan singkat task...'
+                      : 'Instruksi lengkap buat member: langkah kerja, cara posting aman, brief platform. Ini yang tampil di kotak "Cara posting aman".'}
+                    className={inputCls + ' min-h-[160px] resize-y'}
+                    rows={7}
                   />
                 </Field>
 
@@ -585,45 +573,21 @@ export function AdminTaskQueue() {
                   />
                 </Field>
 
-                <Field label="Brief lengkap: comment/post + standard brief (editable)">
-                  {form.task_category !== 'reddit_upvote' && (
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <p className="text-[11px] text-muted">
-                        Format wajib: comment/post yang harus diisi + standard brief sesuai platform.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => applyStandardBrief('create')}
-                        className="shrink-0 text-[11px] font-bold text-primary hover:underline"
-                      >
-                        Isi standard brief
-                      </button>
-                    </div>
-                  )}
-                  <div className="space-y-3">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-dark">Comment/post yang harus diisi</p>
-                    <textarea
-                      value={splitForumBrief(form.brief).commentPost}
-                      onChange={(e) => setForm({ ...form, brief: combineForumBrief(e.target.value, splitForumBrief(form.brief).standardBrief) })}
-                      placeholder={form.task_category === 'reddit_upvote'
-                        ? 'Untuk upvote: cukup link thread di atas. Brief opsional.'
-                        : 'Comment/post final dari client, atau instruksi inti yang wajib dikerjakan army.'}
-                      className={inputCls + ' min-h-[110px] resize-y'}
-                      rows={5}
-                    />
-                    {form.task_category !== 'reddit_upvote' && (
-                      <>
-                        <p className="text-[11px] font-bold uppercase tracking-wide text-dark">Standard brief platform</p>
-                        <textarea
-                          value={splitForumBrief(form.brief).standardBrief}
-                          onChange={(e) => setForm({ ...form, brief: combineForumBrief(splitForumBrief(form.brief).commentPost, e.target.value) })}
-                          placeholder="STANDARD BRIEF UNIVERSAL + platform-specific brief..."
-                          className={inputCls + ' min-h-[160px] resize-y'}
-                          rows={7}
-                        />
-                      </>
-                    )}
-                  </div>
+                <Field label={form.task_category === 'reddit_upvote' ? 'Brief (opsional)' : 'Komentar siap-posting (yang di-copy member)'}>
+                  <p className="text-[11px] text-muted mb-2">
+                    {form.task_category === 'reddit_upvote'
+                      ? 'Untuk upvote cukup link thread di atas. Brief opsional.'
+                      : 'Cukup teks komentar final-nya aja — member nge-copy ini persis. Instruksi & cara posting taruh di field brief di atas.'}
+                  </p>
+                  <textarea
+                    value={splitForumBrief(form.brief).commentPost}
+                    onChange={(e) => setForm({ ...form, brief: e.target.value })}
+                    placeholder={form.task_category === 'reddit_upvote'
+                      ? 'Opsional...'
+                      : 'Komentar final dari client yang harus diposting member, apa adanya.'}
+                    className={inputCls + ' min-h-[120px] resize-y'}
+                    rows={5}
+                  />
                 </Field>
 
                 {form.task_category !== 'reddit_upvote' && (
@@ -854,15 +818,15 @@ export function AdminTaskQueue() {
                         onClick={() => setEditForm({
                           ...editForm,
                           task_category: cat,
-                          brief: cat === 'forum_comment' && !editForm.brief.trim()
-                            ? buildStandardBriefTemplate(platformForUrl(editForm.target_url, cat), editForm.target_url)
-                            : editForm.brief,
+                          description: cat === 'forum_comment' && !editForm.description.trim()
+                            ? standardBriefForPlatform(platformForUrl(editForm.target_url, cat), editForm.target_url)
+                            : editForm.description,
                           wa_group_draft: cat === 'forum_comment' && !editForm.wa_group_draft.trim()
                             ? buildWaGroupDraft({
                               title: editForm.title,
                               platform: platformForUrl(editForm.target_url, cat),
                               reward: parseInt0(editForm.reward_amount),
-                              commentPost: splitForumBrief(editForm.brief).commentPost,
+                              commentPost: editForm.brief,
                             })
                             : editForm.wa_group_draft,
                         })}
@@ -886,12 +850,12 @@ export function AdminTaskQueue() {
                   />
                 </Field>
 
-                <Field label="Deskripsi">
+                <Field label={editForm.task_category === 'reddit_upvote' ? 'Deskripsi' : 'Brief lengkap / cara posting (dilihat member)'}>
                   <textarea
                     value={editForm.description}
                     onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                    className={inputCls + ' min-h-[80px] resize-none'}
-                    rows={3}
+                    className={inputCls + ' min-h-[160px] resize-y'}
+                    rows={7}
                   />
                 </Field>
 
@@ -904,45 +868,21 @@ export function AdminTaskQueue() {
                   />
                 </Field>
 
-                <Field label="Brief lengkap: comment/post + standard brief (editable)">
-                  {editForm.task_category !== 'reddit_upvote' && (
-                    <div className="flex items-center justify-between gap-2 mb-2">
-                      <p className="text-[11px] text-muted">
-                        Bagian atas untuk comment/post. Bagian bawah standard brief sesuai forum.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => applyStandardBrief('edit')}
-                        className="shrink-0 text-[11px] font-bold text-primary hover:underline"
-                      >
-                        Refill standard brief
-                      </button>
-                    </div>
-                  )}
-                  <div className="space-y-3">
-                    <p className="text-[11px] font-bold uppercase tracking-wide text-dark">Comment/post yang harus diisi</p>
-                    <textarea
-                      value={splitForumBrief(editForm.brief).commentPost}
-                      onChange={(e) => setEditForm({ ...editForm, brief: combineForumBrief(e.target.value, splitForumBrief(editForm.brief).standardBrief) })}
-                      placeholder={editForm.task_category === 'reddit_upvote'
-                        ? 'Untuk upvote: cukup link thread. Brief opsional.'
-                        : 'Comment/post final dari client, atau instruksi inti yang wajib dikerjakan army.'}
-                      className={inputCls + ' min-h-[110px] resize-y'}
-                      rows={5}
-                    />
-                    {editForm.task_category !== 'reddit_upvote' && (
-                      <>
-                        <p className="text-[11px] font-bold uppercase tracking-wide text-dark">Standard brief platform</p>
-                        <textarea
-                          value={splitForumBrief(editForm.brief).standardBrief}
-                          onChange={(e) => setEditForm({ ...editForm, brief: combineForumBrief(splitForumBrief(editForm.brief).commentPost, e.target.value) })}
-                          placeholder="STANDARD BRIEF UNIVERSAL + platform-specific brief..."
-                          className={inputCls + ' min-h-[160px] resize-y'}
-                          rows={7}
-                        />
-                      </>
-                    )}
-                  </div>
+                <Field label={editForm.task_category === 'reddit_upvote' ? 'Brief (opsional)' : 'Komentar siap-posting (yang di-copy member)'}>
+                  <p className="text-[11px] text-muted mb-2">
+                    {editForm.task_category === 'reddit_upvote'
+                      ? 'Untuk upvote cukup link thread. Brief opsional.'
+                      : 'Cukup teks komentar final-nya aja — member nge-copy ini persis. Instruksi & cara posting taruh di field brief di atas.'}
+                  </p>
+                  <textarea
+                    value={splitForumBrief(editForm.brief).commentPost}
+                    onChange={(e) => setEditForm({ ...editForm, brief: e.target.value })}
+                    placeholder={editForm.task_category === 'reddit_upvote'
+                      ? 'Opsional...'
+                      : 'Komentar final dari client yang harus diposting member, apa adanya.'}
+                    className={inputCls + ' min-h-[120px] resize-y'}
+                    rows={5}
+                  />
                 </Field>
 
                 {editForm.task_category !== 'reddit_upvote' && (
@@ -1315,15 +1255,6 @@ function splitForumBrief(raw: string | null | undefined) {
       ? text.slice(standardStart).trim()
       : detailStart >= 0 ? text.slice(detailStart).trim() : '';
   return { commentPost, standardBrief: normalizePostingBrief(standardBrief) };
-}
-
-function combineForumBrief(commentPost: string, standardBrief: string) {
-  return [
-    'COMMENT/POST YANG HARUS DIISI:',
-    commentPost.trim(),
-    '',
-    standardBrief.trim(),
-  ].join('\n');
 }
 
 function standardBriefForPlatform(platform: string, targetUrl: string) {

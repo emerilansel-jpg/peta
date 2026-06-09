@@ -375,7 +375,7 @@ export function TaskDetail() {
                 </span>
               </div>
               <h1 className="text-xl sm:text-2xl font-extrabold mb-2 leading-tight">{task.title}</h1>
-              <p className="text-sm text-muted">{task.description}</p>
+              <p className="text-sm text-muted line-clamp-2">{task.description}</p>
               <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted">
                 <span>{minutes} min</span>
                 <span>{task.current_assignments}/{task.max_assignments} dikerjakan</span>
@@ -431,45 +431,56 @@ export function TaskDetail() {
             : 'Copy komentar yang sudah disediakan. Brief biru hanya untuk cara posting yang aman.'
           }
         >
-          {/* Brief from admin â€” specific instructions for THIS task */}
-          {task.brief && task.brief.trim() && (
-            <div className="space-y-3 mb-3">
-              <div className="bg-yellow-50 ring-1 ring-yellow-300 rounded-xl p-3">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <p className="text-[10px] uppercase font-bold tracking-wide text-yellow-900">
-                    Komentar yang harus diposting
-                  </p>
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      const text = splitForumBrief(task.brief).commentPost.trim();
-                      try {
-                        await navigator.clipboard.writeText(text);
-                        toast.success('Komentar disalin! Tinggal paste — jangan diedit.');
-                      } catch {
-                        toast.error('Gagal menyalin otomatis. Copy manual ya.');
-                      }
-                    }}
-                    className="shrink-0 inline-flex items-center gap-1 text-[11px] font-bold text-yellow-900 bg-yellow-200 hover:bg-yellow-300 active:bg-yellow-300 rounded-lg px-2.5 py-1.5 tap-shrink"
-                  >
-                    <Copy className="w-3.5 h-3.5" />
-                    Copy komentar
-                  </button>
-                </div>
-                <p className="text-sm text-yellow-950 whitespace-pre-line leading-relaxed">
-                  {splitForumBrief(task.brief).commentPost}
-                </p>
+          {/* Brief from admin — comment (copyable) + posting instructions.
+              New model: comment lives in task.brief, instructions in task.description.
+              Legacy tasks packed both into brief — splitForumBrief() still handles them. */}
+          {(() => {
+            const comment = splitForumBrief(task.brief).commentPost.trim();
+            const legacyStd = splitForumBrief(task.brief).standardBrief;
+            const instructions = memberSafePostingBrief(legacyStd || task.description || '').trim();
+            if (!comment && !instructions) return null;
+            return (
+              <div className="space-y-3 mb-3">
+                {comment && (
+                  <div className="bg-yellow-50 ring-1 ring-yellow-300 rounded-xl p-3">
+                    <div className="flex items-center justify-between gap-2 mb-1">
+                      <p className="text-[10px] uppercase font-bold tracking-wide text-yellow-900">
+                        Komentar yang harus diposting
+                      </p>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(comment);
+                            toast.success('Komentar disalin! Tinggal paste — jangan diedit.');
+                          } catch {
+                            toast.error('Gagal menyalin otomatis. Copy manual ya.');
+                          }
+                        }}
+                        className="shrink-0 inline-flex items-center gap-1 text-[11px] font-bold text-yellow-900 bg-yellow-200 hover:bg-yellow-300 active:bg-yellow-300 rounded-lg px-2.5 py-1.5 tap-shrink"
+                      >
+                        <Copy className="w-3.5 h-3.5" />
+                        Copy komentar
+                      </button>
+                    </div>
+                    <p className="text-sm text-yellow-950 whitespace-pre-line leading-relaxed">
+                      {comment}
+                    </p>
+                  </div>
+                )}
+                {instructions && (
+                  <div className="bg-sky-50 ring-1 ring-sky-300 rounded-xl p-3">
+                    <p className="text-[10px] uppercase font-bold tracking-wide text-sky-900 mb-1">
+                      Cara posting aman
+                    </p>
+                    <p className="text-sm text-sky-950 whitespace-pre-line leading-relaxed">
+                      {instructions}
+                    </p>
+                  </div>
+                )}
               </div>
-              <div className="bg-sky-50 ring-1 ring-sky-300 rounded-xl p-3">
-                <p className="text-[10px] uppercase font-bold tracking-wide text-sky-900 mb-1">
-                  Cara posting aman
-                </p>
-                <p className="text-sm text-sky-950 whitespace-pre-line leading-relaxed">
-                  {memberSafePostingBrief(splitForumBrief(task.brief).standardBrief)}
-                </p>
-              </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* Example screenshot reference â€” visual mock so users know
               what counts as valid proof. CSS-only, no asset weight. */}
