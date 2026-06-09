@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, ExternalLink, Check, Camera, Link as LinkIcon, X, Upload,
-  ArrowRight, MessageCircle, Target, Sparkles, ShieldCheck,
+  ArrowRight, MessageCircle, Target, Sparkles, ShieldCheck, Copy,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
@@ -32,6 +32,7 @@ export function TaskDetail() {
   const [assignmentId, setAssignmentId] = React.useState<string>('');
   const [threadOpened, setThreadOpened] = React.useState(false);
   const [confetti, setConfetti] = React.useState(false);
+  const [copied, setCopied] = React.useState(false);
   // WARP reminder — Reddit blocks Indonesian IPs, army users hit blank
   // page if they click thread without WARP running. Dismissable per-device
   // so it doesn't nag once the user has set up WARP.
@@ -123,6 +124,17 @@ export function TaskDetail() {
       toast.error(`Upload gagal: ${e.message || e}`);
     } finally {
       setUploadingProof(false);
+    }
+  };
+
+  const handleCopyComment = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      toast.success('Comment copied! Paste ke Reddit/Quora sekarang.');
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Copy gagal. Coba select manual & Ctrl+C.');
     }
   };
 
@@ -450,12 +462,37 @@ export function TaskDetail() {
           }
         >
           {/* Brief from admin — specific instructions for THIS task */}
-          {task.brief && task.brief.trim() && (
+          {task.description && task.description.trim().length > 10 && (
             <div className="bg-yellow-50 ring-1 ring-yellow-300 rounded-xl p-3 mb-3">
               <p className="text-[10px] uppercase font-bold tracking-wide text-yellow-900 mb-1">
-                📋 Brief dari admin — ikutin persis
+                📋 Petunjuk Pengerjaan
               </p>
               <p className="text-sm text-yellow-950 whitespace-pre-line leading-relaxed">
+                {task.description}
+              </p>
+            </div>
+          )}
+
+          {/* Copy-paste comment block — dark theme, one-click copy, zero Indonesian text inside */}
+          {task.brief && task.brief.trim() && (
+            <div className="bg-[#1a1a1a] rounded-xl p-4 mb-3 ring-1 ring-black/20">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] uppercase font-bold tracking-wide text-gray-400">
+                  📋 Copy-Paste Comment
+                </p>
+                <button
+                  onClick={() => handleCopyComment(task.brief)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition tap-shrink ${
+                    copied
+                      ? 'bg-green-500 text-white'
+                      : 'bg-green-400 text-green-950 hover:bg-green-500'
+                  }`}
+                >
+                  {copied ? <Check size={14} /> : <Copy size={14} />}
+                  {copied ? 'Copied!' : 'Copy Content'}
+                </button>
+              </div>
+              <p className="text-sm text-gray-200 whitespace-pre-line leading-relaxed" style={{ fontFamily: "Georgia, 'Times New Roman', serif" }}>
                 {task.brief}
               </p>
             </div>

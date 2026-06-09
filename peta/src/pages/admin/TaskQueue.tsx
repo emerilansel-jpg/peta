@@ -360,7 +360,7 @@ export function AdminTaskQueue() {
                     // instructions need to be exactly right.
                     <details className="mt-1.5">
                       <summary className="text-[11px] font-bold text-warning bg-warning/10 px-2 py-0.5 rounded-full inline-flex items-center gap-1 cursor-pointer hover:bg-warning/20 list-none">
-                        📋 Brief lengkap (klik buka)
+                        📋 Teks komen/post (klik buka)
                       </summary>
                       <div className="mt-2 p-2.5 bg-yellow-50 ring-1 ring-yellow-200 rounded-lg text-xs whitespace-pre-line leading-relaxed text-yellow-950">
                         {t.brief}
@@ -492,11 +492,11 @@ export function AdminTaskQueue() {
                   />
                 </Field>
 
-                <Field label="Deskripsi">
+                <Field label="Deskripsi / Petunjuk (Bahasa Indonesia)">
                   <textarea
                     value={form.description}
                     onChange={(e) => setForm({ ...form, description: e.target.value })}
-                    placeholder="Penjelasan singkat task & instruksi..."
+                    placeholder="Instruksi pengerjaan dalam Bahasa Indonesia. Contoh: Komen di Quora sesuai brief. Tulis natural pakai bahasamu sendiri, jangan spammy, cukup 1 link aja. Habis komen tayang, screenshot buat bukti."
                     className={inputCls + ' min-h-[100px] resize-none'}
                     rows={4}
                   />
@@ -512,13 +512,13 @@ export function AdminTaskQueue() {
                   />
                 </Field>
 
-                <Field label="Brief Lengkap (komen/post yang harus army tulis)">
+                <Field label="Teks Komen/Post (English — untuk di-copy army)">
                   <textarea
                     value={form.brief}
                     onChange={(e) => setForm({ ...form, brief: e.target.value })}
                     placeholder={form.task_category === 'reddit_upvote'
                       ? 'Untuk upvote: cukup link thread di atas. Brief opsional.'
-                      : 'Tulis instruksi lengkap. Contoh:\n\n"Komentar harus bahas pengalaman pribadi pakai produk X. Min 3 kalimat. Sebutkan keyword Y secara natural. Hindari kata Z. Contoh tone: ramah tapi tidak salesy."'}
+                      : 'Tulis teks komen/post dalam Bahasa INGGRIS. Army akan melihat ini di block "Copy-Paste Comment" dengan tombol Copy.\n\nContoh:\n"The main tradeoff is that you get speed and convenience but often lose the deep subject expertise a specialized writer brings..."'}
                     className={inputCls + ' min-h-[110px] resize-y'}
                     rows={5}
                   />
@@ -705,7 +705,7 @@ export function AdminTaskQueue() {
                   />
                 </Field>
 
-                <Field label="Deskripsi">
+                <Field label="Deskripsi / Petunjuk (Bahasa Indonesia)">
                   <textarea
                     value={editForm.description}
                     onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
@@ -723,13 +723,13 @@ export function AdminTaskQueue() {
                   />
                 </Field>
 
-                <Field label="Brief Lengkap (komen/post yang harus army tulis)">
+                <Field label="Teks Komen/Post (English — untuk di-copy army)">
                   <textarea
                     value={editForm.brief}
                     onChange={(e) => setEditForm({ ...editForm, brief: e.target.value })}
                     placeholder={editForm.task_category === 'reddit_upvote'
                       ? 'Untuk upvote: cukup link thread. Brief opsional.'
-                      : 'Tulis instruksi lengkap untuk army…'}
+                      : 'Tulis teks komen/post dalam Bahasa INGGRIS. Army akan melihat ini di block "Copy-Paste Comment" dengan tombol Copy.'}
                     className={inputCls + ' min-h-[110px] resize-y'}
                     rows={5}
                   />
