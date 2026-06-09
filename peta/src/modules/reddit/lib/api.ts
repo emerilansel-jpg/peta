@@ -257,6 +257,42 @@ export async function adminSetFrontDoorMode(mode: FrontDoorMode) {
   if (error) throw error;
 }
 
+// ============ PayPal config (admin-configurable, stored in app_secrets) ============
+
+export type PaypalEnvironment = 'sandbox' | 'live';
+export type PaypalPublicConfig = { client_id: string; environment: PaypalEnvironment; configured: boolean };
+export type PaypalAdminConfig = { client_id: string; environment: PaypalEnvironment; secret_set: boolean };
+
+// Public (anon) — returns only the client id + environment for the browser SDK.
+export async function getPaypalPublicConfig(): Promise<PaypalPublicConfig> {
+  try {
+    const { data, error } = await supabase.rpc('get_paypal_public_config');
+    if (error || !data) return { client_id: '', environment: 'sandbox', configured: false };
+    return data as PaypalPublicConfig;
+  } catch {
+    return { client_id: '', environment: 'sandbox', configured: false };
+  }
+}
+
+export async function adminGetPaypalConfig(): Promise<PaypalAdminConfig> {
+  const { data, error } = await supabase.rpc('admin_get_paypal_config');
+  if (error) throw error;
+  return data as PaypalAdminConfig;
+}
+
+export async function adminSetPaypalConfig(input: {
+  clientId: string;
+  clientSecret: string;
+  environment: PaypalEnvironment;
+}) {
+  const { error } = await supabase.rpc('admin_set_paypal_config', {
+    p_client_id: input.clientId,
+    p_client_secret: input.clientSecret,
+    p_environment: input.environment,
+  });
+  if (error) throw error;
+}
+
 export type ProviderHealthStatus = 'ok' | 'missing' | 'error';
 
 export type StraightProviderHealth = {

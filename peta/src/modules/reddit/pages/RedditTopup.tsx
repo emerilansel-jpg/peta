@@ -6,9 +6,7 @@ import { toast } from 'react-hot-toast';
 import { RedditLayout } from '../components/RedditLayout';
 import { useTopups } from '../hooks/useTopups';
 import { useRedditCredits } from '../hooks/useRedditCredits';
-import { formatUSD, getB1G1Status, type B1G1Status } from '../lib/api';
-
-const PAYPAL_CLIENT_ID = import.meta.env.VITE_PAYPAL_CLIENT_ID || 'test';
+import { formatUSD, getB1G1Status, getPaypalPublicConfig, type B1G1Status } from '../lib/api';
 
 interface Package {
   amount: number; // in dollars
@@ -34,12 +32,16 @@ export function RedditTopup() {
   const [selectedPkg, setSelectedPkg] = useState<Package>(PACKAGES[2]);
   const [processing, setProcessing] = useState(false);
   const [b1g1, setB1g1] = useState<B1G1Status | null>(null);
+  const [paypal, setPaypal] = useState<{ clientId: string; configured: boolean; loading: boolean }>({ clientId: '', configured: false, loading: true });
 
   useEffect(() => {
     let mounted = true;
     getB1G1Status()
       .then((s) => { if (mounted) setB1g1(s); })
       .catch(() => {});
+    getPaypalPublicConfig()
+      .then((c) => { if (mounted) setPaypal({ clientId: c.client_id, configured: c.configured, loading: false }); })
+      .catch(() => { if (mounted) setPaypal((p) => ({ ...p, loading: false })); });
     return () => { mounted = false; };
   }, []);
 
@@ -236,20 +238,22 @@ export function RedditTopup() {
                     <AlertCircle size={16} className="shrink-0 mt-0.5" />
                     <span>Amount must be between $5 and $10,000</span>
                   </div>
-                ) : PAYPAL_CLIENT_ID === 'test' ? (
+                ) : paypal.loading ? (
+                  <div className="p-4 text-sm text-slate-500">Loading payment options…</div>
+                ) : !paypal.configured ? (
                   <div className="p-4 rounded-lg bg-amber-50 ring-1 ring-amber-200 text-sm text-amber-900">
                     <p className="font-semibold flex items-center gap-1.5">
                       <AlertCircle size={14} />
                       PayPal not configured
                     </p>
                     <p className="text-xs mt-1 text-amber-700">
-                      Add <code className="px-1 py-0.5 rounded bg-amber-100 font-mono">VITE_PAYPAL_CLIENT_ID</code> to your <code className="px-1 py-0.5 rounded bg-amber-100 font-mono">.env.local</code> to enable PayPal checkout.
+                      An admin needs to set the PayPal credentials in Settings before checkout is available.
                     </p>
                   </div>
                 ) : (
                   <PayPalScriptProvider
                     options={{
-                      'clientId': PAYPAL_CLIENT_ID,
+                      'clientId': paypal.clientId,
                       currency: 'USD',
                       intent: 'capture',
                     }}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Bot, CheckCircle2, DoorOpen, ExternalLink, KeyRound, ListChecks, Loader2, RefreshCw, Save, ShieldCheck, UserPlus } from 'lucide-react';
+import { AlertTriangle, Bot, CheckCircle2, CreditCard, DoorOpen, ExternalLink, KeyRound, ListChecks, Loader2, RefreshCw, Save, ShieldCheck, UserPlus } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { AdminBreadcrumb, AdminLayout } from '../../components/AdminLayout';
 import {
@@ -8,10 +8,13 @@ import {
   updateStraightAiSettings,
   getFrontDoorMode,
   adminSetFrontDoorMode,
+  adminGetPaypalConfig,
+  adminSetPaypalConfig,
   type ProviderHealthStatus,
   type StraightProviderHealth,
   type StraightDraftProvider,
   type FrontDoorMode,
+  type PaypalEnvironment,
 } from '../../lib/api';
 
 const PROVIDERS: Array<{
@@ -45,6 +48,8 @@ export function AdminSettings() {
   const [checkingHealth, setCheckingHealth] = useState(false);
   const [frontDoorMode, setFrontDoorMode] = useState<FrontDoorMode>('signup');
   const [savingFrontDoor, setSavingFrontDoor] = useState(false);
+  const [paypal, setPaypal] = useState<{ clientId: string; secret: string; environment: PaypalEnvironment; secretSet: boolean }>({ clientId: '', secret: '', environment: 'sandbox', secretSet: false });
+  const [savingPaypal, setSavingPaypal] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -55,6 +60,10 @@ export function AdminSettings() {
         setDeepseekModel(settings.deepseek_model);
         setUpdatedAt(settings.updated_at);
         setFrontDoorMode(await getFrontDoorMode());
+        try {
+          const pp = await adminGetPaypalConfig();
+          setPaypal({ clientId: pp.client_id, secret: '', environment: pp.environment, secretSet: pp.secret_set });
+        } catch { /* paypal config optional */ }
         checkHealth();
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to load settings');
@@ -89,6 +98,20 @@ export function AdminSettings() {
       toast.error(error instanceof Error ? error.message : 'Failed to update front door');
     } finally {
       setSavingFrontDoor(false);
+    }
+  };
+
+  const savePaypal = async () => {
+    setSavingPaypal(true);
+    try {
+      await adminSetPaypalConfig({ clientId: paypal.clientId.trim(), clientSecret: paypal.secret, environment: paypal.environment });
+      toast.success('PayPal settings saved');
+      const pp = await adminGetPaypalConfig();
+      setPaypal({ clientId: pp.client_id, secret: '', environment: pp.environment, secretSet: pp.secret_set });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save PayPal settings');
+    } finally {
+      setSavingPaypal(false);
     }
   };
 
@@ -189,6 +212,67 @@ export function AdminSettings() {
                     </div>
                     {frontDoorMode === 'waitlist' && <CheckCircle2 size={22} className="text-orange-600 shrink-0" />}
                   </div>
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl ring-1 ring-slate-200 p-6">
+              <div className="flex items-center gap-2 mb-1">
+                <CreditCard size={18} className="text-orange-600" />
+                <h2 className="text-lg font-bold text-slate-900">PayPal checkout</h2>
+              </div>
+              <p className="text-sm text-slate-500 mb-4">
+                Enter your PayPal REST app credentials to enable client top-ups — no redeploy needed. Stored
+                server-side; only the client id is exposed to the browser.{' '}
+                {paypal.secretSet
+                  ? <span className="text-emerald-600 font-semibold">Secret is set.</span>
+                  : <span className="text-amber-600 font-semibold">Secret not set yet.</span>}
+              </p>
+              <div className="space-y-4 max-w-xl">
+                <label className="block">
+                  <span className="text-sm font-semibold text-slate-700">Client ID</span>
+                  <input
+                    value={paypal.clientId}
+                    onChange={(e) => setPaypal((p) => ({ ...p, clientId: e.target.value }))}
+                    className="mt-2 w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-900 font-mono text-sm"
+                    placeholder="PayPal app client id (live or sandbox)"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-sm font-semibold text-slate-700">Client Secret</span>
+                  <input
+                    type="password"
+                    value={paypal.secret}
+                    onChange={(e) => setPaypal((p) => ({ ...p, secret: e.target.value }))}
+                    className="mt-2 w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-900 font-mono text-sm"
+                    placeholder={paypal.secretSet ? '•••••••• (leave blank to keep current)' : 'PayPal app client secret'}
+                  />
+                </label>
+                <div>
+                  <span className="text-sm font-semibold text-slate-700">Environment</span>
+                  <div className="mt-2 grid grid-cols-2 gap-2 max-w-xs">
+                    {(['sandbox', 'live'] as const).map((env) => (
+                      <button
+                        key={env}
+                        type="button"
+                        onClick={() => setPaypal((p) => ({ ...p, environment: env }))}
+                        className={`py-2.5 rounded-lg text-sm font-semibold border-2 transition capitalize ${
+                          paypal.environment === env ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-slate-200 bg-white text-slate-700'
+                        }`}
+                      >
+                        {env}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={savePaypal}
+                  disabled={savingPaypal}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-500 text-white font-semibold"
+                >
+                  {savingPaypal ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                  Save PayPal settings
                 </button>
               </div>
             </div>
