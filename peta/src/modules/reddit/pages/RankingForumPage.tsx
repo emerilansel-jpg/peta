@@ -118,6 +118,14 @@ export function RankingForumPage() {
   // with hardcoded fallbacks if the table isn't available yet.
   const commentMode: 'plain' | 'link' = (wantsSuggestion && mentionMode === 'link') ? 'link' : 'plain';
   const platformOf = (url: string) => (/(^|\.)reddit\.com/i.test(url) ? 'reddit' : 'forum');
+  // A platform is considered enabled if at least one of its pricing rows is active.
+  // This hides Reddit (or any platform) entirely when the admin turns off all its services.
+  const isPlatformEnabled = (url: string): boolean => {
+    const p = platformOf(url);
+    const plainOn = pricing.find((r) => r.key === `${p}_comment_plain`)?.enabled ?? true;
+    const linkOn = pricing.find((r) => r.key === `${p}_comment_link`)?.enabled ?? true;
+    return plainOn || linkOn;
+  };
   const commentPriceFor = (url: string): { cents: number; enabled: boolean } => {
     const row = pricing.find((r) => r.key === `${platformOf(url)}_comment_${commentMode}`);
     if (row) return { cents: row.price_cents, enabled: row.enabled };
@@ -272,7 +280,7 @@ export function RankingForumPage() {
     setSelectedForumUrls((current) => current.filter((selected) => !drop.has(selected.url)));
   };
 
-  const allForumItems = forumScans.flatMap((scan) => scan.results.map((result) => toForumUrlItem(scan.keyword, result)));
+  const allForumItems = forumScans.flatMap((scan) => scan.results.filter((r) => isPlatformEnabled(r.url)).map((result) => toForumUrlItem(scan.keyword, result)));
   const totalForumUrls = allForumItems.length;
   const allForumSelected = totalForumUrls > 0 && selectedForumUrls.length >= totalForumUrls;
 
@@ -509,19 +517,20 @@ export function RankingForumPage() {
                 <p className="font-semibold text-slate-900">Scanning Google top 10 for forum pages...</p>
                 <p className="text-sm text-slate-500 mt-1">Checking the top {TOP_KEYWORDS_TO_SCAN} keywords. Takes ~15-20 seconds.</p>
               </div>
-            ) : !forumScans.length ? (
+            ) : !forumScans.length || !forumScans.some((scan) => scan.results.some((r) => isPlatformEnabled(r.url))) ? (
               <div className="p-12 text-center">
                 <Search size={28} className="mx-auto text-slate-300 mb-3" />
                 <p className="font-semibold text-slate-900">No forum pages found for this seed</p>
-                <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">Try a broader or more discussion-friendly topic (e.g. add &ldquo;reddit&rdquo;, &ldquo;forum&rdquo;, or a problem phrase).</p>
+                <p className="text-sm text-slate-500 mt-1 max-w-md mx-auto">Try a broader or more discussion-friendly topic (e.g. add &ldquo;forum&rdquo;, &ldquo;community&rdquo;, or a problem phrase).</p>
                 <button onClick={() => setStep('seed')} className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-slate-900 text-white text-sm font-semibold">
                   Try another seed
                 </button>
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {forumScans.map((scan) => {
-                  const scanItems = scan.results.map((result) => toForumUrlItem(scan.keyword, result));
+                {forumScans.filter((scan) => scan.results.some((r) => isPlatformEnabled(r.url))).map((scan) => {
+                  const enabledResults = scan.results.filter((r) => isPlatformEnabled(r.url));
+                  const scanItems = enabledResults.map((result) => toForumUrlItem(scan.keyword, result));
                   const scanSelectedCount = scanItems.filter((item) => selectedForumUrls.some((sel) => sel.url === item.url)).length;
                   const scanAllSelected = scanItems.length > 0 && scanSelectedCount >= scanItems.length;
                   return (
@@ -536,7 +545,7 @@ export function RankingForumPage() {
                           )}
                           <DataFreshnessBadge live={isLiveProvider(scan.provider)} />
                           <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-slate-100 text-slate-600">
-                            {scan.results.length} forum page{scan.results.length === 1 ? '' : 's'}
+                            {enabledResults.length} forum page{enabledResults.length === 1 ? '' : 's'}
                           </span>
                         </div>
                         <button onClick={() => (scanAllSelected ? removeForumUrls(scanItems) : addForumUrls(scanItems))} className="shrink-0 text-xs font-semibold text-orange-600 hover:text-orange-700 inline-flex items-center gap-1">
@@ -545,20 +554,16 @@ export function RankingForumPage() {
                         </button>
                       </div>
                       <div className="space-y-1.5">
-                        {scan.results.map((result) => {
+                        {enabledResults.map((result) => {
                           const selected = selectedForumUrls.some((item) => item.url === result.url);
-                          const isDisabledPlatform = !commentPriceFor(result.url).enabled;
                           return (
-                            <div key={result.url} className={`flex items-center gap-3 rounded-lg ring-1 pl-2.5 pr-2 py-2 transition ${selected ? 'bg-orange-50 ring-orange-300' : 'bg-white ring-slate-150 hover:ring-orange-200'} ${isDisabledPlatform ? 'opacity-60' : ''}`}>
+                            <div key={result.url} className={`flex items-center gap-3 rounded-lg ring-1 pl-2.5 pr-2 py-2 transition ${selected ? 'bg-orange-50 ring-orange-300' : 'bg-white ring-slate-150 hover:ring-orange-200'}`}>
                               <button onClick={() => toggleForumUrl(scan.keyword, result)} className="flex items-center gap-3 min-w-0 flex-1 text-left">
                                 <span className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 ${selected ? 'bg-orange-500 text-white' : 'bg-slate-100 text-transparent ring-1 ring-slate-200'}`}>
                                   <Check size={13} />
                                 </span>
                                 <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-bold uppercase shrink-0">{result.platform}</span>
                                 <span className="text-sm font-medium text-slate-900 truncate">{result.title}</span>
-                                {isDisabledPlatform && (
-                                  <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-[10px] font-bold uppercase shrink-0">Paused</span>
-                                )}
                               </button>
                               <a href={result.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="p-1.5 rounded-md text-slate-400 hover:text-slate-700 hover:bg-white shrink-0" aria-label="Open page" title="Open page">
                                 <ExternalLink size={14} />
