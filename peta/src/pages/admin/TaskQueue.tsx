@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, X, Download, ExternalLink, Zap, Pencil, Calendar, ClipboardList, ShieldCheck, Clock3, Users } from 'lucide-react';
 import { Layout } from '../../components/Layout';
