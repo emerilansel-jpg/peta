@@ -38,6 +38,7 @@ import { AdminFinance as RedditAdminFinance } from './modules/reddit/pages/admin
 import { AdminReviews as RedditAdminReviews } from './modules/reddit/pages/admin/AdminReviews';
 import { AdminFeatureRequests as RedditAdminFeatureRequests } from './modules/reddit/pages/admin/AdminFeatureRequests';
 import { AdminSettings as RedditAdminSettings } from './modules/reddit/pages/admin/AdminSettings';
+import { AdminWaitlist } from './modules/reddit/pages/admin/AdminWaitlist';
 
 // Admin Pages
 import { AdminDashboard } from './pages/admin/Dashboard';
@@ -147,6 +148,7 @@ function App() {
           <Route path="/reddit/admin/feature-requests" element={<AdminGuard><RedditAdminFeatureRequests /></AdminGuard>} />
           <Route path="/reddit/admin/finance" element={<AdminGuard><RedditAdminFinance /></AdminGuard>} />
           <Route path="/reddit/admin/settings" element={<AdminGuard><RedditAdminSettings /></AdminGuard>} />
+          <Route path="/reddit/admin/waitlist" element={<AdminGuard><AdminWaitlist /></AdminGuard>} />
 
           {/* Admin Routes (guarded) */}
           <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
