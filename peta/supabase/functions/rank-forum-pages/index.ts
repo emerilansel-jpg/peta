@@ -103,7 +103,6 @@ const CORS = {
 };
 
 const FORUM_HOSTS = [
-  'reddit.com',
   'quora.com',
   'community.hubspot.com',
   'indiehackers.com',
@@ -185,7 +184,6 @@ function keywordTemplates(base: string): Array<KeywordIdea & { volume: number }>
     `${base} forum`,
     `${base} discussion`,
     `${base} community`,
-    `${base} reddit`,
     `${base} quora`,
     `${base} stack exchange`,
     `${base} hubspot community`,
@@ -242,6 +240,8 @@ function platformForUrl(url: string) {
 
 function isForumUrl(url: string) {
   const low = url.toLowerCase();
+  // Reddit is hard-excluded from all client-facing surfaces.
+  if (low.includes('reddit.com')) return false;
   if (FORUM_HOSTS.some((host) => low.includes(host))) return true;
   if (FORUM_PATH_RE.test(low)) return true;
   try {
@@ -258,7 +258,6 @@ function fallbackTop10(keyword: string): SerpResult[] {
   const slug = encodeURIComponent(keyword.replace(/\s+/g, '-'));
   const q = encodeURIComponent(keyword);
   return [
-    ['Reddit discussion', `https://www.reddit.com/search/?q=${q}`, 'High discussion density and visible comment threads.', true],
     ['Comparison article', `https://www.google.com/search?q=${q}+review`, 'Likely editorial content, not a place to add a native comment.', false],
     ['Quora answers', `https://www.quora.com/search?q=${q}`, 'Question-led pages usually accept helpful comparison-style answers.', true],
     ['Vendor landing page', `https://www.google.com/search?q=${q}+official+site`, 'Owned landing page, skipped because it is not a discussion thread.', false],
