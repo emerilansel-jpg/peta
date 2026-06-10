@@ -203,9 +203,20 @@ export async function updateStraightSettings(input: {
 
 // Public: get current registration mode (no auth required)
 export async function getStraightRegistrationMode(): Promise<StraightRegistrationMode> {
-  const { data, error } = await supabase.rpc('get_straight_registration_mode');
-  if (error) throw error;
-  return (data as StraightRegistrationMode) || 'signup';
+  try {
+    const { data, error } = await supabase.rpc('get_straight_registration_mode');
+    if (error) throw error;
+    return (data as StraightRegistrationMode) || 'signup';
+  } catch {
+    // Fallback: direct table read if RPC is missing or fails
+    const { data, error } = await supabase
+      .from('straight_settings')
+      .select('registration_mode')
+      .eq('id', true)
+      .single();
+    if (error) throw error;
+    return (data?.registration_mode as StraightRegistrationMode) || 'signup';
+  }
 }
 
 // ============ Straight pricing matrix (admin-configurable) ============

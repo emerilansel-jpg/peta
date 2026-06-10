@@ -22,7 +22,7 @@ export function RedditLogin() {
   const [password, setPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [regMode, setRegMode] = useState<'signup' | 'waitlist'>('signup');
+  const [regMode, setRegMode] = useState<'signup' | 'waitlist' | null>(null);
 
   useEffect(() => {
     getStraightRegistrationMode()
@@ -171,14 +171,19 @@ export function RedditLogin() {
             </button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-slate-200 text-center">
-            <p className="text-sm text-slate-600">
-              Don't have an account?{' '}
-              <Link to={regMode === 'waitlist' ? '/reddit/waitlist' : '/reddit/signup'} className="text-orange-600 font-semibold hover:underline">
-                {regMode === 'waitlist' ? 'Join the waitlist' : 'Sign up free'}
-              </Link>
-            </p>
-          </div>
+          {regMode !== null && (
+            <div className="mt-6 pt-6 border-t border-slate-200 text-center">
+              <p className="text-sm text-slate-600">
+                Don't have an account?{' '}
+                <Link
+                  to={regMode === 'waitlist' ? '/reddit/waitlist' : '/reddit/signup'}
+                  className="text-orange-600 font-semibold hover:underline"
+                >
+                  {regMode === 'waitlist' ? 'Join the waitlist' : 'Sign up free'}
+                </Link>
+              </p>
+            </div>
+          )}
         </div>
 
         <div className="mt-6 flex flex-wrap items-center justify-center gap-4 text-xs text-slate-500">

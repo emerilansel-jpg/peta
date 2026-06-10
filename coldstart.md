@@ -805,3 +805,63 @@ FONNTE_TOKEN — for WA password reset edge function
 
 Existing Fonnte token already configured for broadcast/group features.
 ```
+
+
+---
+
+## 2026-06-09 — Waitlist Mode: Login page still shows "Sign up free" when waitlist is on
+
+**Problem:**
+When admin switches Front-Door Mode to "Waitlist Only", the login page (`/reddit/login`) still displayed "Don't have an account? Sign up free" link. Users could click it and reach the signup page, where a race condition allowed email/Google signup before the block kicked in.
+
+**Fix:**
+1. `RedditLogin.tsx` — changed `regMode` initial state from `'signup'` to `null`. Bottom "Don't have an account?" section now hides entirely until the registration mode is fetched. Once loaded:
+   - `waitlist` → shows "Join the waitlist" linking to `/reddit/waitlist`
+   - `signup` → shows "Sign up free" linking to `/reddit/signup`
+   This prevents the flash of wrong CTA while loading.
+
+2. `RedditSignup.tsx` — changed `blocked` default from `false` to `true` (fail-closed). Added `modeLoading` state. Both Google and email submit buttons are disabled while mode is loading or when blocked. If mode is `waitlist`, toast + auto-redirect to `/reddit/waitlist` after 1.5s.
+
+3. `api.ts` — added fallback in `getStraightRegistrationMode()`: if the `get_straight_registration_mode` RPC fails (e.g., function not deployed), it falls back to a direct `select` from `straight_settings` table (which has a public read policy for anon). Only if both fail does it throw.
+
+**Files changed:**
+- `peta/src/modules/reddit/pages/RedditLogin.tsx`
+- `peta/src/modules/reddit/pages/RedditSignup.tsx`
+- `peta/src/modules/reddit/lib/api.ts`
+
+**Behavior:**
+- Login page no longer shows "Sign up free" while loading mode.
+- If waitlist is on, login page shows "Join the waitlist" instead.
+- Signup page blocks all inputs immediately until mode is verified.
+- If RPC is missing, direct table query acts as safety net.
+
+**Build:**
+- `npm run build` passes (tsc + vite) — no errors.
+
+---
+
+## 2026-06-09 — UX/CRO: Hide disabled platforms from Ranking Forum + New Order
+
+**Problem:**
+Admin can turn off platforms (e.g. Reddit) via pricing matrix. But users still saw disabled platforms as grayed-out "Paused" cards in Ranking Forum and New Order. Bad UX — users waste time seeing options they can't use.
+
+**Fix:**
+1. `RankingForumPage.tsx` — added `isPlatformEnabled()` helper. Filters out disabled platforms at render time:
+   - `allForumItems` only counts enabled results
+   - Scan headers only show when `enabledResults.length > 0`
+   - "No forum pages found" no longer suggests "reddit" as a seed modifier
+   - Empty-state triggers when ALL platforms in ALL scans are disabled
+
+2. `RedditNewOrder.tsx` — `ServiceSelector` now:
+   - Filters out `status === 'paused'` services entirely
+   - Section headers (Reddit, Forum discovery, Custom) only render if they have visible services
+   - Users never see a grayed-out card they can't click
+
+**Files changed:**
+- `peta/src/modules/reddit/pages/RankingForumPage.tsx`
+- `peta/src/modules/reddit/pages/RedditNewOrder.tsx`
+
+**Behavior:**
+- If admin disables ALL Reddit pricing rows → Reddit section disappears from New Order, Reddit results never appear in Ranking Forum
+- If admin disables ALL comment pricing → Forum discovery section disappears, no forum results shown
+- Edge case: already-selected disabled items still show warning in Comment/Review step (preserved existing `disabledSelected` logic)

@@ -41,7 +41,8 @@ export function RedditSignup() {
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
-  const [blocked, setBlocked] = useState(false);
+  const [blocked, setBlocked] = useState(true);
+  const [modeLoading, setModeLoading] = useState(true);
 
   useEffect(() => {
     getStraightRegistrationMode()
@@ -50,9 +51,15 @@ export function RedditSignup() {
           setBlocked(true);
           toast('Sign up is currently closed. Join the waitlist instead.', { icon: '🔒' });
           setTimeout(() => navigate('/reddit/waitlist'), 1500);
+        } else {
+          setBlocked(false);
         }
       })
-      .catch(() => { /* fail open — allow signup if RPC fails */ });
+      .catch(() => {
+        // Fail closed: block signup if we can't verify mode
+        setBlocked(true);
+      })
+      .finally(() => setModeLoading(false));
   }, [navigate]);
 
   const pwdScore = (() => {
@@ -185,7 +192,7 @@ export function RedditSignup() {
           <button
             type="button"
             onClick={handleGoogleSignup}
-            disabled={loading}
+            disabled={loading || blocked || modeLoading}
             className="mt-6 w-full inline-flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-lg ring-1 ring-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 text-slate-900 font-semibold transition"
           >
             <GoogleLogo />
@@ -291,7 +298,7 @@ export function RedditSignup() {
 
             <button
               type="submit"
-              disabled={loading || blocked}
+              disabled={loading || blocked || modeLoading}
               className="w-full inline-flex items-center justify-center gap-2 px-4 py-3 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold shadow-lg shadow-orange-500/20"
             >
               {loading ? (
