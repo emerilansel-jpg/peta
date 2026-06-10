@@ -118,9 +118,10 @@ export function RankingForumPage() {
   // with hardcoded fallbacks if the table isn't available yet.
   const commentMode: 'plain' | 'link' = (wantsSuggestion && mentionMode === 'link') ? 'link' : 'plain';
   const platformOf = (url: string) => (/(^|\.)reddit\.com/i.test(url) ? 'reddit' : 'forum');
-  // A platform is considered enabled if at least one of its pricing rows is active.
-  // This hides Reddit (or any platform) entirely when the admin turns off all its services.
+  // Reddit is hard-excluded from all client-facing surfaces.
+  // Additional platforms are hidden when the admin turns off all their pricing rows.
   const isPlatformEnabled = (url: string): boolean => {
+    if (platformOf(url) === 'reddit') return false;
     const p = platformOf(url);
     const plainOn = pricing.find((r) => r.key === `${p}_comment_plain`)?.enabled ?? true;
     const linkOn = pricing.find((r) => r.key === `${p}_comment_link`)?.enabled ?? true;
@@ -932,7 +933,7 @@ function localKeywordTemplates(base: string): Array<KeywordIdea & { volume: numb
     `${base} vs competitors`, `${base} recommendations`, `${base} tools`, `${base} software`, `${base} service`,
   ];
   const forumAngles = [
-    `${base} forum`, `${base} discussion`, `${base} community`, `${base} reddit`, `${base} quora`,
+    `${base} forum`, `${base} discussion`, `${base} community`, `${base} quora`,
     `${base} stack exchange`, `${base} hubspot community`, `${base} product hunt`, `${base} indie hackers`,
   ];
   const generated: Array<KeywordIdea & { volume: number }> = [];
@@ -954,7 +955,6 @@ function buildGoogleTop10Results(keyword: string): ForumResult[] {
   const slug = encodeURIComponent(keyword.replace(/\s+/g, '-'));
   const q = encodeURIComponent(keyword);
   return [
-    { title: `Reddit discussion: ${keyword}`, url: `https://www.reddit.com/search/?q=${q}`, platform: 'Reddit', reason: 'High discussion density and visible comment threads.', eligible: true },
     { title: `Quora answers around ${keyword}`, url: `https://www.quora.com/search?q=${q}`, platform: 'Quora', reason: 'Question-led pages usually accept helpful comparison-style answers.', eligible: true },
     { title: `HubSpot Community thread: ${keyword}`, url: `https://community.hubspot.com/t5/forums/searchpage/tab/message?advanced=false&allow_punctuation=false&q=${q}`, platform: 'HubSpot', reason: 'B2B-heavy audience with practical implementation questions.', eligible: true },
     { title: `Indie Hackers discussion: ${keyword}`, url: `https://www.indiehackers.com/search?q=${q}`, platform: 'Indie Hackers', reason: 'Operator-heavy audience, useful for SaaS and growth topics.', eligible: true },
