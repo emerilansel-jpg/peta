@@ -865,3 +865,72 @@ Admin can turn off platforms (e.g. Reddit) via pricing matrix. But users still s
 - If admin disables ALL Reddit pricing rows → Reddit section disappears from New Order, Reddit results never appear in Ranking Forum
 - If admin disables ALL comment pricing → Forum discovery section disappears, no forum results shown
 - Edge case: already-selected disabled items still show warning in Comment/Review step (preserved existing `disabledSelected` logic)
+
+---
+
+## 2026-06-10 — UX/CRO Audit: Deploy disabled-platform hide fix to straight.ltd production
+
+**Problem:**
+Code fix for hiding disabled platforms (commit `ed844ec` + `2029049` + `0b841f1`) existed in repo but was NOT deployed to straight.ltd production. Browser audit confirmed Reddit service cards still visible on New Order page and Reddit URLs could appear in Ranking Forum.
+
+**Root cause:**
+Cloudflare Pages project `straight` (domain `www.straight.ltd`) was running old build. Last deployment was 22 hours prior. Separate from PeTa project `peta`.
+
+**Fix applied:**
+1. Fixed build-breaking unused imports/variables in `TaskQueue.tsx` (from stale PeTa worktree drift)
+2. Built successfully: `npm run build` (tsc + vite, 1.16s)
+3. Deployed to Cloudflare Pages project `straight` via `wrangler pages deploy ./dist --project-name=straight --branch=main`
+4. Browser re-verified on production domain:
+   - New Order: Reddit section completely gone. Only Forum discovery (Comments) + Likes & Shares + Request remain.
+   - Ranking Forum: No Reddit results. No paused cards.
+
+**Files changed:**
+- `peta/src/pages/admin/TaskQueue.tsx` — removed unused `MessageSquare, Send, Smartphone, Bell` imports + prefixed unused blast state variables with `_`
+
+**Deployment:**
+- Project: `straight` (Cloudflare Pages)
+- Commit: `0b841f1`
+- Time: 2026-06-10 ~14:00 UTC
+- Inspector report: `[2026-06-10]_Straight_Disabled_Platform_Audit_FINAL.md`
+
+**Remaining gaps (optional):**
+- Comments service description still mentions "Reddit" in copy: "Helpful comments for Reddit, Quora, HubSpot, and niche forums"
+- Page title + meta tags still say "The Reddit Growth Engine" — SEO decision whether to pivot to "Forum Growth Engine"
+
+
+---
+
+## 2026-06-10 — Admin Waitlist Page
+
+**Problem:**
+Waitlist submissions masuk ke Supabase table `public.waitlist` tapi tidak ada admin UI untuk melihat dan manage entries. Admin harus query manual via SQL Editor.
+
+**Fix:**
+1. `AdminWaitlist.tsx` — new admin page at `/reddit/admin/waitlist`:
+   - Table view: email, keyword, brand, website, notes, status, submitted date
+   - Stats cards: total, pending, invited, converted, declined
+   - Search: email, keyword, brand, website, notes
+   - Status filter dropdown
+   - Sort: newest/oldest
+   - Export CSV
+   - Quick actions per row: mark as invited, converted, declined, or reset to pending
+
+2. `AdminLayout.tsx` — added "Waitlist" nav item with Clock icon
+
+3. `App.tsx` — added route `/reddit/admin/waitlist` with AdminGuard
+
+**Files changed:**
+- `peta/src/modules/reddit/pages/admin/AdminWaitlist.tsx` (new)
+- `peta/src/modules/reddit/components/AdminLayout.tsx`
+- `peta/src/App.tsx`
+
+**Build & deploy:**
+- `npm run build` passes (tsc + vite)
+- Deployed to Cloudflare Pages project `peta` (straight.ltd)
+- Commit: `93f7f02`
+
+**Access:**
+- URL: `https://www.straight.ltd/reddit/admin/waitlist`
+- Requires admin login
+
+---
