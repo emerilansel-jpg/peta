@@ -206,9 +206,9 @@ export function RedditNewOrder() {
 // View 1: Service Selector
 // ============================================================
 function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect: (s: Service) => void }) {
-  // Reddit is hard-excluded from all client-facing surfaces.
-  // Additional services are hidden when the admin marks them paused.
-  const visible = services.filter((s) => s.platform !== 'Reddit' && s.status !== 'paused');
+  // Hide paused services entirely — admin turned them off.
+  const visible = services.filter((s) => s.status !== 'paused');
+  const redditServices = visible.filter((s) => s.platform === 'Reddit');
   const forumServices = visible.filter((s) => s.platform === 'Forums' || s.platform === 'Facebook');
   const customServices = visible.filter((s) => s.platform === 'Custom');
 
@@ -219,7 +219,22 @@ function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect
         <p className="text-slate-600 mt-1">Choose a service to start. Or request something we don't yet offer.</p>
       </div>
 
-      {/* Forum services */}
+      {/* Platform: Reddit */}
+      {redditServices.length > 0 && (
+        <div className="mb-10">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-7 h-7 rounded bg-orange-500 flex items-center justify-center text-white text-sm font-bold">R</div>
+            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Reddit</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {redditServices.map((s) => (
+              <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Other platforms */}
       {forumServices.length > 0 && (
         <div className="mb-10">
           <div className="flex items-center gap-3 mb-4">
