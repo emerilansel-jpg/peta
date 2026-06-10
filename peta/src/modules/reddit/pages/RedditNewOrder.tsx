@@ -207,6 +207,7 @@ export function RedditNewOrder() {
 // ============================================================
 function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect: (s: Service) => void }) {
   // Hide paused services entirely — admin turned them off.
+  // Reddit cards show when pricing matrix has them enabled.
   const visible = services.filter((s) => s.status !== 'paused');
   const redditServices = visible.filter((s) => s.platform === 'Reddit');
   const forumServices = visible.filter((s) => s.platform === 'Forums' || s.platform === 'Facebook');
