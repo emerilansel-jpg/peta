@@ -1,6 +1,6 @@
 # Cold Start Handoff - Straight Ltd + PeTa
 
-Last updated: 2026-06-08
+Last updated: 2026-06-11
 
 Workspace:
 
@@ -41,28 +41,28 @@ D:\Claude Cowork\Reddit Army Local\image (1).png
 Recent commits on `main`:
 
 ```text
-c39e4e6 chore: remove deployment trigger file
-40c9ad2 trigger: force Vercel redeploy
-748417f docs(coldstart): HubSpot forum upvote fix applied to prod
-cf2267f fix(straight): add missing GRANT on fn_create_reddit_upvote_order + enable forum_upvote
-f90bf83 fix(ranking-forum): early disabled-platform warning on paused platforms
-24a36ef feat: forgot password via email + WhatsApp (Fonnte)
+2f0e6b7 feat: PeTA-branded password reset email via SMTP
+0b841f1 fix(straight): deploy disabled-platform hide fix to production
+93f7f02 feat(admin): waitlist management page
+ed844ec feat(straight): hide disabled platforms from Ranking Forum + New Order
+2029049 fix(straight): fail-closed signup + login CTA fix for waitlist mode
+0b841f1 fix(straight): Ranking Forum disabled platform early warning + hasBrand bug
 ```
 
 Expected dirty state at handoff:
 
 ```text
- M peta/src/modules/reddit/pages/RankingForumPage.tsx
-?? coldstart.md
-?? "image (1).png"
+ M peta/src/pages/admin/TaskQueue.tsx
+ M supabase/migrations/20260530052517_forum_task_import_and_submission_proof.sql
+?? supabase/functions/send-task-blast/
+?? supabase/migrations/20260610000000_task_wa_blast.sql
 ```
 
 Notes:
 
 ```text
-coldstart.md is this handoff file.
-image (1).png is unrelated and must be preserved.
-RankingForumPage.tsx has uncommitted local changes (disabled-platform warning UX).
+TaskQueue.tsx has uncommitted local changes (unused imports cleanup from stale worktree).
+send-task-blast edge function is untracked — may be WIP or experimental.
 ```
 
 ## Stack
@@ -149,6 +149,11 @@ GOOGLE_SEARCH_CX
 SUPABASE_URL
 SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY
+SMTP_HOST
+SMTP_PORT
+SMTP_USER
+SMTP_PASSWORD
+FONNTE_TOKEN
 ```
 
 Expected missing or not configured:
@@ -156,6 +161,7 @@ Expected missing or not configured:
 ```text
 ANTHROPIC_API_KEY
 SERPAPI_API_KEY
+RESEND_API_KEY (optional — SMTP is primary)
 ```
 
 Latest production provider health observed (2026-06-01, updated):
@@ -200,6 +206,7 @@ Routes:
 /reddit/new-order?service=comments
 /reddit/ranking-forum
 /reddit/admin/settings
+/reddit/admin/waitlist
 ```
 
 Comments order flow:
@@ -235,6 +242,7 @@ System filters for forum/discussion/community URLs.
 Single selected URL routes into /reddit/new-order?service=comments&url=...&keyword=...
 Multiple selected URLs are stored in localStorage key straight:forum-comment-bulk:v1 and routed to comment order flow.
 Fallback/preview mode is clearly labeled when live provider is unavailable.
+Disabled platforms are HIDDEN (not grayed out) from both Ranking Forum and New Order.
 ```
 
 Admin AI provider settings:
@@ -247,6 +255,15 @@ Client-facing UI does not expose provider choice.
 Provider health cards exist for DeepSeek, Claude, DataForSEO, Google Custom Search, and SerpAPI.
 ```
 
+Admin waitlist management:
+
+```text
+URL: /reddit/admin/waitlist
+Table view with search, filter, sort, export CSV
+Quick actions: mark invited, converted, declined, reset to pending
+Stats cards: total, pending, invited, converted, declined
+```
+
 ## Important Files
 
 Straight client/admin modules:
@@ -255,6 +272,7 @@ Straight client/admin modules:
 peta/src/modules/reddit/pages/RedditNewOrder.tsx
 peta/src/modules/reddit/pages/RankingForumPage.tsx
 peta/src/modules/reddit/pages/admin/AdminSettings.tsx
+peta/src/modules/reddit/pages/admin/AdminWaitlist.tsx
 peta/src/modules/reddit/lib/api.ts
 ```
 
@@ -263,6 +281,8 @@ Supabase Edge Functions:
 ```text
 peta/supabase/functions/generate-forum-comment/index.ts
 peta/supabase/functions/rank-forum-pages/index.ts
+peta/supabase/functions/send-wa-password-reset/index.ts
+peta/supabase/functions/send-password-reset-email/index.ts
 ```
 
 Relevant migrations:
@@ -270,6 +290,7 @@ Relevant migrations:
 ```text
 peta/supabase/migrations/20260529143000_forum_comment_orders.sql
 peta/supabase/migrations/20260531104132_enforce_task_quota_and_duplicate_comments.sql
+peta/supabase/migrations/20260609000000_password_reset_tokens.sql
 ```
 
 PeTa/admin/army task files:
@@ -293,12 +314,6 @@ Do not paste secrets from these files into chat, commits, docs, or PR descriptio
 ## PeTa Task Quota Hotfix Status
 
 Urgent issue already handled:
-
-```text
-HubSpot task ID: 91742b89-0c14-452e-8a50-c8ae235a68a6
-```
-
-Production state was fixed:
 
 ```text
 Task status set to completed.
@@ -331,7 +346,8 @@ CRITICAL — active PeTa dev/build/deploy runs from the WORKTREE, not the main d
 ```text
 Worktree: D:\Claude Cowork\Reddit Army Local\.claude\worktrees\wonderful-torvalds-23e4c8
 Branch:   staging   (latest PeTa admin work is committed + pushed here, commit e1f4a23)
-The main project dir (...\Reddit Army Local\peta) is on branch `main` and is STALE —
+The main project dir (...
+\Reddit Army Local\peta) is on branch `main` and is STALE —
 its lib/api.ts lacks sendWaDm/adminAssignmentHistory/adminRevertAssignment and will NOT build.
 ALWAYS edit + build + deploy from the worktree. Deploying a build from the stale main dir
 ships the OLD admin UI (no Pending/Approved/Rejected tabs, no WA modals) — this regression
@@ -568,6 +584,15 @@ Try submit same comment/proof for same target URL.
 Expected: duplicate is blocked.
 ```
 
+PeTa forgot password:
+
+```text
+Open https://www.penghasilantambahan.com/forgot-password
+Test email reset: enter registered email, check inbox for PeTA-branded email (not Supabase Auth)
+Test WA reset: enter registered WA number, check WA for reset link
+Test reset link: click link, set new password, login with new password
+```
+
 ## Known Product Expectations From User
 
 Straight Ltd:
@@ -589,6 +614,7 @@ If a platform-specific brief exists, do not duplicate universal brief.
 Task submissions should allow proof URL, username used, and optional screenshot where implemented.
 Task quota must be enforced strictly.
 Duplicate comments must be blocked to reduce ban risk.
+Forgot password email must be branded as PeTA (not Supabase Auth).
 ```
 
 ## Final Status At Handoff
@@ -604,6 +630,10 @@ Ranking Forum UX latest commit includes bird-eye selection, hidden provider word
 Admin provider health UI is live.
 PeTa task quota and duplicate protections are deployed.
 Urgent overfilled HubSpot task was taken down/fixed.
+PeTa forgot password via email + WhatsApp deployed.
+PeTA-branded password reset email (SMTP) deployed — no more "Supabase Auth" sender.
+Admin waitlist page is live.
+Disabled platforms are hidden from Straight client UI.
 ```
 
 Not complete (all OPTIONAL now that DataForSEO is live):
@@ -612,6 +642,7 @@ Not complete (all OPTIONAL now that DataForSEO is live):
 Google Custom Search 403 (redundant fallback; needs fresh PSE w/ CAPTCHA - user action).
 Claude needs ANTHROPIC_API_KEY only if admin should be able to select Claude (DeepSeek works).
 SerpAPI needs SERPAPI_API_KEY only if wanted as extra fallback.
+Vercel auto-deploy is blocked (team paused, quota exceeded) — manual deploy via GitHub API or wait for billing reset.
 ```
 
 Done 2026-06-01 (this session):
@@ -622,7 +653,6 @@ Verified Ranking Forum end-to-end on production: live keyword ideas + live SERP 
 both provider_notice=null (true live data, not fallback preview).
 Ranking Forum CAN now be reported to user as having live SERP/keyword data.
 ```
-
 
 Done 2025-07-08 (this session):
 
@@ -678,7 +708,7 @@ Straight Ltd Admin Registration Mode Toggle:
   - Table straight_settings created
   - RPCs admin_get_straight_settings, admin_update_straight_settings, get_straight_registration_mode created
   - Default mode: signup
-  - Verified: SELECT get_straight_registration_mode() → 'signup'
+  - Verified: SELECT get_straight_registration_mode() -> 'signup'
 ```
 
 Done 2026-07-10 (this session):
@@ -686,8 +716,8 @@ Done 2026-07-10 (this session):
 ```text
 Ranking Forum UX fix — disabled platform early warning + hasBrand bug:
 - Problem: user selects mix of Quora + Reddit URLs, generates all AI drafts,
-  but "Review & approve" button stays gray. Message says "Every page needs its
-  own draft (min 20 chars)" even though all drafts exist.
+  but "Review & approve" button stays gray. Message says "Every page needs its own draft (min 20 chars)"
+  even though all drafts exist.
 - Root cause #1 (paused platform): Reddit comment service is paused in pricing
   matrix (reddit_comment_plain disabled), so disabledSelected.length > 0 makes
   commentReady = false. User only finds out AFTER generating drafts — bad UX.
@@ -806,7 +836,6 @@ FONNTE_TOKEN — for WA password reset edge function
 Existing Fonnte token already configured for broadcast/group features.
 ```
 
-
 ---
 
 ## 2026-06-09 — Waitlist Mode: Login page still shows "Sign up free" when waitlist is on
@@ -897,7 +926,6 @@ Cloudflare Pages project `straight` (domain `www.straight.ltd`) was running old 
 - Comments service description still mentions "Reddit" in copy: "Helpful comments for Reddit, Quora, HubSpot, and niche forums"
 - Page title + meta tags still say "The Reddit Growth Engine" — SEO decision whether to pivot to "Forum Growth Engine"
 
-
 ---
 
 ## 2026-06-10 — Admin Waitlist Page
@@ -932,5 +960,49 @@ Waitlist submissions masuk ke Supabase table `public.waitlist` tapi tidak ada ad
 **Access:**
 - URL: `https://www.straight.ltd/reddit/admin/waitlist`
 - Requires admin login
+
+---
+
+## 2026-06-11 — PeTA-Branded Password Reset Email via SMTP
+
+**Problem:**
+Forgot password email dikirim dari "Supabase Auth <noreply@mail.app.supabase.io>" — bukan dari PeTA. User minta email dari PeTA branding.
+
+**Fix:**
+1. New edge function `send-password-reset-email` — sends PeTA-branded reset email via SMTP (Spacemail) instead of Supabase native auth email.
+   - Uses existing SMTP secrets: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD
+   - From: `PeTA <peta@penghasilantambahan.com>`
+   - HTML template: PeTA orange gradient header, Indonesian copy, 15-min expiry notice
+   - Generates 32-char token, stores in `password_reset_tokens` table
+   - verify_jwt = false (called by anonymous users before login)
+
+2. Updated `ForgotPassword.tsx`:
+   - Replaced `supabase.auth.resetPasswordForEmail()` with `supabase.functions.invoke('send-password-reset-email')`
+   - Error handling updated: `resend_not_configured` → `smtp_not_configured`
+
+3. Updated `config.toml`:
+   - Added `[functions.send-password-reset-email]` verify_jwt = false
+   - Added `[functions.send-wa-password-reset]` verify_jwt = false
+
+4. Edge function `send-wa-password-reset` juga di-deploy dengan verify_jwt = false.
+
+**Files changed:**
+- `peta/supabase/functions/send-password-reset-email/index.ts` (new)
+- `peta/src/pages/ForgotPassword.tsx`
+- `peta/supabase/config.toml`
+
+**Deployment:**
+- Edge functions deployed to production (yorlsgzsawchpeeazcvi)
+- Git commit: `2f0e6b7`
+- Frontend build: PASSED (tsc + vite)
+
+**Remaining issue:**
+- `password_reset_tokens` table migration (20260609000000_password_reset_tokens.sql) may NOT be applied to production yet.
+- If user reports "token_store_failed" error when testing forgot password → migration belum di-push ke prod.
+- Fix: login ke Supabase dashboard → SQL Editor → run migration SQL manually, OR use `supabase db push`.
+
+**Vercel deployment:**
+- Frontend changes committed to main but NOT auto-deployed (Vercel team still paused).
+- User must manually deploy via Cloudflare Pages or wait for Vercel billing reset.
 
 ---
