@@ -24,17 +24,25 @@ export function ForgotPassword() {
     }
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/reset-password`,
+      const { data, error } = await supabase.functions.invoke('send-password-reset-email', {
+        body: {
+          email: email.trim(),
+          base_url: window.location.origin,
+        },
       });
       if (error) throw error;
+      if (!data?.ok) {
+        throw new Error(data?.error || 'Gagal kirim link reset via email');
+      }
       setSent(true);
       setSentTo(email);
-      toast.success('Link reset password dikirim ke email kamu!');
+      toast.success(data.message || 'Link reset password dikirim ke email kamu!');
     } catch (error: any) {
       const msg = error?.message || 'Gagal kirim link reset';
       if (/rate limit/i.test(msg)) {
         toast.error('Terlalu banyak request. Coba lagi dalam 60 detik.');
+      } else if (/smtp_not_configured/i.test(msg)) {
+        toast.error('Email gateway belum di-setup. Hubungi admin ya.');
       } else {
         toast.error(msg);
       }
