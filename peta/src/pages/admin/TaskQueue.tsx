@@ -1252,15 +1252,11 @@ export function AdminTaskQueue() {
                   setBlastLoading(true);
                   try {
                     if (blastMode !== 'skip') {
-                      const { data, error } = await supabase.functions.invoke('send-task-blast', {
-                        body: {
-                          taskId: blastTask.id,
-                          test: blastMode === 'test',
-                          testPhone: blastMode === 'test' ? blastTestPhone : undefined,
-                        },
-                      });
-                      if (error) throw error;
-                      if (!data?.success) throw new Error(data?.message || 'Failed');
+                      await sendTaskBlast(
+                        blastTask.id,
+                        blastMode === 'test',
+                        blastMode === 'test' ? blastTestPhone : undefined
+                      );
                       toast.success(
                         blastMode === 'test' ? 'Test WA terkirim!' : 'Blast WA terkirim!'
                       );
