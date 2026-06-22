@@ -252,6 +252,7 @@ export function RedditTopup() {
                   </div>
                 ) : (
                   <PayPalScriptProvider
+                    key={paypal.clientId}
                     options={{
                       'clientId': paypal.clientId,
                       currency: 'USD',
