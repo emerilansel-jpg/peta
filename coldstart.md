@@ -1,11 +1,12 @@
 # Cold Start Handoff - Straight Ltd + PeTa
 
-> ⚠️ LATEST (2026-06-10): read **`docs/CHECKPOINT_20260610_audit_round.md`** FIRST — it supersedes the
+> ⚠️ LATEST (2026-06-22): read **`docs/CHECKPOINT_20260610_audit_round.md`** FIRST — it supersedes the
 > git-state and paths below. Active repo is now **`G:\SF Project\peta-main`** (NOT the `D:\Claude Cowork`
-> path below). Latest work is on branch **`fix/audit-2026-06-09`** — committed, NOT pushed/merged, and
-> **prod is already live with it** (deployed to BOTH Pages projects `peta` + `straight`).
+> path below). Latest work is on branch **`fix/audit-2026-06-09`** — **committed AND pushed to GitHub**, NOT merged,
+> and **prod is already live with it** (deployed to Pages project `straight` for `www.straight.ltd`; the `peta` project
+> is separate and was intentionally not touched).
 
-Last updated: 2026-06-04 (audit round 2026-06-09/10 — see checkpoint linked above)
+Last updated: 2026-06-22 (PayPal checkout fixes deployed; PeTa ResetWhatsApp changes remain uncommitted).
 
 Workspace:
 
@@ -23,7 +24,8 @@ Repository:
 
 ```text
 https://github.com/emerilansel-jpg/peta.git
-branch: main
+branch: fix/audit-2026-06-09 (pushed)
+main branch is behind; do not deploy from main for Straight.ltd
 ```
 
 ## Operating Rules
@@ -43,36 +45,39 @@ D:\Claude Cowork\Reddit Army Local\image (1).png
 
 ## Current Git State
 
-Recent commits on `main`:
+Recent commits on `fix/audit-2026-06-09`:
 
 ```text
-284aa0e Straight Ranking Forum UX: bird-eye select, hide provider, bulk suggested
-1ddf761 Improve ranking provider error details
-f00cd47 Add provider dashboard links to health cards
-47348be Add provider health remediation hints
-8aeb0e7 Show DataForSEO balance in provider health
-e87476b Add SerpAPI ranking provider fallback
-3f0cc03 Show ranking provider preview notices
-c9a77b8 Add Straight provider health checks
-e5b1cbf Improve ranking fallback UX and comment context fetch
-fe42608 Enforce task quotas and duplicate comment blocking
-2291d14 Improve ranking forum persistence and DataForSEO parsing
+6f61d30 fix(straight): force PayPalScriptProvider remount on client id change
+bf95baf fix(straight): use direct fetch for paypal-capture to surface real errors
+aaaf77a docs: add 2026-06-10 audit-round checkpoint + coldstart pointer
+9644a14 Fix admin_get_referral_leaderboard ambiguous column (errored on every call)
+f1e405a Field-swap backfill: also strip bare comment-marker tasks (no DETAIL ORDER)
+b2f3667 Task field-swap: description = full brief/instructions, brief = comment-only
+cdf74ac PayPal: admin-configurable credentials (no env rebuild)
+175170f Audit round: re-enable Reddit pricing, +10% AI-write, auth UX, waitlist toggle, WA OTP reset
+f30fa20 Merge feat/geo-funnel-ai-visibility into main
+d647dd6 Straight Ltd: pricing matrix charges, upvotes-any-URL, privacy fixes, pricing->Finance
 ```
 
-Expected dirty state at handoff:
+Current dirty state (2026-06-22):
 
 ```text
- M peta/src/pages/admin/ApprovalQueue.tsx
-?? coldstart.md
-?? "image (1).png"
+ M ../coldstart.md
+ M src/pages/ResetWhatsApp.tsx
+ M supabase/functions/wa-reset-request/index.ts
+?? ../.agents/
+?? ../skills-lock.json
 ```
 
 Notes:
 
 ```text
-coldstart.md is this handoff file.
-image (1).png is unrelated and must be preserved.
-peta/src/pages/admin/ApprovalQueue.tsx has an uncommitted local enhancement for WhatsApp DM prompts after rejection. Review before committing or deploying.
+coldstart.md is this handoff file — update it whenever state changes.
+ResetWhatsApp.tsx + wa-reset-request/index.ts are PeTa changes that are already working in prod;
+  the user explicitly asked NOT to modify/commit them again.
+ApprovalQueue.tsx uncommitted enhancement mentioned in earlier handoffs has since been committed/pushed.
+The .agents/ and skills-lock.json files are agent tooling; leave them untracked.
 ```
 
 ## Stack
@@ -389,14 +394,25 @@ chat (likely Straight-adjacent) — do NOT send PeTa marketing there.
 Run from app directory:
 
 ```powershell
-cd "D:\Claude Cowork\Reddit Army Local\peta"
+cd "G:\SF Project\peta-main\peta"
 npm.cmd run build
 ```
 
 Deploy frontend to Cloudflare Pages:
 
+> IMPORTANT: `www.straight.ltd` resolves to the `straight` Pages project (`straight-4dv.pages.dev`),
+> while the `peta` Pages project serves `penghasilantambahan.com`. Do NOT deploy Straight.ltd from the
+> `peta` project.
+
 ```powershell
-cd "D:\Claude Cowork\Reddit Army Local\peta"
+cd "G:\SF Project\peta-main\peta"
+npx.cmd wrangler pages deploy dist --project-name=straight --branch=main --commit-dirty=true
+```
+
+Deploy PeTa frontend (if ever needed):
+
+```powershell
+cd "G:\SF Project\peta-main\peta"
 npx.cmd wrangler pages deploy dist --project-name=peta --branch=main --commit-dirty=true
 ```
 
@@ -598,6 +614,9 @@ Claude selection UI/backend path exists, but key is missing.
 Ranking Forum UI and provider fallback chain are live.
 Ranking Forum UX latest commit includes bird-eye selection, hidden provider wording, and bulk suggested flow.
 Admin provider health UI is live.
+PayPal admin-configurable settings UI is live on /reddit/admin/settings.
+PayPal checkout (top-up) flow is live and tested end-to-end in sandbox.
+PayPal capture edge function verifies orders server-side before crediting.
 PeTa task quota and duplicate protections are deployed.
 Urgent overfilled HubSpot task was taken down/fixed.
 ```
@@ -617,4 +636,95 @@ DataForSEO topped up to $49.94 -> provider health 'ok'.
 Verified Ranking Forum end-to-end on production: live keyword ideas + live SERP top-10 scan,
 both provider_notice=null (true live data, not fallback preview).
 Ranking Forum CAN now be reported to user as having live SERP/keyword data.
+```
+
+## 2026-06-22 — Straight.ltd PayPal Checkout Deploy & Fixes
+
+What was done:
+
+```text
+Pushed branch fix/audit-2026-06-09 to GitHub.
+Deployed Straight.ltd frontend from the correct Cloudflare Pages project: straight (NOT peta).
+Confirmed PayPal admin config RPCs and paypal-capture edge function are active in production.
+Confirmed PayPal credentials are stored in app_secrets and configurable from /reddit/admin/settings.
+Sandbox top-up flow tested successfully: payment captured, credit balance updated, history shown.
+```
+
+Fixes applied:
+
+```text
+src/modules/reddit/lib/api.ts — completePayPalTopup:
+  - Switched from supabase.functions.invoke() to direct fetch() with explicit Bearer + apikey headers.
+  - Surfaces real edge-function error messages instead of generic "Failed to send a request".
+  - Explicitly checks user session and throws a clear "You must be signed in" error if missing.
+
+src/modules/reddit/pages/RedditTopup.tsx:
+  - Added key={paypal.clientId} to PayPalScriptProvider so the SDK reloads when client id changes.
+  - Prevents stale sandbox SDK from being reused after switching to a live PayPal client id.
+```
+
+Important note for live PayPal:
+
+```text
+The PayPal JS SDK determines sandbox vs live based on the CLIENT ID, not the environment toggle.
+If the admin selects "Live" but the checkout still redirects to sandbox.paypal.com, the Client ID
+entered in the Live field is actually a Sandbox Client ID. Use a Live App Client ID from:
+https://developer.paypal.com/dashboard/applications/live
+```
+
+## 2026-06-10 — WhatsApp OTP Reset Fix
+
+Problem:
+
+```text
+User reports no OTP received on /reset-whatsapp.
+Root cause: Fonnte gateway likely failing (token invalid or device disconnected).
+wa-reset-request edge function was swallowing errors and returning generic { ok: true },
+so the UI always showed "kode sudah dikirim" even when the message never left the server.
+```
+
+Fix applied (round 1 — edge function error surfacing):
+
+```text
+wa-reset-request/index.ts:
+  - Returns { ok: true, sent: true } on Fonnte success.
+  - Returns { ok: true, sent: false, error: 'gateway_error' } when Fonnte token missing or send fails.
+  - Still returns { ok: true } for unregistered numbers (privacy preserved).
+
+ResetWhatsApp.tsx:
+  - Checks data?.sent === false and shows error toast:
+    "Gagal mengirim kode WhatsApp. Coba pakai reset email atau hubungi admin."
+  - Stays on phone step when gateway is down instead of advancing to code entry.
+```
+
+Fix applied (round 2 — 401 Unauthorized):
+
+```text
+Supabase Edge Functions require Authorization: Bearer <token> header.
+supabase.functions.invoke() does NOT send anon key as Bearer when user is not logged in.
+This caused 401 for public /reset-whatsapp flow.
+
+ResetWhatsApp.tsx:
+  - Replaced supabase.functions.invoke() with direct fetch() using:
+    Authorization: Bearer <VITE_SUPABASE_ANON_KEY>
+    apikey: <VITE_SUPABASE_ANON_KEY>
+  - Applied to both wa-reset-request and wa-reset-confirm calls.
+```
+
+Ops required to fully restore OTP delivery:
+
+```text
+1. Verify FONNTE_TOKEN in Supabase app_secrets is valid and active.
+   (Admin Broadcast panel shows "unknown user" — strong signal token is bad or device disconnected.)
+2. If invalid: go to fonnte.com → regenerate device token → update app_secrets.FONNTE_TOKEN.
+3. Re-deploy wa-reset-request edge function to staging + production after code fix.
+4. Build + deploy frontend (wrangler pages deploy) after ResetWhatsApp.tsx fix.
+5. Test /reset-whatsapp with a registered number and confirm OTP arrives.
+```
+
+Files changed:
+
+```text
+peta/supabase/functions/wa-reset-request/index.ts
+peta/src/pages/ResetWhatsApp.tsx
 ```
