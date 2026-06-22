@@ -506,19 +506,32 @@ export async function completePayPalTopup(
   paypalOrderId: string,
   _paypalCaptureId: string
 ) {
-  const { data, error } = await supabase.functions.invoke('paypal-capture', {
-    body: { paypal_order_id: paypalOrderId },
+  // Use direct fetch instead of supabase.functions.invoke for clearer error messages
+  // and to avoid occasional "Failed to send a request to the Edge Function" wrapper errors.
+  const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const { data: { session } } = await supabase.auth.getSession();
+  const token = session?.access_token;
+  if (!token) {
+    throw new Error('You must be signed in to complete a top-up.');
+  }
+
+  const res = await fetch(`${baseUrl}/functions/v1/paypal-capture`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'apikey': anonKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ paypal_order_id: paypalOrderId }),
   });
 
-  if (error) {
-    // Surface PayPal-side error (e.g. "PayPal order not completed") to caller
-    const detail = (data && (data as any).error) || error.message || 'topup failed';
-    throw new Error(detail);
+  const data = await res.json().catch(() => ({ error: `Invalid response from server (HTTP ${res.status})` }));
+
+  if (!res.ok || data?.error) {
+    throw new Error(data?.error || `Top-up request failed (HTTP ${res.status})`);
   }
-  if (data && (data as any).error) {
-    throw new Error((data as any).error);
-  }
-  return (data as any)?.topup;
+  return data?.topup;
 }
 
 // Helper: enrich rows with user data via separate fetch
