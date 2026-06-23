@@ -691,7 +691,7 @@ The "$5 free credit on signup" copy and bonus are removed.
 No signup credit is awarded for Straight users.
 ```
 
-Fix created (NOT applied yet — needs user action or Supabase access token):
+Fix created and pushed:
 
 ```text
 Migration: peta/supabase/migrations/20260623060000_straight_signup_fix_role_credit.sql
@@ -702,16 +702,44 @@ Migration: peta/supabase/migrations/20260623060000_straight_signup_fix_role_cred
       * copies full_name, role_title, website from auth metadata
       * keeps existing PeTa WhatsApp + referral-bonus behaviour intact.
       * NO signup credit awarded (per product decision).
-Frontend: removed "$5 free credit on signup" copy from RedditSignup.tsx.
+Frontend: removed "$5 free credit on signup" copy from RedditSignup.tsx (deployed).
 Type fix: src/lib/supabase.ts role type now includes 'client'.
 ```
 
-To apply the fix:
+To apply the DB fix:
 
 ```text
-Option A (recommended): run the SQL from the migration file in Supabase Dashboard SQL Editor
-                       on the production project, then test a new Straight signup.
-Option B: provide a Supabase personal access token so the migration can be applied via CLI.
+Run the SQL from migration 20260623060000_straight_signup_fix_role_credit.sql in Supabase
+Dashboard SQL Editor on production project yorlsgzsawchpeeazcvi.
+```
+
+## 2026-06-23 — Straight→PeTa Admin RPC Fixes (APPLIED)
+
+Blockers found during QA:
+
+```text
+admin_list_pending_reddit_orders returned auth.users.email as varchar(255) but the
+function declared the return column as text -> PostgREST error 42804. PeTa admin could
+not see the Straight order import queue.
+
+admin_update_task had two overloaded signatures -> PostgREST error PGRST203. PeTa admin
+could not edit tasks.
+```
+
+Fix applied to production via Supabase CLI (access token):
+
+```text
+Migration: peta/supabase/migrations/20260623070000_fix_straight_peta_admin_rpc.sql
+  - admin_list_pending_reddit_orders: cast au.email to text.
+  - admin_update_task: dropped obsolete 14-param and 16-param overloads, kept the
+    16-param version that matches the PeTa admin edit sheet.
+```
+
+Verification:
+
+```text
+admin_list_pending_reddit_orders now returns [] instead of 42804.
+admin_update_task now returns task UUID instead of PGRST203.
 ```
 
 ## 2026-06-10 — WhatsApp OTP Reset Fix
