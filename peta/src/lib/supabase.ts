@@ -13,7 +13,7 @@ export type Database = {
           id: string;
           email: string;
           full_name: string | null;
-          role: 'army' | 'admin';
+          role: 'army' | 'admin' | 'client';
           role_title: string | null;
           website: string | null;
           is_active: boolean;
