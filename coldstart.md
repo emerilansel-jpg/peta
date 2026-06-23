@@ -679,10 +679,16 @@ QA finding:
 ```text
 Email signup on /reddit/signup works and creates a client user.
 Front door mode is 'signup', so registration is open.
-BUT: landing/signup promise "$5 free credit on signup" is NOT awarded (credit_balance stays 0).
 BUT: role_title and website fields from the signup form are NOT saved to public.users.
 CRITICAL: production DB has diverged from repo migrations — role='client' and role_title/website
           columns exist in production but are missing from the migration files.
+```
+
+Product decision (Pak Nell, 2026-06-23):
+
+```text
+The "$5 free credit on signup" copy and bonus are removed.
+No signup credit is awarded for Straight users.
 ```
 
 Fix created (NOT applied yet — needs user action or Supabase access token):
@@ -694,8 +700,9 @@ Migration: peta/supabase/migrations/20260623060000_straight_signup_fix_role_cred
   - Recreates handle_new_user():
       * product='straight' -> role='client'
       * copies full_name, role_title, website from auth metadata
-      * awards $5 (500 cents) signup credit via credit_transactions for Straight users
       * keeps existing PeTa WhatsApp + referral-bonus behaviour intact.
+      * NO signup credit awarded (per product decision).
+Frontend: removed "$5 free credit on signup" copy from RedditSignup.tsx.
 Type fix: src/lib/supabase.ts role type now includes 'client'.
 ```
 
