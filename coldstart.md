@@ -1,12 +1,14 @@
 # Cold Start Handoff - Straight Ltd + PeTa
 
-> ⚠️ LATEST (2026-06-22): read **`docs/CHECKPOINT_20260610_audit_round.md`** FIRST — it supersedes the
-> git-state and paths below. Active repo is now **`G:\SF Project\peta-main`** (NOT the `D:\Claude Cowork`
-> path below). Latest work is on branch **`fix/audit-2026-06-09`** — **committed AND pushed to GitHub**, NOT merged,
+> ⚠️ LATEST (2026-06-23): re-QA round completed — Straight→PeTa transaction flow now works end-to-end
+> on production. Remaining blocker: WhatsApp bot needs a manual QR re-scan. See new section below.
+>
+> Read **`docs/CHECKPOINT_20260610_audit_round.md`** for earlier context. Active repo is now **`G:\SF Project\peta-main`**.
+> Latest work is on branch **`fix/audit-2026-06-09`** — **committed AND pushed to GitHub**, NOT merged,
 > and **prod is already live with it** (deployed to Pages project `straight` for `www.straight.ltd`; the `peta` project
 > is separate and was intentionally not touched).
 
-Last updated: 2026-06-22 (PayPal checkout fixes deployed; PeTa ResetWhatsApp changes remain uncommitted).
+Last updated: 2026-06-23 (Straight signup/RPC migrations applied, PayPal live verified, E2E transaction tested).
 
 Workspace:
 
@@ -60,14 +62,16 @@ f30fa20 Merge feat/geo-funnel-ai-visibility into main
 d647dd6 Straight Ltd: pricing matrix charges, upvotes-any-URL, privacy fixes, pricing->Finance
 ```
 
-Current dirty state (2026-06-22):
+Current dirty state (2026-06-23):
 
 ```text
- M ../coldstart.md
- M src/pages/ResetWhatsApp.tsx
- M supabase/functions/wa-reset-request/index.ts
-?? ../.agents/
-?? ../skills-lock.json
+ M coldstart.md
+ M peta/src/pages/ResetWhatsApp.tsx
+ M peta/supabase/functions/wa-reset-request/index.ts
+?? peta/scripts/e2e-flow-test.mjs
+?? peta/supabase/migrations/20260624060000_straight_auto_import_order_trigger.sql
+?? .agents/
+?? skills-lock.json
 ```
 
 Notes:
@@ -77,6 +81,9 @@ coldstart.md is this handoff file — update it whenever state changes.
 ResetWhatsApp.tsx + wa-reset-request/index.ts are PeTa changes that are already working in prod;
   the user explicitly asked NOT to modify/commit them again.
 ApprovalQueue.tsx uncommitted enhancement mentioned in earlier handoffs has since been committed/pushed.
+peta/scripts/e2e-flow-test.mjs is a new QA smoke-test script (reads credentials from env vars).
+peta/supabase/migrations/20260624060000_straight_auto_import_order_trigger.sql captures the
+  production-only auto-import trigger; apply it to staging + prod via supabase db push.
 The .agents/ and skills-lock.json files are agent tooling; leave them untracked.
 ```
 
@@ -740,6 +747,72 @@ Verification:
 ```text
 admin_list_pending_reddit_orders now returns [] instead of 42804.
 admin_update_task now returns task UUID instead of PGRST203.
+```
+
+## 2026-06-23 — Re-QA: Straight→PeTa End-to-End Transaction
+
+Goal: prove a Straight client can pay → order is imported as a PeTa task → army works → admin
+approves → Straight order auto-completes every day.
+
+What was applied:
+
+```text
+Migration 20260623060000_straight_signup_fix_role_credit.sql -> production AND staging.
+Migration 20260623070000_fix_straight_peta_admin_rpc.sql -> production AND staging.
+Migration 20260624060000_straight_auto_import_order_trigger.sql -> production AND staging.
+  (This captures production-only drift: reddit_upvote_orders are auto-imported into tasks as draft.)
+```
+
+Config fixes:
+
+```text
+straight_pricing reddit_upvote, reddit_comment_plain, reddit_comment_link were enabled=false.
+These blocked Straight clients from placing Reddit orders. Enabled on production.
+```
+
+Verification results:
+
+```text
+✅ Straight email signup creates role='client' and saves role_title + website.
+✅ Admin can adjust client credits via fn_admin_adjust_credits.
+✅ Client creates a reddit_upvote order (cost 50c) successfully.
+✅ Order is auto-imported as a draft PeTa task (auto-import trigger).
+✅ Admin activates the task via admin_update_task.
+✅ Army user claims the task via claim_task_assignment.
+✅ Army submits proof (direct update to task_assignments).
+✅ Admin approves (status='approved').
+✅ Trigger tg_on_assignment_approved increments delivered_upvotes and marks order completed.
+✅ Army receives task_reward credit.
+```
+
+E2E smoke test script:
+
+```text
+peta/scripts/e2e-flow-test.mjs
+- Reads Supabase credentials from env vars (no committed secrets).
+- Pass --cleanup-only to remove test users created by the script.
+```
+
+PayPal live mode verified:
+
+```text
+PAYPAL_ENV = live in app_secrets.
+Live PayPal JS SDK loads with the configured client id.
+Live PayPal OAuth token request returns 200.
+=> PayPal is correctly configured for live transactions.
+```
+
+Remaining blocker — WhatsApp bot:
+
+```text
+Evolution API instance 'peta-bot' was deleted/recreated during QA and is DISCONNECTED.
+Webhook URL restored to N8N: https://n8n.46-250-239-138.sslip.io/webhook/wa-incoming
+QR code does not render in the Evolution Manager UI (blank dialog).
+Action needed: open http://46.250.239.138:8080/manager, login with global API key,
+find peta-bot, click Get QR Code, and scan with the burner WhatsApp phone.
+If the QR dialog stays blank, restart the VPS/docker service or check Evolution logs.
+Once online, the next 'peta' group message will auto-lock PETA_WA_GROUP_JID and restore
+the Rp5K bonus flow + group blast features.
 ```
 
 ## 2026-06-10 — WhatsApp OTP Reset Fix
