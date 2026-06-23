@@ -1,10 +1,13 @@
 -- =============================================================
--- Straight Ltd — fix email signup: correct role, save profile
--- fields, and award the promised $5 signup credit.
+-- Straight Ltd — fix email signup: correct role and save profile
+-- fields (role_title, website).
 --
 -- Production already has role='client' rows and role_title/website
 -- columns, but the repo migrations did not. This migration makes the
--- repo match production AND fixes the missing signup-credit bug.
+-- repo match production.
+--
+-- NOTE: the "$5 free credit on signup" copy was removed per product
+-- decision (Pak Nell, 2026-06-23). No signup credit is awarded.
 -- =============================================================
 
 -- 1) Allow 'client' role (used by Straight Ltd users).
@@ -24,7 +27,6 @@ ALTER TABLE public.users
 -- 3) Recreate handle_new_user so Straight signups get:
 --    - role = 'client'
 --    - full_name, role_title, website copied from metadata
---    - $5 (500 cents) signup credit via credit_transactions
 --    while PeTa signups keep the existing army role / WhatsApp /
 --    referral-bonus behaviour.
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -95,32 +97,9 @@ BEGIN
       (NEW.id,        20000, 'referral_bonus_referee',  'Bonus daftar pakai kode referral', v_referrer_id);
   END IF;
 
-  -- Straight signup bonus: $5 free credit as advertised on the landing page.
-  IF v_product = 'straight' THEN
-    INSERT INTO public.credit_transactions (
-      user_id, type, amount, balance_after, metadata
-    )
-    SELECT
-      NEW.id,
-      'adjust',
-      500,
-      COALESCE(u.credit_balance, 0) + 500,
-      jsonb_build_object('reason', 'straight_signup_bonus', 'description', '$5 free credit on signup')
-    FROM public.users u
-    WHERE u.id = NEW.id
-    ON CONFLICT DO NOTHING;
-  END IF;
-
   RETURN NEW;
 END;
 $$;
-
--- 4) Idempotency guard: a user can only receive the Straight signup bonus once.
---    This also makes any future backfill safe.
-DROP INDEX IF EXISTS idx_credit_transactions_straight_signup_bonus;
-CREATE UNIQUE INDEX idx_credit_transactions_straight_signup_bonus
-  ON public.credit_transactions (user_id)
-  WHERE metadata->>'reason' = 'straight_signup_bonus';
 
 -- Ensure the trigger is attached (idempotent).
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;

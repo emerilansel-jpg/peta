@@ -149,7 +149,7 @@ export function RedditSignup() {
           </div>
 
           <h1 className="text-2xl font-bold text-slate-900 mt-6">Create your account</h1>
-          <p className="text-sm text-slate-600 mt-1">Get $5 free credit on signup. No credit card required.</p>
+          <p className="text-sm text-slate-600 mt-1">No credit card required.</p>
 
           {/* Trust signals */}
           <div className="flex flex-wrap gap-3 mt-5">
