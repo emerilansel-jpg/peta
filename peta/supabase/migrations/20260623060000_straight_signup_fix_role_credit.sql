@@ -115,6 +115,13 @@ BEGIN
 END;
 $$;
 
+-- 4) Idempotency guard: a user can only receive the Straight signup bonus once.
+--    This also makes any future backfill safe.
+DROP INDEX IF EXISTS idx_credit_transactions_straight_signup_bonus;
+CREATE UNIQUE INDEX idx_credit_transactions_straight_signup_bonus
+  ON public.credit_transactions (user_id)
+  WHERE metadata->>'reason' = 'straight_signup_bonus';
+
 -- Ensure the trigger is attached (idempotent).
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created

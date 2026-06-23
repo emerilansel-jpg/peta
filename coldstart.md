@@ -672,6 +672,41 @@ entered in the Live field is actually a Sandbox Client ID. Use a Live App Client
 https://developer.paypal.com/dashboard/applications/live
 ```
 
+## 2026-06-23 — Straight.ltd Signup QA & Fix
+
+QA finding:
+
+```text
+Email signup on /reddit/signup works and creates a client user.
+Front door mode is 'signup', so registration is open.
+BUT: landing/signup promise "$5 free credit on signup" is NOT awarded (credit_balance stays 0).
+BUT: role_title and website fields from the signup form are NOT saved to public.users.
+CRITICAL: production DB has diverged from repo migrations — role='client' and role_title/website
+          columns exist in production but are missing from the migration files.
+```
+
+Fix created (NOT applied yet — needs user action or Supabase access token):
+
+```text
+Migration: peta/supabase/migrations/20260623060000_straight_signup_fix_role_credit.sql
+  - Adds 'client' to users.role CHECK constraint.
+  - Adds role_title and website columns.
+  - Recreates handle_new_user():
+      * product='straight' -> role='client'
+      * copies full_name, role_title, website from auth metadata
+      * awards $5 (500 cents) signup credit via credit_transactions for Straight users
+      * keeps existing PeTa WhatsApp + referral-bonus behaviour intact.
+Type fix: src/lib/supabase.ts role type now includes 'client'.
+```
+
+To apply the fix:
+
+```text
+Option A (recommended): run the SQL from the migration file in Supabase Dashboard SQL Editor
+                       on the production project, then test a new Straight signup.
+Option B: provide a Supabase personal access token so the migration can be applied via CLI.
+```
+
 ## 2026-06-10 — WhatsApp OTP Reset Fix
 
 Problem:
