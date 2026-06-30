@@ -698,6 +698,8 @@ function ForumCommentOrderForm({
   const [newOrderId, setNewOrderId] = useState<number | null>(null);
   const [bulkOrderIds, setBulkOrderIds] = useState<number[]>([]);
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
+  const [quantity, setQuantity] = useState(1);
+  const [commentDrafts, setCommentDrafts] = useState<{ comment_text: string; targetUrl?: string }[]>([]);
 
   const isBulk = bulkQueue.length > 0;
   const detectedPlatform = useMemo(() => detectForumPlatform(targetUrl), [targetUrl]);
@@ -718,7 +720,10 @@ function ForumCommentOrderForm({
   const enabledFor = (url: string) =>
     straightEnabled(pricing, `${straightPlatformKey(url)}_comment_${mode}`, true);
   const unitCost = priceFor(targetUrl);
-  const cost = isBulk ? bulkQueue.reduce((sum, t) => sum + priceFor(t.url), 0) : unitCost;
+  const effectiveQuantity = isBulk ? 1 : Math.max(1, Math.min(quantity, 500));
+  const cost = isBulk
+    ? bulkQueue.reduce((sum, t) => sum + priceFor(t.url), 0)
+    : unitCost * effectiveQuantity;
   const commentEnabled = isBulk ? bulkQueue.every((t) => enabledFor(t.url)) : enabledFor(targetUrl);
   // Base (plain) price for the representative target — shown on the choice cards.
   const repUrl = isBulk ? (bulkQueue[0]?.url || '') : targetUrl;
@@ -728,33 +733,85 @@ function ForumCommentOrderForm({
   const isValidUrl = isBulk || /^https?:\/\/[^\s.]+\.[^\s]+/i.test(targetUrl.trim());
   const needsBrand = wantsSuggestion === true;
 
-  const regenerateDraft = async () => {
-    if (!targetUrl.trim()) {
-      toast.error('Add the forum URL first');
-      return;
-    }
+  const ANGLE_PROMPTS = [
+    'Write from a personal experience or practical example angle.',
+    'Write as a thoughtful follow-up question that naturally leads to the brand mention.',
+    'Agree with the thread and add one concise extra tip or insight.',
+    'Gently correct a common misconception related to the topic, then mention the brand.',
+    'Briefly compare two approaches or tools, then recommend the brand.',
+  ];
+
+  const generateAllDrafts = async () => {
     if (!brandName.trim() && !brandDomain.trim()) {
       toast.error('Add the brand or domain first');
       return;
     }
+
+    // Bulk flow: one unique draft per selected URL.
+    if (isBulk) {
+      if (bulkQueue.length === 0) {
+        toast.error('No URLs in the bulk queue');
+        return;
+      }
+      setIsGenerating(true);
+      setCommentDrafts([]);
+      try {
+        const drafts: { comment_text: string; targetUrl: string }[] = [];
+        for (let i = 0; i < bulkQueue.length; i++) {
+          const target = bulkQueue[i];
+          const angle = ANGLE_PROMPTS[i % ANGLE_PROMPTS.length];
+          const result = await generateForumComment({
+            targetUrl: target.url.trim(),
+            platform: target.platform || detectForumPlatform(target.url) || 'forum',
+            brandName: brandName.trim() || null,
+            brandDomain: brandDomain.trim() || null,
+            mentionMode,
+            extraInstructions: [notes.trim(), angle, `Comment text brief: ${commentText.trim() || 'natural, helpful reply'}`].filter(Boolean).join('\n') || null,
+          });
+          drafts.push({ comment_text: result.comment, targetUrl: target.url });
+        }
+        setCommentDrafts(drafts);
+        setCommentText(drafts.map((d) => `• ${d.targetUrl}\n${d.comment_text}`).join('\n\n'));
+        setGenerationMeta({ fetchedContext: true, reason: null });
+        toast.success(`${drafts.length} unique drafts ready`);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Draft assistant failed';
+        toast.error(msg.toLowerCase().includes('api_key not configured')
+          ? 'Draft assistant is not configured yet. Contact support before placing a suggested-comment order.'
+          : msg);
+      } finally {
+        setIsGenerating(false);
+      }
+      return;
+    }
+
+    // Single URL flow.
+    if (!targetUrl.trim()) {
+      toast.error('Add the forum URL first');
+      return;
+    }
+
     setIsGenerating(true);
+    setCommentDrafts([]);
     try {
-      const result = await generateForumComment({
-        targetUrl: targetUrl.trim(),
-        platform: platform || detectedPlatform || 'forum',
-        brandName: brandName.trim() || null,
-        brandDomain: brandDomain.trim() || null,
-        mentionMode,
-        extraInstructions: notes.trim() || null,
-      });
-      setCommentText(result.comment);
-      setGenerationMeta({
-        fetchedContext: result.fetched_context,
-        reason: result.fetch_reason,
-      });
-      toast.success(result.fetched_context
-        ? 'Thread-aware draft is ready to review'
-        : 'Draft is ready. Thread access was limited, so review carefully.');
+      const count = effectiveQuantity;
+      const drafts: { comment_text: string }[] = [];
+      for (let i = 0; i < count; i++) {
+        const angle = count > 1 ? ANGLE_PROMPTS[i % ANGLE_PROMPTS.length] : notes.trim() || null;
+        const result = await generateForumComment({
+          targetUrl: targetUrl.trim(),
+          platform: platform || detectedPlatform || 'forum',
+          brandName: brandName.trim() || null,
+          brandDomain: brandDomain.trim() || null,
+          mentionMode,
+          extraInstructions: angle,
+        });
+        drafts.push({ comment_text: result.comment });
+      }
+      setCommentDrafts(drafts);
+      setCommentText(drafts.map((d) => d.comment_text).join('\n\n---\n\n'));
+      setGenerationMeta({ fetchedContext: true, reason: null });
+      toast.success(count > 1 ? `${count} unique drafts ready` : 'Draft is ready to review');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Draft assistant failed';
       toast.error(msg.toLowerCase().includes('api_key not configured')
@@ -767,9 +824,9 @@ function ForumCommentOrderForm({
 
   const handleSuggestionChoice = (choice: boolean) => {
     setWantsSuggestion(choice);
-    if (!choice && !commentText) {
-      setCommentText('');
-    }
+    setCommentDrafts([]);
+    setCommentText('');
+    setGenerationMeta(null);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -797,22 +854,26 @@ function ForumCommentOrderForm({
 
     if (isBulk) {
       setBulkSubmitting(true);
-      Promise.all(bulkQueue.map((target) => createForumCommentOrderAsync({
-        targetUrl: target.url,
-        platform: target.platform || detectForumPlatform(target.url) || null,
-        commentText: commentText.trim(),
-        useSuggestedComment: !!wantsSuggestion,
-        brandName: brandName.trim() || null,
-        brandDomain: brandDomain.trim() || null,
-        brandMentionMode: wantsSuggestion ? mentionMode : null,
-        sourceKeyword: target.keyword || sourceKeyword || null,
-        notes: [
-          notes.trim(),
-          `bulk_source=ranking_forum`,
-          `bulk_target_title=${target.title}`,
-          wantsSuggestion ? 'bulk_suggested=per_thread_draft_from_brief' : '',
-        ].filter(Boolean).join('\n') || null,
-      }))).then((orders) => {
+      Promise.all(bulkQueue.map((target) => {
+        const draft = commentDrafts.find((d) => d.targetUrl === target.url);
+        return createForumCommentOrderAsync({
+          targetUrl: target.url,
+          platform: target.platform || detectForumPlatform(target.url) || null,
+          commentText: draft?.comment_text || commentText.trim(),
+          useSuggestedComment: !!wantsSuggestion,
+          brandName: brandName.trim() || null,
+          brandDomain: brandDomain.trim() || null,
+          brandMentionMode: wantsSuggestion ? mentionMode : null,
+          sourceKeyword: target.keyword || sourceKeyword || null,
+          notes: [
+            notes.trim(),
+            `bulk_source=ranking_forum`,
+            `bulk_target_title=${target.title}`,
+            wantsSuggestion ? 'bulk_suggested=unique_per_thread_draft' : '',
+          ].filter(Boolean).join('\n') || null,
+          commentDrafts: draft ? [{ comment_text: draft.comment_text }] : undefined,
+        });
+      })).then((orders) => {
         const ids = orders.map((order: { id?: number } | null) => order?.id).filter(Boolean) as number[];
         setBulkOrderIds(ids);
         window.localStorage.removeItem(BULK_COMMENT_DRAFT_KEY);
@@ -838,6 +899,10 @@ function ForumCommentOrderForm({
           notes.trim(),
           generationMeta ? `draft_context_fetched=${generationMeta.fetchedContext ? 'yes' : 'no'}` : '',
         ].filter(Boolean).join('\n') || null,
+        quantity: effectiveQuantity,
+        commentDrafts: wantsSuggestion
+          ? (commentDrafts.length === effectiveQuantity ? commentDrafts : undefined)
+          : Array.from({ length: effectiveQuantity }, () => ({ comment_text: commentText.trim() })),
       },
       {
         onSuccess: (order: { id?: number } | null) => {
@@ -1001,6 +1066,31 @@ function ForumCommentOrderForm({
         </div>
         )}
 
+        {!isBulk && (
+          <div>
+            <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
+              <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">Q</span>
+              Quantity
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                min={1}
+                max={500}
+                value={quantity}
+                onChange={(e) => setQuantity(Math.max(1, Math.min(500, parseInt(e.target.value) || 1)))}
+                className="w-28 px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-slate-900"
+              />
+              <span className="text-sm text-slate-500">{effectiveQuantity} comment{quantity !== 1 ? 's' : ''} will be placed on this thread.</span>
+            </div>
+            {!wantsSuggestion && quantity > 1 && (
+              <p className="mt-2 text-xs text-amber-700">
+                Self-written bulk comments will use the same text. Armies are instructed to adapt the wording naturally.
+              </p>
+            )}
+          </div>
+        )}
+
         <div>
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-3">
             <span className="w-6 h-6 rounded-full bg-blue-600 text-white text-xs font-bold flex items-center justify-center">2</span>
@@ -1021,6 +1111,8 @@ function ForumCommentOrderForm({
               <p className="text-sm text-slate-600 leading-relaxed">
                 {isBulk
                   ? 'AI draft included. Our editorial assistant writes a unique comment for every selected thread — adapted to each conversation, with one natural brand mention. Give us a short brief below.'
+                  : quantity > 1
+                  ? `AI drafts included. Our editorial assistant writes ${effectiveQuantity} unique replies for this thread — each from a different angle, with one natural brand mention. You review, edit, and approve before ordering.`
                   : "AI draft included. Our editorial assistant reviews the public conversation, adapts to the thread's tone, and drafts a useful reply with one natural brand mention. You review, edit, and approve before ordering."}
               </p>
               <p className="mt-3 text-sm font-bold text-orange-700">
@@ -1098,30 +1190,22 @@ function ForumCommentOrderForm({
               </div>
             </div>
 
-            {!isBulk && (
-              <>
-                <button
-                  type="button"
-                  onClick={regenerateDraft}
-                  disabled={isGenerating}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold"
-                >
-                  {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <RefreshCcw size={14} />}
-                  {isGenerating ? 'Preparing draft...' : (commentText ? 'Refresh suggested comment' : 'Create suggested comment')}
-                </button>
-                {generationMeta && (
-                  <p className="text-xs text-orange-900">
-                    {generationMeta.fetchedContext
-                      ? 'Draft prepared from the public thread context. Review tone, claims, and brand mention before checkout.'
-                      : 'Draft prepared with limited thread context. Review carefully before checkout.'}
-                  </p>
-                )}
-              </>
-            )}
-            {isBulk && (
-              <p className="text-xs text-orange-900 leading-relaxed">
-                We draft a unique comment for each of the {bulkQueue.length} selected threads from your brief below —
-                each one is reviewed by our editorial team before it goes live. No need to write every comment yourself.
+            <button
+              type="button"
+              onClick={generateAllDrafts}
+              disabled={isGenerating}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold"
+            >
+              {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <RefreshCcw size={14} />}
+              {isGenerating
+                ? (isBulk ? `Preparing ${bulkQueue.length} drafts...` : `Preparing ${effectiveQuantity} draft${effectiveQuantity !== 1 ? 's' : ''}...`)
+                : (commentDrafts.length > 0 ? 'Regenerate all drafts' : 'Create suggested comments')}
+            </button>
+            {generationMeta && (
+              <p className="text-xs text-orange-900">
+                {isBulk
+                  ? `${commentDrafts.length} unique thread-aware drafts ready. Review the combined preview below before checkout.`
+                  : `${commentDrafts.length} unique draft${commentDrafts.length !== 1 ? 's' : ''} prepared. Review before checkout.`}
               </p>
             )}
           </div>
@@ -1134,6 +1218,8 @@ function ForumCommentOrderForm({
               ? 'Brief for every draft'
               : isBulk
               ? 'Comment / instruction for all selected URLs'
+              : wantsSuggestion && quantity > 1
+              ? `${effectiveQuantity} generated drafts`
               : 'Final comment'}
           </label>
           <textarea
@@ -1145,10 +1231,10 @@ function ForumCommentOrderForm({
                 : isBulk
                 ? 'Paste the exact comment or shared instruction to apply to all selected forum URLs...'
                 : wantsSuggestion
-                ? 'Generate a suggestion, then edit it before ordering...'
+                ? 'Generate suggestions, then edit them before ordering...'
                 : 'Paste the exact comment you want us to place...'
             }
-            rows={7}
+            rows={wantsSuggestion && (quantity > 1 || isBulk) ? 12 : 7}
             className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-y text-slate-900"
             required
           />
@@ -1157,6 +1243,8 @@ function ForumCommentOrderForm({
               ? `We turn this brief into a unique, thread-aware comment for each of the ${bulkQueue.length} selected pages. Min 20 characters.`
               : isBulk
               ? 'This same comment/instruction will be attached to every URL in the bulk queue.'
+              : wantsSuggestion && quantity > 1
+              ? 'Each section is one unique draft assigned to a different army member. You can edit them before checkout.'
               : 'You can edit the comment before checkout. Regenerating replaces this text.'}
           </p>
         </div>
@@ -1184,7 +1272,11 @@ function ForumCommentOrderForm({
         <div className="p-5 rounded-xl bg-slate-50 ring-1 ring-slate-200">
           <div className="flex justify-between text-sm mb-2">
             <span className="text-slate-600">Comment placement{mode === 'link' ? ' · with link' : ' · plain text'}</span>
-            <span className="text-slate-900 font-semibold">{isBulk ? `${bulkQueue.length} pages` : formatUSD(unitCost)}</span>
+            <span className="text-slate-900 font-semibold">
+              {isBulk
+                ? `${bulkQueue.length} pages`
+                : `${effectiveQuantity} × ${formatUSD(unitCost)}`}
+            </span>
           </div>
           {wantsSuggestion && (
             <div className="flex justify-between text-sm mb-2">

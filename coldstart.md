@@ -62,15 +62,24 @@ f30fa20 Merge feat/geo-funnel-ai-visibility into main
 d647dd6 Straight Ltd: pricing matrix charges, upvotes-any-URL, privacy fixes, pricing->Finance
 ```
 
-Current dirty state (2026-06-23):
+Current dirty state (2026-06-25):
 
 ```text
  M coldstart.md
+ M peta/src/modules/reddit/lib/api.ts
+ M peta/src/modules/reddit/pages/RankingForumPage.tsx
+ M peta/src/modules/reddit/pages/RedditNewOrder.tsx
+ M peta/src/pages/TaskDetail.tsx
  M peta/src/pages/ResetWhatsApp.tsx
  M peta/supabase/functions/wa-reset-request/index.ts
 ?? peta/scripts/e2e-flow-test.mjs
+?? peta/scripts/test-forum-comment-bulk.mjs
 ?? peta/supabase/migrations/20260624060000_straight_auto_import_order_trigger.sql
+?? peta/supabase/migrations/20260625060000_forum_comment_quantity_drafts.sql
 ?? .agents/
+?? ACTION_PLAN_SUPERVISI_CAPTAIN.md
+?? TASK_ORDERS_PETA.md
+?? TASK_TEMPLATE_AND_EXAMPLES.md
 ?? skills-lock.json
 ```
 
@@ -81,10 +90,11 @@ coldstart.md is this handoff file — update it whenever state changes.
 ResetWhatsApp.tsx + wa-reset-request/index.ts are PeTa changes that are already working in prod;
   the user explicitly asked NOT to modify/commit them again.
 ApprovalQueue.tsx uncommitted enhancement mentioned in earlier handoffs has since been committed/pushed.
-peta/scripts/e2e-flow-test.mjs is a new QA smoke-test script (reads credentials from env vars).
-peta/supabase/migrations/20260624060000_straight_auto_import_order_trigger.sql captures the
-  production-only auto-import trigger; apply it to staging + prod via supabase db push.
-The .agents/ and skills-lock.json files are agent tooling; leave them untracked.
+peta/scripts/e2e-flow-test.mjs & test-forum-comment-bulk.mjs are QA smoke-test scripts.
+Migrations 20260624060000_* and 20260625060000_* capture production drift and the new
+  forum-comment bulk feature; apply to staging via supabase db push when staging recovers.
+The ACTION_PLAN_*, TASK_*, .agents/, and skills-lock.json files are not from this session;
+  leave them untracked unless the user says otherwise.
 ```
 
 ## Stack
@@ -800,6 +810,36 @@ PAYPAL_ENV = live in app_secrets.
 Live PayPal JS SDK loads with the configured client id.
 Live PayPal OAuth token request returns 200.
 => PayPal is correctly configured for live transactions.
+```
+
+## 2026-06-25 — Forum Comment Bulk + Unique AI Drafts
+
+Problem (raised by Pak Nell):
+
+```text
+AI-suggested forum comment orders produced one draft per order. For bulk orders
+(e.g. 50 comments) all armies would post the same text, which looks unnatural
+and risks platform bans.
+```
+
+Fix applied to production:
+
+```text
+Migration: peta/supabase/migrations/20260625060000_forum_comment_quantity_drafts.sql
+  - New table reddit_order_comment_drafts stores one unique draft per slot.
+  - fn_create_forum_comment_order now accepts quantity + commentDrafts array.
+  - claim_task_assignment assigns the next unused draft to each army member.
+
+Frontend:
+  - RedditNewOrder.tsx adds a Quantity selector for forum comments.
+  - AI mode generates N unique drafts (different angles) for the same thread.
+  - Bulk flow from Ranking Forum now generates a unique draft per URL.
+  - TaskDetail.tsx displays the assignment-specific draft_comment if present.
+
+Verified end-to-end on production:
+  - Order quantity=3, cost=3×unit price ✅
+  - 3 army members claim and each receive a different draft ✅
+  - All 3 approved → order completed ✅
 ```
 
 Remaining blocker — WhatsApp bot:

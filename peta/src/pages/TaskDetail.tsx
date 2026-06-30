@@ -86,8 +86,9 @@ export function TaskDetail() {
 
   const startMutation = useMutation({
     mutationFn: () => createTaskAssignment(taskId!, selectedAccountId || null),
-    onSuccess: (a: { id: string }) => {
+    onSuccess: (a: { id: string; draft_comment?: string | null }) => {
       setAssignmentId(a.id);
+      if (a.draft_comment) setDraftComment(a.draft_comment);
       setStage('submit');
     },
     onError: (e: unknown) => {
@@ -435,7 +436,8 @@ export function TaskDetail() {
               New model: comment lives in task.brief, instructions in task.description.
               Legacy tasks packed both into brief — splitForumBrief() still handles them. */}
           {(() => {
-            const comment = splitForumBrief(task.brief).commentPost.trim();
+            const assignmentComment = isForumComment ? draftComment?.trim() : '';
+            const comment = assignmentComment || splitForumBrief(task.brief).commentPost.trim();
             const legacyStd = splitForumBrief(task.brief).standardBrief;
             const instructions = memberSafePostingBrief(legacyStd || task.description || '').trim();
             if (!comment && !instructions) return null;

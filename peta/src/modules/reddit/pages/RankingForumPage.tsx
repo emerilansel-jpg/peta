@@ -359,6 +359,7 @@ export function RankingForumPage() {
             `bulk_target_title=${target.title}`,
             wantsSuggestion ? 'comment=ai_unique_per_page' : 'comment=client_written_per_page',
           ].join('\n'),
+          commentDrafts: text ? [{ comment_text: text }] : undefined,
         });
       }));
       setPlacedCount(orders.length);

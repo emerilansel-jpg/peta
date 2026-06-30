@@ -104,6 +104,8 @@ export interface ForumCommentOrderInput {
   brandMentionMode: 'plain' | 'link' | null;
   sourceKeyword?: string | null;
   notes?: string | null;
+  quantity?: number;
+  commentDrafts?: { comment_text: string }[];
 }
 
 export interface GenerateForumCommentInput {
@@ -336,6 +338,10 @@ export async function createForumCommentOrder(input: ForumCommentOrderInput) {
     p_brand_mention_mode: input.brandMentionMode,
     p_source_keyword: input.sourceKeyword ?? null,
     p_notes: input.notes ?? null,
+    p_quantity: input.quantity ?? 1,
+    p_comment_drafts: input.commentDrafts && input.commentDrafts.length > 0
+      ? input.commentDrafts
+      : [],
   });
 
   if (error) {
