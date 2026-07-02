@@ -367,7 +367,13 @@ export function RankingForumPage() {
       toast.success(`${orders.length} comment order${orders.length === 1 ? '' : 's'} placed.`);
       setShowSuccess(true);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to place orders');
+      console.error('[RankingForumPage] placeOrders failed:', err);
+      const detail = err instanceof Error
+        ? err.message
+        : typeof err === 'string'
+          ? err
+          : JSON.stringify(err);
+      toast.error(detail || 'Failed to place orders');
     }
   };
 

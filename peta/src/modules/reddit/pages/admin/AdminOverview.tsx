@@ -58,7 +58,8 @@ export function AdminOverview() {
       setStats(s);
       setRecentOrders(orders.slice(0, 5));
       setRecentTickets(tickets.filter((t: any) => t.unread_admin > 0).slice(0, 5));
-      setUserCount(users.length);
+      // Straight Ltd admin sees clients + admins only; exclude PeTa army users.
+      setUserCount(users.filter((u: any) => u.role === 'client' || u.role === 'admin').length);
       setRecentReviews(reviews.slice(0, 5));
       setPendingReviewCount(reviews.filter((r: any) => r.status === 'pending').length);
       setRecentFRs(frs.slice(0, 5));

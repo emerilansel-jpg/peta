@@ -1,38 +1,15 @@
 -- =============================================================
--- Straight Ltd — forum comment bulk orders with unique AI drafts.
+-- Straight Ltd — tolerate scalar JSON-encoded p_comment_drafts.
 --
--- Adds quantity support to forum comment orders so a client can order
--- N comments on one thread. Each slot gets a unique AI-generated draft
--- stored in reddit_order_comment_drafts and assigned to one army member
--- at claim time. This prevents armies from posting identical comments.
+-- Some clients (older/cached builds) send p_comment_drafts as a
+-- JSON string scalar like '[{"comment_text":"..."}]' instead of a
+-- native JSON array. The previous function called jsonb_array_length
+-- directly and failed with:
+--   "cannot get array length of a scalar" (22023)
 --
--- Also fixes the Ranking Forum bulk flow: previously one generated draft
--- was reused for every selected URL. Now each URL gets its own draft.
+-- This migration normalizes the input: parse string scalars, wrap
+-- single objects, and fall back to an empty array for anything else.
 -- =============================================================
-
--- 1) Drafts table: one row per unique comment slot for a forum comment order.
-CREATE TABLE IF NOT EXISTS public.reddit_order_comment_drafts (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  order_id bigint NOT NULL REFERENCES public.reddit_upvote_orders(id) ON DELETE CASCADE,
-  draft_index integer NOT NULL,
-  comment_text text NOT NULL,
-  assignment_id uuid REFERENCES public.task_assignments(id) ON DELETE SET NULL,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  UNIQUE (order_id, draft_index)
-);
-
-COMMENT ON TABLE public.reddit_order_comment_drafts IS
-  'Unique AI-generated comment drafts for forum comment orders. One row per slot.';
-
--- RLS: only service role / admin should read drafts; assignments claim path uses RPC.
-ALTER TABLE public.reddit_order_comment_drafts ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "drafts_service_role" ON public.reddit_order_comment_drafts;
-CREATE POLICY "drafts_service_role" ON public.reddit_order_comment_drafts
-  FOR ALL USING (true) WITH CHECK (true);
-
--- 2) Recreate forum comment order RPC with quantity and draft array support.
--- Drop the old 9-param overload so PostgREST never routes to it.
-DROP FUNCTION IF EXISTS public.fn_create_forum_comment_order(text, text, text, boolean, text, text, text, text, text);
 
 CREATE OR REPLACE FUNCTION public.fn_create_forum_comment_order(
   p_target_url TEXT,
@@ -180,103 +157,3 @@ REVOKE ALL ON FUNCTION public.fn_create_forum_comment_order(
 GRANT EXECUTE ON FUNCTION public.fn_create_forum_comment_order(
   TEXT, TEXT, TEXT, BOOLEAN, TEXT, TEXT, TEXT, TEXT, TEXT, INTEGER, JSONB
 ) TO authenticated;
-
--- 3) Claim: assign one unique draft to the army member for forum_comment tasks.
-CREATE OR REPLACE FUNCTION public.claim_task_assignment(
-  p_task_id uuid,
-  p_reddit_account_id uuid DEFAULT NULL
-)
-RETURNS public.task_assignments
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public
-AS $$
-DECLARE
-  v_uid uuid := auth.uid();
-  v_task record;
-  v_account record;
-  v_assignment public.task_assignments;
-  v_live int;
-  v_draft record;
-BEGIN
-  IF v_uid IS NULL THEN
-    RAISE EXCEPTION 'Login dulu untuk ambil task.' USING ERRCODE = 'P0001';
-  END IF;
-
-  SELECT *
-  INTO v_task
-  FROM public.tasks
-  WHERE id = p_task_id
-  FOR UPDATE;
-
-  IF v_task.id IS NULL THEN
-    RAISE EXCEPTION 'Task tidak ditemukan.' USING ERRCODE = 'P0001';
-  END IF;
-
-  IF v_task.status <> 'active'
-    OR (v_task.start_at IS NOT NULL AND now() < v_task.start_at)
-    OR (v_task.end_at IS NOT NULL AND now() >= v_task.end_at) THEN
-    RAISE EXCEPTION 'Task ini sudah tidak aktif.' USING ERRCODE = 'P0001';
-  END IF;
-
-  SELECT public.task_live_assignment_count(p_task_id) INTO v_live;
-  IF v_live >= COALESCE(v_task.max_assignments, 0) THEN
-    PERFORM public.sync_task_slot_count(p_task_id);
-    RAISE EXCEPTION 'Quota task sudah penuh. Ambil task lain.' USING ERRCODE = 'P0001';
-  END IF;
-
-  IF COALESCE(v_task.task_category, '') = 'forum_comment' THEN
-    INSERT INTO public.task_assignments (task_id, user_id, reddit_account_id, status)
-    VALUES (p_task_id, v_uid, NULL, 'in_progress')
-    RETURNING * INTO v_assignment;
-
-    -- Assign the next unused unique draft for this source order.
-    SELECT d.id, d.comment_text
-    INTO v_draft
-    FROM public.reddit_order_comment_drafts d
-    WHERE d.order_id = v_task.source_order_id
-      AND d.assignment_id IS NULL
-    ORDER BY d.draft_index
-    LIMIT 1
-    FOR UPDATE SKIP LOCKED;
-
-    IF v_draft.id IS NOT NULL THEN
-      UPDATE public.task_assignments
-      SET draft_comment = v_draft.comment_text
-      WHERE id = v_assignment.id;
-
-      UPDATE public.reddit_order_comment_drafts
-      SET assignment_id = v_assignment.id
-      WHERE id = v_draft.id;
-
-      v_assignment.draft_comment := v_draft.comment_text;
-    END IF;
-  ELSE
-    SELECT *
-    INTO v_account
-    FROM public.reddit_accounts
-    WHERE id = p_reddit_account_id
-      AND user_id = v_uid;
-
-    IF v_account.id IS NULL THEN
-      RAISE EXCEPTION 'Pilih akun Reddit yang valid.' USING ERRCODE = 'P0001';
-    END IF;
-
-    IF NOT public.is_admin() THEN
-      IF v_account.karma < COALESCE(v_task.min_karma, 0)
-        OR v_account.account_age_days < COALESCE(v_task.min_account_age_days, 0)
-        OR v_account.status_flag IN ('suspended','not_found') THEN
-        RAISE EXCEPTION 'Akun ini belum eligible untuk task ini.' USING ERRCODE = 'P0001';
-      END IF;
-    END IF;
-
-    INSERT INTO public.task_assignments (task_id, user_id, reddit_account_id, status)
-    VALUES (p_task_id, v_uid, p_reddit_account_id, 'in_progress')
-    RETURNING * INTO v_assignment;
-  END IF;
-
-  PERFORM public.sync_task_slot_count(p_task_id);
-  RETURN v_assignment;
-END $$;
-
-GRANT EXECUTE ON FUNCTION public.claim_task_assignment(uuid, uuid) TO authenticated;

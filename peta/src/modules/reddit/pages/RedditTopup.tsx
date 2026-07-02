@@ -1,12 +1,12 @@
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
-import { Check, Shield, AlertCircle, Sparkles, Lock, Zap, Gift } from 'lucide-react';
+import { Check, Shield, AlertCircle, Sparkles, Lock, Zap } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { RedditLayout } from '../components/RedditLayout';
 import { useTopups } from '../hooks/useTopups';
 import { useRedditCredits } from '../hooks/useRedditCredits';
-import { formatUSD, getB1G1Status, getPaypalPublicConfig, type B1G1Status } from '../lib/api';
+import { formatUSD, getPaypalPublicConfig } from '../lib/api';
 
 interface Package {
   amount: number; // in dollars
@@ -31,14 +31,10 @@ export function RedditTopup() {
   const { topups, completeTopup } = useTopups();
   const [selectedPkg, setSelectedPkg] = useState<Package>(PACKAGES[2]);
   const [processing, setProcessing] = useState(false);
-  const [b1g1, setB1g1] = useState<B1G1Status | null>(null);
   const [paypal, setPaypal] = useState<{ clientId: string; configured: boolean; loading: boolean }>({ clientId: '', configured: false, loading: true });
 
   useEffect(() => {
     let mounted = true;
-    getB1G1Status()
-      .then((s) => { if (mounted) setB1g1(s); })
-      .catch(() => {});
     getPaypalPublicConfig()
       .then((c) => { if (mounted) setPaypal({ clientId: c.client_id, configured: c.configured, loading: false }); })
       .catch(() => { if (mounted) setPaypal((p) => ({ ...p, loading: false })); });
@@ -50,13 +46,7 @@ export function RedditTopup() {
   const bonus = selectedPkg.bonus;
   const baseCents = Math.round(finalAmount * 100 * (1 + bonus / 100));
 
-  // B1G1 bonus calculation (preview — final amount comes from server)
-  const b1g1BonusCents =
-    b1g1 && b1g1.is_active && b1g1.user_remaining_cents > 0
-      ? Math.min(finalAmount * 100, b1g1.user_remaining_cents)
-      : 0;
-
-  const totalCreditsCents = baseCents + b1g1BonusCents;
+  const totalCreditsCents = baseCents;
 
   const handlePayPalApprove = async (data: any, actions: any) => {
     setProcessing(true);
@@ -64,17 +54,14 @@ export function RedditTopup() {
       const details = await actions.order.capture();
       const captureId = details.purchase_units?.[0]?.payments?.captures?.[0]?.id;
 
-      // amountCents = what was actually charged via PayPal (server adds B1G1 bonus on top)
+      // amountCents = what was actually charged via PayPal
       await completeTopup({
         amountCents: Math.round(finalAmount * 100),
         paypalOrderId: data.orderID,
         paypalCaptureId: captureId || data.orderID,
       });
 
-      const bonusMsg = b1g1BonusCents > 0 ? ` (incl. ${formatUSD(b1g1BonusCents)} Beta bonus!)` : '';
-      toast.success(`${formatUSD(totalCreditsCents)} credit added${bonusMsg}`);
-      // Refresh promo status — global slots may have changed
-      getB1G1Status().then(setB1g1).catch(() => {});
+      toast.success(`${formatUSD(totalCreditsCents)} credit added`);
       setTimeout(() => navigate('/reddit/dashboard'), 1500);
     } catch (err: any) {
       toast.error(err.message || 'Failed to process payment');
@@ -93,41 +80,6 @@ export function RedditTopup() {
             Secure PayPal checkout. Credits never expire.
           </p>
         </div>
-
-        {/* B1G1 Beta Promo Banner */}
-        {b1g1 && b1g1.is_active && (
-          <div className="mb-6 p-5 rounded-2xl bg-gradient-to-r from-orange-500 via-amber-500 to-orange-500 text-white shadow-lg shadow-orange-500/20 relative overflow-hidden">
-            <div className="absolute -top-8 -right-8 w-40 h-40 bg-white/10 rounded-full blur-3xl" />
-            <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-              <div className="flex items-start gap-3">
-                <div className="hidden md:flex w-12 h-12 rounded-xl bg-white/20 items-center justify-center shrink-0">
-                  <Gift size={22} />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[10px] font-bold uppercase tracking-widest bg-white/25 px-2 py-0.5 rounded">Beta launch</span>
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-orange-50">Limited offer</span>
-                  </div>
-                  <p className="font-bold text-lg md:text-xl leading-tight">
-                    🎉 Buy 1, Get 1 — every top-up matched 100%
-                  </p>
-                  <p className="text-xs md:text-sm text-orange-50 mt-1">
-                    Up to <strong className="text-white">$100 bonus per client</strong> · {b1g1.slots_remaining}/{b1g1.max_clients} client slots left
-                    {b1g1.user_bonus_cents > 0 && (
-                      <> · You've claimed <strong className="text-white">{formatUSD(b1g1.user_bonus_cents)}</strong> of {formatUSD(b1g1.max_per_user_cents)}</>
-                    )}
-                  </p>
-                </div>
-              </div>
-              {b1g1.user_remaining_cents > 0 && (
-                <div className="md:text-right shrink-0">
-                  <p className="text-[10px] uppercase tracking-wider text-orange-100 font-semibold">Your remaining bonus</p>
-                  <p className="text-2xl font-bold">{formatUSD(b1g1.user_remaining_cents)}</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
         {/* Balance bar */}
         <div className="mb-8 p-5 rounded-xl bg-gradient-to-r from-slate-900 to-slate-800 text-white flex items-center justify-between">
@@ -206,15 +158,6 @@ export function RedditTopup() {
                   <span className="text-slate-600">You pay</span>
                   <span className="font-semibold text-slate-900">${finalAmount.toFixed(2)}</span>
                 </div>
-                {b1g1BonusCents > 0 && (
-                  <div className="flex justify-between text-sm">
-                    <span className="text-orange-600 flex items-center gap-1 font-semibold">
-                      <Gift size={12} />
-                      Beta B1G1 bonus
-                    </span>
-                    <span className="font-bold text-orange-600">+{formatUSD(b1g1BonusCents)}</span>
-                  </div>
-                )}
                 {bonus > 0 && (
                   <div className="flex justify-between text-sm">
                     <span className="text-emerald-600 flex items-center gap-1">

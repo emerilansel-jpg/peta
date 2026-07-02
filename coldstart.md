@@ -1,14 +1,17 @@
 # Cold Start Handoff - Straight Ltd + PeTa
 
-> ⚠️ LATEST (2026-06-23): re-QA round completed — Straight→PeTa transaction flow now works end-to-end
-> on production. Remaining blocker: WhatsApp bot needs a manual QR re-scan. See new section below.
+> ⚠️ LATEST (2026-07-01): forum comment "Place orders" failure in Ranking Forum diagnosed and fixed
+> in code; Total clients count bug fixed in code; BOGO (Buy One Get One) promo UI removed from
+> Straight top-up per product decision. Code changes are **committed locally** and need a frontend
+> deploy. Production DB still needs the scalar-drafts migration applied. WhatsApp bot QR re-scan
+> remains outstanding. See new sections below.
 >
 > Read **`docs/CHECKPOINT_20260610_audit_round.md`** for earlier context. Active repo is now **`G:\SF Project\peta-main`**.
-> Latest work is on branch **`fix/audit-2026-06-09`** — **committed AND pushed to GitHub**, NOT merged,
-> and **prod is already live with it** (deployed to Pages project `straight` for `www.straight.ltd`; the `peta` project
-> is separate and was intentionally not touched).
+> Latest work is on branch **`fix/audit-2026-06-09`** — pushed to GitHub but **NOT merged**.
+> `www.straight.ltd` is served by the `straight` Cloudflare Pages project (the `peta` Pages project
+> serves `penghasilantambahan.com` and was intentionally not touched).
 
-Last updated: 2026-06-23 (Straight signup/RPC migrations applied, PayPal live verified, E2E transaction tested).
+Last updated: 2026-07-01 (Total clients fix, Ranking Forum scalar-drafts fix, BOGO promo UI removed, build verified).
 
 Workspace:
 
@@ -62,20 +65,17 @@ f30fa20 Merge feat/geo-funnel-ai-visibility into main
 d647dd6 Straight Ltd: pricing matrix charges, upvotes-any-URL, privacy fixes, pricing->Finance
 ```
 
-Current dirty state (2026-06-25):
+Current dirty state (2026-07-01):
 
 ```text
  M coldstart.md
  M peta/src/modules/reddit/lib/api.ts
  M peta/src/modules/reddit/pages/RankingForumPage.tsx
- M peta/src/modules/reddit/pages/RedditNewOrder.tsx
- M peta/src/pages/TaskDetail.tsx
+ M peta/src/modules/reddit/pages/admin/AdminOverview.tsx
  M peta/src/pages/ResetWhatsApp.tsx
  M peta/supabase/functions/wa-reset-request/index.ts
-?? peta/scripts/e2e-flow-test.mjs
-?? peta/scripts/test-forum-comment-bulk.mjs
-?? peta/supabase/migrations/20260624060000_straight_auto_import_order_trigger.sql
-?? peta/supabase/migrations/20260625060000_forum_comment_quantity_drafts.sql
+ M peta/supabase/migrations/20260625060000_forum_comment_quantity_drafts.sql
+?? peta/supabase/migrations/20260701070000_fix_comment_drafts_scalar.sql
 ?? .agents/
 ?? ACTION_PLAN_SUPERVISI_CAPTAIN.md
 ?? TASK_ORDERS_PETA.md
@@ -89,10 +89,12 @@ Notes:
 coldstart.md is this handoff file — update it whenever state changes.
 ResetWhatsApp.tsx + wa-reset-request/index.ts are PeTa changes that are already working in prod;
   the user explicitly asked NOT to modify/commit them again.
-ApprovalQueue.tsx uncommitted enhancement mentioned in earlier handoffs has since been committed/pushed.
-peta/scripts/e2e-flow-test.mjs & test-forum-comment-bulk.mjs are QA smoke-test scripts.
-Migrations 20260624060000_* and 20260625060000_* capture production drift and the new
-  forum-comment bulk feature; apply to staging via supabase db push when staging recovers.
+AdminOverview.tsx fix: Total clients now counts only role='client' or 'admin' (excludes PeTa army).
+api.ts + RankingForumPage.tsx fix: improved error logging for forum comment orders.
+20260625060000_forum_comment_quantity_drafts.sql was updated in-place to normalize p_comment_drafts
+  (parse JSON string scalar / wrap single object) so the repo matches the production hotfix.
+20260701070000_fix_comment_drafts_scalar.sql is the production hotfix migration that recreates
+  fn_create_forum_comment_order with scalar-tolerant input handling. Apply this to production.
 The ACTION_PLAN_*, TASK_*, .agents/, and skills-lock.json files are not from this session;
   leave them untracked unless the user says otherwise.
 ```
@@ -301,6 +303,9 @@ Relevant migrations:
 ```text
 peta/supabase/migrations/20260529143000_forum_comment_orders.sql
 peta/supabase/migrations/20260531104132_enforce_task_quota_and_duplicate_comments.sql
+peta/supabase/migrations/20260624060000_straight_auto_import_order_trigger.sql
+peta/supabase/migrations/20260625060000_forum_comment_quantity_drafts.sql
+peta/supabase/migrations/20260701070000_fix_comment_drafts_scalar.sql
 ```
 
 PeTa/admin/army task files:
@@ -911,3 +916,142 @@ Files changed:
 peta/supabase/functions/wa-reset-request/index.ts
 peta/src/pages/ResetWhatsApp.tsx
 ```
+
+## 2026-07-01 — Total Clients Count Fix + Forum Comment Scalar Drafts Fix
+
+### Bug 1: Total clients count wrong
+
+Symptom:
+
+```text
+Admin Overview showed "Total clients: 94".
+Clicking View all showed only 4 users (3 clients + 1 admin).
+```
+
+Root cause:
+
+```text
+AdminOverview.tsx used getAdminAllUsers().length without filtering.
+getAdminAllUsers() returns every row in public.users, including PeTa army users.
+AdminClients.tsx filters to role='client' or role='admin' before rendering.
+```
+
+Fix:
+
+```text
+peta/src/modules/reddit/pages/admin/AdminOverview.tsx
+setUserCount(users.filter((u) => u.role === 'client' || u.role === 'admin').length);
+```
+
+Status:
+
+```text
+Code fixed and build verified. Frontend deploy pending (needs Cloudflare API token).
+```
+
+### Bug 2: Ranking Forum "Place orders" fails
+
+Symptom:
+
+```text
+Ranking Forum review step → click "Place 3 comment orders" → toast "Failed to place orders".
+Network response from Supabase RPC:
+{"code":"22023","message":"cannot get array length of a scalar"}
+```
+
+Root cause:
+
+```text
+fn_create_forum_comment_order calls jsonb_array_length(p_comment_drafts).
+The client sent p_comment_drafts as a JSON string scalar (e.g. "[{\"comment_text\":\"...\"}]")
+instead of a native JSON array, causing jsonb_array_length to throw 22023.
+This can happen with older/cached client builds or certain serialization paths.
+```
+
+Fix:
+
+```text
+Migration: peta/supabase/migrations/20260701070000_fix_comment_drafts_scalar.sql
+  - Recreates fn_create_forum_comment_order with defensive normalization:
+    * If p_comment_drafts is a JSON string scalar, parse it.
+    * If it is a single JSON object, wrap it in an array.
+    * Otherwise fall back to an empty array.
+  - Existing draft insertion logic then works unchanged.
+
+Frontend logging improvements:
+  - peta/src/modules/reddit/pages/RankingForumPage.tsx now logs and stringifies any caught error.
+  - peta/src/modules/reddit/lib/api.ts now logs RPC errors before rethrowing.
+```
+
+Status:
+
+```text
+Production DB: migration 20260701070000_fix_comment_drafts_scalar.sql NOT YET APPLIED.
+  Apply via Supabase SQL Editor on project yorlsgzsawchpeeazcvi, then retry the order.
+Staging DB: migration 20260701070000_fix_comment_drafts_scalar.sql NOT YET APPLIED either.
+Frontend: code fixed and build verified. Deploy pending (needs Cloudflare API token).
+```
+
+How to apply the production hotfix:
+
+```text
+Option A (fastest):
+  Open Supabase Dashboard → SQL Editor → production project yorlsgzsawchpeeazcvi.
+  Copy-paste the contents of:
+    peta/supabase/migrations/20260701070000_fix_comment_drafts_scalar.sql
+  Run it.
+
+Option B (CLI):
+  $env:SUPABASE_ACCESS_TOKEN='<secure-token>'
+  npx.cmd supabase db push --project-ref yorlsgzsawchpeeazcvi
+  (This will push all pending migrations, including the scalar fix.)
+```
+
+How to deploy frontend after the fix:
+
+```powershell
+cd "G:\SF Project\peta-main\peta"
+npm.cmd run build
+npx.cmd wrangler pages deploy dist --project-name=straight --branch=main --commit-dirty=true
+```
+
+
+## 2026-07-01 — BOGO Promo UI Removed
+
+Decision (Pak Nell):
+
+```text
+BOGO (Buy One Get One) promo di Straight dimatikan.
+Karena backend BOGO belum benar-benar diimplementasikan (hanya client-side preview),
+lebih baik hapus semua copy/UI promo dari frontend daripada menampilkan janji yang tidak dipenuhi.
+```
+
+What was removed:
+
+```text
+peta/src/modules/reddit/pages/RedditTopup.tsx
+  - Removed B1G1/Beta launch promo banner.
+  - Removed "Beta B1G1 bonus" line from order summary.
+  - Removed getB1G1Status() call and refresh after payment.
+  - Removed bonus message from success toast.
+  - Credit preview now shows only the amount actually purchased.
+
+peta/src/modules/reddit/lib/api.ts
+  - Removed B1G1Status interface.
+  - Removed getB1G1Status() helper.
+```
+
+What remains unchanged:
+
+```text
+- PACKAGES array still has a dormant `bonus: number` field, but all values are 0 so no UI renders.
+- Volume-bonus badge logic remains but is inactive.
+- No backend function (fn_get_b1g1_status) was created or removed; it was never in repo migrations.
+```
+
+Status:
+
+```text
+Code fixed and build verified. Frontend deploy pending (needs Cloudflare API token).
+```
+
