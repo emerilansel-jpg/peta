@@ -1,6 +1,6 @@
 # Cold Start Handoff - Straight Ltd + PeTa
 
-> ⚠️ LATEST (2026-07-03): `fix/audit-2026-06-09` merged into `main` and pushed to GitHub. Google Sign-In removal + OneDrive setup + all audit fixes now on `main`. Build verified.
+> ⚠️ LATEST (2026-07-03): `fix/audit-2026-06-09` merged into `main`, pushed to GitHub, and deployed to straight.ltd production. Google Sign-In removal live on https://www.straight.ltd.
 >
 > Previous (2026-07-03): Google Sign-In removed from straight.ltd login/signup pages.
 >
