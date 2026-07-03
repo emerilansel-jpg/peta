@@ -1112,20 +1112,22 @@ Code fixed and build verified. Frontend deploy pending (needs Cloudflare API tok
 ## 2026-07-03 18:58 — Remove Google Sign-In from straight.ltd
 
 - **Type:** CODING
-- **Status:** COMPLETED + DEPLOYED
+- **Status:** COMPLETED + MERGED + DEPLOYED
 - **Files touched:**
   - `peta/src/modules/reddit/pages/RedditLogin.tsx` (removed GoogleLogo, handleGoogleLogin, button, divider)
   - `peta/src/modules/reddit/pages/RedditSignup.tsx` (removed GoogleLogo, handleGoogleSignup, button, divider)
 - **Key decisions:**
   - Google OAuth sign-in/sign-up UI fully removed from Straight Ltd auth pages.
+  - Merged `fix/audit-2026-06-09` into `main` and pushed to GitHub (resolved 7 conflicts).
+  - Deployed merged `main` to straight.ltd production.
   - Email/password remains as the only auth method.
   - No backend changes; Supabase Google provider can stay enabled or be disabled in Supabase Auth settings.
 - **Blockers:** none
-- **Next step:** Promote branch preview to production (merge/push branch or set production branch in Cloudflare).
+- **Next step:** None — live on production.
 - **Inspector:** PASSED
 - **Backup location:** `G:\SF Project\peta-main\backups\2026-07-03_164200_remove-google-signin`
 - **coldstart.md stored at:** `G:\SF Project\peta-main\coldstart.md`
 - **Browser used:** none
 - **Deployment URLs:**
+  - Production: https://www.straight.ltd
   - Branch preview: https://fix-audit-2026-06-09.straight-4dv.pages.dev
-  - Production: https://www.straight.ltd (setelah merge/promote)
