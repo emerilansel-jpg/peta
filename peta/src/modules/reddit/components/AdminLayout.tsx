@@ -9,6 +9,7 @@ import {
   DollarSign,
   Star,
   Lightbulb,
+  Clock,
   Settings,
   LogOut,
   Menu,
@@ -68,6 +69,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     { href: '/reddit/admin/clients', label: 'Clients', icon: Users },
     { href: '/reddit/admin/reviews', label: 'Reviews', icon: Star },
     { href: '/reddit/admin/feature-requests', label: 'Feature Requests', icon: Lightbulb },
+    { href: '/reddit/admin/waitlist', label: 'Waitlist', icon: Clock },
     { href: '/reddit/admin/finance', label: 'Finance', icon: DollarSign },
     { href: '/reddit/admin/settings', label: 'Settings', icon: Settings },
   ];

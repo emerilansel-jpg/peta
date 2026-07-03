@@ -1324,3 +1324,22 @@ export async function sendTestBroadcast(opts: {
   }
   return out;
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// WhatsApp Password Reset (Fonnte)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export async function sendWaPasswordReset(whatsapp: string): Promise<{
+  ok: boolean;
+  message?: string;
+  error?: string;
+}> {
+  const { data, error } = await supabase.functions.invoke('send-wa-password-reset', {
+    body: {
+      whatsapp,
+      base_url: typeof window !== 'undefined' ? window.location.origin : 'https://penghasilantambahan.com',
+    },
+  });
+  if (error) return { ok: false, error: error.message || String(error) };
+  return data || { ok: false, error: 'unknown_error' };
+}

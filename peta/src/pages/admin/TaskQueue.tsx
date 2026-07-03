@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Plus, X, Download, ExternalLink, Zap, Pencil, Calendar, ClipboardList, ShieldCheck, Clock3, Users } from 'lucide-react';
 import { Layout } from '../../components/Layout';
@@ -97,6 +97,12 @@ export function AdminTaskQueue() {
     status: 'draft' as 'draft' | 'active' | 'paused' | 'completed',
   });
 
+  // Blast modal state
+  const [blastTask, setBlastTask] = React.useState<TaskRow | null>(null);
+  const [blastMode, setBlastMode] = React.useState<'test' | 'blast' | 'skip'>('blast');
+  const [blastTestPhone, setBlastTestPhone] = React.useState('');
+  const [blastLoading, setBlastLoading] = React.useState(false);
+
   // Use string state for number inputs so users on mobile can delete the
   // leading 0 and type freely. Parsed to int on submit. Empty = 0.
   const [form, setForm] = React.useState({
@@ -176,6 +182,33 @@ export function AdminTaskQueue() {
     },
     onSuccess: () => { toast.success('Status diupdate'); refetch(); },
   });
+
+  // WA blast: call edge function to send task notifications via Fonnte
+  const sendTaskBlast = async (taskId: string, testMode: boolean, testPhone?: string) => {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const token = sessionData.session?.access_token;
+    if (!token) throw new Error('Not authenticated');
+
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-task-blast`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          task_id: taskId,
+          test_mode: testMode,
+          test_whatsapp: testPhone || undefined,
+        }),
+      }
+    );
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Blast failed');
+    return data;
+  };
 
   // Straight Ltd order queue import into PeTa tasks. The list shows
   // pending orders that haven't been imported yet; admin can one-click
@@ -481,7 +514,15 @@ export function AdminTaskQueue() {
                     <Pencil size={12} /> Edit
                   </button>
                   <button
-                    onClick={() => toggleStatus.mutate({ id: t.id, status: t.status === 'active' ? 'paused' : 'active' })}
+                    onClick={() => {
+                      if (t.status === 'draft') {
+                        setBlastTask(t);
+                        setBlastMode('blast');
+                        setBlastTestPhone('');
+                      } else {
+                        toggleStatus.mutate({ id: t.id, status: t.status === 'active' ? 'paused' : 'active' });
+                      }
+                    }}
                     className="text-primary font-bold hover:underline"
                   >
                     {t.status === 'active' ? 'Pause' : 'Activate'}
@@ -1065,6 +1106,120 @@ export function AdminTaskQueue() {
                   Simpan Perubahan
                 </Button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Blast Modal: WA notification on task activate */}
+      {blastTask && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="mb-2 text-lg font-bold text-gray-900">
+              Kirim Notifikasi WA
+            </h3>
+            <p className="mb-4 text-sm text-gray-600">
+              Task: <span className="font-semibold">{blastTask.title}</span>
+            </p>
+
+            <div className="mb-4 space-y-2">
+              <label className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 hover:bg-gray-50">
+                <input
+                  type="radio"
+                  name="blastMode"
+                  value="test"
+                  checked={blastMode === 'test'}
+                  onChange={() => setBlastMode('test')}
+                  className="h-4 w-4"
+                />
+                <div>
+                  <div className="font-medium text-gray-900">Test ke nomor sendiri</div>
+                  <div className="text-xs text-gray-500">Kirim preview ke WA admin</div>
+                </div>
+              </label>
+
+              {blastMode === 'test' && (
+                <input
+                  type="text"
+                  placeholder="Nomor WA (contoh: 08123456789)"
+                  value={blastTestPhone}
+                  onChange={(e) => setBlastTestPhone(e.target.value)}
+                  className="w-full rounded-lg border px-3 py-2 text-sm"
+                />
+              )}
+
+              <label className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 hover:bg-gray-50">
+                <input
+                  type="radio"
+                  name="blastMode"
+                  value="blast"
+                  checked={blastMode === 'blast'}
+                  onChange={() => setBlastMode('blast')}
+                  className="h-4 w-4"
+                />
+                <div>
+                  <div className="font-medium text-gray-900">Blast ke Group + DM Army</div>
+                  <div className="text-xs text-gray-500">Kirim ke WA group + DM individual ke semua army eligible</div>
+                </div>
+              </label>
+
+              <label className="flex cursor-pointer items-center gap-3 rounded-lg border p-3 hover:bg-gray-50">
+                <input
+                  type="radio"
+                  name="blastMode"
+                  value="skip"
+                  checked={blastMode === 'skip'}
+                  onChange={() => setBlastMode('skip')}
+                  className="h-4 w-4"
+                />
+                <div>
+                  <div className="font-medium text-gray-900">Skip notifikasi</div>
+                  <div className="text-xs text-gray-500">Aktifkan task tanpa kirim WA</div>
+                </div>
+              </label>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => setBlastTask(null)}
+                className="flex-1 rounded-lg border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={async () => {
+                  if (!blastTask) return;
+                  setBlastLoading(true);
+                  try {
+                    if (blastMode !== 'skip') {
+                      await sendTaskBlast(
+                        blastTask.id,
+                        blastMode === 'test',
+                        blastMode === 'test' ? blastTestPhone : undefined
+                      );
+                      toast.success(
+                        blastMode === 'test' ? 'Test WA terkirim!' : 'Blast WA terkirim!'
+                      );
+                    }
+                    toggleStatus.mutate({ id: blastTask.id, status: 'active' });
+                    setBlastTask(null);
+                  } catch (err: any) {
+                    toast.error(err.message || 'Gagal kirim notifikasi');
+                  } finally {
+                    setBlastLoading(false);
+                  }
+                }}
+                disabled={blastLoading || (blastMode === 'test' && !blastTestPhone)}
+                className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50"
+              >
+                {blastLoading
+                  ? 'Mengirim...'
+                  : blastMode === 'skip'
+                  ? 'Aktifkan Saja'
+                  : blastMode === 'test'
+                  ? 'Kirim Test'
+                  : 'Kirim & Aktifkan'}
+              </button>
             </div>
           </div>
         </div>

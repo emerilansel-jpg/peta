@@ -68,3 +68,10 @@ BEGIN
   RETURN v_order;
 END;
 $$;
+
+REVOKE ALL ON FUNCTION public.fn_create_reddit_upvote_order(
+  TEXT, TEXT, INTEGER, TEXT
+) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.fn_create_reddit_upvote_order(
+  TEXT, TEXT, INTEGER, TEXT
+) TO authenticated;

@@ -17,26 +17,29 @@ import {
   MessagesSquare,
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
-import { getFrontDoorMode, type FrontDoorMode } from '../lib/api';
+import { getStraightRegistrationMode } from '../lib/api';
 
 export function RedditLanding() {
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [frontDoorMode, setFrontDoorMode] = useState<FrontDoorMode>('signup');
-  const waitlistMode = frontDoorMode === 'waitlist';
+  const [regMode, setRegMode] = useState<'signup' | 'waitlist'>('signup');
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
       setIsLoggedIn(!!user);
     });
-    getFrontDoorMode().then(setFrontDoorMode);
+    getStraightRegistrationMode()
+      .then((mode) => setRegMode(mode))
+      .catch(() => setRegMode('signup'));
   }, []);
 
   const handleCTA = () => {
     if (isLoggedIn) {
       navigate('/reddit/dashboard');
+    } else if (regMode === 'waitlist') {
+      navigate('/reddit/waitlist');
     } else {
-      navigate(waitlistMode ? '/reddit/waitlist' : '/reddit/signup');
+      navigate('/reddit/signup');
     }
   };
 
@@ -72,10 +75,10 @@ export function RedditLanding() {
                   Sign in
                 </button>
                 <button
-                  onClick={() => navigate(waitlistMode ? '/reddit/waitlist' : '/reddit/signup')}
+                  onClick={() => navigate('/reddit/signup')}
                   className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600"
                 >
-                  {waitlistMode ? 'Join waitlist' : 'Start free'}
+                  {regMode === 'waitlist' ? 'Join waitlist' : 'Start free'}
                 </button>
               </>
             )}
@@ -113,7 +116,7 @@ export function RedditLanding() {
               onClick={handleCTA}
               className="group flex items-center gap-2 px-8 py-4 rounded-xl bg-orange-500 text-white text-base font-semibold hover:bg-orange-600 shadow-lg shadow-orange-500/20 transition-all"
             >
-              {isLoggedIn ? 'Go to dashboard' : waitlistMode ? 'Join the waitlist' : 'Start with $25 credit'}
+              {isLoggedIn ? 'Go to dashboard' : regMode === 'waitlist' ? 'Join the waitlist' : 'Start with $25 credit'}
               <ArrowRight size={18} className="group-hover:translate-x-0.5 transition-transform" />
             </button>
             <button
@@ -516,7 +519,7 @@ export function RedditLanding() {
             onClick={handleCTA}
             className="mt-10 group inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-orange-500 text-white text-base font-semibold hover:bg-orange-400 shadow-xl shadow-orange-500/30 transition-all"
           >
-            {isLoggedIn ? 'Go to dashboard' : waitlistMode ? 'Join the waitlist' : 'Get started — free to sign up'}
+            {isLoggedIn ? 'Go to dashboard' : regMode === 'waitlist' ? 'Join the waitlist' : 'Get started — free to sign up'}
             <ArrowRight size={18} className="group-hover:translate-x-0.5 transition-transform" />
           </button>
           <div className="mt-12 flex flex-wrap items-center justify-center gap-8 text-sm text-slate-400">

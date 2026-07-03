@@ -206,6 +206,13 @@ export function RedditNewOrder() {
 // View 1: Service Selector
 // ============================================================
 function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect: (s: Service) => void }) {
+  // Hide paused services entirely — admin turned them off.
+  // Reddit cards show when pricing matrix has them enabled.
+  const visible = services.filter((s) => s.status !== 'paused');
+  const redditServices = visible.filter((s) => s.platform === 'Reddit');
+  const forumServices = visible.filter((s) => s.platform === 'Forums' || s.platform === 'Facebook');
+  const customServices = visible.filter((s) => s.platform === 'Custom');
+
   return (
     <div className="p-6 md:p-10 max-w-6xl mx-auto">
       <div className="mb-8">
@@ -214,36 +221,44 @@ function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect
       </div>
 
       {/* Platform: Reddit */}
-      <div className="mb-10">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-7 h-7 rounded bg-orange-500 flex items-center justify-center text-white text-sm font-bold">R</div>
-          <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Reddit</h2>
+      {redditServices.length > 0 && (
+        <div className="mb-10">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-7 h-7 rounded bg-orange-500 flex items-center justify-center text-white text-sm font-bold">R</div>
+            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Reddit</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {redditServices.map((s) => (
+              <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
+            ))}
+          </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {services.filter((s) => s.platform === 'Reddit').map((s) => (
-            <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
-          ))}
-        </div>
-      </div>
+      )}
 
       {/* Other platforms */}
-      <div className="mb-10">
-        <div className="flex items-center gap-3 mb-4">
-          <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Forum discovery</h2>
+      {forumServices.length > 0 && (
+        <div className="mb-10">
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Forum discovery</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {forumServices.map((s) => (
+              <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
+            ))}
+          </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {services.filter((s) => s.platform === 'Forums').map((s) => (
-            <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
-          ))}
-          {services.filter((s) => s.platform === 'Facebook').map((s) => (
-            <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
-          ))}
-          {/* Custom request as a featured card */}
-          {services.filter((s) => s.platform === 'Custom').map((s) => (
-            <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} featured />
-          ))}
+      )}
+
+      {/* Custom request */}
+      {customServices.length > 0 && (
+        <div className="mb-10">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {customServices.map((s) => (
+              <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} featured />
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Promo */}
       <div className="p-6 rounded-2xl bg-gradient-to-r from-orange-50 to-amber-50 ring-1 ring-orange-100">

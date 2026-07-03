@@ -1,20 +1,17 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Bot, CheckCircle2, CreditCard, DoorOpen, ExternalLink, KeyRound, ListChecks, Loader2, RefreshCw, Save, ShieldCheck, UserPlus } from 'lucide-react';
+import { AlertTriangle, Bot, CheckCircle2, ExternalLink, KeyRound, Loader2, RefreshCw, Save, ShieldCheck, Users } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { AdminBreadcrumb, AdminLayout } from '../../components/AdminLayout';
 import {
   getStraightAiSettings,
   getStraightProviderHealth,
   updateStraightAiSettings,
-  getFrontDoorMode,
-  adminSetFrontDoorMode,
-  adminGetPaypalConfig,
-  adminSetPaypalConfig,
+  getStraightSettings,
+  updateStraightSettings,
   type ProviderHealthStatus,
   type StraightProviderHealth,
   type StraightDraftProvider,
-  type FrontDoorMode,
-  type PaypalEnvironment,
+  type StraightRegistrationMode,
 } from '../../lib/api';
 
 const PROVIDERS: Array<{
@@ -46,24 +43,23 @@ export function AdminSettings() {
   const [updatedAt, setUpdatedAt] = useState('');
   const [health, setHealth] = useState<StraightProviderHealth | null>(null);
   const [checkingHealth, setCheckingHealth] = useState(false);
-  const [frontDoorMode, setFrontDoorMode] = useState<FrontDoorMode>('signup');
-  const [savingFrontDoor, setSavingFrontDoor] = useState(false);
-  const [paypal, setPaypal] = useState<{ clientId: string; secret: string; environment: PaypalEnvironment; secretSet: boolean }>({ clientId: '', secret: '', environment: 'sandbox', secretSet: false });
-  const [savingPaypal, setSavingPaypal] = useState(false);
+  const [regMode, setRegMode] = useState<StraightRegistrationMode>('signup');
+  const [regModeUpdatedAt, setRegModeUpdatedAt] = useState('');
+  const [savingRegMode, setSavingRegMode] = useState(false);
 
   useEffect(() => {
     (async () => {
       try {
-        const settings = await getStraightAiSettings();
-        setProvider(settings.draft_provider);
-        setClaudeModel(settings.claude_model);
-        setDeepseekModel(settings.deepseek_model);
-        setUpdatedAt(settings.updated_at);
-        setFrontDoorMode(await getFrontDoorMode());
-        try {
-          const pp = await adminGetPaypalConfig();
-          setPaypal({ clientId: pp.client_id, secret: '', environment: pp.environment, secretSet: pp.secret_set });
-        } catch { /* paypal config optional */ }
+        const [aiSettings, straightSettings] = await Promise.all([
+          getStraightAiSettings(),
+          getStraightSettings(),
+        ]);
+        setProvider(aiSettings.draft_provider);
+        setClaudeModel(aiSettings.claude_model);
+        setDeepseekModel(aiSettings.deepseek_model);
+        setUpdatedAt(aiSettings.updated_at);
+        setRegMode(straightSettings.registration_mode);
+        setRegModeUpdatedAt(straightSettings.updated_at);
         checkHealth();
       } catch (error) {
         toast.error(error instanceof Error ? error.message : 'Failed to load settings');
@@ -84,37 +80,6 @@ export function AdminSettings() {
     }
   };
 
-  const saveFrontDoor = async (mode: FrontDoorMode) => {
-    const prev = frontDoorMode;
-    setFrontDoorMode(mode); // optimistic
-    setSavingFrontDoor(true);
-    try {
-      await adminSetFrontDoorMode(mode);
-      toast.success(mode === 'waitlist'
-        ? 'Front door set to Waitlist — new visitors join the waitlist.'
-        : 'Front door set to Open signup.');
-    } catch (error) {
-      setFrontDoorMode(prev); // revert
-      toast.error(error instanceof Error ? error.message : 'Failed to update front door');
-    } finally {
-      setSavingFrontDoor(false);
-    }
-  };
-
-  const savePaypal = async () => {
-    setSavingPaypal(true);
-    try {
-      await adminSetPaypalConfig({ clientId: paypal.clientId.trim(), clientSecret: paypal.secret, environment: paypal.environment });
-      toast.success('PayPal settings saved');
-      const pp = await adminGetPaypalConfig();
-      setPaypal({ clientId: pp.client_id, secret: '', environment: pp.environment, secretSet: pp.secret_set });
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Failed to save PayPal settings');
-    } finally {
-      setSavingPaypal(false);
-    }
-  };
-
   const save = async () => {
     setSaving(true);
     try {
@@ -130,6 +95,20 @@ export function AdminSettings() {
       toast.error(error instanceof Error ? error.message : 'Failed to save settings');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const saveRegMode = async () => {
+    setSavingRegMode(true);
+    try {
+      await updateStraightSettings({ registrationMode: regMode });
+      toast.success('Registration mode updated');
+      const next = await getStraightSettings();
+      setRegModeUpdatedAt(next.updated_at);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to save registration mode');
+    } finally {
+      setSavingRegMode(false);
     }
   };
 
@@ -165,116 +144,71 @@ export function AdminSettings() {
           </div>
         ) : (
           <div className="space-y-6">
+            {/* Registration Mode Toggle */}
             <div className="bg-white rounded-2xl ring-1 ring-slate-200 p-6">
-              <div className="flex items-center gap-2 mb-1">
-                <DoorOpen size={18} className="text-orange-600" />
-                <h2 className="text-lg font-bold text-slate-900">Front door — who can join</h2>
-              </div>
-              <p className="text-sm text-slate-500 mb-4">
-                Controls the public landing CTA. Switch to <strong>Waitlist only</strong> to throttle new clients —
-                the primary buttons route to the waitlist instead of open signup. Saved instantly.
-              </p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <button
-                  type="button"
-                  onClick={() => saveFrontDoor('signup')}
-                  disabled={savingFrontDoor}
-                  className={`text-left rounded-2xl border-2 p-5 transition disabled:opacity-60 ${
-                    frontDoorMode === 'signup' ? 'border-orange-500 bg-orange-50' : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <UserPlus size={18} className="text-slate-700" />
-                        <p className="text-lg font-bold text-slate-900">Open signup</p>
-                      </div>
-                      <p className="text-sm text-slate-600 mt-1 leading-relaxed">Anyone can create an account and order right away.</p>
-                    </div>
-                    {frontDoorMode === 'signup' && <CheckCircle2 size={22} className="text-orange-600 shrink-0" />}
-                  </div>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => saveFrontDoor('waitlist')}
-                  disabled={savingFrontDoor}
-                  className={`text-left rounded-2xl border-2 p-5 transition disabled:opacity-60 ${
-                    frontDoorMode === 'waitlist' ? 'border-orange-500 bg-orange-50' : 'border-slate-200 bg-white hover:border-slate-300'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <ListChecks size={18} className="text-slate-700" />
-                        <p className="text-lg font-bold text-slate-900">Waitlist only</p>
-                      </div>
-                      <p className="text-sm text-slate-600 mt-1 leading-relaxed">New visitors join a waitlist. Existing clients can still sign in.</p>
-                    </div>
-                    {frontDoorMode === 'waitlist' && <CheckCircle2 size={22} className="text-orange-600 shrink-0" />}
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-2xl ring-1 ring-slate-200 p-6">
-              <div className="flex items-center gap-2 mb-1">
-                <CreditCard size={18} className="text-orange-600" />
-                <h2 className="text-lg font-bold text-slate-900">PayPal checkout</h2>
-              </div>
-              <p className="text-sm text-slate-500 mb-4">
-                Enter your PayPal REST app credentials to enable client top-ups — no redeploy needed. Stored
-                server-side; only the client id is exposed to the browser.{' '}
-                {paypal.secretSet
-                  ? <span className="text-emerald-600 font-semibold">Secret is set.</span>
-                  : <span className="text-amber-600 font-semibold">Secret not set yet.</span>}
-              </p>
-              <div className="space-y-4 max-w-xl">
-                <label className="block">
-                  <span className="text-sm font-semibold text-slate-700">Client ID</span>
-                  <input
-                    value={paypal.clientId}
-                    onChange={(e) => setPaypal((p) => ({ ...p, clientId: e.target.value }))}
-                    className="mt-2 w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-900 font-mono text-sm"
-                    placeholder="PayPal app client id (live or sandbox)"
-                  />
-                </label>
-                <label className="block">
-                  <span className="text-sm font-semibold text-slate-700">Client Secret</span>
-                  <input
-                    type="password"
-                    value={paypal.secret}
-                    onChange={(e) => setPaypal((p) => ({ ...p, secret: e.target.value }))}
-                    className="mt-2 w-full px-4 py-3 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-900 font-mono text-sm"
-                    placeholder={paypal.secretSet ? '•••••••• (leave blank to keep current)' : 'PayPal app client secret'}
-                  />
-                </label>
+              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-4">
                 <div>
-                  <span className="text-sm font-semibold text-slate-700">Environment</span>
-                  <div className="mt-2 grid grid-cols-2 gap-2 max-w-xs">
-                    {(['sandbox', 'live'] as const).map((env) => (
-                      <button
-                        key={env}
-                        type="button"
-                        onClick={() => setPaypal((p) => ({ ...p, environment: env }))}
-                        className={`py-2.5 rounded-lg text-sm font-semibold border-2 transition capitalize ${
-                          paypal.environment === env ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-slate-200 bg-white text-slate-700'
-                        }`}
-                      >
-                        {env}
-                      </button>
-                    ))}
+                  <div className="flex items-center gap-2">
+                    <Users size={18} className="text-orange-600" />
+                    <h2 className="text-lg font-bold text-slate-900">Front-Door Mode</h2>
                   </div>
+                  <p className="text-sm text-slate-500 mt-1">
+                    Control whether new visitors can sign up directly or must join the waitlist first.
+                  </p>
                 </div>
                 <button
                   type="button"
-                  onClick={savePaypal}
-                  disabled={savingPaypal}
-                  className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-500 text-white font-semibold"
+                  onClick={saveRegMode}
+                  disabled={savingRegMode}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-500 text-white text-sm font-semibold"
                 >
-                  {savingPaypal ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-                  Save PayPal settings
+                  {savingRegMode ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                  Save mode
                 </button>
               </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setRegMode('signup')}
+                  className={`text-left rounded-2xl border-2 p-5 transition ${
+                    regMode === 'signup' ? 'border-orange-500 bg-orange-50' : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-bold text-slate-900">Open Sign Up</p>
+                      <p className="text-sm text-slate-600 mt-1 leading-relaxed">
+                        Visitors can create an account and access the dashboard immediately. Use this when you want to accept new clients.
+                      </p>
+                    </div>
+                    {regMode === 'signup' && <CheckCircle2 size={22} className="text-orange-600 shrink-0" />}
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setRegMode('waitlist')}
+                  className={`text-left rounded-2xl border-2 p-5 transition ${
+                    regMode === 'waitlist' ? 'border-orange-500 bg-orange-50' : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-bold text-slate-900">Waitlist Only</p>
+                      <p className="text-sm text-slate-600 mt-1 leading-relaxed">
+                        All CTA buttons redirect to the waitlist page. New signups are blocked. Use this to control intake volume.
+                      </p>
+                    </div>
+                    {regMode === 'waitlist' && <CheckCircle2 size={22} className="text-orange-600 shrink-0" />}
+                  </div>
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-500 mt-4">
+                {regModeUpdatedAt ? `Last updated ${new Date(regModeUpdatedAt).toLocaleString()}.` : ''}
+                Changes take effect immediately across the landing page, nav, and signup page.
+              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

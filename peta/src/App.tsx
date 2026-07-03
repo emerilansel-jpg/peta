@@ -7,13 +7,14 @@ import { ToastProvider } from './components/Toast';
 import { Landing } from './pages/Landing';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
+import { ForgotPassword } from './pages/ForgotPassword';
+import { ResetPassword } from './pages/ResetPassword';
 import { Onboarding } from './pages/Onboarding';
 import { Tasks } from './pages/Tasks';
 import { TaskDetail } from './pages/TaskDetail';
 import { KarmaMission } from './pages/KarmaMission';
 import { Account } from './pages/Account';
 import { Earnings } from './pages/Earnings';
-import { ForgotPassword } from './pages/ForgotPassword';
 import { UpdatePassword } from './pages/UpdatePassword';
 import { ResetWhatsApp } from './pages/ResetWhatsApp';
 
@@ -39,6 +40,7 @@ import { AdminFinance as RedditAdminFinance } from './modules/reddit/pages/admin
 import { AdminReviews as RedditAdminReviews } from './modules/reddit/pages/admin/AdminReviews';
 import { AdminFeatureRequests as RedditAdminFeatureRequests } from './modules/reddit/pages/admin/AdminFeatureRequests';
 import { AdminSettings as RedditAdminSettings } from './modules/reddit/pages/admin/AdminSettings';
+import { AdminWaitlist } from './modules/reddit/pages/admin/AdminWaitlist';
 
 // Admin Pages
 import { AdminDashboard } from './pages/admin/Dashboard';
@@ -115,6 +117,7 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPassword />} />
           <Route path="/update-password" element={<UpdatePassword />} />
           <Route path="/reset-whatsapp" element={<ResetWhatsApp />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/onboarding" element={<Onboarding />} />
 
           {/* Army Routes */}
@@ -149,6 +152,7 @@ function App() {
           <Route path="/reddit/admin/feature-requests" element={<AdminGuard><RedditAdminFeatureRequests /></AdminGuard>} />
           <Route path="/reddit/admin/finance" element={<AdminGuard><RedditAdminFinance /></AdminGuard>} />
           <Route path="/reddit/admin/settings" element={<AdminGuard><RedditAdminSettings /></AdminGuard>} />
+          <Route path="/reddit/admin/waitlist" element={<AdminGuard><AdminWaitlist /></AdminGuard>} />
 
           {/* Admin Routes (guarded) */}
           <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />

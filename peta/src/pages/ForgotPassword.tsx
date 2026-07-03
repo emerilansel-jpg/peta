@@ -1,30 +1,87 @@
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ArrowLeft, MailCheck, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Mail, MessageCircle, CheckCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
 import { toast } from '../components/Toast';
 
+type Method = 'email' | 'whatsapp';
+
 export function ForgotPassword() {
+  const [method, setMethod] = React.useState<Method>('email');
   const [email, setEmail] = React.useState('');
+  const [whatsapp, setWhatsapp] = React.useState('');
   const [loading, setLoading] = React.useState(false);
   const [sent, setSent] = React.useState(false);
+  const [sentTo, setSentTo] = React.useState('');
   const navigate = useNavigate();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email.trim()) return;
+    if (!email.trim()) {
+      toast.error('Isi email dulu ya');
+      return;
+    }
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}/update-password`,
+      const { data, error } = await supabase.functions.invoke('send-password-reset-email', {
+        body: {
+          email: email.trim(),
+          base_url: window.location.origin,
+        },
       });
       if (error) throw error;
-      // Always show success even if the email isn't registered — don't leak
-      // which emails exist.
+      if (!data?.ok) {
+        throw new Error(data?.error || 'Gagal kirim link reset via email');
+      }
       setSent(true);
+      setSentTo(email);
+      toast.success(data.message || 'Link reset password dikirim ke email kamu!');
     } catch (error: any) {
-      toast.error(error?.message || 'Gagal mengirim email reset. Coba lagi ya.');
+      const msg = error?.message || 'Gagal kirim link reset';
+      if (/rate limit/i.test(msg)) {
+        toast.error('Terlalu banyak request. Coba lagi dalam 60 detik.');
+      } else if (/smtp_not_configured/i.test(msg)) {
+        toast.error('Email gateway belum di-setup. Hubungi admin ya.');
+      } else {
+        toast.error(msg);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleWaSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleaned = whatsapp.replace(/\D/g, '').replace(/^0/, '62');
+    if (cleaned.length < 9) {
+      toast.error('Nomor WhatsApp tidak valid');
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('send-wa-password-reset', {
+        body: {
+          whatsapp: cleaned,
+          base_url: window.location.origin,
+        },
+      });
+      if (error) throw error;
+      if (!data?.ok) {
+        throw new Error(data?.error || 'Gagal kirim link reset via WhatsApp');
+      }
+      setSent(true);
+      setSentTo(whatsapp);
+      toast.success(data.message || 'Link reset dikirim ke WhatsApp!');
+    } catch (error: any) {
+      const msg = error?.message || 'Gagal kirim link reset';
+      if (/fonnte_not_configured/i.test(msg)) {
+        toast.error('Fonnte belum di-setup. Hubungi admin ya.');
+      } else if (/rate limit/i.test(msg)) {
+        toast.error('Terlalu banyak request. Coba lagi dalam 60 detik.');
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setLoading(false);
     }
@@ -37,21 +94,36 @@ export function ForgotPassword() {
           onClick={() => navigate('/login')}
           className="text-white/90 flex items-center gap-1 text-sm font-semibold hover:text-white"
         >
-          <ArrowLeft size={18} /> Kembali ke Login
+          <ArrowLeft size={18} /> Kembali ke login
         </button>
       </div>
 
       <div className="flex-1 flex items-end sm:items-center justify-center px-4 pb-4 sm:pb-8">
         <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 sm:p-8 animate-slide-up">
+          <img
+            src="/logo-horizontal.png"
+            alt="PeTa · PenghasilanTambahan.com"
+            className="h-16 w-auto mb-4"
+          />
+
           {sent ? (
-            <div className="text-center">
-              <div className="mx-auto w-16 h-16 rounded-full bg-success/15 flex items-center justify-center mb-4">
-                <MailCheck size={32} className="text-success" />
-              </div>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-dark mb-2">Cek email kamu 📩</h2>
-              <p className="text-sm text-muted mb-6">
-                Kalau <span className="font-bold text-dark">{email}</span> terdaftar, kami sudah kirim link
-                buat bikin password baru. Cek juga folder spam/promosi ya.
+            <div className="text-center py-4">
+              <CheckCircle size={48} className="text-success mx-auto mb-3" />
+              <h2 className="text-xl font-extrabold text-dark mb-2">
+                {method === 'email' ? 'Cek email kamu!' : 'Cek WhatsApp kamu!'}
+              </h2>
+              <p className="text-sm text-muted mb-4">
+                Link reset password sudah dikirim ke <strong>{sentTo}</strong>. Klik link untuk buat password baru.
+              </p>
+              <p className="text-xs text-muted mb-6">
+                Ga masuk? {method === 'email' ? 'Cek folder spam/promosi.' : 'Pastikan nomor terdaftar.'} Atau{' '}
+                <button
+                  onClick={() => setSent(false)}
+                  className="text-primary font-semibold hover:underline"
+                >
+                  kirim ulang
+                </button>
+                .
               </p>
               <Button
                 variant="primary"
@@ -60,62 +132,111 @@ export function ForgotPassword() {
                 className="!rounded-2xl"
                 onClick={() => navigate('/login')}
               >
-                Balik ke Login
+                ← Kembali login
               </Button>
-              <button
-                type="button"
-                onClick={() => setSent(false)}
-                className="mt-3 text-xs text-muted font-semibold hover:underline"
-              >
-                Salah email? Kirim ulang
-              </button>
             </div>
           ) : (
             <>
-              <img
-                src="/logo-horizontal.png"
-                alt="PeTa · PenghasilanTambahan.com"
-                className="h-16 w-auto mb-4"
-              />
               <h2 className="text-xl sm:text-2xl font-extrabold text-dark mb-1">Lupa password?</h2>
               <p className="text-sm text-muted mb-6">
-                Tenang. Masukin email kamu, nanti kami kirim link buat bikin password baru.
+                Pilih cara reset password kamu.
               </p>
 
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">Email</label>
-                  <input
-                    type="email"
-                    inputMode="email"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full min-h-[48px] px-4 py-3 text-base bg-light border-2 border-transparent rounded-xl focus:outline-none focus:border-primary focus:bg-white transition-all"
-                    placeholder="kamu@email.com"
-                    required
-                  />
-                </div>
-
-                <Button type="submit" variant="primary" size="lg" loading={loading} fullWidth className="!rounded-2xl">
-                  Kirim link reset
-                </Button>
-              </form>
-
-              <div className="relative my-5">
-                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-light" /></div>
-                <div className="relative flex justify-center"><span className="bg-white px-3 text-xs text-muted">atau</span></div>
+              {/* Method toggle */}
+              <div className="flex gap-2 mb-6">
+                <button
+                  type="button"
+                  onClick={() => setMethod('email')}
+                  className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-bold transition-all ${
+                    method === 'email'
+                      ? 'bg-primary text-white shadow-md'
+                      : 'bg-light text-dark hover:bg-gray-100'
+                  }`}
+                >
+                  <Mail size={14} className="inline mr-1.5 -mt-0.5" />
+                  Email
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMethod('whatsapp')}
+                  className={`flex-1 py-2.5 px-4 rounded-xl text-sm font-bold transition-all ${
+                    method === 'whatsapp'
+                      ? 'bg-success text-white shadow-md'
+                      : 'bg-light text-dark hover:bg-gray-100'
+                  }`}
+                >
+                  <MessageCircle size={14} className="inline mr-1.5 -mt-0.5" />
+                  WhatsApp
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => navigate('/reset-whatsapp')}
-                className="w-full min-h-[48px] inline-flex items-center justify-center gap-2 rounded-2xl border-2 border-success/30 bg-success/5 text-success font-bold hover:bg-success/10 tap-shrink"
-              >
-                <MessageCircle size={18} /> Reset lewat WhatsApp
-              </button>
+
+              {method === 'email' ? (
+                <form onSubmit={handleEmailSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide flex items-center gap-1">
+                      <Mail size={12} /> Email
+                    </label>
+                    <input
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full min-h-[48px] px-4 py-3 text-base bg-light border-2 border-transparent rounded-xl focus:outline-none focus:border-primary focus:bg-white transition-all"
+                      placeholder="kamu@email.com"
+                      required
+                      disabled={loading}
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="lg"
+                    loading={loading}
+                    fullWidth
+                    className="!rounded-2xl"
+                  >
+                    📩 Kirim Link Reset
+                  </Button>
+                </form>
+              ) : (
+                <form onSubmit={handleWaSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide flex items-center gap-1">
+                      <MessageCircle size={12} className="text-success" /> Nomor WhatsApp
+                    </label>
+                    <input
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      value={whatsapp}
+                      onChange={(e) => setWhatsapp(e.target.value)}
+                      className="w-full min-h-[48px] px-4 py-3 text-base bg-light border-2 border-transparent rounded-xl focus:outline-none focus:border-success focus:bg-white transition-all"
+                      placeholder="08xxxxxxxxxx"
+                      required
+                      disabled={loading}
+                    />
+                    <p className="text-[11px] text-muted mt-1">
+                      Nomor harus sama dengan saat daftar PeTa
+                    </p>
+                  </div>
+
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    size="lg"
+                    loading={loading}
+                    fullWidth
+                    className="!rounded-2xl"
+                  >
+                    💬 Kirim Link ke WhatsApp
+                  </Button>
+                </form>
+              )}
 
               <p className="text-center text-sm text-muted mt-6">
-                Inget password kamu?{' '}
+                Ingat password?{' '}
                 <Link to="/login" className="text-primary font-extrabold hover:underline">
                   Login →
                 </Link>
