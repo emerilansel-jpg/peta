@@ -3,6 +3,8 @@
 .vscode/
 .idea/
 *.swp
+__pycache__/
+*.pyc
 
 # Local Claude / agent state — these are per-developer
 .claude/
@@ -18,3 +20,10 @@ peta/.env.staging
 peta/.env.production
 peta/.supabase/
 peta/supabase/.temp/
+
+# OneDrive sync script — credentials and tokens (root level only)
+/onedrive_sync.log
+/sync.log
+/tokens.json
+/tokens*.json
+/.env

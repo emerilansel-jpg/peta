@@ -1,6 +1,11 @@
 # Cold Start Handoff - Straight Ltd + PeTa
 
-> ⚠️ LATEST (2026-07-01): forum comment "Place orders" failure in Ranking Forum diagnosed and fixed
+> ⚠️ LATEST (2026-07-03): Google Sign-In removed from straight.ltd login/signup pages. Deployed to branch preview:
+>   https://fix-audit-2026-06-09.straight-4dv.pages.dev
+>
+> Previous (2026-07-03): PM Mode skill installed; OneDrive sync script upgraded with hardcoded + .syncignore exclusion so `onedrive_sync.py`, credentials, and sync metadata never upload.
+>
+> Previous (2026-07-01): forum comment "Place orders" failure in Ranking Forum diagnosed and fixed
 > in code; Total clients count bug fixed in code; BOGO (Buy One Get One) promo UI removed from
 > Straight top-up per product decision. Code changes are **committed locally** and need a frontend
 > deploy. Production DB still needs the scalar-drafts migration applied. WhatsApp bot QR re-scan
@@ -11,7 +16,7 @@
 > `www.straight.ltd` is served by the `straight` Cloudflare Pages project (the `peta` Pages project
 > serves `penghasilantambahan.com` and was intentionally not touched).
 
-Last updated: 2026-07-01 (Total clients fix, Ranking Forum scalar-drafts fix, BOGO promo UI removed, build verified).
+Last updated: 2026-07-03 (Google Sign-In removed from straight.ltd, build verified).
 
 Workspace:
 
@@ -1055,3 +1060,72 @@ Status:
 Code fixed and build verified. Frontend deploy pending (needs Cloudflare API token).
 ```
 
+
+## 2025-01-09 10:15 — OneDrive Sync Script
+
+- **Type:** CODING
+- **Status:** COMPLETED
+- **Files touched:**
+  - onedrive_sync.py (411 lines, OAuth 2.0 auth-code flow, refresh token, small + large file upload, dry-run, delete-remote)
+  - SETUP.md (Azure App Registration walkthrough, Task Scheduler, cron, PowerShell)
+  - .env.example (5 config vars)
+  - README_onedrive_sync.md (quickstart, command table, credential list)
+- **Key decisions:**
+  - Flatten nested local folders to single remote folder (simpler, avoids recursive folder creation).
+  - Used delegated auth-code flow (not client credentials) because personal OneDrive requires user consent.
+  - Refresh token persisted in tokens.json for headless automation.
+  - Large file upload uses createUploadSession with 10 MB chunks.
+- **Blockers:** none
+- **Next step:** User runs `--auth` once, then sets up Task Scheduler / cron for auto-upload.
+- **Inspector:** PASSED
+- **Backup location:** none (new files only)
+- **coldstart.md stored at:** G:\SF Project\peta-main\coldstart.md
+- **Browser used:** none
+
+
+## 2026-07-03 12:51 — PM Mode Skill + OneDrive Sync Hardening
+
+- **Type:** CODING
+- **Status:** COMPLETED
+- **Files touched:**
+  - `.agents/skills/pm-mode/SKILL.md` (new skill installed)
+  - `skills-lock.json` (registered pm-mode skill)
+  - `onedrive_sync.py` (added hardcoded excludes, `.syncignore` support, `--exclude` CLI, folder structure preservation)
+  - `.syncignore` (new example file)
+  - `.gitignore` (ignore tokens/env/log at root)
+  - `README_onedrive_sync.md` (documented exclusion system)
+  - `SETUP.md` (documented `.syncignore`, folder structure, auto-upload)
+- **Key decisions:**
+  - Hardcoded exclude list protects `onedrive_sync.py`, `.env`, `tokens.json`, `.syncignore`, docs, logs.
+  - Added `.syncignore` parsing (similar to `.gitignore`) for user-defined excludes.
+  - Added `--exclude` CLI arg for ad-hoc patterns.
+  - Changed sync to preserve local folder structure on OneDrive (was flattening before).
+  - Verified with syntax check + exclude unit tests + mocked sync enumeration test.
+- **Blockers:** none
+- **Next step:** User registers Azure app, fills `.env`, runs `python onedrive_sync.py --auth`, then schedules `--sync`.
+- **Inspector:** PASSED
+- **Backup location:** `G:\SF Project\peta-main\backups\2026-07-03_125128_pm-mode-onedrive`
+- **coldstart.md stored at:** `G:\SF Project\peta-main\coldstart.md`
+- **Browser used:** none
+
+
+## 2026-07-03 18:58 — Remove Google Sign-In from straight.ltd
+
+- **Type:** CODING
+- **Status:** COMPLETED + DEPLOYED
+- **Files touched:**
+  - `peta/src/modules/reddit/pages/RedditLogin.tsx` (removed GoogleLogo, handleGoogleLogin, button, divider)
+  - `peta/src/modules/reddit/pages/RedditSignup.tsx` (removed GoogleLogo, handleGoogleSignup, button, divider)
+- **Key decisions:**
+  - Google OAuth sign-in/sign-up UI fully removed from Straight Ltd auth pages.
+  - Email/password remains as the only auth method.
+  - No backend changes; Supabase Google provider can stay enabled or be disabled in Supabase Auth settings.
+- **Blockers:** none
+- **Next step:** Promote branch preview to production (merge/push branch or set production branch in Cloudflare).
+- **Inspector:** PASSED
+- **Backup location:** `G:\SF Project\peta-main\backups\2026-07-03_164200_remove-google-signin`
+- **coldstart.md stored at:** `G:\SF Project\peta-main\coldstart.md`
+- **Browser used:** none
+- **Deployment URLs:**
+  - Branch preview: https://fix-audit-2026-06-09.straight-4dv.pages.dev
+  - Production: https://www.straight.ltd (setelah merge/promote)

@@ -4,39 +4,12 @@ import { Eye, EyeOff, ArrowLeft, Loader2, Lock, Shield } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../../../lib/supabase';
 
-function GoogleLogo() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
-      <path d="M17.64 9.20455c0-.63818-.05727-1.25182-.16364-1.84091H9v3.48136h4.84364c-.20864 1.125-.84273 2.07818-1.79591 2.71636v2.25818h2.90909c1.70182-1.56682 2.68318-3.87409 2.68318-6.61500z" fill="#4285F4"/>
-      <path d="M9 18c2.43 0 4.46727-.80591 5.95636-2.18182l-2.90909-2.25818c-.80591.54-1.83727.85909-3.04727.85909-2.34409 0-4.32818-1.58318-5.03591-3.71045H.957273v2.33182C2.43818 15.98318 5.48182 18 9 18z" fill="#34A853"/>
-      <path d="M3.96409 10.71c-.18-.54-.28227-1.11818-.28227-1.71s.10227-1.17.28227-1.71V4.95818H.957273C.347727 6.17318 0 7.54773 0 9s.347727 2.82682.957273 4.04182L3.96409 10.71z" fill="#FBBC04"/>
-      <path d="M9 3.57955c1.32136 0 2.5077.45409 3.44045 1.34591l2.58136-2.58136C13.4632.891818 11.4259 0 9 0 5.48182 0 2.43818 2.01682.957273 4.95818L3.96409 7.29c.70773-2.12727 2.69182-3.71045 5.03591-3.71045z" fill="#EA4335"/>
-    </svg>
-  );
-}
-
 export function RedditLogin() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  const handleGoogleLogin = async () => {
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/reddit/dashboard`,
-        },
-      });
-      if (error) throw error;
-    } catch (err: any) {
-      toast.error(err.message || 'Google sign-in failed. Is Google enabled in Supabase?');
-      setLoading(false);
-    }
-  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,22 +66,6 @@ export function RedditLogin() {
 
           <h1 className="text-2xl font-bold text-slate-900 mt-6">Welcome back</h1>
           <p className="text-sm text-slate-600 mt-1">Sign in to your account</p>
-
-          <button
-            type="button"
-            onClick={handleGoogleLogin}
-            disabled={loading}
-            className="mt-6 w-full inline-flex items-center justify-center gap-2.5 px-4 py-2.5 rounded-lg ring-1 ring-slate-300 bg-white hover:bg-slate-50 disabled:opacity-50 text-slate-900 font-semibold transition"
-          >
-            <GoogleLogo />
-            Continue with Google
-          </button>
-
-          <div className="my-5 flex items-center gap-3">
-            <div className="flex-1 h-px bg-slate-200" />
-            <span className="text-xs text-slate-500 font-medium">or sign in with email</span>
-            <div className="flex-1 h-px bg-slate-200" />
-          </div>
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>

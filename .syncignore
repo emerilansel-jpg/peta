@@ -1,0 +1,7 @@
+# OneDrive Sync — exclude patterns
+# Syntax: glob patterns, one per line. Lines starting with # are ignored.
+# Examples:
+#   node_modules/
+#   *.tmp
+#   .DS_Store
+#   Thumbs.db
