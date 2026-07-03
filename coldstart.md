@@ -1,22 +1,22 @@
 # Cold Start Handoff - Straight Ltd + PeTa
 
-> ⚠️ LATEST (2026-07-03): Google Sign-In removed from straight.ltd login/signup pages. Deployed to branch preview:
->   https://fix-audit-2026-06-09.straight-4dv.pages.dev
+> ⚠️ LATEST (2026-07-03): `fix/audit-2026-06-09` merged into `main` and pushed to GitHub. Google Sign-In removal + OneDrive setup + all audit fixes now on `main`. Build verified.
+>
+> Previous (2026-07-03): Google Sign-In removed from straight.ltd login/signup pages.
 >
 > Previous (2026-07-03): PM Mode skill installed; OneDrive sync script upgraded with hardcoded + .syncignore exclusion so `onedrive_sync.py`, credentials, and sync metadata never upload.
 >
 > Previous (2026-07-01): forum comment "Place orders" failure in Ranking Forum diagnosed and fixed
 > in code; Total clients count bug fixed in code; BOGO (Buy One Get One) promo UI removed from
-> Straight top-up per product decision. Code changes are **committed locally** and need a frontend
-> deploy. Production DB still needs the scalar-drafts migration applied. WhatsApp bot QR re-scan
-> remains outstanding. See new sections below.
+> Straight top-up per product decision. Production DB still needs the scalar-drafts migration applied.
+> WhatsApp bot QR re-scan remains outstanding. See new sections below.
 >
 > Read **`docs/CHECKPOINT_20260610_audit_round.md`** for earlier context. Active repo is now **`G:\SF Project\peta-main`**.
-> Latest work is on branch **`fix/audit-2026-06-09`** — pushed to GitHub but **NOT merged**.
+> Latest work is on branch **`fix/audit-2026-06-09`** — merged to `main` and pushed.
 > `www.straight.ltd` is served by the `straight` Cloudflare Pages project (the `peta` Pages project
 > serves `penghasilantambahan.com` and was intentionally not touched).
 
-Last updated: 2026-07-03 (Google Sign-In removed from straight.ltd, build verified).
+Last updated: 2026-07-03 (fix branch merged to main, pushed to GitHub, build verified).
 
 Workspace:
 
