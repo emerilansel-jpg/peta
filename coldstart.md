@@ -1131,3 +1131,23 @@ Code fixed and build verified. Frontend deploy pending (needs Cloudflare API tok
 - **Deployment URLs:**
   - Production: https://www.straight.ltd
   - Branch preview: https://fix-audit-2026-06-09.straight-4dv.pages.dev
+
+
+## 2026-07-04 11:30 — QA Audit Lengkap PeTa + Straight.ltd
+
+- **Type:** ANALYSIS / QA
+- **Status:** COMPLETED
+- **Files touched:**
+  - `2026-07-04_QA_Audit_PeTa_Straight_Laporan_Lengkap.md` (new full QA report)
+  - Backup: `backups/2026-07-04_QA_Audit_PeTa_Straight_Laporan_Lengkap.md`
+- **Key decisions:**
+  - Ran read-only codebase audit using two explore sub-agents (Straight + PeTa) in parallel.
+  - Cross-checked deployed sites with curl.
+  - Identified 4 critical, 7 high, 9 medium, and several low issues.
+  - Compiled findings into Indonesian-language report with simple explanations and priority roadmap.
+- **Blockers:** none
+- **Next step:** User picks top items to fix (recommended: secure edge functions, reconnect WA bot, fix landing copy, apply scalar-drafts migration).
+- **Inspector:** PASSED
+- **Backup location:** `G:\SF Project\peta-main\backups\2026-07-04_QA_Audit_PeTa_Straight_Laporan_Lengkap.md`
+- **coldstart.md stored at:** `G:\SF Project\peta-main\coldstart.md`
+- **Browser used:** none (curl only)
