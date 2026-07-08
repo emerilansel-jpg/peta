@@ -1249,6 +1249,33 @@ export async function pollInboxEmail(): Promise<{ ok: boolean; processed: number
   return { ok: data?.ok ?? false, processed: data?.processed ?? 0, skipped: data?.skipped ?? 0, errors: data?.errors ?? [], error: data?.error };
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function extFromMimeType(type: string): string {
+  switch (type) {
+    case 'image/jpeg': return 'jpg';
+    case 'image/png': return 'png';
+    case 'image/webp': return 'webp';
+    case 'image/gif': return 'gif';
+    case 'image/heic': return 'heic';
+    case 'image/heif': return 'heif';
+    default: return 'jpg';
+  }
+}
+
+function mimeTypeFromExt(ext: string): string {
+  switch (ext) {
+    case 'jpg':
+    case 'jpeg': return 'image/jpeg';
+    case 'png': return 'image/png';
+    case 'webp': return 'image/webp';
+    case 'gif': return 'image/gif';
+    case 'heic': return 'image/heic';
+    case 'heif': return 'image/heif';
+    default: return 'image/jpeg';
+  }
+}
+
 // Upload a task-proof screenshot to Supabase Storage. Returns public URL.
 // File path pattern: <userId>/<taskId>-<timestamp>.<ext>
 export async function uploadTaskProofImage(opts: {
@@ -1256,12 +1283,28 @@ export async function uploadTaskProofImage(opts: {
   taskId: string;
   file: File;
 }): Promise<string> {
-  const ext = (opts.file.name.split('.').pop() || 'jpg').toLowerCase();
+  if (!opts.userId || !UUID_REGEX.test(opts.userId)) {
+    throw new Error('Sesi user tidak valid. Coba refresh halaman dan login ulang.');
+  }
+  if (!opts.taskId || !UUID_REGEX.test(opts.taskId)) {
+    throw new Error('Task ID tidak valid. Coba kembali ke daftar task.');
+  }
+
+  const validExts = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif'];
+  let ext = (opts.file.name.split('.').pop() || '').toLowerCase();
+  if (!ext || !validExts.includes(ext)) {
+    // Camera captures sometimes arrive with no useful name/extension.
+    // Fall back to the MIME type, and ultimately default to jpg.
+    ext = extFromMimeType(opts.file.type || '');
+  }
+
   const path = `${opts.userId}/${opts.taskId}-${Date.now()}.${ext}`;
+  const contentType = opts.file.type || mimeTypeFromExt(ext);
+
   const { error } = await supabase.storage.from('task-proofs').upload(path, opts.file, {
     cacheControl: '3600',
     upsert: false,
-    contentType: opts.file.type || `image/${ext}`,
+    contentType,
   });
   if (error) throw error;
   const { data: publicUrl } = supabase.storage.from('task-proofs').getPublicUrl(path);
