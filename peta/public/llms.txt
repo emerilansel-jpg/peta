@@ -1,0 +1,42 @@
+# PeTa — Penghasilan Tambahan
+
+> Platform micro-task buat warga Indonesia yang mau dapet cuan dari internet. Member kerjain tugas interaksi online, naik level, dan withdraw mulai Rp150K. Onboarding baru dapet bonus total Rp50K.
+
+PeTa dibuat simple buat pemula: daftar pakai email & WhatsApp, ikuti 6 langkah onboarding, lalu mulai kerjain tugas. Setiap tugas punya reward sesuai level akun, mulai dari Rp5K sampai Rp20K. Ada sistem referral, streak harian, dan payout via transfer bank atau e-wallet.
+
+## Cara Gabung & Mulai
+
+- [Beranda](https://penghasilantambahan.com/): Penjelasan PeTa, benefit member, dan tombol daftar atau masuk.
+- [Daftar Akun](https://penghasilantambahan.com/register): Form pendaftaran member baru — nama, email, WhatsApp, password, plus kode referral opsional.
+- [Masuk](https://penghasilantambahan.com/login): Form login buat member yang sudah punya akun.
+- [Onboarding](https://penghasilantambahan.com/onboarding): 6 langkah pengenalan platform + klaim bonus Rp50K.
+
+## Area Member
+
+- [Tugas](https://penghasilantambahan.com/tasks): Halaman tugas harian, stats komunitas, dan streak member.
+- [Detail Tugas](https://penghasilantambahan.com/task/{taskId}): Wizard mengerjakan tugas — pilih akun, tulis komentar, dan upload bukti.
+- [Penghasilan](https://penghasilantambahan.com/earnings): Cek saldo, progress milestone, dan ajukan payout minimal Rp150K.
+- [Akun Saya](https://penghasilantambahan.com/account): Edit profil, nomor WhatsApp, kode referral, dan kelola akun.
+- [Misi Karma](https://penghasilantambahan.com/karma-mission): Panduan naik level biar reward per tugas makin gede.
+
+## Bantuan & Keamanan
+
+- [Lupa Password](https://penghasilantambahan.com/forgot-password): Minta link reset password lewat email.
+- [Reset WhatsApp](https://penghasilantambahan.com/reset-whatsapp): Reset nomor WhatsApp lewat OTP.
+- [Update Password](https://penghasilantambahan.com/update-password): Halaman ubah password dari token reset email.
+
+## Admin Internal
+
+- [Dashboard Admin](https://penghasilantambahan.com/admin): Ringkasan operasional PeTa.
+- [Manajemen Tugas](https://penghasilantambahan.com/admin/tasks): Buat, edit, dan atur task.
+- [Approval](https://penghasilantambahan.com/admin/approval): Review dan approve hasil kerja member.
+- [Tim Member](https://penghasilantambahan.com/admin/team): Kelola data member.
+- [Payroll](https://penghasilantambahan.com/admin/payroll): Proses pembayaran payout member.
+
+## Optional
+
+- [Reset Password](https://penghasilantambahan.com/reset-password): Halaman reset password dari token email.
+- [Broadcast Admin](https://penghasilantambahan.com/admin/broadcast): Kirim broadcast pesan ke member.
+- [Inbox Admin](https://penghasilantambahan.com/admin/inbox): Pusat pesan masuk internal.
+- [Secrets Admin](https://penghasilantambahan.com/admin/secrets): Konfigurasi secret dan integrasi internal.
+- [WA Bot Admin](https://penghasilantambahan.com/admin/wa-bot): Manajemen WhatsApp bot internal.
