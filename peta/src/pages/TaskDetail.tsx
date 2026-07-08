@@ -140,13 +140,22 @@ export function TaskDetail() {
     }
     setUploadingProof(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Auth required');
-      const url = await uploadTaskProofImage({ userId: user.id, taskId: taskId!, file });
+      const { data, error: authError } = await supabase.auth.getUser();
+      if (authError || !data?.user) {
+        throw new Error('Sesi belum aktif. Coba refresh halaman dan login ulang.');
+      }
+      const url = await uploadTaskProofImage({ userId: data.user.id, taskId: taskId!, file });
       setProofImageUrl(url);
       toast.success('Screenshot ter-upload');
     } catch (e: any) {
-      toast.error(`Upload gagal: ${e.message || e}`);
+      const message = e?.message || String(e);
+      // Surface uuid-syntax errors in a human way; usually means the storage
+      // policy/bucket is missing or the auth token was not supplied.
+      if (/invalid input syntax for type uuid/i.test(message)) {
+        toast.error('Upload gagal: konfigurasi storage belum siap atau sesi expired. Coba refresh dan login ulang.');
+      } else {
+        toast.error(`Upload gagal: ${message}`);
+      }
     } finally {
       setUploadingProof(false);
     }
@@ -436,6 +445,27 @@ export function TaskDetail() {
               New model: comment lives in task.brief, instructions in task.description.
               Legacy tasks packed both into brief — splitForumBrief() still handles them. */}
           {(() => {
+            // Upvote tasks never require a text comment. Show the raw guide
+            // (brief/description) as a neutral instruction card so users don't
+            // mistake it for a comment they must paste into a text box.
+            if (isUpvote) {
+              const guide = (task.brief || task.description || '').trim();
+              if (!guide) return null;
+              return (
+                <div className="bg-sky-50 ring-1 ring-sky-300 rounded-xl p-3 mb-3">
+                  <p className="text-[10px] uppercase font-bold tracking-wide text-sky-900 mb-1">
+                    Panduan tugas
+                  </p>
+                  <p className="text-sm text-sky-950 whitespace-pre-line leading-relaxed">
+                    {guide}
+                  </p>
+                  <p className="text-[11px] text-sky-800 mt-2 font-semibold">
+                    Task ini cuma upvote — gak perlu tulis komentar. Cukup ikuti langkah di atas dan screenshot bukti.
+                  </p>
+                </div>
+              );
+            }
+
             const assignmentComment = isForumComment ? draftComment?.trim() : '';
             const comment = assignmentComment || splitForumBrief(task.brief).commentPost.trim();
             const legacyStd = splitForumBrief(task.brief).standardBrief;
