@@ -1,6 +1,8 @@
 # Cold Start Handoff - Straight Ltd + PeTa
 
-> ⚠️ LATEST (2026-07-03): `fix/audit-2026-06-09` merged into `main`, pushed to GitHub, and deployed to straight.ltd production. Google Sign-In removal live on https://www.straight.ltd.
+> ⚠️ LATEST (2026-07-08): `llms.txt` added for PeTa and deployed to `https://www.penghasilantambahan.com/llms.txt`; committed and pushed to branch `fix/audit-2026-06-09`.
+>
+> Previous (2026-07-03): `fix/audit-2026-06-09` merged into `main`, pushed to GitHub, and deployed to straight.ltd production. Google Sign-In removal live on https://www.straight.ltd.
 >
 > Previous (2026-07-03): Google Sign-In removed from straight.ltd login/signup pages.
 >
@@ -1151,3 +1153,30 @@ Code fixed and build verified. Frontend deploy pending (needs Cloudflare API tok
 - **Backup location:** `G:\SF Project\peta-main\backups\2026-07-04_QA_Audit_PeTa_Straight_Laporan_Lengkap.md`
 - **coldstart.md stored at:** `G:\SF Project\peta-main\coldstart.md`
 - **Browser used:** none (curl only)
+
+
+## 2026-07-08 — Add llms.txt for PeTa AI Agent Navigation
+
+- **Type:** CONTENT / DEPLOY
+- **Status:** COMPLETED + DEPLOYED
+- **Files touched:**
+  - `peta/public/llms.txt` (new static file)
+  - `coldstart.md` (this update)
+- **Key decisions:**
+  - Added a curated Markdown guide for AI agents following the llms.txt proposal/spec (`llmstxt.org`).
+  - Scope covers PeTa public pages, member area, help/security flows, and internal admin routes.
+  - Written in Bahasa Indonesia with casual/gaul tone; no public mention of Reddit (re-platform-able).
+  - URLs use the production domain `https://www.penghasilantambahan.com`.
+- **Deploy:**
+  - Built with `npm run build` from `peta/`.
+  - Deployed to Cloudflare Pages project `peta` via `wrangler pages deploy`.
+  - Verified live: `https://www.penghasilantambahan.com/llms.txt` returns `200 OK` with `Content-Type: text/plain; charset=utf-8`.
+- **Repo:**
+  - Committed as `feat(peta): add llms.txt for AI agent navigation`.
+  - Pushed to GitHub on branch `fix/audit-2026-06-09`.
+- **Blockers:** none
+- **Next step:** None for this item; user may create a separate `llms.txt` for Straight.ltd later if needed.
+- **Inspector:** PASSED
+- **Backup location:** none (new file only)
+- **coldstart.md stored at:** `D:\Library\Kusuma\Documents\OneDrive [Emeril]\OneDrive\peta-main\coldstart.md`
+- **Browser used:** none
