@@ -112,8 +112,10 @@ export function TaskDetail() {
     ) {
       startMutation.mutate();
     }
+    // isForumComment must be in deps so the effect fires when the task loads and
+    // reveals this is a forum task for a user with no linked Reddit accounts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accounts.length, selectedAccountId, stage]);
+  }, [accounts.length, selectedAccountId, stage, isForumComment, taskId, checkingExistingAssignment, assignmentId, startMutation.isPending]);
 
   const submitMutation = useMutation({
     mutationFn: () => updateTaskAssignment(assignmentId, {
@@ -180,8 +182,8 @@ export function TaskDetail() {
   // visual nudge). We don't actually gate the upload behind this â€” that
   // would block a returning user. But it does drive the active-step UI.
   const canSubmit = isUpvote
-    ? !!proofImageUrl
-    : !!proofUrl.trim() && !!submittedUsername.trim();
+    ? !!proofImageUrl && !!assignmentId
+    : !!proofUrl.trim() && !!submittedUsername.trim() && !!assignmentId;
 
   // ----- DONE STAGE â€” celebrate + nudge to the next high-value action -----
   if (stage === 'done') {
@@ -365,6 +367,25 @@ export function TaskDetail() {
   }
 
   // ----- SUBMIT STAGE â€” 3-step linear flow -----
+  // Defensive: this default branch assumes we already have an active
+  // assignment. If the auto-start effect is still waiting for the task to load
+  // (e.g. a forum task with no linked Reddit account), show a loading state
+  // instead of a broken form whose submit button would hit an empty UUID.
+  if (stage !== 'submit') {
+    return (
+      <Layout userRole="army">
+        <div className="max-w-2xl mx-auto pb-24 sm:pb-0">
+          <button
+            onClick={() => navigate('/tasks')}
+            className="text-muted hover:text-dark flex items-center gap-1 text-sm font-semibold mb-3"
+          >
+            <ArrowLeft size={16} /> Semua Tugas
+          </button>
+          <CardSkeleton />
+        </div>
+      </Layout>
+    );
+  }
   return (
     <Layout userRole="army">
       <div className="max-w-2xl mx-auto pb-24 sm:pb-0">

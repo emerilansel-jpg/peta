@@ -332,6 +332,7 @@ export async function getTasksForLevel(level: number) {
 }
 
 export async function createTaskAssignment(taskId: string, redditAccountId?: string | null) {
+  if (!taskId) throw new Error('Task ID tidak valid. Coba kembali ke daftar task.');
   const { data, error } = await supabase.rpc('claim_task_assignment', {
     p_task_id: taskId,
     p_reddit_account_id: redditAccountId || null,
@@ -351,6 +352,7 @@ export type TaskAssignmentUpdate = {
 };
 
 export async function updateTaskAssignment(assignmentId: string, updates: TaskAssignmentUpdate) {
+  if (!assignmentId) throw new Error('Assignment belum dibuat. Coba refresh halaman dan klik Mulai Task lagi.');
   const { data, error } = await supabase
     .from('task_assignments')
     .update(updates)
