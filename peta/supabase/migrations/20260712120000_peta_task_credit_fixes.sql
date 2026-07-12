@@ -27,7 +27,8 @@ ALTER TABLE public.user_credits
     'signup_bonus'::text,
     'manual_adjustment'::text,
     'karma_milestone'::text,
-    'task_reward'::text
+    'task_reward'::text,
+    'wa_group_verified'::text
   ]));
 
 -- 2) Track when a credit was actually processed for an assignment.
