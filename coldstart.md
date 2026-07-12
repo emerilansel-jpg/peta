@@ -1,6 +1,8 @@
 # Cold Start Handoff - Straight Ltd + PeTa
 
-> ⚠️ LATEST (2026-07-03): `fix/audit-2026-06-09` merged into `main`, pushed to GitHub, and deployed to straight.ltd production. Google Sign-In removal live on https://www.straight.ltd.
+> ⚠️ LATEST (2026-07-12): PeTa task credit fixes applied to production. Trigger `tg_on_assignment_approved` was attached to `task_assignments`, `user_credits_source_check` updated to allow `task_reward` and `wa_group_verified`, `validate_payout_eligibility` fixed to include forum tasks, `admin_reject_assignment` RPC created, and `admin_recover_missing_task_rewards()` backfilled 10 missing credits. Production DB now has 0 missing approved-task credits. PeTa frontend (with TaskDetail UUID fix) remains live on https://www.penghasilantambahan.com.
+>
+> Previous (2026-07-03): `fix/audit-2026-06-09` merged into `main`, pushed to GitHub, and deployed to straight.ltd production. Google Sign-In removal live on https://www.straight.ltd.
 >
 > Previous (2026-07-03): Google Sign-In removed from straight.ltd login/signup pages.
 >
@@ -16,7 +18,7 @@
 > `www.straight.ltd` is served by the `straight` Cloudflare Pages project (the `peta` Pages project
 > serves `penghasilantambahan.com` and was intentionally not touched).
 
-Last updated: 2026-07-03 (fix branch merged to main, pushed to GitHub, build verified).
+Last updated: 2026-07-12 (PeTa credit fixes deployed, production DB recovered).
 
 Workspace:
 
@@ -1151,3 +1153,50 @@ Code fixed and build verified. Frontend deploy pending (needs Cloudflare API tok
 - **Backup location:** `G:\SF Project\peta-main\backups\2026-07-04_QA_Audit_PeTa_Straight_Laporan_Lengkap.md`
 - **coldstart.md stored at:** `G:\SF Project\peta-main\coldstart.md`
 - **Browser used:** none (curl only)
+
+
+## 2026-07-12 — PeTa Task Credit Fixes (Production DB + Recovery)
+
+- **Type:** CODING / DB / RECOVERY
+- **Status:** COMPLETED
+- **Files touched:**
+  - `peta/src/pages/TaskDetail.tsx` (UUID/empty-assignmentId fix, already deployed)
+  - `peta/src/lib/api.ts` (defensive validation, already deployed)
+  - `peta/supabase/migrations/20260712120000_peta_task_credit_fixes.sql` (new)
+- **Key decisions:**
+  - Root causes identified via FASE 1 analysis:
+    - `tg_on_assignment_approved` function existed but was never attached to `task_assignments` via `CREATE TRIGGER`, so approved tasks never credited `user_credits`.
+    - `user_credits_source_check` rejected `source = 'task_reward'`.
+    - `validate_payout_eligibility` JOINed `reddit_accounts`, excluding `forum_comment` tasks (`reddit_account_id IS NULL`) from earnings/payout counts.
+    - Frontend `adminRejectAssignment` called RPC `admin_reject_assignment` which did not exist in the DB.
+    - No idempotency guard on `user_credits(reference_id)` for `task_reward` → risk of duplicate credits on re-approval.
+    - No `balance_credited_at` tracking on `task_assignments`.
+  - Fixes applied in migration `20260712120000_peta_task_credit_fixes.sql`:
+    - Updated `user_credits_source_check` to allow `task_reward` and `wa_group_verified` (discovered in production).
+    - Added `balance_credited_at` column to `task_assignments`.
+    - Created unique partial index `idx_user_credits_task_reward_reference_id` on `user_credits(reference_id) WHERE source = 'task_reward'`.
+    - Recreated `tg_on_assignment_approved` with `balance_credited_at` timestamp + `activity_logs` audit entry, attached it via `BEFORE UPDATE OF status` trigger.
+    - Fixed `validate_payout_eligibility` to LEFT JOIN `reddit_accounts` and use `COALESCE(ta.user_id, ra.user_id)` so forum tasks count.
+    - Created `admin_reject_assignment` RPC.
+    - Created `admin_recover_missing_task_rewards()` RPC for future manual recovery.
+  - Production DB recovery (run directly via `supabase db query --linked` because the RPC requires authenticated admin context):
+    - `total_approved`: 10
+    - `total_task_rewards` after recovery: 10
+    - `missing_credits` after recovery: 0
+- **Blockers:**
+  - Staging project `duxzxizedtvnopfihllz` is paused, so migration had to be applied directly to production (unusual but necessary).
+  - `supabase db push` could not be used because remote migration history contains many migrations not present in local `supabase/migrations/` directory; SQL was applied directly via `supabase db query --linked -f`.
+- **Next step:** Monitor new task approvals to confirm credits are inserted automatically. If a user reports a missing credit after this fix, verify the approval timestamp and check `activity_logs` for `task_reward_credited` entries.
+- **Inspector:** PASSED (migration applied, recovery verified, production HTTP 200)
+- **Backup location:** none (schema change is in migration file + GitHub)
+- **coldstart.md stored at:** `G:\SF Project\peta-main\coldstart.md`
+- **Browser used:** none
+- **Production URL:** https://www.penghasilantambahan.com
+- **Commands used:**
+  ```powershell
+  $env:SUPABASE_ACCESS_TOKEN='<token>'
+  cd "G:\SF Project\peta-main\peta"
+  npx.cmd supabase link --project-ref yorlsgzsawchpeeazcvi
+  npx.cmd supabase db query --linked -f supabase/migrations/20260712120000_peta_task_credit_fixes.sql
+  npx.cmd supabase db query --linked "<recovery SQL>"
+  ```
