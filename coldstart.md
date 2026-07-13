@@ -1,6 +1,8 @@
 # Cold Start Handoff - Straight Ltd + PeTa
 
-> ⚠️ LATEST (2026-07-12): PeTa task credit fixes applied to production. Trigger `tg_on_assignment_approved` was attached to `task_assignments`, `user_credits_source_check` updated to allow `task_reward` and `wa_group_verified`, `validate_payout_eligibility` fixed to include forum tasks, `admin_reject_assignment` RPC created, and `admin_recover_missing_task_rewards()` backfilled 10 missing credits. Production DB now has 0 missing approved-task credits. PeTa frontend (with TaskDetail UUID fix) remains live on https://www.penghasilantambahan.com.
+> ⚠️ LATEST (2026-07-13): Fixed `request_payout` PostgRST ambiguity in production by dropping the extra 6-parameter overload that was added outside of repo migrations. PeTa withdrawal should now work. See 2026-07-13 section below.
+>
+> Previous (2026-07-12): PeTa task credit fixes applied to production. Trigger `tg_on_assignment_approved` was attached to `task_assignments`, `user_credits_source_check` updated to allow `task_reward` and `wa_group_verified`, `validate_payout_eligibility` fixed to include forum tasks, `admin_reject_assignment` RPC created, and `admin_recover_missing_task_rewards()` backfilled 10 missing credits. Production DB now has 0 missing approved-task credits. PeTa frontend (with TaskDetail UUID fix) remains live on https://www.penghasilantambahan.com.
 >
 > Previous (2026-07-03): `fix/audit-2026-06-09` merged into `main`, pushed to GitHub, and deployed to straight.ltd production. Google Sign-In removal live on https://www.straight.ltd.
 >
@@ -1199,4 +1201,31 @@ Code fixed and build verified. Frontend deploy pending (needs Cloudflare API tok
   npx.cmd supabase link --project-ref yorlsgzsawchpeeazcvi
   npx.cmd supabase db query --linked -f supabase/migrations/20260712120000_peta_task_credit_fixes.sql
   npx.cmd supabase db query --linked "<recovery SQL>"
+  ```
+
+
+## 2026-07-13 — PeTa Withdrawal request_payout Ambiguity Fix
+
+- **Type:** DB HOTFIX
+- **Status:** COMPLETED
+- **Files touched:**
+  - `peta/supabase/migrations/20260713000000_fix_request_payout_overload.sql` (new)
+- **Key decisions:**
+  - User reported error when clicking "Request Rp2.000": PostgREST PGRST203 "Could not choose the best candidate function" because production DB had two `request_payout` overloads:
+    - `public.request_payout(p_amount integer)` — used by frontend (`supabase.rpc('request_payout', { p_amount })`).
+    - `public.request_payout(p_amount integer, p_payment_type text, p_provider text, p_account_number text, p_account_holder_name text, p_user_note text)` — added outside repo migrations, unused by frontend.
+  - Dropped the 6-parameter overload to remove ambiguity. Verified only the 1-parameter version remains.
+- **Blockers:**
+  - Staging project `duxzxizedtvnopfihllz` remains paused; fix applied directly to production.
+- **Next step:** User can retry withdrawal. If eligible per `validate_payout_eligibility` (7 days old OR 5 approved tasks), the request should now succeed. UI copy says "No minimum" but the server-side eligibility rules still apply.
+- **Inspector:** PASSED (overloaded function dropped, only intended signature remains)
+- **Backup location:** none (change in migration + GitHub)
+- **coldstart.md stored at:** `G:\SF Project\peta-main\coldstart.md`
+- **Browser used:** none
+- **Production URL:** https://www.penghasilantambahan.com
+- **Command used:**
+  ```powershell
+  $env:SUPABASE_ACCESS_TOKEN='<token>'
+  cd "G:\SF Project\peta-main\peta"
+  npx.cmd supabase db query --linked -f supabase/migrations/20260713000000_fix_request_payout_overload.sql
   ```
