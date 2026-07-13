@@ -1,6 +1,6 @@
 # Cold Start Handoff - Straight Ltd + PeTa
 
-> ⚠️ LATEST (2026-07-13): PeTa transactional emails now live using Resend. Automated emails for: welcome after signup, payout request confirmation, payout paid, and task approved. `RESEND_API_KEY` updated to new key provided by user. Domain `penghasilantambahan.com` still needs verification in the new Resend account before emails can be sent to external recipients. See 2026-07-13 sections below.
+> ⚠️ LATEST (2026-07-13): PeTa transactional emails now live using Resend. Automated emails for: welcome after signup, payout request confirmation, payout paid, and task approved. `RESEND_API_KEY` updated to new key provided by user. Domain `penghasilantambahan.com` is now verified. All 4 templates successfully tested and delivered to `rashrifanda@gmail.com`. See 2026-07-13 sections below.
 >
 > Previous (2026-07-13): Fixed `request_payout` PostgRST ambiguity in production by dropping the extra 6-parameter overload. PeTa withdrawal now works. See 2026-07-13 section below.
 >
@@ -1275,19 +1275,19 @@ Code fixed and build verified. Frontend deploy pending (needs Cloudflare API tok
 ## 2026-07-13 — QA PeTa Resend Emails + Domain Verification Required
 
 - **Type:** QA
-- **Status:** COMPLETED (with action required)
+- **Status:** COMPLETED
 - **What was tested:**
   - `RESEND_API_KEY` updated to the new key provided by user.
-  - Edge function `send-peta-email` deployed successfully.
-  - Test email to `rashrifanda@gmail.com` and `n311311@gmail.com` failed with: "The penghasilantambahan.com domain is not verified. Please, add and verify your domain on https://resend.com/domains".
-- **Root cause:**
-  - The new Resend account requires domain verification before any email can be sent. `penghasilantambahan.com` is not yet verified in this new Resend account.
-- **Action required:**
-  - Login ke https://resend.com/domains (using the account that owns the new API key)
-  - Add domain `penghasilantambahan.com`
-  - Copy DNS records (SPF, DKIM, DMARC) ke DNS provider Cloudflare
-  - Tunggu verified, lalu semua email otomatis PeTa bisa kirim ke user external (termasuk rashrifanda@gmail.com)
-- **Inspector:** PASSED (function + new API key active, blocked only by Resend domain verification)
+  - Domain `penghasilantambahan.com` verified in the new Resend account (SPF, DKIM, MX records configured via Cloudflare).
+  - All 4 PeTa email templates sent to `rashrifanda@gmail.com` and returned `{ ok: true }`:
+    - Welcome: `a5dc4875-7cbc-4b46-ad35-181142f2fafb`
+    - Payout request: `6eb089ae-398c-44a7-8c9f-bbc7e78377af`
+    - Payout paid: `ba032b4c-7b64-4c3d-93bd-ed95ea704291`
+    - Task approved: `5d6e4c32-9d42-4f55-aa25-1a7a3b6d3582`
+- **Root cause (resolved):**
+  - `penghasilantambahan.com` is now verified in the new Resend account.
+- **Status:** Email automation fully operational. Automated triggers in `Register.tsx`, `Earnings.tsx`, `ApprovalQueue.tsx`, and `Payroll.tsx` will now send real emails to users.
+- **Inspector:** PASSED (all 4 templates delivered successfully to external recipient)
 - **Backup location:** none
 - **coldstart.md stored at:** `G:\SF Project\peta-main\coldstart.md`
 - **Browser used:** none
