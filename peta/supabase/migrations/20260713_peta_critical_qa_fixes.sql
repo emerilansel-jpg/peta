@@ -9,6 +9,11 @@
 -- 6. Backfill/fix any slot-count drift.
 -- =============================================================
 
+-- Clean up any legacy/overloaded signatures so PostgREST resolves unambiguously.
+DROP FUNCTION IF EXISTS public.admin_reject_assignment(uuid, text, text);
+DROP FUNCTION IF EXISTS public.admin_reject_assignment(uuid, text, boolean, text);
+DROP FUNCTION IF EXISTS public.admin_mark_payout_paid(uuid, text, text);
+
 -- 1) Admin approve assignment via SECURITY DEFINER RPC.
 --    Only allows status transition 'submitted' -> 'approved'.
 CREATE OR REPLACE FUNCTION public.admin_approve_assignment(p_assignment_id uuid)
