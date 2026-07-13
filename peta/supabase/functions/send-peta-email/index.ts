@@ -33,15 +33,22 @@ function json(body: unknown, status = 200) {
   });
 }
 
+const LOGO_URL = 'https://www.penghasilantambahan.com/logo-horizontal.png';
+const PRIMARY = '#ff8b6b';
+// Approximation of oklch(0.91 0.18 98.65) — light peach, used for subtle backgrounds.
+const PEACH_LIGHT = '#FFDEC8';
+const DARK = '#1A1D1F';
+const MUTED = '#5E6470';
+
 function emailTemplate(payload: EmailRequest): string {
   const appLink = payload.link || 'https://penghasilantambahan.com';
   const ctaText = (() => {
     switch (payload.type) {
-      case 'welcome': return 'Mulai Earning';
+      case 'welcome': return 'Mulai Sekarang';
       case 'payout_request': return 'Cek Status Payout';
-      case 'payout_paid': return 'Login PeTa';
-      case 'task_approved': return 'Lihat Riwayat';
-      default: return 'Buka PeTa';
+      case 'payout_paid': return 'Lihat Riwayat';
+      case 'task_approved': return 'Lihat Saldo';
+      default: return 'Kunjungi PeTa';
     }
   })();
 
@@ -54,27 +61,76 @@ function emailTemplate(payload: EmailRequest): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
   <title>${payload.subject}</title>
 </head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background-color: #fff5f2; margin: 0; padding: 0;">
+<body style="margin:0; padding:0; background-color:${PEACH_LIGHT}; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing:antialiased;">
 ${preview}
-<div style="max-width: 600px; margin: 24px auto; background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
-  <div style="background: linear-gradient(135deg, #FF6B6B 0%, #FF8B6B 100%); padding: 28px; color: white; text-align: center;">
-    <div style="font-size: 28px; font-weight: 900; letter-spacing: -0.5px;">PeTa</div>
-    <div style="font-size: 13px; opacity: 0.9; margin-top: 4px;">PenghasilanTambahan.com</div>
-  </div>
-  <div style="padding: 32px 24px;">
-    <h2 style="margin: 0 0 16px 0; color: #1A1D1F; font-size: 22px; font-weight: 800;">${payload.subject}</h2>
-    <div style="margin: 0 0 24px 0; color: #475569; font-size: 15px; line-height: 1.6;">
-      ${payload.body}
-    </div>
-    <a href="${appLink}" style="display: inline-block; padding: 14px 28px; background: #FF6B6B; color: white; text-decoration: none; border-radius: 12px; font-weight: 700; font-size: 15px;">${ctaText} →</a>
-  </div>
-  <div style="padding: 20px 24px; border-top: 1px solid #f0f0f0; color: #94a3b8; font-size: 12px; text-align: center; line-height: 1.5;">
-    Email ini dikirim otomatis oleh PeTa · PenghasilanTambahan.com<br>
-    Simpan email <b>peta@penghasilantambahan.com</b> ke kontak kamu biar nggak masuk spam.
-  </div>
-</div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:${PEACH_LIGHT};">
+  <tr>
+    <td align="center" style="padding:40px 16px;">
+      <!-- Main Container -->
+      <table role="presentation" width="100%" max-width="600" cellspacing="0" cellpadding="0" border="0" style="max-width:600px; width:100%; border-radius:24px; overflow:hidden; background-color:#ffffff; box-shadow:0 16px 40px rgba(26,29,31,0.10);">
+        <!-- Header with Logo -->
+        <tr>
+          <td align="center" style="background:linear-gradient(135deg, ${PRIMARY} 0%, #FF6B6B 100%); padding:36px 24px 32px;">
+            <img src="${LOGO_URL}" alt="PeTa · PenghasilanTambahan.com" width="180" style="display:block; width:180px; max-width:70%; height:auto; border:0; outline:none; text-decoration:none; -ms-interpolation-mode:bicubic;">
+          </td>
+        </tr>
+        <!-- Content Body -->
+        <tr>
+          <td style="padding:40px 32px 32px;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+              <tr>
+                <td style="padding-bottom:20px;">
+                  <h1 style="margin:0; color:${DARK}; font-size:24px; font-weight:800; line-height:1.3; letter-spacing:-0.3px;">${payload.subject}</h1>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding-bottom:28px; color:${MUTED}; font-size:16px; line-height:1.65;">
+                  ${payload.body}
+                </td>
+              </tr>
+              <tr>
+                <td style="padding-bottom:16px;">
+                  <a href="${appLink}" style="display:inline-block; padding:15px 32px; background-color:${PRIMARY}; color:#ffffff; text-decoration:none; border-radius:12px; font-weight:700; font-size:15px; box-shadow:0 4px 14px rgba(255,139,107,0.35);">${ctaText}</a>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <!-- Divider -->
+        <tr>
+          <td style="padding:0 32px;">
+            <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="border-top:1px solid #F0E7E2;">
+              <tr><td style="font-size:0; line-height:0;">&nbsp;</td></tr>
+            </table>
+          </td>
+        </tr>
+        <!-- Footer -->
+        <tr>
+          <td style="padding:28px 32px 36px; text-align:center;">
+            <p style="margin:0 0 8px; color:${MUTED}; font-size:13px; line-height:1.5;">
+              Email ini dikirim otomatis oleh <strong style="color:${DARK};">PeTa · PenghasilanTambahan.com</strong>
+            </p>
+            <p style="margin:0; color:${MUTED}; font-size:12px; line-height:1.5;">
+              Simpan <a href="mailto:peta@penghasilantambahan.com" style="color:${PRIMARY}; text-decoration:none; font-weight:600;">peta@penghasilantambahan.com</a> ke kontak kamu biar nggak masuk spam.
+            </p>
+          </td>
+        </tr>
+      </table>
+      <!-- Subtle footer outside card -->
+      <table role="presentation" width="100%" max-width="600" cellspacing="0" cellpadding="0" border="0" style="max-width:600px; width:100%; margin-top:20px;">
+        <tr>
+          <td align="center" style="color:#A78B7A; font-size:12px; line-height:1.5;">
+            © ${new Date().getFullYear()} PeTa · PenghasilanTambahan.com. All rights reserved.
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
 </body>
 </html>`;
 }

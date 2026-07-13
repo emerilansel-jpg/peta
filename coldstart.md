@@ -1,8 +1,8 @@
 # Cold Start Handoff - Straight Ltd + PeTa
 
-> ⚠️ LATEST (2026-07-13): PeTa transactional emails now live using Resend. Automated emails for: welcome after signup, payout request confirmation, payout paid, and task approved. `RESEND_API_KEY` updated to new key provided by user. Domain `penghasilantambahan.com` is now verified. All 4 templates successfully tested and delivered to `rashrifanda@gmail.com`. See 2026-07-13 sections below.
+> ⚠️ LATEST (2026-07-13): PeTa transactional email template redesigned with professional branding: logo `https://www.penghasilantambahan.com/logo-horizontal.png`, colors `#ff8b6b` + light peach (`oklch(0.91 0.18 98.65)` approximation), table-based responsive layout. All 4 templates retested and delivered to `rashrifanda@gmail.com`. See 2026-07-13 sections below.
 >
-> Previous (2026-07-13): Fixed `request_payout` PostgRST ambiguity in production by dropping the extra 6-parameter overload. PeTa withdrawal now works. See 2026-07-13 section below.
+> Previous (2026-07-13): PeTa transactional emails now live using Resend with domain `penghasilantambahan.com` verified. See 2026-07-13 sections below.
 >
 > Previous (2026-07-03): `fix/audit-2026-06-09` merged into `main`, pushed to GitHub, and deployed to straight.ltd production. Google Sign-In removal live on https://www.straight.ltd.
 >
@@ -1288,6 +1288,33 @@ Code fixed and build verified. Frontend deploy pending (needs Cloudflare API tok
   - `penghasilantambahan.com` is now verified in the new Resend account.
 - **Status:** Email automation fully operational. Automated triggers in `Register.tsx`, `Earnings.tsx`, `ApprovalQueue.tsx`, and `Payroll.tsx` will now send real emails to users.
 - **Inspector:** PASSED (all 4 templates delivered successfully to external recipient)
+- **Backup location:** none
+- **coldstart.md stored at:** `G:\SF Project\peta-main\coldstart.md`
+- **Browser used:** none
+
+
+## 2026-07-13 — PeTa Email Template Redesign (Professional Branding)
+
+- **Type:** DESIGN / DEPLOY
+- **Status:** COMPLETED
+- **Files touched:**
+  - `peta/supabase/functions/send-peta-email/index.ts` (updated `emailTemplate`)
+- **Key decisions:**
+  - Redesigned transactional email template to be more professional and on-brand.
+  - Added PeTa logo at header: `https://www.penghasilantambahan.com/logo-horizontal.png`.
+  - Color composition:
+    - Primary accent: `#ff8b6b` (gradient to `#FF6B6B`).
+    - Light background: `#FFDEC8` (approximation of `oklch(0.91 0.18 98.65)`).
+  - Switched to table-based responsive HTML email layout for better compatibility across Gmail, Outlook, Apple Mail, etc.
+  - Improved typography, spacing, CTA button styling, and footer copyright block.
+  - Edge function redeployed to production.
+- **QA results:**
+  - All 4 templates retested and delivered to `rashrifanda@gmail.com` with new design:
+    - Welcome: `c1575699-86ce-4b07-ada2-04ee4b894314`
+    - Payout request: `9677c471-7854-4cc7-9fb6-a6aa90af912f`
+    - Payout paid: `0f48bc66-b707-43c5-be88-f71c7cb38609`
+    - Task approved: `bb5e23d4-7cd5-4549-a39c-1637024230df`
+- **Inspector:** PASSED (all 4 templates delivered with new professional design)
 - **Backup location:** none
 - **coldstart.md stored at:** `G:\SF Project\peta-main\coldstart.md`
 - **Browser used:** none
