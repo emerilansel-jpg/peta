@@ -5,6 +5,7 @@ import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
+import { sendPayoutPaidEmail } from '../../lib/api';
 import { toast } from '../../components/Toast';
 
 export function AdminPayroll() {
@@ -21,14 +22,21 @@ export function AdminPayroll() {
   });
 
   const markPaid = useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async (p: any) => {
       const { error } = await supabase
         .from('payouts')
         .update({ status: 'paid', paid_at: new Date().toISOString() })
-        .eq('id', id);
+        .eq('id', p.id);
       if (error) throw error;
+      return p;
     },
-    onSuccess: () => { toast.success('Marked as paid ✅'); refetch(); },
+    onSuccess: (p: any) => {
+      toast.success('Marked as paid ✅');
+      if (p?.users?.email && p?.users?.full_name) {
+        sendPayoutPaidEmail(p.users.email, p.users.full_name, p.amount || 0).catch(() => {});
+      }
+      refetch();
+    },
     onError: () => toast.error('Gagal update'),
   });
 
@@ -94,7 +102,7 @@ export function AdminPayroll() {
                 </p>
               </div>
               <Button
-                onClick={() => markPaid.mutate(p.id)}
+                onClick={() => markPaid.mutate(p)}
                 variant="success"
                 loading={markPaid.isPending}
                 fullWidth

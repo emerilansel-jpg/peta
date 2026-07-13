@@ -4,6 +4,7 @@ import { Eye, EyeOff, ArrowLeft, Check, Gift, Tag, MessageCircle, User } from 'l
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
 import { toast } from '../components/Toast';
+import { sendWelcomeEmail } from '../lib/api';
 
 export function Register() {
   const [params] = useSearchParams();
@@ -78,6 +79,8 @@ export function Register() {
       // so user lands in /onboarding instead of bouncing to /login.
       if (data.session) {
         toast.success(successMsg);
+        // Send welcome email in background; don't block navigation on failure.
+        sendWelcomeEmail(email, fullName.trim()).catch(() => {});
         navigate('/onboarding');
       } else {
         const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
@@ -86,6 +89,7 @@ export function Register() {
           navigate('/login');
         } else {
           toast.success(successMsg);
+          sendWelcomeEmail(email, fullName.trim()).catch(() => {});
           navigate('/onboarding');
         }
       }

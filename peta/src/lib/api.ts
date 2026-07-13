@@ -426,6 +426,86 @@ export async function checkPayoutEligibility(userId: string, amount: number) {
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// PeTa transactional emails (Resend)
+// Fire-and-forget: failures are logged but never block the user flow.
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type PetaEmailType = 'welcome' | 'payout_request' | 'payout_paid' | 'task_approved' | 'general';
+
+export async function sendPetaEmail(opts: {
+  to: string;
+  subject: string;
+  body: string;
+  type?: PetaEmailType;
+  link?: string;
+  previewText?: string;
+}) {
+  try {
+    const { data, error } = await supabase.functions.invoke('send-peta-email', {
+      body: {
+        to: opts.to,
+        subject: opts.subject,
+        body: opts.body,
+        type: opts.type,
+        link: opts.link,
+        preview_text: opts.previewText,
+      },
+    });
+    if (error) {
+      console.error('send-peta-email failed:', error);
+    }
+    return { data, error };
+  } catch (e) {
+    console.error('send-peta-email exception:', e);
+    return { data: null, error: e };
+  }
+}
+
+export async function sendWelcomeEmail(to: string, fullName: string) {
+  return sendPetaEmail({
+    to,
+    subject: 'Selamat datang di PeTa Army 🎉',
+    type: 'welcome',
+    body: `Halo <b>${fullName}</b>,<br><br>Selamat datang di PeTa — tempat ngumpulin cuan dari tugas-tugas ringan di internet.<br><br>Langkah selanjutnya: selesaikan onboarding 5 menit, klaim bonus Rp50K, dan mulai kerjain task pertama kamu.`,
+    link: 'https://penghasilantambahan.com/onboarding',
+    previewText: 'Selamat datang di PeTa! Mulai onboarding dan klaim bonus Rp50K.',
+  });
+}
+
+export async function sendPayoutRequestEmail(to: string, fullName: string, amount: number) {
+  return sendPetaEmail({
+    to,
+    subject: 'Payout request diterima ⏳',
+    type: 'payout_request',
+    body: `Halo <b>${fullName}</b>,<br><br>Kami sudah terima request payout kamu sebesar <b>Rp${amount.toLocaleString('id-ID')}</b>.<br><br>Admin akan memproses transfer maksimal 24 jam kerja ke rekening yang terdaftar. Cek status payout di halaman Earnings.`,
+    link: 'https://penghasilantambahan.com/earnings',
+    previewText: `Request payout Rp${amount.toLocaleString('id-ID')} diterima. Proses max 24 jam.`,
+  });
+}
+
+export async function sendPayoutPaidEmail(to: string, fullName: string, amount: number) {
+  return sendPetaEmail({
+    to,
+    subject: 'Payout sudah ditransfer! ✅',
+    type: 'payout_paid',
+    body: `Halo <b>${fullName}</b>,<br><br>Payout kamu sebesar <b>Rp${amount.toLocaleString('id-ID')}</b> sudah ditransfer ke rekening yang terdaftar.<br><br>Cek mutasi rekening kamu. Kalau ada kendala, hubungi admin via WhatsApp.`,
+    link: 'https://penghasilantambahan.com/earnings',
+    previewText: `Payout Rp${amount.toLocaleString('id-ID')} sudah ditransfer. Cek rekening kamu!`,
+  });
+}
+
+export async function sendTaskApprovedEmail(to: string, fullName: string, taskTitle: string, reward: number) {
+  return sendPetaEmail({
+    to,
+    subject: 'Task approved — reward masuk saldo! 🎉',
+    type: 'task_approved',
+    body: `Halo <b>${fullName}</b>,<br><br>Task kamu <b>"${taskTitle}"</b> sudah di-approve admin. Reward <b>Rp${reward.toLocaleString('id-ID')}</b> otomatis masuk saldo.<br><br>Langsung cek saldo atau tarik kapan aja tanpa minimum.`,
+    link: 'https://penghasilantambahan.com/earnings',
+    previewText: `Task "${taskTitle}" approved! Rp${reward.toLocaleString('id-ID')} masuk saldo.`,
+  });
+}
+
 // Returns the user's saldo split so the Earnings UI can show the
 // new "task cair langsung, bonus tunggu Rp100K dari task" rule
 // (server enforces via validate_payout_eligibility).

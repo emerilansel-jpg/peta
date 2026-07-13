@@ -6,7 +6,7 @@ import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
-import { adminRejectAssignment } from '../../lib/api';
+import { adminRejectAssignment, sendTaskApprovedEmail } from '../../lib/api';
 import { toast } from '../../components/Toast';
 
 // Pre-baked rejection reasons for fast admin triage — covers ~90% of why
@@ -91,11 +91,23 @@ export function AdminApprovalQueue() {
   });
 
   const approveMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('task_assignments').update({ status: 'approved' }).eq('id', id);
+    mutationFn: async (a: any) => {
+      const { error } = await supabase.from('task_assignments').update({ status: 'approved' }).eq('id', a.id);
       if (error) throw error;
+      return a;
     },
-    onSuccess: () => { toast.success('Approved ✅'); refetch(); },
+    onSuccess: (a: any) => {
+      toast.success('Approved ✅');
+      if (a?.army_email && a?.army_name) {
+        sendTaskApprovedEmail(
+          a.army_email,
+          a.army_name,
+          a.tasks?.title || 'Task',
+          a.tasks?.reward_amount || 0
+        ).catch(() => {});
+      }
+      refetch();
+    },
     onError: () => toast.error('Gagal approve'),
   });
 
@@ -254,7 +266,7 @@ export function AdminApprovalQueue() {
                       <td className="px-2 py-3 align-top text-right whitespace-nowrap">
                         <div className="flex justify-end gap-1">
                           <Button
-                            onClick={() => approveMutation.mutate(a.id)}
+                            onClick={() => approveMutation.mutate(a)}
                             variant="success"
                             size="sm"
                             disabled={approveMutation.isPending}
@@ -356,7 +368,7 @@ export function AdminApprovalQueue() {
 
                   <div className="flex gap-2 mt-3">
                     <Button
-                      onClick={() => approveMutation.mutate(a.id)}
+                      onClick={() => approveMutation.mutate(a)}
                       variant="success"
                       size="sm"
                       loading={approveMutation.isPending}

@@ -7,7 +7,7 @@ import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { CardSkeleton } from '../components/Skeleton';
 import { supabase } from '../lib/supabase';
-import { getPayoutHistory, requestPayout, getTotalEarnings, getMaxRedditKarma, getMyPendingAssignments, listEligibleTasksForUser, type EligibleTask } from '../lib/api';
+import { getPayoutHistory, requestPayout, getTotalEarnings, getMaxRedditKarma, getMyPendingAssignments, listEligibleTasksForUser, type EligibleTask, sendPayoutRequestEmail } from '../lib/api';
 import { toast } from '../components/Toast';
 
 // No minimum payout — saldo dari task cair berapapun, kapan aja.
@@ -19,6 +19,7 @@ export function Earnings() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [user, setUser] = React.useState<any>(null);
+  const [userName, setUserName] = React.useState<string>('PeTa Army');
   const [amount, setAmount] = React.useState(10000);
   const [showSheet, setShowSheet] = React.useState(false);
   const [showHowItWorks, setShowHowItWorks] = React.useState(false);
@@ -28,6 +29,12 @@ export function Earnings() {
       const { data } = await supabase.auth.getUser();
       if (!data.user) { navigate('/login'); return; }
       setUser(data.user);
+      const { data: profile } = await supabase
+        .from('users')
+        .select('full_name')
+        .eq('id', data.user.id)
+        .single();
+      if (profile?.full_name) setUserName(profile.full_name);
     })();
   }, [navigate]);
 
@@ -91,6 +98,9 @@ export function Earnings() {
     mutationFn: () => requestPayout(user.id, amount),
     onSuccess: () => {
       toast.success('Payout request terkirim! 24 jam max ✅ Cek inbox + spam folder buat konfirmasi (peta@penghasilantambahan.com)');
+      if (user?.email) {
+        sendPayoutRequestEmail(user.email, userName, amount).catch(() => {});
+      }
       setAmount(10000);
       setShowSheet(false);
       // Refresh BOTH payouts + earnings so the hero number decrements immediately
