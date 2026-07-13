@@ -1,8 +1,8 @@
 # Cold Start Handoff - Straight Ltd + PeTa
 
-> ⚠️ LATEST (2026-07-13): Fixed `request_payout` PostgRST ambiguity in production by dropping the extra 6-parameter overload that was added outside of repo migrations. PeTa withdrawal should now work. See 2026-07-13 section below.
+> ⚠️ LATEST (2026-07-13): PeTa transactional emails now live using Resend. Automated emails for: welcome after signup, payout request confirmation, payout paid, and task approved. Edge function `send-peta-email` deployed, `RESEND_API_KEY` secret set, frontend deployed to https://www.penghasilantambahan.com. See 2026-07-13 sections below.
 >
-> Previous (2026-07-12): PeTa task credit fixes applied to production. Trigger `tg_on_assignment_approved` was attached to `task_assignments`, `user_credits_source_check` updated to allow `task_reward` and `wa_group_verified`, `validate_payout_eligibility` fixed to include forum tasks, `admin_reject_assignment` RPC created, and `admin_recover_missing_task_rewards()` backfilled 10 missing credits. Production DB now has 0 missing approved-task credits. PeTa frontend (with TaskDetail UUID fix) remains live on https://www.penghasilantambahan.com.
+> Previous (2026-07-13): Fixed `request_payout` PostgRST ambiguity in production by dropping the extra 6-parameter overload. PeTa withdrawal now works. See 2026-07-13 section below.
 >
 > Previous (2026-07-03): `fix/audit-2026-06-09` merged into `main`, pushed to GitHub, and deployed to straight.ltd production. Google Sign-In removal live on https://www.straight.ltd.
 >
@@ -20,7 +20,7 @@
 > `www.straight.ltd` is served by the `straight` Cloudflare Pages project (the `peta` Pages project
 > serves `penghasilantambahan.com` and was intentionally not touched).
 
-Last updated: 2026-07-12 (PeTa credit fixes deployed, production DB recovered).
+Last updated: 2026-07-13 (PeTa Resend transactional emails live).
 
 Workspace:
 
@@ -1228,4 +1228,45 @@ Code fixed and build verified. Frontend deploy pending (needs Cloudflare API tok
   $env:SUPABASE_ACCESS_TOKEN='<token>'
   cd "G:\SF Project\peta-main\peta"
   npx.cmd supabase db query --linked -f supabase/migrations/20260713000000_fix_request_payout_overload.sql
+  ```
+
+
+## 2026-07-13 — PeTa Transactional Emails via Resend
+
+- **Type:** FEATURE / DEPLOY
+- **Status:** COMPLETED
+- **Files touched:**
+  - `peta/supabase/functions/send-peta-email/index.ts` (new edge function)
+  - `peta/src/lib/api.ts` (email helpers + templates)
+  - `peta/src/pages/Register.tsx` (welcome email)
+  - `peta/src/pages/Earnings.tsx` (payout request confirmation)
+  - `peta/src/pages/admin/ApprovalQueue.tsx` (task approved email)
+  - `peta/src/pages/admin/Payroll.tsx` (payout paid email)
+- **Key decisions:**
+  - Created `send-peta-email` edge function using Resend with PeTa-branded HTML email template.
+  - Set `RESEND_API_KEY` secret in Supabase (sourced from existing `app_secrets` row) and deployed the edge function to production.
+  - Added fire-and-forget helpers in `api.ts`: `sendWelcomeEmail`, `sendPayoutRequestEmail`, `sendPayoutPaidEmail`, `sendTaskApprovedEmail`.
+  - Wired triggers:
+    - Welcome email after successful signup.
+    - Payout request confirmation email after user requests payout.
+    - Task approved email after admin approves a submission.
+    - Payout paid email after admin marks payout as paid.
+  - Emails are sent asynchronously without blocking the UI; failures are logged to console.
+  - Frontend rebuilt and deployed to Cloudflare Pages project `peta`.
+- **Blockers:** none
+- **Next step:** Monitor Resend dashboard for delivery/bounce rates. Verify `peta@penghasilantambahan.com` sender domain is verified in Resend if deliverability issues appear.
+- **Inspector:** PASSED (build + deploy + edge function deploy succeeded)
+- **Backup location:** none
+- **coldstart.md stored at:** `G:\SF Project\peta-main\coldstart.md`
+- **Browser used:** none
+- **Production URL:** https://www.penghasilantambahan.com
+- **Commands used:**
+  ```powershell
+  $env:SUPABASE_ACCESS_TOKEN='<token>'
+  $env:CLOUDFLARE_API_TOKEN='<token>'
+  cd "G:\SF Project\peta-main\peta"
+  npx.cmd supabase secrets set RESEND_API_KEY=<key> --project-ref yorlsgzsawchpeeazcvi
+  npx.cmd supabase functions deploy send-peta-email --project-ref yorlsgzsawchpeeazcvi
+  npm.cmd run build
+  npx.cmd wrangler pages deploy dist --project-name=peta --branch=main --commit-dirty=true
   ```
