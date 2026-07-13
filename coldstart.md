@@ -1270,3 +1270,24 @@ Code fixed and build verified. Frontend deploy pending (needs Cloudflare API tok
   npm.cmd run build
   npx.cmd wrangler pages deploy dist --project-name=peta --branch=main --commit-dirty=true
   ```
+
+
+## 2026-07-13 — QA PeTa Resend Emails + Domain Verification Required
+
+- **Type:** QA
+- **Status:** COMPLETED (with action required)
+- **What was tested:**
+  - Edge function `send-peta-email` deployed successfully.
+  - Test email sent to the Resend account owner `n311311@gmail.com` → returned `{ ok: true, id: "387d490d-ac69-4ae1-91d6-ab467821aabf" }`.
+  - Attempt to send to `rashrifanda@gmail.com` failed because Resend account is still in test mode: "You can only send testing emails to your own email address (n311311@gmail.com)."
+- **Root cause:**
+  - Resend requires a verified domain before sending to external recipients. The current `EMAIL_FROM` is `PeTA <peta@penghasilantambahan.com>` but `penghasilantambahan.com` is not verified on Resend.
+- **Action required:**
+  - Login ke https://resend.com/domains
+  - Add domain `penghasilantambahan.com`
+  - Copy DNS records (SPF, DKIM, DMARC) ke DNS provider Cloudflare
+  - Tunggu verified, lalu semua email otomatis PeTa bisa kirim ke user external (termasuk rashrifanda@gmail.com)
+- **Inspector:** PASSED (function works, blocked only by Resend domain verification)
+- **Backup location:** none
+- **coldstart.md stored at:** `G:\SF Project\peta-main\coldstart.md`
+- **Browser used:** none
