@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import {
   ArrowRight,
@@ -116,7 +116,7 @@ export function RedditLanding() {
               onClick={handleCTA}
               className="group flex items-center gap-2 px-8 py-4 rounded-xl bg-orange-500 text-white text-base font-semibold hover:bg-orange-600 shadow-lg shadow-orange-500/20 transition-all"
             >
-              {isLoggedIn ? 'Go to dashboard' : regMode === 'waitlist' ? 'Join the waitlist' : 'Start with $25 credit'}
+              {isLoggedIn ? 'Go to dashboard' : regMode === 'waitlist' ? 'Join the waitlist' : 'Get started — free to sign up'}
               <ArrowRight size={18} className="group-hover:translate-x-0.5 transition-transform" />
             </button>
             <button
@@ -551,10 +551,10 @@ export function RedditLanding() {
             <span>Straight Ltd Pro · © {new Date().getFullYear()}</span>
           </div>
           <div className="flex gap-6 text-sm text-slate-500">
-            <a href="#" className="hover:text-slate-900">Terms</a>
-            <a href="#" className="hover:text-slate-900">Privacy</a>
-            <a href="#" className="hover:text-slate-900">Refunds</a>
-            <a href="#" className="hover:text-slate-900">Contact</a>
+            <Link to="/reddit/terms" className="hover:text-slate-900">Terms</Link>
+            <Link to="/reddit/privacy" className="hover:text-slate-900">Privacy</Link>
+            <Link to="/reddit/refunds" className="hover:text-slate-900">Refunds</Link>
+            <Link to="/reddit/contact" className="hover:text-slate-900">Contact</Link>
           </div>
         </div>
       </footer>

@@ -28,6 +28,8 @@ export function ForgotPassword() {
         body: {
           email: email.trim(),
           base_url: window.location.origin,
+          product: 'peta',
+          reset_path: '/reset-password',
         },
       });
       if (error) throw error;

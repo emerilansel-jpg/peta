@@ -1,11 +1,10 @@
 // Supabase Edge Function: send-password-reset-email
 //
-// Sends a password reset link via SMTP email, branded as PeTA.
-// Uses existing SMTP credentials (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD).
-// Optional: EMAIL_FROM secret (default: PeTA <peta@penghasilantambahan.com>)
+// Sends a password reset link via SMTP email. Supports two brands:
+// - product: 'peta' (default) -> PeTA branded email, reset path /reset-password
+// - product: 'straight'      -> Straight Ltd branded email, reset path /reddit/reset-password
 //
-// Deploy:
-//   supabase functions deploy send-password-reset-email --project-ref <ref>
+// Uses existing SMTP credentials (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD).
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import nodemailer from "npm:nodemailer";
@@ -32,7 +31,7 @@ function generateToken(): string {
   return token;
 }
 
-function emailTemplate(resetUrl: string, fullName?: string): string {
+function petaTemplate(resetUrl: string, fullName?: string): string {
   const name = fullName || 'PeTa Army';
   return `<!DOCTYPE html>
 <html><body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background-color: #f8fafc; margin: 0; padding: 0;">
@@ -61,15 +60,46 @@ Email ini dikirim oleh PeTA · PenghasilanTambahan.com
 </body></html>`;
 }
 
+function straightTemplate(resetUrl: string, fullName?: string): string {
+  const name = fullName || 'there';
+  return `<!DOCTYPE html>
+<html><body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background-color: #f8fafc; margin: 0; padding: 0;">
+<div style="max-width: 600px; margin: 24px auto; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+<div style="background: linear-gradient(to right, #f97316, #ef4444); padding: 24px; color: white;">
+<div style="display: flex; align-items: center; gap: 8px;">
+<div style="width: 32px; height: 32px; border-radius: 8px; background: rgba(255,255,255,0.2); display: inline-flex; align-items: center; justify-content: center; font-weight: bold; font-size: 18px;">S</div>
+<strong style="font-size: 18px;">Straight Ltd</strong>
+</div>
+</div>
+<div style="padding: 32px 24px;">
+<h2 style="margin: 0 0 12px 0; color: #0f172a; font-size: 20px;">Reset your password</h2>
+<p style="margin: 0 0 24px 0; color: #475569; font-size: 14px; line-height: 1.5;">
+Hi <strong>${name}</strong>,<br><br>
+We received a request to reset your Straight Ltd password. Click the button below to create a new password. This link is active for <strong>15 minutes</strong>.
+</p>
+<a href="${resetUrl}" style="display: inline-block; padding: 12px 24px; background: #f97316; color: white; text-decoration: none; border-radius: 8px; font-weight: 600; font-size: 14px;">Reset Password →</a>
+<p style="margin: 24px 0 0 0; color: #94a3b8; font-size: 12px;">
+Didn't request this? You can safely ignore this email — your account is secure.
+</p>
+</div>
+<div style="padding: 16px 24px; border-top: 1px solid #e2e8f0; color: #94a3b8; font-size: 12px; text-align: center;">
+This email was sent by Straight Ltd · care@straight.ltd
+</div>
+</div>
+</body></html>`;
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
   try {
-    const { email, base_url } = await req.json();
+    const { email, base_url, product = 'peta', reset_path = '/reset-password' } = await req.json();
     if (!email || typeof email !== 'string') {
       return json({ error: 'email_required' }, 400);
     }
+
+    const isStraight = product === 'straight';
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -96,7 +126,9 @@ Deno.serve(async (req: Request) => {
     const users = await userRes.json();
     if (!users || users.length === 0) {
       // Don't reveal whether email exists
-      return json({ ok: true, message: 'Jika email terdaftar, link reset akan dikirim ke email kamu.' });
+      return json({ ok: true, message: isStraight
+        ? 'If this email is registered, a reset link has been sent.'
+        : 'Jika email terdaftar, link reset akan dikirim ke email kamu.' });
     }
 
     const user = users[0];
@@ -129,13 +161,17 @@ Deno.serve(async (req: Request) => {
     const smtpPort = Deno.env.get('SMTP_PORT');
     const smtpUser = Deno.env.get('SMTP_USER');
     const smtpPass = Deno.env.get('SMTP_PASSWORD');
-    
+
     if (!smtpHost || !smtpUser || !smtpPass) {
       return json({ error: 'smtp_not_configured' }, 500);
     }
 
-    const fromAddress = Deno.env.get('EMAIL_FROM') || 'PeTA <peta@penghasilantambahan.com>';
-    const resetUrl = `${base_url || 'https://penghasilantambahan.com'}/reset-password?token=${token}`;
+    const fromAddress = isStraight
+      ? (Deno.env.get('STRAIGHT_EMAIL_FROM') || 'Straight Ltd <care@straight.ltd>')
+      : (Deno.env.get('EMAIL_FROM') || 'PeTA <peta@penghasilantambahan.com>');
+    const resetUrl = `${base_url || 'https://penghasilantambahan.com'}${reset_path}?token=${token}`;
+    const subject = isStraight ? 'Reset your Straight Ltd password' : 'Reset Password PeTA';
+    const html = isStraight ? straightTemplate(resetUrl, user.full_name) : petaTemplate(resetUrl, user.full_name);
 
     const transporter = nodemailer.createTransport({
       host: smtpHost,
@@ -150,13 +186,15 @@ Deno.serve(async (req: Request) => {
     const info = await transporter.sendMail({
       from: fromAddress,
       to: user.email,
-      subject: 'Reset Password PeTA',
-      html: emailTemplate(resetUrl, user.full_name),
+      subject,
+      html,
     });
 
     return json({
       ok: true,
-      message: 'Link reset password dikirim ke email kamu!',
+      message: isStraight
+        ? 'Reset link sent. Check your email.'
+        : 'Link reset password dikirim ke email kamu!',
       messageId: info.messageId,
     });
   } catch (e) {

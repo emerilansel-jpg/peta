@@ -91,7 +91,7 @@ export function RedditLogin() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-sm font-semibold text-slate-700">Password</label>
-                <a href="#" className="text-xs text-orange-600 hover:underline">Forgot?</a>
+                <Link to="/reddit/forgot-password" className="text-xs text-orange-600 hover:underline">Forgot?</Link>
               </div>
               <div className="relative">
                 <input

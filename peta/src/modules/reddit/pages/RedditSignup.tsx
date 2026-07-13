@@ -242,9 +242,9 @@ export function RedditSignup() {
               />
               <span>
                 I agree to the{' '}
-                <a href="#" className="text-orange-600 hover:underline">Terms of Service</a>
+                <Link to="/reddit/terms" className="text-orange-600 hover:underline">Terms of Service</Link>
                 {' '}and{' '}
-                <a href="#" className="text-orange-600 hover:underline">Privacy Policy</a>
+                <Link to="/reddit/privacy" className="text-orange-600 hover:underline">Privacy Policy</Link>
               </span>
             </label>
 

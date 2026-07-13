@@ -32,6 +32,12 @@ import { RedditFeatureRequests } from './modules/reddit/pages/RedditFeatureReque
 import { RankingForumPage } from './modules/reddit/pages/RankingForumPage';
 import { WaitlistPage } from './modules/reddit/pages/WaitlistPage';
 import { AiVisibilityPage } from './modules/reddit/pages/AiVisibilityPage';
+import { TermsPage } from './modules/reddit/pages/TermsPage';
+import { PrivacyPage } from './modules/reddit/pages/PrivacyPage';
+import { RefundsPage } from './modules/reddit/pages/RefundsPage';
+import { ContactPage } from './modules/reddit/pages/ContactPage';
+import { RedditForgotPassword } from './modules/reddit/pages/RedditForgotPassword';
+import { RedditResetPassword } from './modules/reddit/pages/RedditResetPassword';
 import { AdminOverview } from './modules/reddit/pages/admin/AdminOverview';
 import { AdminOrders as RedditAdminOrders } from './modules/reddit/pages/admin/AdminOrders';
 import { AdminTickets as RedditAdminTickets } from './modules/reddit/pages/admin/AdminTickets';
@@ -54,6 +60,7 @@ import { AdminInbox } from './pages/admin/Inbox';
 import { AdminSecrets } from './pages/admin/Secrets';
 import { AdminWaBot } from './pages/admin/WaBot';
 import { AdminGuard } from './components/AdminGuard';
+import { AdminRouteWrapper } from './components/AdminRouteWrapper';
 
 import './App.css';
 import './index.css';
@@ -141,6 +148,12 @@ function App() {
           <Route path="/reddit/feature-requests" element={<RedditFeatureRequests />} />
           <Route path="/reddit/ranking-forum" element={<RankingForumPage />} />
           <Route path="/reddit/ai-visibility" element={<AiVisibilityPage />} />
+          <Route path="/reddit/terms" element={<TermsPage />} />
+          <Route path="/reddit/privacy" element={<PrivacyPage />} />
+          <Route path="/reddit/refunds" element={<RefundsPage />} />
+          <Route path="/reddit/contact" element={<ContactPage />} />
+          <Route path="/reddit/forgot-password" element={<RedditForgotPassword />} />
+          <Route path="/reddit/reset-password" element={<RedditResetPassword />} />
           {/* Reddit Admin Routes */}
           <Route path="/reddit/admin" element={<AdminGuard><AdminOverview /></AdminGuard>} />
           <Route path="/reddit/admin/orders" element={<AdminGuard><RedditAdminOrders /></AdminGuard>} />
@@ -155,16 +168,16 @@ function App() {
           <Route path="/reddit/admin/waitlist" element={<AdminGuard><AdminWaitlist /></AdminGuard>} />
 
           {/* Admin Routes (guarded) */}
-          <Route path="/admin" element={<AdminGuard><AdminDashboard /></AdminGuard>} />
-          <Route path="/admin/accounts" element={<AdminGuard><AdminRedditAccounts /></AdminGuard>} />
-          <Route path="/admin/tasks" element={<AdminGuard><AdminTaskQueue /></AdminGuard>} />
-          <Route path="/admin/approval" element={<AdminGuard><AdminApprovalQueue /></AdminGuard>} />
-          <Route path="/admin/team" element={<AdminGuard><AdminTeam /></AdminGuard>} />
-          <Route path="/admin/payroll" element={<AdminGuard><AdminPayroll /></AdminGuard>} />
-          <Route path="/admin/broadcast" element={<AdminGuard><AdminBroadcast /></AdminGuard>} />
-          <Route path="/admin/inbox" element={<AdminGuard><AdminInbox /></AdminGuard>} />
-          <Route path="/admin/secrets" element={<AdminGuard><AdminSecrets /></AdminGuard>} />
-          <Route path="/admin/wa-bot" element={<AdminGuard><AdminWaBot /></AdminGuard>} />
+          <Route path="/admin" element={<AdminRouteWrapper><AdminGuard><AdminDashboard /></AdminGuard></AdminRouteWrapper>} />
+          <Route path="/admin/accounts" element={<AdminRouteWrapper><AdminGuard><AdminRedditAccounts /></AdminGuard></AdminRouteWrapper>} />
+          <Route path="/admin/tasks" element={<AdminRouteWrapper><AdminGuard><AdminTaskQueue /></AdminGuard></AdminRouteWrapper>} />
+          <Route path="/admin/approval" element={<AdminRouteWrapper><AdminGuard><AdminApprovalQueue /></AdminGuard></AdminRouteWrapper>} />
+          <Route path="/admin/team" element={<AdminRouteWrapper><AdminGuard><AdminTeam /></AdminGuard></AdminRouteWrapper>} />
+          <Route path="/admin/payroll" element={<AdminRouteWrapper><AdminGuard><AdminPayroll /></AdminGuard></AdminRouteWrapper>} />
+          <Route path="/admin/broadcast" element={<AdminRouteWrapper><AdminGuard><AdminBroadcast /></AdminGuard></AdminRouteWrapper>} />
+          <Route path="/admin/inbox" element={<AdminRouteWrapper><AdminGuard><AdminInbox /></AdminGuard></AdminRouteWrapper>} />
+          <Route path="/admin/secrets" element={<AdminRouteWrapper><AdminGuard><AdminSecrets /></AdminGuard></AdminRouteWrapper>} />
+          <Route path="/admin/wa-bot" element={<AdminRouteWrapper><AdminGuard><AdminWaBot /></AdminGuard></AdminRouteWrapper>} />
 
           {/* Catch all */}
           <Route path="*" element={<Navigate to="/" replace />} />
