@@ -1,7 +1,6 @@
 import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ArrowLeft, Eye, EyeOff, MessageCircle } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
 import { toast } from '../components/Toast';
 
@@ -29,7 +28,22 @@ export function ResetWhatsApp() {
     if (!phone.trim()) return;
     setLoading(true);
     try {
-      await supabase.functions.invoke('wa-reset-request', { body: { phone: phone.trim() } });
+      const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const res = await fetch(`${baseUrl}/functions/v1/wa-reset-request`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${anonKey}`,
+          'apikey': anonKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ phone: phone.trim() }),
+      });
+      const data = await res.json().catch(() => ({ ok: true }));
+      if (data?.sent === false) {
+        toast.error('Gagal mengirim kode WhatsApp. Coba pakai reset email atau hubungi admin.');
+        return;
+      }
       // Always advance — the endpoint never reveals whether the number exists.
       setStep('code');
       toast.success('Kalau nomornya terdaftar, kode sudah dikirim ke WhatsApp kamu.');
@@ -52,10 +66,18 @@ export function ResetWhatsApp() {
     }
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('wa-reset-confirm', {
-        body: { phone: phone.trim(), code: code.trim(), new_password: password },
+      const baseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const res = await fetch(`${baseUrl}/functions/v1/wa-reset-confirm`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${anonKey}`,
+          'apikey': anonKey,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ phone: phone.trim(), code: code.trim(), new_password: password }),
       });
-      if (error) throw error;
+      const data = await res.json().catch(() => ({ ok: false, error: 'server_error' }));
       if (data?.ok) {
         toast.success('Password berhasil diganti! Login pakai password baru ya.');
         navigate('/login');

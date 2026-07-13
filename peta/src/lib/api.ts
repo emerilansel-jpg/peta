@@ -344,6 +344,7 @@ export async function createTaskAssignment(taskId: string, redditAccountId?: str
 
 export type TaskAssignmentUpdate = {
   draft_comment?: string | null;
+  user_note?: string | null;
   proof_url?: string | null;
   proof_image_url?: string | null;
   submitted_url?: string | null;
@@ -1119,6 +1120,60 @@ export async function adminUpdateTask(u: AdminTaskUpdate): Promise<string> {
   });
   if (error) throw error;
   return data as string;
+}
+
+export type AdminCreateTaskInput = {
+  title: string;
+  description: string;
+  brief: string;
+  target_url: string;
+  task_category: TaskCategory;
+  reward_amount: number;
+  max_assignments: number;
+  per_account_limit: number;
+  min_karma?: number;
+  min_account_age_days?: number;
+  start_at?: string | null;
+  end_at?: string | null;
+  post_to_wa_group?: boolean;
+  wa_group_draft?: string | null;
+  status?: TaskStatus;
+};
+
+export async function adminCreateTask(u: AdminCreateTaskInput) {
+  const { data, error } = await supabase.rpc('admin_create_task', {
+    p_title: u.title,
+    p_description: u.description,
+    p_brief: u.brief,
+    p_target_url: u.target_url,
+    p_task_category: u.task_category,
+    p_reward_amount: u.reward_amount,
+    p_max_assignments: u.max_assignments,
+    p_per_account_limit: u.per_account_limit,
+    p_min_karma: u.min_karma ?? 0,
+    p_min_account_age_days: u.min_account_age_days ?? 0,
+    p_start_at: u.start_at ?? null,
+    p_end_at: u.end_at ?? null,
+    p_post_to_wa_group: u.post_to_wa_group ?? false,
+    p_wa_group_draft: u.wa_group_draft ?? null,
+    p_status: u.status ?? 'draft',
+  });
+  if (error) throw error;
+  return data;
+}
+
+export async function adminApproveAssignment(assignmentId: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_approve_assignment', {
+    p_assignment_id: assignmentId,
+  });
+  if (error) throw error;
+}
+
+export async function adminMarkPayoutPaid(payoutId: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_mark_payout_paid', {
+    p_payout_id: payoutId,
+  });
+  if (error) throw error;
 }
 
 // Army-side: list tasks this user can actually do right now (filtered server-side).

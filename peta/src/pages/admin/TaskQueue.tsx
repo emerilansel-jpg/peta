@@ -1,14 +1,14 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
 import { Plus, X, Download, ExternalLink, Zap, Pencil, Calendar, ClipboardList, ShieldCheck, Clock3, Users } from 'lucide-react';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
-import type { User } from '@supabase/supabase-js';
 import { toast } from '../../components/Toast';
-import { listPendingRedditOrders, importRedditOrder, adminUpdateTask } from '../../lib/api';
+import { listPendingRedditOrders, importRedditOrder, adminUpdateTask, adminCreateTask } from '../../lib/api';
 import { cleanInternalText } from '../../lib/internalText';
 
 // Convert ISO timestamp to local-datetime input format (YYYY-MM-DDTHH:mm).
@@ -73,7 +73,7 @@ const FILTERS: Array<[FilterKey, string, (tasks: TaskRow[], stats: { draft: numb
 
 export function AdminTaskQueue() {
   const queryClient = useQueryClient();
-  const [user, setUser] = React.useState<User | null>(null);
+  const navigate = useNavigate();
   const [showSheet, setShowSheet] = React.useState(false);
   const [filter, setFilter] = React.useState<FilterKey>('all');
   const [bulkImporting, setBulkImporting] = React.useState(false);
@@ -121,8 +121,11 @@ export function AdminTaskQueue() {
   });
 
   React.useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user));
-  }, []);
+    supabase.auth.getUser().then(({ data }) => {
+      // Keep session warm; no need to store user locally since adminCreateTask uses auth.uid().
+      if (!data.user) navigate('/login');
+    });
+  }, [navigate]);
 
   const { data: tasks = [], isLoading, refetch } = useQuery({
     queryKey: ['adminTasks'],
@@ -131,9 +134,6 @@ export function AdminTaskQueue() {
       return (data || []) as TaskRow[];
     },
   });
-
-  // Map task_category back to legacy task_type column (kept for compat).
-  const categoryToType = (c: string): 'upvote' | 'comment' => c === 'reddit_upvote' ? 'upvote' : 'comment';
 
   // Parse string state to int with sensible defaults. Empty = 0.
   const parseInt0 = (s: string) => {
@@ -147,24 +147,21 @@ export function AdminTaskQueue() {
 
   const create = useMutation({
     mutationFn: async (publishStatus: 'draft' | 'active') => {
-      const { error } = await supabase.from('tasks').insert({
+      await adminCreateTask({
         title: form.title,
         description: form.description,
         brief: form.brief,
-        post_to_wa_group: form.post_to_wa_group,
-        wa_group_draft: form.wa_group_draft || null,
         target_url: form.target_url,
         task_category: form.task_category,
-        task_type: categoryToType(form.task_category),
         reward_amount: parseInt0(form.reward_amount),
         max_assignments: parseInt1(form.max_assignments),
         per_account_limit: parseInt1(form.per_account_limit),
         min_karma: parseInt0(form.min_karma),
         min_account_age_days: parseInt0(form.min_account_age_days),
-        created_by: user?.id,
+        post_to_wa_group: form.post_to_wa_group,
+        wa_group_draft: form.wa_group_draft,
         status: publishStatus,
       });
-      if (error) throw error;
     },
     onSuccess: (_data, publishStatus) => {
       toast.success(publishStatus === 'draft' ? 'Disimpan sebagai draft' : 'Task aktif & visible buat army');

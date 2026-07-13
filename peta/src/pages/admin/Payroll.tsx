@@ -5,7 +5,7 @@ import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
-import { sendPayoutPaidEmail } from '../../lib/api';
+import { adminMarkPayoutPaid, sendPayoutPaidEmail } from '../../lib/api';
 import { toast } from '../../components/Toast';
 
 export function AdminPayroll() {
@@ -23,11 +23,7 @@ export function AdminPayroll() {
 
   const markPaid = useMutation({
     mutationFn: async (p: any) => {
-      const { error } = await supabase
-        .from('payouts')
-        .update({ status: 'paid', paid_at: new Date().toISOString() })
-        .eq('id', p.id);
-      if (error) throw error;
+      await adminMarkPayoutPaid(p.id);
       return p;
     },
     onSuccess: (p: any) => {
@@ -43,6 +39,12 @@ export function AdminPayroll() {
   const total = payouts.reduce((s: number, p: any) => s + p.amount, 0);
 
   const exportCSV = () => {
+    const csvEscape = (v: any): string => {
+      const s = String(v ?? '');
+      if (/[",\n\r]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+      return s;
+    };
+
     const csv = [
       ['Name', 'Email', 'Amount', 'Requested'],
       ...payouts.map((p: any) => [
@@ -51,9 +53,11 @@ export function AdminPayroll() {
         p.amount,
         new Date(p.requested_at).toISOString(),
       ]),
-    ].map((row) => row.join(',')).join('\n');
+    ]
+      .map((row) => row.map(csvEscape).join(','))
+      .join('\n');
 
-    const blob = new Blob([csv], { type: 'text/csv' });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

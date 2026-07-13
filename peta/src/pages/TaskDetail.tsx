@@ -11,7 +11,7 @@ import { Button } from '../components/Button';
 import { CardSkeleton } from '../components/Skeleton';
 import { ConfettiBurst } from '../components/Confetti';
 import { supabase } from '../lib/supabase';
-import { createTaskAssignment, updateTaskAssignment, uploadTaskProofImage } from '../lib/api';
+import { createTaskAssignment, updateTaskAssignment, uploadTaskProofImage, type TaskAssignmentUpdate } from '../lib/api';
 import { WHATSAPP_GROUP_URL } from '../lib/config';
 import { toast } from '../components/Toast';
 
@@ -24,6 +24,7 @@ export function TaskDetail() {
   const [accounts, setAccounts] = React.useState<any[]>([]);
   const [selectedAccountId, setSelectedAccountId] = React.useState('');
   const [draftComment, setDraftComment] = React.useState('');
+  const [userNote, setUserNote] = React.useState('');
   const [proofUrl, setProofUrl] = React.useState('');
   const [submittedUsername, setSubmittedUsername] = React.useState('');
   const [proofImageUrl, setProofImageUrl] = React.useState<string | null>(null);
@@ -51,7 +52,7 @@ export function TaskDetail() {
         : 'reddit_account_id.is.null';
       const { data: existing } = await supabase
         .from('task_assignments')
-        .select('id, status, draft_comment, proof_url, submitted_username, proof_image_url')
+        .select('id, status, draft_comment, user_note, proof_url, submitted_username, proof_image_url')
         .eq('task_id', taskId)
         .or(`user_id.eq.${data.user.id},${accountFilter}`)
         .in('status', ['in_progress', 'submitted'])
@@ -61,6 +62,7 @@ export function TaskDetail() {
       if (existing?.id) {
         setAssignmentId(existing.id);
         setDraftComment(existing.draft_comment || '');
+        setUserNote(existing.user_note || '');
         setProofUrl(existing.proof_url || '');
         setSubmittedUsername(existing.submitted_username || '');
         setProofImageUrl(existing.proof_image_url || null);
@@ -118,14 +120,23 @@ export function TaskDetail() {
   }, [accounts.length, selectedAccountId, stage, isForumComment, taskId, checkingExistingAssignment, assignmentId, startMutation.isPending]);
 
   const submitMutation = useMutation({
-    mutationFn: () => updateTaskAssignment(assignmentId, {
-      draft_comment: draftComment || null,
-      proof_url: proofUrl || proofImageUrl || null,
-      submitted_url: proofUrl || null,
-      submitted_username: submittedUsername || null,
-      proof_image_url: proofImageUrl || null,
-      status: 'submitted',
-    }),
+    mutationFn: () => {
+      const updates: TaskAssignmentUpdate = {
+        user_note: userNote || null,
+        proof_url: proofUrl || proofImageUrl || null,
+        submitted_url: proofUrl || null,
+        submitted_username: submittedUsername || null,
+        proof_image_url: proofImageUrl || null,
+        status: 'submitted',
+      };
+      // For forum_comment, draft_comment is the assigned comment text from
+      // reddit_order_comment_drafts and must stay immutable. The user note
+      // (user_note) is the only editable free-text field.
+      if (!isForumComment) {
+        updates.draft_comment = draftComment || null;
+      }
+      return updateTaskAssignment(assignmentId, updates);
+    },
     onSuccess: () => {
       setStage('done');
       setConfetti(true);
@@ -628,8 +639,8 @@ export function TaskDetail() {
                 Catatan untuk admin (optional)
               </p>
               <textarea
-                value={draftComment}
-                onChange={(e) => setDraftComment(e.target.value)}
+                value={isForumComment ? userNote : draftComment}
+                onChange={(e) => isForumComment ? setUserNote(e.target.value) : setDraftComment(e.target.value)}
                 placeholder="Optional: cerita singkat tentang komentar kamu..."
                 className="w-full px-4 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition resize-none text-sm"
                 rows={3}

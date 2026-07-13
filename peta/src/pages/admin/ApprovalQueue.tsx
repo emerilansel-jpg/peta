@@ -6,7 +6,7 @@ import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
-import { adminRejectAssignment, sendTaskApprovedEmail } from '../../lib/api';
+import { adminApproveAssignment, adminRejectAssignment, sendTaskApprovedEmail } from '../../lib/api';
 import { toast } from '../../components/Toast';
 
 // Pre-baked rejection reasons for fast admin triage — covers ~90% of why
@@ -71,6 +71,7 @@ export function AdminApprovalQueue() {
         submitted_url: r.submitted_url,
         submitted_username: r.submitted_username,
         draft_comment: r.draft_comment,
+        user_note: r.user_note,
         admin_notes: r.admin_notes,
         created_at: r.created_at,
         updated_at: r.updated_at,
@@ -92,8 +93,7 @@ export function AdminApprovalQueue() {
 
   const approveMutation = useMutation({
     mutationFn: async (a: any) => {
-      const { error } = await supabase.from('task_assignments').update({ status: 'approved' }).eq('id', a.id);
-      if (error) throw error;
+      await adminApproveAssignment(a.id);
       return a;
     },
     onSuccess: (a: any) => {
@@ -195,6 +195,7 @@ export function AdminApprovalQueue() {
                   const submittedUrl = a.submitted_url || a.proof_url;
                   const hasProof = !!proofImage;
                   const hasComment = !!a.draft_comment?.trim();
+                  const hasUserNote = !!a.user_note?.trim();
                   const noEvidence = !hasProof && !submittedUrl && !hasComment;
                   return (
                     <tr key={a.id} className={`border-b border-border last:border-0 hover:bg-light/60 ${noEvidence ? 'bg-warning/5' : ''}`}>
@@ -259,6 +260,11 @@ export function AdminApprovalQueue() {
                         ) : (
                           <span className="text-[11px] text-muted">—</span>
                         )}
+                        {hasUserNote && (
+                          <p className="text-[10px] text-muted mt-1.5">
+                            📝 Catatan: {a.user_note}
+                          </p>
+                        )}
                       </td>
                       <td className="px-2 py-3 align-top text-right whitespace-nowrap font-extrabold text-primary money">
                         Rp{a.tasks?.reward_amount?.toLocaleString('id-ID')}
@@ -296,9 +302,10 @@ export function AdminApprovalQueue() {
             {assignments.map((a: any) => {
               const proofImage = a.proof_image_url || (/\.(png|jpe?g|gif|webp)(\?|$)/i.test(a.proof_url || '') ? a.proof_url : '');
               const submittedUrl = a.submitted_url || a.proof_url;
-              const hasProof = !!proofImage;
-              const hasComment = !!a.draft_comment?.trim();
-              return (
+                  const hasProof = !!proofImage;
+                  const hasComment = !!a.draft_comment?.trim();
+                  const hasUserNote = !!a.user_note?.trim();
+                  return (
                 <Card key={a.id} padding="sm">
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div className="min-w-0 flex-1">
@@ -342,6 +349,11 @@ export function AdminApprovalQueue() {
                         <p className="text-[11px] text-warning">No screenshot or URL</p>
                       ) : (
                         <p className="text-[11px] text-muted">No comment</p>
+                      )}
+                      {hasUserNote && (
+                        <p className="text-[10px] text-muted mt-1">
+                          📝 {a.user_note}
+                        </p>
                       )}
                       {a.tasks?.target_url && (
                         <a
