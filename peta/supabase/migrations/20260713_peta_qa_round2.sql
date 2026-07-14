@@ -115,9 +115,9 @@ CREATE TRIGGER tg_on_assignment_approved
 --      claim_task_assignment sets it, but legacy rows may lack it.
 UPDATE public.task_assignments ta
 SET user_id = ra.user_id
+FROM public.reddit_accounts ra
 WHERE ta.user_id IS NULL
-  AND ta.reddit_account_id IS NOT NULL
-  AND EXISTS (SELECT 1 FROM public.reddit_accounts ra WHERE ra.id = ta.reddit_account_id);
+  AND ta.reddit_account_id = ra.id;
 
 -- 2.4) Backfill missing credits for any approved assignment.
 --      Idempotent via the unique partial index on user_credits.reference_id.
