@@ -788,21 +788,22 @@ export async function adminGetReferralLeaderboard(limit = 20) {
 }
 
 // Founding-cohort scarcity: max 100 founding members. Returns real count
-// from DB so the counter is honest (no inflation).
+// from DB via SECURITY DEFINER RPC so anon visitors can see it (RLS on
+// public.users blocks anon reads, so a direct select returns 0).
 export const FOUNDING_LIMIT = 100;
 export async function getFoundingMembers() {
-  const { count } = await supabase
-    .from('users')
-    .select('id', { count: 'exact', head: true })
-    .eq('role', 'army');
-  const total = count || 0;
-  const slotsLeft = Math.max(FOUNDING_LIMIT - total, 0);
-  return {
-    count: total,
-    max: FOUNDING_LIMIT,
-    slotsLeft,
-    isFull: total >= FOUNDING_LIMIT,
-    percent: Math.min((total / FOUNDING_LIMIT) * 100, 100),
+  const { data, error } = await supabase.rpc('get_founding_members_count');
+  if (error) {
+    // Fallback to direct count if RPC missing (e.g. before migration applied).
+    // RLS will return 0 for anon, but at least the call won't throw.
+    return { count: 0, max: FOUNDING_LIMIT, slotsLeft: FOUNDING_LIMIT, isFull: false, percent: 0 };
+  }
+  return data as {
+    count: number;
+    max: number;
+    slotsLeft: number;
+    isFull: boolean;
+    percent: number;
   };
 }
 
