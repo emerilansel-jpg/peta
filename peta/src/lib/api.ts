@@ -523,7 +523,7 @@ export async function sendTaskApprovedEmail(to: string, fullName: string, taskTi
 //   referral = bonus              (now includes signup_bonus too)
 export const BONUS_UNLOCK_FLOOR = 100000;
 
-export async function getTotalEarnings(userId: string): Promise<{
+export async function getTotalEarnings(_userId: string): Promise<{
   tasks: number;
   manualAdj: number;
   signupBonus: number;     // signup_bonus only
@@ -537,68 +537,35 @@ export async function getTotalEarnings(userId: string): Promise<{
   referral: number;
   fromWork: number;
 }> {
-  // 1) Approved task earnings (across all reddit accounts)
-  const { data: accounts, error: accErr } = await supabase
-    .from('reddit_accounts')
-    .select('id')
-    .eq('user_id', userId);
-  if (accErr) throw accErr;
-  const accountIds = (accounts || []).map((a) => a.id);
-
-  const { data: taskRows, error: taskErr } = await supabase
-    .from('task_assignments')
-    .select('tasks(reward_amount), status')
-    .or(`user_id.eq.${userId},reddit_account_id.in.(${accountIds.join(',') || '00000000-0000-0000-0000-000000000000'})`)
-    .eq('status', 'approved');
-  if (taskErr) throw taskErr;
-  const taskTotal = (taskRows || []).reduce((sum: number, a: any) => sum + (a.tasks?.reward_amount || 0), 0);
-
-  // 2) Credits — split by source
-  const { data: credits, error: cErr } = await supabase
-    .from('user_credits')
-    .select('amount, source')
-    .eq('user_id', userId);
-  if (cErr) throw cErr;
-
-  let signupBonus = 0;
-  let referralCredits = 0;
-  let otherCredits = 0;
-  (credits || []).forEach((c: any) => {
-    const amt = c.amount || 0;
-    if (c.source === 'signup_bonus') {
-      signupBonus += amt;
-    } else if (c.source === 'referral_bonus_referrer' || c.source === 'referral_bonus_referee') {
-      referralCredits += amt;
-    } else if (c.source === 'task_reward') {
-      // Skip — already counted via task_assignments JOIN tasks above.
-      // tg_on_assignment_approved mirrors approved assignment into user_credits
-      // for ledger history; we use task_assignments as canonical to match
-      // the server-side validate_payout_eligibility math.
-    } else {
-      // manual_adjustment + karma_milestone + future cashable credits.
-      otherCredits += amt;
-    }
-  });
-
-  const tasks = taskTotal;
-  const manualAdj = otherCredits;
-  const bonus = signupBonus + referralCredits;
-  const bonusUnlocked = tasks >= BONUS_UNLOCK_FLOOR;
-  const cashable = tasks + manualAdj + (bonusUnlocked ? bonus : 0);
-  const total = tasks + manualAdj + bonus;
-
-  // Back-compat
-  const earned = tasks + manualAdj;
-  const referral = bonus;
-  const fromWork = tasks;
-
-  return {
-    tasks, manualAdj,
-    signupBonus,
-    referralBonus: referralCredits,
-    bonus, bonusUnlocked, cashable, total,
-    earned, referral, fromWork,
+  // SECURITY DEFINER RPC: returns the same shape but runs server-side so it
+  // does not depend on task_assignments RLS or on user_id being non-NULL.
+  // The userId argument is kept for backwards-compat callers; the RPC reads
+  // auth.uid() for authorization.
+  const { data, error } = await supabase.rpc('get_user_earnings');
+  if (error) throw error;
+  return data as {
+    tasks: number;
+    manualAdj: number;
+    signupBonus: number;
+    referralBonus: number;
+    bonus: number;
+    bonusUnlocked: boolean;
+    cashable: number;
+    total: number;
+    earned: number;
+    referral: number;
+    fromWork: number;
   };
+}
+
+// Admin-only: attach the correct owner to a broken assignment whose user_id
+// is NULL (legacy forum_comment rows created before the 2026-07-14 fix).
+export async function adminRepairAssignmentUserId(assignmentId: string, userId: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_repair_assignment_user_id', {
+    p_assignment_id: assignmentId,
+    p_user_id: userId,
+  });
+  if (error) throw error;
 }
 
 // Mask a name for privacy: "Ahmad" -> "A****", "Ahmad Rifki" -> "A**** R."

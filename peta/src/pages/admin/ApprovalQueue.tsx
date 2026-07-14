@@ -6,7 +6,7 @@ import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
-import { adminApproveAssignment, adminRejectAssignment, sendTaskApprovedEmail } from '../../lib/api';
+import { adminApproveAssignment, adminRejectAssignment, adminRepairAssignmentUserId, sendTaskApprovedEmail } from '../../lib/api';
 import { toast } from '../../components/Toast';
 
 // Pre-baked rejection reasons for fast admin triage — covers ~90% of why
@@ -42,6 +42,9 @@ export function AdminApprovalQueue() {
   // provide a reason so the army member knows what to fix when they retry.
   const [rejectTarget, setRejectTarget] = useState<{ id: string; title: string; username: string } | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  // Repair modal — for legacy forum_comment rows whose user_id is NULL.
+  const [repairTarget, setRepairTarget] = useState<{ id: string; title: string } | null>(null);
+  const [repairUserId, setRepairUserId] = useState('');
 
   // Diagnostic — exposes auth.uid + is_admin so we can see WHY the queue
   // is empty without guessing.  Always runs (anon-callable RPC).
@@ -84,6 +87,7 @@ export function AdminApprovalQueue() {
           task_type: r.task_type,
         },
         reddit_accounts: { username: r.submitted_username || r.reddit_username },
+        army_user_id: r.army_user_id,
         army_email: r.army_email,
         army_name: r.army_name,
       }));
@@ -125,6 +129,18 @@ export function AdminApprovalQueue() {
       refetch();
     },
     onError: (e: any) => toast.error(`Gagal reject: ${e.message || e}`),
+  });
+
+  const repairMutation = useMutation({
+    mutationFn: ({ id, userId }: { id: string; userId: string }) =>
+      adminRepairAssignmentUserId(id, userId),
+    onSuccess: () => {
+      toast.success('Assignment di-repair ✅ User ID + kredit (jika approved) sudah di-link.');
+      setRepairTarget(null);
+      setRepairUserId('');
+      refetch();
+    },
+    onError: (e: any) => toast.error(`Gagal repair: ${e.message || e}`),
   });
 
   const openRejectModal = (a: any) => {
@@ -201,12 +217,18 @@ export function AdminApprovalQueue() {
                   const hasComment = !!a.draft_comment?.trim();
                   const hasUserNote = !!a.user_note?.trim();
                   const noEvidence = !hasProof && !submittedUrl && !hasComment;
+                  const broken = !a.army_user_id;
                   return (
-                    <tr key={a.id} className={`border-b border-border last:border-0 hover:bg-light/60 ${noEvidence ? 'bg-warning/5' : ''}`}>
+                    <tr key={a.id} className={`border-b border-border last:border-0 hover:bg-light/60 ${noEvidence ? 'bg-warning/5' : ''} ${broken ? 'bg-danger/5' : ''}`}>
                       <td className="px-2 py-3 align-top whitespace-nowrap">
                         <span className="text-xs text-muted flex items-center gap-1">
                           <Clock size={11} /> {formatSubmittedAt(a.submitted_at || a.updated_at || a.created_at)}
                         </span>
+                        {broken && (
+                          <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-danger bg-danger/10 px-2 py-0.5 rounded-full">
+                            ⚠️ Missing owner
+                          </span>
+                        )}
                       </td>
                       <td className="px-2 py-3 align-top">
                         <p className="font-bold leading-snug">{a.tasks?.title}</p>
@@ -279,7 +301,8 @@ export function AdminApprovalQueue() {
                             onClick={() => approveMutation.mutate(a)}
                             variant="success"
                             size="sm"
-                            disabled={approveMutation.isPending}
+                            disabled={approveMutation.isPending || broken}
+                            title={broken ? 'Repair owner sebelum approve' : 'Approve'}
                           >
                             <Check size={14} />
                           </Button>
@@ -292,6 +315,17 @@ export function AdminApprovalQueue() {
                           >
                             <X size={14} />
                           </Button>
+                          {broken && (
+                            <Button
+                              onClick={() => setRepairTarget({ id: a.id, title: a.tasks?.title })}
+                              variant="primary"
+                              size="sm"
+                              className="!bg-danger hover:!bg-danger/90"
+                              title="Link owner"
+                            >
+                              Repair
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -309,6 +343,7 @@ export function AdminApprovalQueue() {
                   const hasProof = !!proofImage;
                   const hasComment = !!a.draft_comment?.trim();
                   const hasUserNote = !!a.user_note?.trim();
+                  const broken = !a.army_user_id;
                   return (
                 <Card key={a.id} padding="sm">
                   <div className="flex items-start justify-between gap-3 mb-2">
@@ -320,6 +355,11 @@ export function AdminApprovalQueue() {
                       <p className="text-[11px] text-muted flex items-center gap-1 mt-0.5">
                         <Clock size={10} /> {formatSubmittedAt(a.submitted_at || a.updated_at || a.created_at)}
                       </p>
+                      {broken && (
+                        <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-danger bg-danger/10 px-2 py-0.5 rounded-full">
+                          ⚠️ Missing owner
+                        </span>
+                      )}
                     </div>
                     <p className="text-base font-extrabold text-primary money shrink-0">
                       Rp{a.tasks?.reward_amount?.toLocaleString('id-ID')}
@@ -388,7 +428,9 @@ export function AdminApprovalQueue() {
                       variant="success"
                       size="sm"
                       loading={approveMutation.isPending}
+                      disabled={approveMutation.isPending || broken}
                       fullWidth
+                      title={broken ? 'Repair owner sebelum approve' : 'Approve'}
                     >
                       <Check size={14} /> Approve
                     </Button>
@@ -402,6 +444,17 @@ export function AdminApprovalQueue() {
                       <X size={14} /> Reject
                     </Button>
                   </div>
+                  {broken && (
+                    <Button
+                      onClick={() => setRepairTarget({ id: a.id, title: a.tasks?.title })}
+                      variant="primary"
+                      size="sm"
+                      fullWidth
+                      className="mt-2 !bg-danger hover:!bg-danger/90"
+                    >
+                      Repair owner
+                    </Button>
+                  )}
                 </Card>
               );
             })}
@@ -506,6 +559,66 @@ export function AdminApprovalQueue() {
               💡 <b>Coba lagi</b>: typical case, user lupa screenshot bagus / salah klik. <br />
               💡 <b>Final</b>: kalau jelas cheating (screenshot palsu, akun bukan punya sendiri, atau berkali-kali submit asal).
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Repair owner modal — for legacy forum_comment rows with user_id = NULL. */}
+      {repairTarget && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setRepairTarget(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-extrabold flex items-center gap-2 text-danger">
+                🔧 Repair Owner
+              </h3>
+              <button onClick={() => setRepairTarget(null)} className="p-1 text-muted hover:text-dark">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-sm text-muted mb-1">
+              <b className="text-dark">{repairTarget.title}</b>
+            </p>
+            <p className="text-xs text-danger mb-3">
+              Assignment ini tidak punya user_id (owner tidak bisa terdeteksi). Masukkan user ID yang benar supaya saldo masuk ke akun army.
+            </p>
+            <p className="text-xs uppercase font-bold tracking-wide text-muted mb-1.5">
+              User ID (UUID):
+            </p>
+            <input
+              type="text"
+              value={repairUserId}
+              onChange={(e) => setRepairUserId(e.target.value)}
+              placeholder="00000000-0000-0000-0000-000000000000"
+              className="w-full px-3 py-2.5 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-danger focus:bg-white transition text-sm mb-4"
+            />
+            <div className="space-y-2">
+              <Button
+                onClick={() => repairMutation.mutate({ id: repairTarget.id, userId: repairUserId.trim() })}
+                loading={repairMutation.isPending}
+                disabled={repairUserId.trim().length < 36 || repairMutation.isPending}
+                variant="primary"
+                size="md"
+                fullWidth
+                className="!bg-danger hover:!bg-danger/90"
+              >
+                🔧 Link Owner & Backfill Kredit
+              </Button>
+              <button
+                onClick={() => setRepairTarget(null)}
+                disabled={repairMutation.isPending}
+                className="w-full text-xs text-muted hover:text-dark font-semibold py-2 disabled:opacity-50"
+              >
+                Batal
+              </button>
+            </div>
           </div>
         </div>
       )}

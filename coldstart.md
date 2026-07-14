@@ -1,6 +1,8 @@
 # Cold Start Handoff - Straight Ltd + PeTa
 
-> ⚠️ LATEST (2026-07-13): PeTa QA audit + 3 critical bug fixes applied:
+> ⚠️ LATEST (2026-07-15): PeTa saldo 0 follow-up fix. Root cause: legacy forum_comment assignments in `task_assignments` still had `user_id = NULL` after the 2026-07-13 RLS fix, so approved rows were invisible to the army member and the approval trigger could not credit them. Applied: (1) backfill `user_id` from `proof_image_url` storage path, (2) backfill missing `user_credits` + `balance_credited_at`, (3) trigger to guarantee `user_id` is set on every assignment, (4) SECURITY DEFINER `get_user_earnings()` RPC so the frontend no longer depends on RLS, (5) `admin_repair_assignment_user_id()` RPC + Approval Queue UI for manual repair. See 2026-07-15 section below.
+>
+> Previous (2026-07-13): PeTa QA audit + 3 critical bug fixes applied:
 >   (1) Admin mutations secured via SECURITY DEFINER RPCs (approve/payout/create-task),
 >       reject guard prevents reverting already-credited assignments.
 >   (2) Forum comment saldo 0 fixed — RLS policy on task_assignments only matched
@@ -34,7 +36,7 @@
 > `www.straight.ltd` is served by the `straight` Cloudflare Pages project (the `peta` Pages project
 > serves `penghasilantambahan.com` and was intentionally not touched).
 
-Last updated: 2026-07-13 (PeTa QA audit + 3 critical bug fixes applied).
+Last updated: 2026-07-15 (PeTa saldo 0 follow-up fix applied).
 
 Workspace:
 
@@ -1395,5 +1397,44 @@ Code fixed and build verified. Frontend deploy pending (needs Cloudflare API tok
   npm.cmd run build
   npx.cmd wrangler pages deploy dist --project-name=peta --branch=main --commit-dirty=true
   # Push to git
+  git push github main
+  ```
+
+## 2026-07-15 — PeTa Saldo 0 Follow-up Fix
+
+- **Type:** DB HOTFIX + RPC + FRONTEND
+- **Status:** MIGRATION CREATED, FRONTEND UPDATED — pending DB apply + deploy
+- **Files touched:**
+  - `peta/supabase/migrations/20260715_peta_saldo_zero_fix.sql` (new)
+  - `peta/src/lib/api.ts` (getTotalEarnings now calls `get_user_earnings()` RPC; added `adminRepairAssignmentUserId` wrapper)
+  - `peta/src/pages/admin/ApprovalQueue.tsx` (warn + repair button for assignments with NULL owner)
+- **Root cause:**
+  - The 2026-07-13 RLS fix allowed army users to read their own `task_assignments` rows when `user_id = auth.uid()`, but it did not repair legacy rows where `user_id` was already `NULL`.
+  - For `forum_comment` tasks `reddit_account_id IS NULL`, so an assignment with `user_id = NULL` has no owner pointer at all.
+  - When such a row is approved, `tg_on_assignment_approved` computes `COALESCE(ta.user_id, ra.user_id)` and gets `NULL`, raises a warning, and does NOT insert `user_credits`.
+  - The army member cannot see the assignment, and `getTotalEarnings()` (which used direct `task_assignments` queries) reports `tasks = 0` → saldo stays 0.
+- **Fix applied:**
+  1. **Backfill `user_id`** from `proof_image_url` storage path (`.../task-proofs/<uuid>/...`) for all `forum_comment` assignments that are missing both `user_id` and `reddit_account_id` and have an uploaded screenshot.
+  2. **Backfill missing `user_credits`** for approved assignments whose `balance_credited_at` is NULL and that now have a resolvable owner. Idempotent via `idx_user_credits_task_reward_reference_id`.
+  3. **Backfill `balance_credited_at`** for approved assignments that now have a matching `task_reward` credit.
+  4. **Trigger `tg_ensure_assignment_user_id`** on `BEFORE INSERT OR UPDATE` of `task_assignments` so `user_id` is never NULL going forward (falls back to `auth.uid()` for forum tasks or to the reddit account owner for Reddit tasks).
+  5. **New RPC `get_user_earnings()`** — SECURITY DEFINER, returns the exact earnings shape the frontend expects. The frontend no longer needs to read `task_assignments` for its own earnings math, so this path is immune to any RLS edge cases.
+  6. **New RPC `admin_repair_assignment_user_id(uuid, uuid)`** — lets an admin manually link an owner to a broken assignment from the UI and backfill credits if the assignment is already approved.
+  7. **Approval Queue UI** now flags rows where `army_user_id` is NULL with "Missing owner", disables the Approve button for those rows, and exposes a "Repair owner" button that opens a modal for the admin to enter the correct user ID.
+- **Verification plan:**
+  - Run the migration in Supabase SQL Editor (or `supabase db query --linked -f supabase/migrations/20260715_peta_saldo_zero_fix.sql`).
+  - Login as army user (`rashrifanda@gmail.com`) and check that the previously approved GoAuto task now shows `Dari task approved: Rp5.000` and `Saldo cair: Rp5.000`.
+  - Check Approval Queue for any remaining "Missing owner" rows; repair manually if needed.
+  - Test full happy path: create forum_comment task → army claim → submit → admin approve → army sees saldo credited.
+- **Blockers:**
+  - Staging project remains paused; migration must be applied directly to production.
+  - `supabase db push` still unavailable due to remote migration history drift.
+- **Commands to apply:**
+  ```powershell
+  $env:SUPABASE_ACCESS_TOKEN='<token>'
+  cd "G:\SF Project\peta-main\peta"
+  npx.cmd supabase db query --linked -f supabase/migrations/20260715_peta_saldo_zero_fix.sql
+  npm.cmd run build
+  npx.cmd wrangler pages deploy dist --project-name=peta --branch=main --commit-dirty=true
   git push github main
   ```
