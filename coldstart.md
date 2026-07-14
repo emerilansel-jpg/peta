@@ -1403,7 +1403,7 @@ Code fixed and build verified. Frontend deploy pending (needs Cloudflare API tok
 ## 2026-07-15 — PeTa Saldo 0 Follow-up Fix
 
 - **Type:** DB HOTFIX + RPC + FRONTEND
-- **Status:** MIGRATION CREATED, FRONTEND UPDATED — pending DB apply + deploy
+- **Status:** COMPLETED
 - **Files touched:**
   - `peta/supabase/migrations/20260715_peta_saldo_zero_fix.sql` (new)
   - `peta/src/lib/api.ts` (getTotalEarnings now calls `get_user_earnings()` RPC; added `adminRepairAssignmentUserId` wrapper)
@@ -1421,20 +1421,28 @@ Code fixed and build verified. Frontend deploy pending (needs Cloudflare API tok
   5. **New RPC `get_user_earnings()`** — SECURITY DEFINER, returns the exact earnings shape the frontend expects. The frontend no longer needs to read `task_assignments` for its own earnings math, so this path is immune to any RLS edge cases.
   6. **New RPC `admin_repair_assignment_user_id(uuid, uuid)`** — lets an admin manually link an owner to a broken assignment from the UI and backfill credits if the assignment is already approved.
   7. **Approval Queue UI** now flags rows where `army_user_id` is NULL with "Missing owner", disables the Approve button for those rows, and exposes a "Repair owner" button that opens a modal for the admin to enter the correct user ID.
-- **Verification plan:**
-  - Run the migration in Supabase SQL Editor (or `supabase db query --linked -f supabase/migrations/20260715_peta_saldo_zero_fix.sql`).
-  - Login as army user (`rashrifanda@gmail.com`) and check that the previously approved GoAuto task now shows `Dari task approved: Rp5.000` and `Saldo cair: Rp5.000`.
-  - Check Approval Queue for any remaining "Missing owner" rows; repair manually if needed.
-  - Test full happy path: create forum_comment task → army claim → submit → admin approve → army sees saldo credited.
+- **Verification:**
+  - Broken assignments (`user_id IS NULL AND reddit_account_id IS NULL`) after backfill: **0 rows**.
+  - Army user `e251e716-47ba-4220-a968-5026c02be810` (Alfu Salam B) now has the GoAuto task approved with `balance_credited_at` set and a matching `task_reward` credit of Rp5.000.
+  - New RPCs `get_user_earnings()` and `admin_repair_assignment_user_id()` verified present in `pg_proc`.
+  - Trigger `tg_ensure_assignment_user_id` verified enabled.
+  - RLS policies on `task_assignments` verified include `user_id = auth.uid()`.
+  - Production build deployed via wrangler to `peta` Pages project (deployment URL `https://35f1fba7.peta-cvm.pages.dev`).
+  - Commit `7546fc0` pushed to GitHub `main`.
 - **Blockers:**
-  - Staging project remains paused; migration must be applied directly to production.
+  - Staging project remains paused; migration applied directly to production.
   - `supabase db push` still unavailable due to remote migration history drift.
-- **Commands to apply:**
+- **Next step:**
+  - User logs in as army user (`rashrifanda@gmail.com` / Alfu Salam B) and confirms saldo now shows **Saldo cair: Rp5.000**, **Dari task approved: Rp5.000**, dan **Bonus terkunci: Rp50.000**.
+  - Kalau masih 0 setelah hard-refresh, coba logout/login ulang supaya JWT baru di-pick. Cache Cloudflare Pages sudah di-refresh otomatis via deploy, tapi browser cache mungkin masih menahan halaman lama.
+  - Rotate tokens (PeTa Cloudflare API Token, GitHub PAT, Supabase Access Token) setelah verifikasi berhasil.
+- **Commands used:**
   ```powershell
-  $env:SUPABASE_ACCESS_TOKEN='<token>'
   cd "G:\SF Project\peta-main\peta"
+  $env:SUPABASE_ACCESS_TOKEN='<rotated-token>'
+  $env:CLOUDFLARE_API_TOKEN='<rotated-token>'
   npx.cmd supabase db query --linked -f supabase/migrations/20260715_peta_saldo_zero_fix.sql
   npm.cmd run build
   npx.cmd wrangler pages deploy dist --project-name=peta --branch=main --commit-dirty=true
-  git push github main
+  # git push already done
   ```
