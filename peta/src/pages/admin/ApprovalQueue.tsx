@@ -108,7 +108,11 @@ export function AdminApprovalQueue() {
       }
       refetch();
     },
-    onError: () => toast.error('Gagal approve'),
+    onError: (e: any) => {
+      const msg = e?.message || String(e) || 'Gagal approve';
+      toast.error(`Gagal approve: ${msg}`);
+      console.error('adminApproveAssignment error:', e);
+    },
   });
 
   const rejectMutation = useMutation({
