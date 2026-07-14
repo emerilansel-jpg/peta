@@ -1176,6 +1176,14 @@ export async function adminMarkPayoutPaid(payoutId: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function adminUpdateTaskStatus(taskId: string, status: 'draft' | 'active' | 'paused' | 'completed'): Promise<void> {
+  const { error } = await supabase.rpc('admin_update_task_status', {
+    p_task_id: taskId,
+    p_status: status,
+  });
+  if (error) throw error;
+}
+
 // Army-side: list tasks this user can actually do right now (filtered server-side).
 export type EligibleTask = {
   id: string;

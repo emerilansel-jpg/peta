@@ -8,7 +8,7 @@ import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
 import { toast } from '../../components/Toast';
-import { listPendingRedditOrders, importRedditOrder, adminUpdateTask, adminCreateTask } from '../../lib/api';
+import { listPendingRedditOrders, importRedditOrder, adminUpdateTask, adminCreateTask, adminUpdateTaskStatus } from '../../lib/api';
 import { cleanInternalText } from '../../lib/internalText';
 
 // Convert ISO timestamp to local-datetime input format (YYYY-MM-DDTHH:mm).
@@ -174,10 +174,10 @@ export function AdminTaskQueue() {
 
   const toggleStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: 'active' | 'paused' }) => {
-      const { error } = await supabase.from('tasks').update({ status }).eq('id', id);
-      if (error) throw error;
+      await adminUpdateTaskStatus(id, status);
     },
     onSuccess: () => { toast.success('Status diupdate'); refetch(); },
+    onError: (e: any) => toast.error(e?.message || 'Gagal update status'),
   });
 
   // WA blast: call edge function to send task notifications via Fonnte

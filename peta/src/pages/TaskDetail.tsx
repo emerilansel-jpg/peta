@@ -189,12 +189,15 @@ export function TaskDetail() {
   }
 
   const minutes = task.reward_amount > 15000 ? '5-10' : '3-5';
-  // Step 3 is unlocked once user has opened the thread (or skipped the
-  // visual nudge). We don't actually gate the upload behind this â€” that
-  // would block a returning user. But it does drive the active-step UI.
+  // Comment tasks must have a non-empty comment text before submit.
+  const hasCommentText = isComment
+    ? (isForumComment
+        ? !!(draftComment?.trim() || splitForumBrief(task.brief).commentPost.trim())
+        : !!draftComment?.trim())
+    : true;
   const canSubmit = isUpvote
     ? !!proofImageUrl && !!assignmentId
-    : !!proofUrl.trim() && !!submittedUsername.trim() && !!assignmentId;
+    : !!proofUrl.trim() && !!submittedUsername.trim() && !!assignmentId && hasCommentText;
 
   // ----- DONE STAGE â€” celebrate + nudge to the next high-value action -----
   if (stage === 'done') {
@@ -498,8 +501,9 @@ export function TaskDetail() {
               );
             }
 
-            const assignmentComment = isForumComment ? draftComment?.trim() : '';
-            const comment = assignmentComment || splitForumBrief(task.brief).commentPost.trim();
+            const comment = isForumComment
+              ? (draftComment?.trim() || splitForumBrief(task.brief).commentPost.trim())
+              : draftComment?.trim();
             const legacyStd = splitForumBrief(task.brief).standardBrief;
             const instructions = memberSafePostingBrief(legacyStd || task.description || '').trim();
             if (!comment && !instructions) return null;
