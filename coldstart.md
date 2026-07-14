@@ -1,6 +1,20 @@
 # Cold Start Handoff - Straight Ltd + PeTa
 
-> ⚠️ LATEST (2026-07-13): PeTa transactional email template redesigned with professional branding: logo `https://www.penghasilantambahan.com/logo-horizontal.png`, colors `#ff8b6b` + light peach (`oklch(0.91 0.18 98.65)` approximation), table-based responsive layout. All 4 templates retested and delivered to `rashrifanda@gmail.com`. See 2026-07-13 sections below.
+> ⚠️ LATEST (2026-07-13): PeTa QA audit + 3 critical bug fixes applied:
+>   (1) Admin mutations secured via SECURITY DEFINER RPCs (approve/payout/create-task),
+>       reject guard prevents reverting already-credited assignments.
+>   (2) Forum comment saldo 0 fixed — RLS policy on task_assignments only matched
+>       reddit_account_id; for forum_comment tasks reddit_account_id IS NULL so army
+>       users could not read their own approved rows. Added `user_id = auth.uid()`.
+>       Also force-attached tg_on_assignment_approved trigger and backfilled credits.
+>   (3) Founding 0/100 on landing page fixed — anon visitors had no auth.uid() so RLS
+>       blocked all reads of public.users. Added SECURITY DEFINER RPC
+>       get_founding_members_count() and switched frontend to use it (verified
+>       returns count: 93 via curl anon).
+> All migrations applied to production + frontend deployed to Cloudflare Pages.
+> See 2026-07-13 sections below.
+>
+> Previous (2026-07-13): PeTa transactional email template redesigned with professional branding: logo `https://www.penghasilantambahan.com/logo-horizontal.png`, colors `#ff8b6b` + light peach (`oklch(0.91 0.18 98.65)` approximation), table-based responsive layout. All 4 templates retested and delivered to `rashrifanda@gmail.com`.
 >
 > Previous (2026-07-13): PeTa transactional emails now live using Resend with domain `penghasilantambahan.com` verified. See 2026-07-13 sections below.
 >
@@ -20,7 +34,7 @@
 > `www.straight.ltd` is served by the `straight` Cloudflare Pages project (the `peta` Pages project
 > serves `penghasilantambahan.com` and was intentionally not touched).
 
-Last updated: 2026-07-13 (PeTa Resend transactional emails live).
+Last updated: 2026-07-13 (PeTa QA audit + 3 critical bug fixes applied).
 
 Workspace:
 
@@ -1318,3 +1332,68 @@ Code fixed and build verified. Frontend deploy pending (needs Cloudflare API tok
 - **Backup location:** none
 - **coldstart.md stored at:** `G:\SF Project\peta-main\coldstart.md`
 - **Browser used:** none
+
+
+## 2026-07-13 — PeTa QA Audit + 3 Critical Bug Fixes
+
+- **Type:** QA AUDIT + CODING + DB HOTFIX + DEPLOY
+- **Status:** COMPLETED
+- **Files touched:**
+  - `peta/supabase/migrations/20260713_peta_critical_qa_fixes.sql` (new)
+  - `peta/supabase/migrations/20260713_peta_qa_round2.sql` (new)
+  - `peta/supabase/migrations/20260713_peta_qa_round2b.sql` (new)
+  - `peta/supabase/functions/wa-bot-proxy/index.ts` (new edge function)
+  - `peta/src/lib/api.ts` (new RPC wrappers + founding count RPC + user_note)
+  - `peta/src/pages/admin/ApprovalQueue.tsx` (use RPCs, show user_note)
+  - `peta/src/pages/admin/Payroll.tsx` (use RPC, CSV escape)
+  - `peta/src/pages/admin/TaskQueue.tsx` (use admin_create_task RPC)
+  - `peta/src/pages/TaskDetail.tsx` (separate user_note vs immutable draft_comment)
+  - `.agents/qa-project-context.md` (new QA project context file)
+  - `.agents/qa-reports/peta-pipeline-audit-2026-07-13.md` (new full QA report)
+- **Key decisions:**
+  - Full QA audit of Task Queue → Approval → Payroll pipeline produced 3 critical + 5 high findings, documented in `.agents/qa-reports/`.
+  - Bug #1 (auto-approve): not a system bug — caused by admin running a wildcard `UPDATE ... WHERE status='submitted'` workaround in SQL Editor. All approve/reject/payout flows now go through SECURITY DEFINER RPCs that enforce state transitions (`submitted`→`approved`, `pending`→`paid`) and block invalid ops.
+  - Bug #2 (saldo 0 after approve forum_comment task): root cause was the RLS policy `assignments_select_own` on `task_assignments`. It only matched `reddit_account_id IN (SELECT id FROM reddit_accounts WHERE user_id = auth.uid())`. For `forum_comment` tasks `reddit_account_id IS NULL` (work is keyed by `user_id` directly), so the army user could NOT read their own approved row. `getTotalEarnings()` therefore returned `tasks = 0` and saldo showed 0. Fixed by allowing `user_id = auth.uid()` in SELECT/UPDATE/INSERT policies.
+  - Bug #2b (trigger not firing): `tg_on_assignment_approved` was force-re-attached via migration `20260713_peta_qa_round2.sql` even if the previous attach was lost. A backfill `INSERT INTO user_credits ... ON CONFLICT DO NOTHING` ran to recover any approved-but-uncertified assignments.
+  - Bug #3 (founding 0/100 on landing page for anon visitors): RLS on `public.users` blocks anon reads (policy is `auth.uid() = id OR is_admin()`). Frontend `getFoundingMembers()` used a direct `select id count` which returned 0 for anon. Added SECURITY DEFINER RPC `get_founding_members_count()` granted to `anon` + `authenticated`, and switched the frontend to call it. Verified via curl anon: returns `{"count": 93, "max": 100, ...}`.
+  - Cleaned up overloaded RPC signatures (`admin_reject_assignment`, `admin_mark_payout_paid`) so PostgREST resolves unambiguously (was causing PGRST202 in some flows).
+  - Added `user_note` column to `task_assignments` so the forum_comment `draft_comment` (assigned text the army member must post) stays immutable and separate from the optional admin note the user can type.
+  - Created `wa-bot-proxy` edge function (was missing — `WaBot.tsx` was calling `supabase.functions.invoke('wa-bot-proxy')` but the function did not exist). Proxies Evolution API calls behind admin auth; never exposes `EVOLUTION_API_KEY` to the browser.
+- **Verification:**
+  - Slot drift check returned 0 rows (was: Quora 3/0 and GoAuto 1/0).
+  - Approved-without-credits check returned 0 rows after backfill.
+  - `admin_approve_assignment` status guard verified via test wrapper: blocks approve of `in_progress` rows.
+  - `admin_reject_assignment` credit guard verified: blocks reject of already-credited (`balance_credited_at IS NOT NULL`) rows.
+  - Founding count RPC verified via curl anon: `{"count": 93, "slotsLeft": 7, "percent": 93}`.
+  - `task_assignments` RLS policy now reads: `(user_id = auth.uid()) OR (reddit_account_id IN (...)) OR is_admin()`.
+  - Production frontend bundle hash updated to `main-kggW2m8S.js` on `www.penghasilantambahan.com` (deployed via wrangler).
+- **Blockers:**
+  - Staging project `duxzxizedtvnopfihllz` remains paused; all migrations applied directly to production.
+  - `supabase db push` cannot be used due to remote migration history drift; SQL applied via `supabase db query --linked -f`.
+  - PGRST202 ("schema cache") may briefly surface on a freshly-created RPC until `NOTIFY pgrst, 'reload schema'` propagates — fixed by including the NOTIFY at the end of each migration. If it ever re-appears, restart the project from the Supabase dashboard.
+- **Known follow-up:**
+  - The `wa-bot-proxy` edge function needs `EVOLUTION_API_URL` and `EVOLUTION_API_KEY` set in `app_secrets` before the WA Bot admin page will work end-to-end. Evolution endpoints were written to the documented v2 shape — verify against the actual Evolution API version on the VPS.
+  - `inbox-poll-email` edge function returned 500 in the admin console. Not investigated in this session — separate issue from the three bugs above.
+- **Next step:**
+  - User logs in as army (`rashrifanda@gmail.com` / Alfu Salam B, user_id `e251e716-47ba-4220-a968-5026c02be810`) and confirms saldo now reflects the approved GoAuto Rp5.000 + signup bonuses.
+  - Test full happy path end-to-end: create task → army claim → army submit → admin approve via UI → army sees saldo credited.
+- **Inspector:** PASSED (build + deploy + RPC verification via curl)
+- **Backup location:** none
+- **coldstart.md stored at:** `G:\SF Project\peta-main\coldstart.md`
+- **Browser used:** none (verification via curl + Supabase management API)
+- **Production URL:** https://www.penghasilantambahan.com
+- **Commands used:**
+  ```powershell
+  $env:SUPABASE_ACCESS_TOKEN='<token>'
+  $env:CLOUDFLARE_API_TOKEN='<token>'
+  cd "G:\SF Project\peta-main\peta"
+  # Apply migrations
+  npx.cmd supabase db query --linked -f supabase/migrations/20260713_peta_critical_qa_fixes.sql
+  npx.cmd supabase db query --linked -f supabase/migrations/20260713_peta_qa_round2.sql
+  npx.cmd supabase db query --linked -f supabase/migrations/20260713_peta_qa_round2b.sql
+  # Build + deploy
+  npm.cmd run build
+  npx.cmd wrangler pages deploy dist --project-name=peta --branch=main --commit-dirty=true
+  # Push to git
+  git push github main
+  ```
