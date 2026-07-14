@@ -1167,14 +1167,14 @@ function ForumCommentOrderForm({
                   type="text"
                   value={brandName}
                   onChange={(e) => setBrandName(e.target.value)}
-                  placeholder="Brand name, e.g. Jetdigitalpro"
+                  placeholder="Brand name, e.g. Acme Inc"
                   className="w-full px-4 py-3 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-900"
                 />
                 <input
                   type="text"
                   value={brandDomain}
                   onChange={(e) => setBrandDomain(e.target.value)}
-                  placeholder="Domain, e.g. jetdigitalpro.com"
+                  placeholder="Domain, e.g. yourdomain.com"
                   className="w-full px-4 py-3 border border-orange-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-900"
                 />
               </div>

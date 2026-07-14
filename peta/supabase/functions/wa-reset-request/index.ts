@@ -110,7 +110,7 @@ serve(async (req: Request) => {
     const fonnteToken = secret?.value;
     if (!fonnteToken) {
       console.error('FONNTE_TOKEN missing in app_secrets — cannot send reset code');
-      return json({ ok: true });
+      return json({ ok: true, sent: false, error: 'gateway_error' });
     }
 
     const message =
@@ -125,9 +125,10 @@ serve(async (req: Request) => {
     });
     if (!fonnteRes.ok) {
       console.error('Fonnte send failed', fonnteRes.status, await fonnteRes.text().catch(() => ''));
+      return json({ ok: true, sent: false, error: 'gateway_error' });
     }
 
-    return json({ ok: true });
+    return json({ ok: true, sent: true });
   } catch (err: any) {
     console.error('wa-reset-request error', err);
     // Still generic to the client; the error is logged for the admin.

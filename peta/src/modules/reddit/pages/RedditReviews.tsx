@@ -20,7 +20,7 @@ import { getMyReviews, submitProofReview, formatUSD } from '../lib/api';
 import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 import { supabase } from '../../../lib/supabase';
 
-const TRUSTPILOT_URL = 'https://www.trustpilot.com/review/jetdigitalpro.com';
+const TRUSTPILOT_URL = 'https://www.trustpilot.com/review/straight.ltd';
 const ADVISE_URL = 'https://advise.so';
 
 type TabKey = 'my-reviews' | 'trustpilot' | 'advise';
@@ -78,7 +78,7 @@ export function RedditReviews() {
             title="Trustpilot Review"
             reward="$10"
             externalUrl={TRUSTPILOT_URL}
-            externalLabel="trustpilot.com/review/jetdigitalpro.com"
+            externalLabel="trustpilot.com/review/straight.ltd"
             urlPlaceholder="https://www.trustpilot.com/reviews/abc123..."
             urlHelp="Find the URL by clicking the date/time of your review on Trustpilot."
           />
