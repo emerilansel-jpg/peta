@@ -67,7 +67,7 @@ export function AdminApprovalQueue() {
       const { data, error } = await supabase.rpc('admin_pending_approvals');
       if (error) throw error;
       return (data || []).map((r: any) => ({
-        id: r.id,
+        id: r.assignment_id,
         status: r.status,
         proof_url: r.proof_url,
         proof_image_url: r.proof_image_url,
