@@ -10,19 +10,31 @@ import { supabase } from '../lib/supabase';
 import { getPayoutHistory, requestPayout, getTotalEarnings, getMaxRedditKarma, getMyPendingAssignments, listEligibleTasksForUser, type EligibleTask, sendPayoutRequestEmail } from '../lib/api';
 import { toast } from '../components/Toast';
 
-// No minimum payout — saldo dari task cair berapapun, kapan aja.
 // Bonus (signup + referral) tetap locked sampai Rp100K task earnings.
 const BONUS_UNLOCK_FLOOR = 100000;
-const PAYOUT_PRESETS = [10000, 50000, 100000, 500000];
+const MIN_PAYOUT = 20000;
+const PAYOUT_PRESETS = [20000, 50000, 100000, 500000];
+
+const EWalletOptions = ['Shopee Pay', 'Dana', 'Gopay'] as const;
+const BankOptions = ['Jago', 'Mandiri', 'BRI', 'BCA'] as const;
+type PaymentType = 'ewallet' | 'bank';
+const ProviderByType: Record<PaymentType, readonly string[]> = {
+  ewallet: EWalletOptions,
+  bank: BankOptions,
+};
 
 export function Earnings() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [user, setUser] = React.useState<any>(null);
   const [userName, setUserName] = React.useState<string>('PeTa Army');
-  const [amount, setAmount] = React.useState(10000);
+  const [amount, setAmount] = React.useState(MIN_PAYOUT);
   const [showSheet, setShowSheet] = React.useState(false);
   const [showHowItWorks, setShowHowItWorks] = React.useState(false);
+  const [paymentType, setPaymentType] = React.useState<PaymentType>('ewallet');
+  const [provider, setProvider] = React.useState<string>(EWalletOptions[0]);
+  const [accountNumber, setAccountNumber] = React.useState('');
+  const [accountHolderName, setAccountHolderName] = React.useState('');
 
   React.useEffect(() => {
     (async () => {
@@ -95,13 +107,15 @@ export function Earnings() {
   const hasEligibleTask = !!cheapestTask;
 
   const payoutMutation = useMutation({
-    mutationFn: () => requestPayout(user.id, amount),
+    mutationFn: () => requestPayout(user.id, amount, paymentType, provider, accountNumber, accountHolderName),
     onSuccess: () => {
       toast.success('Payout request terkirim! 24 jam max ✅ Cek inbox + spam folder buat konfirmasi (peta@penghasilantambahan.com)');
       if (user?.email) {
         sendPayoutRequestEmail(user.email, userName, amount).catch(() => {});
       }
-      setAmount(10000);
+      setAmount(MIN_PAYOUT);
+      setAccountNumber('');
+      setAccountHolderName('');
       setShowSheet(false);
       // Refresh BOTH payouts + earnings so the hero number decrements immediately
       refetch();
@@ -132,14 +146,14 @@ export function Earnings() {
   const bonusUnlocked = earningsBreakdown.bonusUnlocked;
   const bonusShortfall = Math.max(BONUS_UNLOCK_FLOOR - earningsBreakdown.tasks, 0);
   const bonusProgress = Math.min((earningsBreakdown.tasks / BONUS_UNLOCK_FLOOR) * 100, 100);
-  // Bisa narik = ada saldo cair (sesimple itu, no min)
-  const canWithdraw = available > 0;
+  // Bisa narik = saldo cair sudah mencapai minimum Rp20K
+  const canWithdraw = available >= MIN_PAYOUT;
   // Quick-win math: cheapest reward → tasksToUnlock for bonus
   const quickReward = cheapestTask?.reward_amount || 1000;
   const tasksToUnlock = bonusShortfall > 0 ? Math.ceil(bonusShortfall / quickReward) : 0;
 
   const submit = () => {
-    if (amount <= 0) { toast.error('Amount harus lebih besar dari 0'); return; }
+    if (amount < MIN_PAYOUT) { toast.error(`Minimum tarik Rp${MIN_PAYOUT.toLocaleString('id-ID')}`); return; }
     if (amount > available) {
       if (!bonusUnlocked && earningsBreakdown.bonus > 0) {
         toast.error(`Bonus (signup+referral) kebuka setelah Rp${BONUS_UNLOCK_FLOOR.toLocaleString('id-ID')} dari task. Kurang Rp${bonusShortfall.toLocaleString('id-ID')} lagi.`);
@@ -148,6 +162,9 @@ export function Earnings() {
       }
       return;
     }
+    if (!paymentType || !provider) { toast.error('Pilih metode dan provider penarikan'); return; }
+    if (!accountNumber.trim()) { toast.error('Nomor rekening/e-wallet wajib diisi'); return; }
+    if (!accountHolderName.trim()) { toast.error('Nama pemilik rekening/e-wallet wajib diisi'); return; }
     payoutMutation.mutate();
   };
 
@@ -210,9 +227,9 @@ export function Earnings() {
         </Card>
       )}
 
-      {/* HERO — 2 visual states (NO minimum payout):
-          A) available > 0 → BIG "Tarik Sekarang" button (yellow, klik = tarik)
-          B) available = 0 → CTA ke /tasks ("Mulai Earning") */}
+      {/* HERO — 2 visual states (minimum Rp20K payout):
+          A) available >= MIN_PAYOUT → BIG "Tarik Sekarang" button (yellow, klik = tarik)
+          B) available < MIN_PAYOUT → CTA ke /tasks ("Mulai Earning") */}
       <Card className="mb-3 bg-gradient-to-br from-primary to-secondary text-white border-0 ring-0">
         <div className="flex items-center justify-between mb-1">
           <p className="text-xs opacity-80 font-bold uppercase tracking-wide">
@@ -231,8 +248,10 @@ export function Earnings() {
         </p>
         <p className="text-xs opacity-90 mb-4">
           {canWithdraw
-            ? 'Cair kapan aja, berapapun. Nggak ada minimum.'
-            : 'Belum ada saldo. Kerjain task pertama → langsung cair anytime.'}
+            ? 'Cair kapan aja. Minimum tarik Rp20K per request.'
+            : available > 0
+              ? 'Minimum tarik Rp20K. Yuk earning lagi buat nyampe minimum.'
+              : 'Belum ada saldo. Kerjain task pertama → langsung cair anytime.'}
         </p>
 
         {/* Action — STATE A: tarik (saldo > 0, no minimum) */}
@@ -286,7 +305,7 @@ export function Earnings() {
           <ul className="text-[12px] text-blue-950/90 space-y-1.5 leading-snug">
             <li className="flex items-start gap-2">
               <span className="font-bold text-green-700 shrink-0">1.</span>
-              <span><b>Saldo dari task</b> (komen + upvote approved) → <b>cair kapan aja</b>. Berapapun nominalnya, no minimum. 🎉</span>
+              <span><b>Saldo dari task</b> (komen + upvote approved) → <b>cair kapan aja</b>. Minimum tarik Rp20K per request. 🎉</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="font-bold text-orange-700 shrink-0">2.</span>
@@ -546,6 +565,13 @@ export function Earnings() {
                       day: 'numeric', month: 'short', year: 'numeric',
                     })}
                   </p>
+                  {p.provider && (
+                    <p className="text-[11px] text-muted mt-0.5">
+                      {p.provider}
+                      {p.account_number ? ` — ${p.account_number}` : ''}
+                      {p.account_holder_name ? ` (${p.account_holder_name})` : ''}
+                    </p>
+                  )}
                 </div>
                 <span className={`px-3 py-1 rounded-full text-xs font-bold ${styles.bg} ${styles.text}`}>
                   {styles.label}
@@ -605,22 +631,87 @@ export function Earnings() {
                 )}
               </div>
 
-              <p className="text-xs uppercase font-bold tracking-wide text-muted mb-1">Atau custom (no minimum)</p>
+              <p className="text-xs uppercase font-bold tracking-wide text-muted mb-1">Atau custom</p>
               <input
                 type="number"
                 inputMode="numeric"
                 value={amount}
-                onChange={(e) => setAmount(Math.max(0, parseInt(e.target.value) || 0))}
-                min={1}
+                onChange={(e) => setAmount(Math.max(MIN_PAYOUT, parseInt(e.target.value) || MIN_PAYOUT))}
+                min={MIN_PAYOUT}
                 max={available}
                 step={1000}
                 className="w-full min-h-[48px] px-4 py-3 text-base bg-light border-2 border-transparent rounded-xl focus:outline-none focus:border-primary focus:bg-white transition mb-4"
               />
 
+              <p className="text-xs uppercase font-bold tracking-wide text-muted mb-2">Metode penarikan</p>
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                {(['ewallet', 'bank'] as PaymentType[]).map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => {
+                      setPaymentType(t);
+                      setProvider(ProviderByType[t][0]);
+                    }}
+                    className={`tap-shrink min-h-[48px] rounded-xl font-bold text-sm ${
+                      paymentType === t
+                        ? 'bg-primary text-white shadow-md shadow-primary/30'
+                        : 'bg-light text-dark ring-1 ring-border hover:ring-primary/40'
+                    }`}
+                  >
+                    {t === 'ewallet' ? '💳 E-wallet' : '🏦 Bank'}
+                  </button>
+                ))}
+              </div>
+
+              <p className="text-xs uppercase font-bold tracking-wide text-muted mb-2">Provider</p>
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                {ProviderByType[paymentType].map((p) => (
+                  <button
+                    key={p}
+                    onClick={() => setProvider(p)}
+                    className={`tap-shrink min-h-[44px] rounded-xl font-bold text-sm ${
+                      provider === p
+                        ? 'bg-success text-white shadow-md shadow-success/30'
+                        : 'bg-success/10 text-success ring-1 ring-success/30 hover:ring-success/60'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                ))}
+              </div>
+
+              <div className="space-y-3 mb-4">
+                <div>
+                  <label className="block text-xs uppercase font-bold tracking-wide text-muted mb-1">
+                    {paymentType === 'ewallet' ? 'Nomor e-wallet' : 'Nomor rekening'}
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={accountNumber}
+                    onChange={(e) => setAccountNumber(e.target.value)}
+                    placeholder={paymentType === 'ewallet' ? 'Contoh: 0812xxxx' : 'Contoh: 1234567890'}
+                    className="w-full min-h-[48px] px-4 py-3 text-base bg-light border-2 border-transparent rounded-xl focus:outline-none focus:border-primary focus:bg-white transition"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase font-bold tracking-wide text-muted mb-1">
+                    Nama pemilik
+                  </label>
+                  <input
+                    type="text"
+                    value={accountHolderName}
+                    onChange={(e) => setAccountHolderName(e.target.value)}
+                    placeholder="Nama sesuai akun"
+                    className="w-full min-h-[48px] px-4 py-3 text-base bg-light border-2 border-transparent rounded-xl focus:outline-none focus:border-primary focus:bg-white transition"
+                  />
+                </div>
+              </div>
+
               <div className="bg-light rounded-xl p-3 mb-4 text-xs text-muted space-y-0.5">
-                <p>✅ <b>No minimum</b> — tarik berapapun, kapan aja</p>
+                <p>✅ <b>Minimum Rp{MIN_PAYOUT.toLocaleString('id-ID')}</b> per penarikan</p>
                 <p>⏱️ Max 24 jam proses transfer</p>
-                <p>🏦 Transfer ke rekening yang terdaftar</p>
+                <p>🏦 Transfer ke {paymentType === 'ewallet' ? 'e-wallet' : 'rekening'} yang kamu pilih</p>
               </div>
 
               <Button
@@ -628,7 +719,7 @@ export function Earnings() {
                 variant="primary"
                 size="lg"
                 loading={payoutMutation.isPending}
-                disabled={amount <= 0 || amount > available}
+                disabled={amount < MIN_PAYOUT || amount > available}
                 fullWidth
               >
                 Request Rp{amount.toLocaleString('id-ID')}

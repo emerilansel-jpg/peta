@@ -71,6 +71,10 @@ export type Database = {
           amount: number;
           status: 'pending' | 'paid' | 'cancelled';
           payment_method: string | null;
+          payment_type: 'ewallet' | 'bank' | null;
+          provider: string | null;
+          account_number: string | null;
+          account_holder_name: string | null;
           proof_url: string | null;
           requested_at: string;
           paid_at: string | null;

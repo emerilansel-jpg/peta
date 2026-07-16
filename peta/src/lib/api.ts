@@ -396,8 +396,21 @@ export async function getPayoutHistory(userId: string) {
 // runs server-side and can't be bypassed by editing client JS. The userId
 // argument is kept for backwards-compat callers but the RPC reads auth.uid()
 // for authorization.
-export async function requestPayout(_userId: string, amount: number) {
-  const { data, error } = await supabase.rpc('request_payout', { p_amount: amount });
+export async function requestPayout(
+  _userId: string,
+  amount: number,
+  paymentType: 'ewallet' | 'bank',
+  provider: string,
+  accountNumber: string,
+  accountHolderName: string,
+) {
+  const { data, error } = await supabase.rpc('request_payout', {
+    p_amount: amount,
+    p_payment_type: paymentType,
+    p_provider: provider,
+    p_account_number: accountNumber,
+    p_account_holder_name: accountHolderName,
+  });
   if (error) throw error;
   return data;
 }
@@ -413,7 +426,7 @@ export async function checkPayoutEligibility(userId: string, amount: number) {
   if (error) throw error;
   return data as {
     eligible: boolean;
-    reason?: 'holding_period' | 'earnings_floor' | 'weekly_cap' | 'insufficient_balance';
+    reason?: 'holding_period' | 'earnings_floor' | 'weekly_cap' | 'insufficient_balance' | 'minimum_payout';
     message?: string;
     days_old?: number;
     approved_tasks?: number;
@@ -479,20 +492,31 @@ export async function sendPayoutRequestEmail(to: string, fullName: string, amoun
     to,
     subject: 'Payout request diterima ⏳',
     type: 'payout_request',
-    body: `Halo <b>${fullName}</b>,<br><br>Kami sudah terima request payout kamu sebesar <b>Rp${amount.toLocaleString('id-ID')}</b>.<br><br>Admin akan memproses transfer maksimal 24 jam kerja ke rekening yang terdaftar. Cek status payout di halaman Earnings.`,
+    body: `Halo <b>${fullName}</b>,<br><br>Kami sudah terima request payout kamu sebesar <b>Rp${amount.toLocaleString('id-ID')}</b>.<br><br>Admin akan memproses transfer maksimal 24 jam kerja ke metode yang kamu pilih saat request. Cek status payout di halaman Earnings.`,
     link: 'https://penghasilantambahan.com/earnings',
     previewText: `Request payout Rp${amount.toLocaleString('id-ID')} diterima. Proses max 24 jam.`,
   });
 }
 
-export async function sendPayoutPaidEmail(to: string, fullName: string, amount: number) {
+export async function sendPayoutPaidEmail(
+  to: string,
+  fullName: string,
+  amount: number,
+  provider?: string,
+  accountNumber?: string,
+  accountHolderName?: string,
+) {
+  const destination = provider
+    ? `${provider}${accountNumber ? ` — ${accountNumber}` : ''}${accountHolderName ? ` atas nama ${accountHolderName}` : ''}`
+    : 'rekening yang terdaftar';
+
   return sendPetaEmail({
     to,
     subject: 'Payout sudah ditransfer! ✅',
     type: 'payout_paid',
-    body: `Halo <b>${fullName}</b>,<br><br>Payout kamu sebesar <b>Rp${amount.toLocaleString('id-ID')}</b> sudah ditransfer ke rekening yang terdaftar.<br><br>Cek mutasi rekening kamu. Kalau ada kendala, hubungi admin via WhatsApp.`,
+    body: `Halo <b>${fullName}</b>,<br><br>Payout kamu sebesar <b>Rp${amount.toLocaleString('id-ID')}</b> sudah ditransfer ke <b>${destination}</b>.<br><br>Cek mutasi rekening/e-wallet kamu. Kalau ada kendala, hubungi admin via WhatsApp.`,
     link: 'https://penghasilantambahan.com/earnings',
-    previewText: `Payout Rp${amount.toLocaleString('id-ID')} sudah ditransfer. Cek rekening kamu!`,
+    previewText: `Payout Rp${amount.toLocaleString('id-ID')} sudah ditransfer. Cek rekening/e-wallet kamu!`,
   });
 }
 

@@ -29,7 +29,14 @@ export function AdminPayroll() {
     onSuccess: (p: any) => {
       toast.success('Marked as paid ✅');
       if (p?.users?.email && p?.users?.full_name) {
-        sendPayoutPaidEmail(p.users.email, p.users.full_name, p.amount || 0).catch(() => {});
+        sendPayoutPaidEmail(
+          p.users.email,
+          p.users.full_name,
+          p.amount || 0,
+          p.provider,
+          p.account_number,
+          p.account_holder_name,
+        ).catch(() => {});
       }
       refetch();
     },
@@ -46,11 +53,15 @@ export function AdminPayroll() {
     };
 
     const csv = [
-      ['Name', 'Email', 'Amount', 'Requested'],
+      ['Name', 'Email', 'Amount', 'Payment Type', 'Provider', 'Account Number', 'Account Holder', 'Requested'],
       ...payouts.map((p: any) => [
         p.users?.full_name || '',
         p.users?.email || '',
         p.amount,
+        p.payment_type || '',
+        p.provider || '',
+        p.account_number || '',
+        p.account_holder_name || '',
         new Date(p.requested_at).toISOString(),
       ]),
     ]
@@ -99,6 +110,20 @@ export function AdminPayroll() {
                   <p className="text-xs text-muted truncate">{p.users?.email}</p>
                   <p className="text-xs text-muted mt-1">
                     Requested: {new Date(p.requested_at).toLocaleString('id-ID')}
+                  </p>
+                  <div className="mt-2 inline-flex flex-wrap gap-1.5">
+                    <span className="px-2 py-0.5 rounded-md bg-light text-[11px] font-bold text-dark uppercase">
+                      {p.payment_type === 'ewallet' ? 'E-wallet' : p.payment_type === 'bank' ? 'Bank' : 'Transfer'}
+                    </span>
+                    {p.provider && (
+                      <span className="px-2 py-0.5 rounded-md bg-primary/10 text-[11px] font-bold text-primary">
+                        {p.provider}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-dark mt-1.5">
+                    <span className="font-bold">{p.account_number || '-'}</span>
+                    {p.account_holder_name ? ` — a.n. ${p.account_holder_name}` : ''}
                   </p>
                 </div>
                 <p className="text-2xl font-extrabold text-primary money shrink-0">
