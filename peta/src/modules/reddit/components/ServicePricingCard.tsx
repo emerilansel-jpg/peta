@@ -64,10 +64,10 @@ export function ServicePricingCard() {
         <p className="text-sm text-slate-500">Pricing table not found yet — run the <code className="text-xs">straight_pricing</code> migration, then refresh.</p>
       ) : (
         <div className="space-y-5">
-          {(['reddit', 'forum'] as const).map((platform) => (
+          {(['reddit', 'forum', 'youtube'] as const).map((platform) => (
             <div key={platform}>
               <p className="text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
-                {platform === 'reddit' ? 'Reddit' : 'Other forums'}
+                {platform === 'reddit' ? 'Reddit' : platform === 'forum' ? 'Other forums' : 'YouTube'}
               </p>
               <div className="space-y-2">
                 {pricing.filter((r) => r.platform === platform).map((row) => (

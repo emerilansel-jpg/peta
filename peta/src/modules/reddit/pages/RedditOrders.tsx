@@ -44,8 +44,12 @@ type RedditOrderListItem = {
 };
 
 function serviceLabel(order: RedditOrderListItem) {
-  if ((order.target_type || 'upvote') === 'comment') {
+  const targetType = order.target_type || 'upvote';
+  if (targetType === 'comment') {
     return { label: 'Comment', metric: 'Comments', value: '1', icon: '💬' };
+  }
+  if (targetType === 'youtube_upload') {
+    return { label: 'YouTube Upload', metric: 'Uploads', value: '1', icon: '▶️' };
   }
   return {
     label: 'Upvotes',
@@ -176,7 +180,7 @@ export function RedditOrders() {
                               <p className="font-semibold text-slate-900">
                                 <span className="mr-1">{service.icon}</span>#{order.id} {order.subreddit && (
                                   <span className="text-slate-500 font-normal">
-                                    · {(order.target_type || 'upvote') === 'comment' ? order.subreddit : `r/${order.subreddit}`}
+                                    · {order.target_type === 'youtube_upload' ? 'YouTube' : (order.target_type || 'upvote') === 'comment' ? order.subreddit : `r/${order.subreddit}`}
                                   </span>
                                 )}
                               </p>
@@ -240,7 +244,7 @@ export function RedditOrders() {
                         <p className="font-semibold text-slate-900"><span className="mr-1">{service.icon}</span>#{order.id}</p>
                         {order.subreddit && (
                           <p className="text-xs text-slate-500">
-                            {(order.target_type || 'upvote') === 'comment' ? order.subreddit : `r/${order.subreddit}`}
+                            {order.target_type === 'youtube_upload' ? 'YouTube' : (order.target_type || 'upvote') === 'comment' ? order.subreddit : `r/${order.subreddit}`}
                           </p>
                         )}
                       </div>

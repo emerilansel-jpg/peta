@@ -440,6 +440,7 @@ export function Tasks() {
                   t.task_category === 'reddit_upvote' ? 'Reddit Upvote' :
                   t.task_category === 'reddit_post_thread' ? 'Reddit Post' :
                   t.task_category === 'forum_comment' ? `${platformForTask(t)} Comment` :
+                  t.task_category === 'youtube_upload' ? 'YouTube Upload' :
                   'Reddit Comment';
                 const slotsLeft = Math.max(t.max_assignments - t.current_assignments, 0);
                 return (

@@ -32,13 +32,14 @@ const UPVOTE_PRESETS  = [500, 1000, 1500, 2000];
 
 type FilterKey = 'all' | 'draft' | 'active' | 'paused';
 type TaskStatus = 'draft' | 'active' | 'paused' | 'completed';
-type TaskCategory = 'reddit_upvote' | 'reddit_comment' | 'reddit_post_thread' | 'forum_comment';
+type TaskCategory = 'reddit_upvote' | 'reddit_comment' | 'reddit_post_thread' | 'forum_comment' | 'youtube_upload';
 
 const TASK_CATEGORY_OPTIONS: Array<[TaskCategory, string, string, number]> = [
   ['reddit_upvote', 'Upvote', 'Rp500-2K', 1000],
   ['reddit_comment', 'Reddit comment', 'Rp5K-20K', 8000],
   ['forum_comment', 'Forum comment', 'Rp5K-20K', 5000],
   ['reddit_post_thread', 'Post thread', 'Rp10K-25K', 15000],
+  ['youtube_upload', 'YouTube upload', 'Rp25K', 25000],
 ];
 
 type TaskRow = {
@@ -49,7 +50,7 @@ type TaskRow = {
   post_to_wa_group: boolean | null;
   wa_group_draft: string | null;
   target_url: string | null;
-  task_type: 'upvote' | 'comment' | string | null;
+  task_type: 'upvote' | 'comment' | 'upload' | string | null;
   task_category: TaskCategory | null;
   reward_amount: number;
   current_assignments: number | null;
@@ -1269,10 +1270,11 @@ function QueueStat({
 }
 
 function formatTaskCategory(t: TaskRow) {
-  const category = t.task_category || (t.task_type === 'upvote' ? 'reddit_upvote' : 'reddit_comment');
+  const category = t.task_category || (t.task_type === 'upvote' ? 'reddit_upvote' : t.task_type === 'upload' ? 'youtube_upload' : 'reddit_comment');
   if (category === 'reddit_upvote') return 'Upvote';
   if (category === 'reddit_post_thread') return 'Post thread';
   if (category === 'forum_comment') return 'Forum comment';
+  if (category === 'youtube_upload') return 'YouTube upload';
   return 'Comment';
 }
 
@@ -1311,6 +1313,7 @@ function formatTaskDescription(t: TaskRow) {
 
 function platformForUrl(url: string, category?: TaskCategory) {
   const text = url.toLowerCase();
+  if (category === 'youtube_upload' || text.includes('youtube.com') || text.includes('youtu.be')) return 'YouTube';
   if (category === 'reddit_comment' || category === 'reddit_upvote' || text.includes('reddit.com')) return 'Reddit';
   if (text.includes('quora.com')) return 'Quora';
   if (text.includes('facebook.com/groups') || text.includes('fb.com/groups')) return 'Facebook Groups';

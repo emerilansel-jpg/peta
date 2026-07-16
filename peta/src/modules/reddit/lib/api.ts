@@ -77,6 +77,38 @@ export async function createRedditOrder(
   return data;
 }
 
+// Create YouTube upload order via RPC
+export async function createYouTubeUploadOrder(
+  videoUrl: string,
+  title: string,
+  description: string,
+  tags: string,
+  privacy: 'public' | 'unlisted' | 'private',
+  notes: string | null
+) {
+  const { data, error } = await supabase.rpc('fn_create_youtube_upload_order', {
+    p_video_url: videoUrl,
+    p_title: title,
+    p_description: description,
+    p_tags: tags,
+    p_privacy: privacy,
+    p_notes: notes,
+  });
+
+  if (error) {
+    console.error('[createYouTubeUploadOrder] RPC error:', error);
+    if (error.message?.includes('insufficient_credits')) {
+      throw new Error('Insufficient credits. Please top up your account.');
+    }
+    if (error.message?.includes('service_disabled')) {
+      throw new Error('This service is paused right now. Please check back soon.');
+    }
+    throw error;
+  }
+
+  return data;
+}
+
 export interface ForumCommentOrderInput {
   targetUrl: string;
   platform: string | null;
@@ -208,8 +240,8 @@ export async function getStraightRegistrationMode(): Promise<StraightRegistratio
 
 export type StraightPricingRow = {
   key: string;
-  platform: 'reddit' | 'forum';
-  service: 'upvote' | 'comment' | 'thread';
+  platform: 'reddit' | 'forum' | 'youtube';
+  service: 'upvote' | 'comment' | 'thread' | 'upload';
   mention_mode: 'none' | 'plain' | 'link';
   label: string;
   price_cents: number;

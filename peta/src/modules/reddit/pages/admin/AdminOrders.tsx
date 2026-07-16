@@ -36,6 +36,7 @@ const SERVICE_CONFIG: Record<string, { label: string; emoji: string; color: stri
   upvote: { label: 'Upvotes', emoji: '⬆️', color: 'bg-orange-100 text-orange-700' },
   comment: { label: 'Comments', emoji: '💬', color: 'bg-blue-100 text-blue-700' },
   thread: { label: 'New Thread', emoji: '📌', color: 'bg-purple-100 text-purple-700' },
+  youtube_upload: { label: 'YouTube Upload', emoji: '▶️', color: 'bg-red-100 text-red-700' },
 };
 
 type AdminOrderRecord = {
@@ -60,7 +61,7 @@ type AdminOrderRecord = {
 };
 
 function parseOrderNotes(raw: string | null) {
-  if (!raw) return { clientNote: '', commentText: '', useSuggested: false, brand: '', mentionMode: '', keyword: '' };
+  if (!raw) return { clientNote: '', commentText: '', useSuggested: false, brand: '', mentionMode: '', keyword: '', youtubeMeta: null as { title?: string; description?: string; tags?: string; privacy?: string; video_url?: string } | null };
   try {
     const parsed = JSON.parse(raw);
     if (parsed?.service === 'forum_comment') {
@@ -71,17 +72,38 @@ function parseOrderNotes(raw: string | null) {
         brand: parsed.brand_name || parsed.brand_domain || '',
         mentionMode: parsed.brand_mention_mode || '',
         keyword: parsed.source_keyword || '',
+        youtubeMeta: null,
+      };
+    }
+    if (parsed?.service === 'youtube_upload') {
+      return {
+        clientNote: cleanInternalText(parsed.client_notes || ''),
+        commentText: '',
+        useSuggested: false,
+        brand: '',
+        mentionMode: '',
+        keyword: '',
+        youtubeMeta: {
+          title: parsed.title || '',
+          description: parsed.description || '',
+          tags: parsed.tags || '',
+          privacy: parsed.privacy || 'unlisted',
+          video_url: parsed.video_url || '',
+        },
       };
     }
   } catch {
-    return { clientNote: cleanInternalText(raw), commentText: '', useSuggested: false, brand: '', mentionMode: '', keyword: '' };
+    return { clientNote: cleanInternalText(raw), commentText: '', useSuggested: false, brand: '', mentionMode: '', keyword: '', youtubeMeta: null };
   }
-  return { clientNote: cleanInternalText(raw), commentText: '', useSuggested: false, brand: '', mentionMode: '', keyword: '' };
+  return { clientNote: cleanInternalText(raw), commentText: '', useSuggested: false, brand: '', mentionMode: '', keyword: '', youtubeMeta: null };
 }
 
 function serviceMetric(order: AdminOrderRecord) {
   if ((order.target_type || 'upvote') === 'comment') {
     return { label: 'Comments', value: '1', deliveredLabel: 'comment' };
+  }
+  if ((order.target_type || 'upvote') === 'youtube_upload') {
+    return { label: 'YouTube Upload', value: '1', deliveredLabel: 'uploaded' };
   }
   return {
     label: 'Upvotes',
@@ -170,8 +192,8 @@ export function AdminOrders() {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
           <ServiceCard label="Reddit Upvotes" emoji="⬆️" count={serviceStats.upvote || 0} active />
           <ServiceCard label="Forum Comments" emoji="💬" count={serviceStats.comment || 0} active />
+          <ServiceCard label="YouTube Uploads" emoji="▶️" count={serviceStats.youtube_upload || 0} active />
           <ServiceCard label="Reddit Threads" emoji="📌" count={serviceStats.thread || 0} comingSoon="Q4 2026" />
-          <ServiceCard label="Facebook" emoji="📘" count={0} comingSoon="Q4 2026" />
         </div>
 
         {/* Filter + search */}
@@ -405,6 +427,8 @@ function OrderEditModal({
   onSaved: () => void;
 }) {
   const isCommentOrder = (order.target_type || 'upvote') === 'comment';
+  const isYouTubeUploadOrder = (order.target_type || 'upvote') === 'youtube_upload';
+  const isSingleUnitOrder = isCommentOrder || isYouTubeUploadOrder;
   const parsedNotes = parseOrderNotes(order.notes);
   const [status, setStatus] = useState(order.status);
   const [deliveredStr, setDeliveredStr] = useState(
@@ -433,7 +457,7 @@ function OrderEditModal({
   const handleSave = async () => {
     setSaving(true);
     try {
-      const delivered = isCommentOrder ? (status === 'completed' ? 1 : 0) : (parseInt(deliveredStr) || 0);
+      const delivered = isSingleUnitOrder ? (status === 'completed' ? 1 : 0) : (parseInt(deliveredStr) || 0);
       let finalProofUrl: string | null = proofUrl.trim() || null;
 
       // If user selected image mode and provided new file, upload it
@@ -480,7 +504,7 @@ function OrderEditModal({
             <h4 className="font-semibold text-sm text-slate-900 mb-3">Order details</h4>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
-                <p className="text-xs text-slate-500">{isCommentOrder ? 'Target page' : 'Thread URL'}</p>
+                <p className="text-xs text-slate-500">{isCommentOrder ? 'Target page' : isYouTubeUploadOrder ? 'Video source' : 'Thread URL'}</p>
                 <a href={order.thread_url} target="_blank" rel="noopener noreferrer" className="text-orange-600 hover:underline break-all flex items-center gap-1">
                   {order.thread_url.substring(0, 40)}... <ExternalLink size={10} />
                 </a>
@@ -488,12 +512,12 @@ function OrderEditModal({
               <div>
                 <p className="text-xs text-slate-500">{isCommentOrder ? 'Platform' : 'Subreddit'}</p>
                 <p className="font-medium">
-                  {order.subreddit ? (isCommentOrder ? order.subreddit : `r/${order.subreddit}`) : '—'}
+                  {order.subreddit ? (isCommentOrder ? order.subreddit : isYouTubeUploadOrder ? 'YouTube' : `r/${order.subreddit}`) : '—'}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-slate-500">Requested</p>
-                <p className="font-medium">{isCommentOrder ? '1 comment' : `${order.requested_upvotes} upvotes`}</p>
+                <p className="font-medium">{isSingleUnitOrder ? (isYouTubeUploadOrder ? '1 upload' : '1 comment') : `${order.requested_upvotes} upvotes`}</p>
               </div>
               <div>
                 <p className="text-xs text-slate-500">Revenue</p>
@@ -520,6 +544,19 @@ function OrderEditModal({
                 </p>
               </div>
             )}
+            {parsedNotes.youtubeMeta && (
+              <div className="mt-3 pt-3 border-t border-slate-200 space-y-2">
+                <p className="text-xs text-slate-500">YouTube upload details</p>
+                <p className="text-sm text-slate-900 font-semibold">{parsedNotes.youtubeMeta.title}</p>
+                {parsedNotes.youtubeMeta.description && (
+                  <p className="text-sm text-slate-900 whitespace-pre-wrap">{parsedNotes.youtubeMeta.description}</p>
+                )}
+                {parsedNotes.youtubeMeta.tags && (
+                  <p className="text-xs text-slate-500">Tags: {parsedNotes.youtubeMeta.tags}</p>
+                )}
+                <p className="text-xs text-slate-500 capitalize">Privacy: {parsedNotes.youtubeMeta.privacy}</p>
+              </div>
+            )}
             {parsedNotes.clientNote && (
               <div className="mt-3 pt-3 border-t border-slate-200">
                 <p className="text-xs text-slate-500">Client note</p>
@@ -543,7 +580,7 @@ function OrderEditModal({
             </select>
           </div>
 
-          {!isCommentOrder && (
+          {!isSingleUnitOrder && (
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">
               Delivered upvotes <span className="text-slate-400 font-normal">(of {order.requested_upvotes})</span>
@@ -602,7 +639,9 @@ function OrderEditModal({
                 value={proofText}
                 onChange={(e) => setProofText(e.target.value)}
                 rows={3}
-                placeholder={isCommentOrder
+                placeholder={isYouTubeUploadOrder
+                  ? 'E.g. Video uploaded to YouTube. URL: https://youtube.com/watch?v=...'
+                  : isCommentOrder
                   ? 'E.g. Comment placed and visible on the target thread. Screenshot attached.'
                   : 'E.g. Delivered 50 upvotes across 3 hours via aged accounts. All upvotes are stable.'}
                 className="w-full px-3.5 py-2.5 rounded-lg ring-1 ring-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 resize-none text-slate-900 bg-white"
@@ -614,7 +653,9 @@ function OrderEditModal({
                 type="url"
                 value={proofUrl}
                 onChange={(e) => setProofUrl(e.target.value)}
-                placeholder={isCommentOrder
+                placeholder={isYouTubeUploadOrder
+                  ? 'https://youtube.com/watch?v=... (link to the uploaded video)'
+                  : isCommentOrder
                   ? 'https://forum.example.com/thread/... (link to the placed comment)'
                   : 'https://reddit.com/r/.../comments/... (link to the boosted thread)'}
                 className="w-full px-3.5 py-2.5 rounded-lg ring-1 ring-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 bg-white"

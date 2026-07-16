@@ -1069,7 +1069,7 @@ export async function importRedditOrder(opts: {
   return data;
 }
 
-export type TaskCategory = 'reddit_upvote' | 'reddit_comment' | 'reddit_post_thread' | 'forum_comment';
+export type TaskCategory = 'reddit_upvote' | 'reddit_comment' | 'reddit_post_thread' | 'forum_comment' | 'youtube_upload';
 export type TaskStatus = 'draft' | 'active' | 'paused' | 'completed';
 
 export type AdminTaskUpdate = {
@@ -1202,7 +1202,7 @@ export type EligibleTask = {
   description: string;
   brief: string | null;
   target_url: string;
-  task_type: 'comment' | 'upvote';
+  task_type: 'comment' | 'upvote' | 'upload';
   task_category: TaskCategory;
   reward_amount: number;
   max_assignments: number;

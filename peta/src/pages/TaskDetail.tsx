@@ -83,6 +83,7 @@ export function TaskDetail() {
   const category = task?.task_category || task?.task_type;
   const isUpvote = category === 'reddit_upvote' || task?.task_type === 'upvote';
   const isForumComment = category === 'forum_comment';
+  const isYouTubeUpload = category === 'youtube_upload';
   const isComment = isForumComment || category === 'reddit_comment' || task?.task_type === 'comment';
   const platformLabel = task ? platformForTask(task) : 'Forum';
 
@@ -107,17 +108,17 @@ export function TaskDetail() {
   React.useEffect(() => {
     if (
       stage === 'preview' &&
-      ((accounts.length === 1 && selectedAccountId) || (isForumComment && accounts.length === 0)) &&
+      ((accounts.length === 1 && selectedAccountId) || ((isForumComment || isYouTubeUpload) && accounts.length === 0)) &&
       !startMutation.isPending &&
       !checkingExistingAssignment &&
       !assignmentId
     ) {
       startMutation.mutate();
     }
-    // isForumComment must be in deps so the effect fires when the task loads and
-    // reveals this is a forum task for a user with no linked Reddit accounts.
+    // isForumComment/isYouTubeUpload must be in deps so the effect fires when
+    // the task loads and reveals a task that doesn't need Reddit accounts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accounts.length, selectedAccountId, stage, isForumComment, taskId, checkingExistingAssignment, assignmentId, startMutation.isPending]);
+  }, [accounts.length, selectedAccountId, stage, isForumComment, isYouTubeUpload, taskId, checkingExistingAssignment, assignmentId, startMutation.isPending]);
 
   const submitMutation = useMutation({
     mutationFn: () => {
@@ -197,6 +198,8 @@ export function TaskDetail() {
     : true;
   const canSubmit = isUpvote
     ? !!proofImageUrl && !!assignmentId
+    : isYouTubeUpload
+    ? !!proofUrl.trim() && !!assignmentId
     : !!proofUrl.trim() && !!submittedUsername.trim() && !!assignmentId && hasCommentText;
 
   // ----- DONE STAGE — celebrate + nudge to the next high-value action -----
@@ -306,10 +309,14 @@ export function TaskDetail() {
           </button>
           <Card>
             <p className="text-xs uppercase font-bold tracking-wide text-muted mb-2">Pilih akun</p>
-            <h2 className="text-lg font-extrabold mb-1">{isForumComment ? 'Profil tracking untuk task ini' : 'Akun Reddit untuk task ini'}</h2>
+            <h2 className="text-lg font-extrabold mb-1">
+              {isForumComment ? 'Profil tracking untuk task ini' : isYouTubeUpload ? 'Task ini tanpa akun Reddit' : 'Akun Reddit untuk task ini'}
+            </h2>
             <p className="text-sm text-muted mb-4">
               {isForumComment
                 ? `Ini hanya untuk tracking PeTa. Username ${platformLabel} tetap kamu isi nanti saat submit bukti.`
+                : isYouTubeUpload
+                ? 'Upload video ke channel YouTube-mu sendiri. URL video hasil upload jadi bukti nanti.'
                 : 'Komentar / upvote akan tercatat atas nama akun ini.'}
             </p>
             <div className="space-y-2 mb-5">
@@ -355,9 +362,9 @@ export function TaskDetail() {
     );
   }
 
-  // ----- NO REDDIT ACCOUNT: only block Reddit-specific tasks. Forum tasks
-  // can be completed with the external platform username submitted later.
-  if (accounts.length === 0 && !isForumComment) {
+  // ----- NO REDDIT ACCOUNT: only block Reddit-specific tasks. Forum / YouTube
+  // tasks can be completed without a Reddit account.
+  if (accounts.length === 0 && !isForumComment && !isYouTubeUpload) {
     return (
       <Layout userRole="army">
         <div className="max-w-2xl mx-auto pb-8">
@@ -416,7 +423,7 @@ export function TaskDetail() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <span className="text-[10px] font-bold uppercase tracking-wide bg-primary/15 text-primary px-2 py-0.5 rounded-full">
-                  {isUpvote ? 'Upvote' : isComment ? `${platformLabel} Comment` : `${platformLabel} Task`}
+                  {isUpvote ? 'Upvote' : isComment ? `${platformLabel} Comment` : isYouTubeUpload ? 'YouTube Upload' : `${platformLabel} Task`}
                 </span>
               </div>
               <h1 className="text-xl sm:text-2xl font-extrabold mb-2 leading-tight">{task.title}</h1>
@@ -470,9 +477,11 @@ export function TaskDetail() {
           num={2}
           done={false}
           active={threadOpened}
-          title={isUpvote ? 'Klik tombol upvote' : `Post komentar di ${platformLabel}`}
+          title={isUpvote ? 'Klik tombol upvote' : isYouTubeUpload ? 'Upload video ke YouTube' : `Post komentar di ${platformLabel}`}
           subtitle={isUpvote
             ? 'Pastikan panah upvote berubah jadi warna terang. Itu tanda upvote sukses.'
+            : isYouTubeUpload
+            ? 'Upload video ke channel YouTube-mu sendiri. Pastikan judul, deskripsi, dan tags sesuai brief.'
             : 'Copy komentar yang sudah disediakan. Brief biru hanya untuk cara posting yang aman.'
           }
         >
@@ -480,6 +489,22 @@ export function TaskDetail() {
               New model: comment lives in task.brief, instructions in task.description.
               Legacy tasks packed both into brief — splitForumBrief() still handles them. */}
           {(() => {
+            // YouTube upload tasks: show the metadata guide from the brief.
+            if (isYouTubeUpload) {
+              const guide = (task.brief || task.description || '').trim();
+              if (!guide) return null;
+              return (
+                <div className="bg-sky-50 ring-1 ring-sky-300 rounded-xl p-3 mb-3">
+                  <p className="text-[10px] uppercase font-bold tracking-wide text-sky-900 mb-1">
+                    Panduan upload
+                  </p>
+                  <p className="text-sm text-sky-950 whitespace-pre-line leading-relaxed">
+                    {guide}
+                  </p>
+                </div>
+              );
+            }
+
             // Upvote tasks never require a text comment. Show the raw guide
             // (brief/description) as a neutral instruction card so users don't
             // mistake it for a comment they must paste into a text box.
@@ -561,7 +586,7 @@ export function TaskDetail() {
           done={false}
           active={threadOpened}
           title="Submit URL, username, dan bukti"
-          subtitle={isUpvote ? 'Screenshot wajib untuk upvote.' : 'URL komentar dan username wajib. Screenshot optional tapi disarankan.'}
+          subtitle={isUpvote ? 'Screenshot wajib untuk upvote.' : isYouTubeUpload ? 'URL video YouTube wajib. Screenshot optional tapi disarankan.' : 'URL komentar dan username wajib. Screenshot optional tapi disarankan.'}
         >
           {/* SCREENSHOT UPLOAD */}
           {proofImageUrl ? (
@@ -615,7 +640,7 @@ export function TaskDetail() {
           {!isUpvote && (
             <>
               <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
-                URL komentar / thread setelah komentar tampil
+                {isYouTubeUpload ? 'URL video hasil upload di YouTube' : 'URL komentar / thread setelah komentar tampil'}
               </p>
               <div className="relative mb-3">
                 <LinkIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
@@ -623,21 +648,25 @@ export function TaskDetail() {
                   type="url"
                   value={proofUrl}
                   onChange={(e) => setProofUrl(e.target.value)}
-                  placeholder={isForumComment ? 'https://community.hubspot.com/...' : 'https://reddit.com/r/.../comments/...'}
+                  placeholder={isYouTubeUpload ? 'https://youtube.com/watch?v=...' : isForumComment ? 'https://community.hubspot.com/...' : 'https://reddit.com/r/.../comments/...'}
                   className="w-full pl-10 pr-3 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm"
                 />
               </div>
 
-              <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
-                Username yang kamu pakai di {platformLabel}
-              </p>
-              <input
-                type="text"
-                value={submittedUsername}
-                onChange={(e) => setSubmittedUsername(e.target.value)}
-                placeholder={isForumComment ? 'Contoh: nama profile HubSpot kamu' : 'u/username'}
-                className="w-full px-4 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm mb-3"
-              />
+              {!isYouTubeUpload && (
+                <>
+                  <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
+                    Username yang kamu pakai di {platformLabel}
+                  </p>
+                  <input
+                    type="text"
+                    value={submittedUsername}
+                    onChange={(e) => setSubmittedUsername(e.target.value)}
+                    placeholder={isForumComment ? 'Contoh: nama profile HubSpot kamu' : 'u/username'}
+                    className="w-full px-4 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm mb-3"
+                  />
+                </>
+              )}
 
               <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
                 Catatan untuk admin (optional)
@@ -657,6 +686,11 @@ export function TaskDetail() {
               Upvote task: <b>screenshot wajib</b>. Pastikan panah upvote berwarna terang/aktif.
             </p>
           )}
+          {isYouTubeUpload && (
+            <p className="text-xs text-warning bg-warning/10 px-3 py-2 rounded-lg mt-2">
+              YouTube Upload: <b>URL video hasil upload wajib</b>. Screenshot optional.
+            </p>
+          )}
 
           {/* Submit button — desktop inline */}
           <div className="hidden sm:block mt-5">
@@ -674,6 +708,8 @@ export function TaskDetail() {
               <p className="text-[11px] text-muted text-center mt-2">
                 {isUpvote
                   ? 'Upload screenshot dulu untuk submit.'
+                  : isYouTubeUpload
+                  ? 'Isi URL video YouTube hasil upload dulu.'
                   : 'Isi URL komentar/thread dan username yang kamu pakai dulu.'}
               </p>
             )}
@@ -748,6 +784,7 @@ function StepCard({
 
 function platformForTask(task: any) {
   const category = task.task_category || task.task_type;
+  if (category === 'youtube_upload' || task.task_category === 'youtube_upload') return 'YouTube';
   if (category === 'reddit_upvote' || category === 'reddit_comment' || task.task_type === 'upvote') return 'Reddit';
   const text = `${task.title || ''} ${task.description || ''} ${task.target_url || ''}`.toLowerCase();
   if (text.includes('hubspot')) return 'HubSpot';

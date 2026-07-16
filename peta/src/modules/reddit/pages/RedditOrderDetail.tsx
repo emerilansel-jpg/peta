@@ -83,7 +83,7 @@ const STATUS_CONFIG: Record<string, { label: string; class: string; icon: Elemen
 };
 
 function parseOrderNotes(raw: string | null) {
-  if (!raw) return { clientNote: '', commentText: '', useSuggested: false, sourceKeyword: '', brand: '' };
+  if (!raw) return { clientNote: '', commentText: '', useSuggested: false, sourceKeyword: '', brand: '', youtubeMeta: null as { title?: string; description?: string; tags?: string; privacy?: string; video_url?: string } | null };
   try {
     const parsed = JSON.parse(raw);
     if (parsed?.service === 'forum_comment') {
@@ -93,12 +93,29 @@ function parseOrderNotes(raw: string | null) {
         useSuggested: !!parsed.use_suggested_comment,
         sourceKeyword: parsed.source_keyword || '',
         brand: parsed.brand_name || parsed.brand_domain || '',
+        youtubeMeta: null,
+      };
+    }
+    if (parsed?.service === 'youtube_upload') {
+      return {
+        clientNote: cleanInternalText(parsed.client_notes || ''),
+        commentText: '',
+        useSuggested: false,
+        sourceKeyword: '',
+        brand: '',
+        youtubeMeta: {
+          title: parsed.title || '',
+          description: parsed.description || '',
+          tags: parsed.tags || '',
+          privacy: parsed.privacy || 'unlisted',
+          video_url: parsed.video_url || '',
+        },
       };
     }
   } catch {
-    return { clientNote: cleanInternalText(raw), commentText: '', useSuggested: false, sourceKeyword: '', brand: '' };
+    return { clientNote: cleanInternalText(raw), commentText: '', useSuggested: false, sourceKeyword: '', brand: '', youtubeMeta: null };
   }
-  return { clientNote: cleanInternalText(raw), commentText: '', useSuggested: false, sourceKeyword: '', brand: '' };
+  return { clientNote: cleanInternalText(raw), commentText: '', useSuggested: false, sourceKeyword: '', brand: '', youtubeMeta: null };
 }
 
 function serviceMeta(order: RedditOrderRecord) {
@@ -112,6 +129,20 @@ function serviceMeta(order: RedditOrderRecord) {
         pending: 'Our team is reviewing your comment brief and target page.',
         processing: 'We are preparing or placing your forum comment.',
         completed: 'Comment placement is complete. Thanks for choosing Straight Ltd.',
+        cancelled: 'Order was cancelled. Credits have been refunded if applicable.',
+      } as Record<string, string>,
+    };
+  }
+  if ((order.target_type || 'upvote') === 'youtube_upload') {
+    return {
+      name: 'YouTube video upload',
+      targetLabel: 'Video source',
+      quantityLabel: 'Upload',
+      progress: '1 video upload ordered',
+      statusDesc: {
+        pending: 'Our team is reviewing your upload details.',
+        processing: 'We are uploading your video to a YouTube channel.',
+        completed: 'Video upload is complete. You will receive the YouTube URL as proof.',
         cancelled: 'Order was cancelled. Credits have been refunded if applicable.',
       } as Record<string, string>,
     };
@@ -459,6 +490,19 @@ export function RedditOrderDetail() {
                       {parsedNotes.brand ? ` · Brand: ${parsedNotes.brand}` : ''}
                       {parsedNotes.sourceKeyword ? ` · Keyword: ${parsedNotes.sourceKeyword}` : ''}
                     </p>
+                  </div>
+                )}
+                {parsedNotes.youtubeMeta && (
+                  <div className="pt-3 border-t border-slate-200 space-y-2">
+                    <p className="text-xs text-slate-500">YouTube upload details</p>
+                    <p className="text-sm text-slate-900 font-semibold">{parsedNotes.youtubeMeta.title}</p>
+                    {parsedNotes.youtubeMeta.description && (
+                      <p className="text-sm text-slate-700 whitespace-pre-wrap">{parsedNotes.youtubeMeta.description}</p>
+                    )}
+                    {parsedNotes.youtubeMeta.tags && (
+                      <p className="text-xs text-slate-500">Tags: {parsedNotes.youtubeMeta.tags}</p>
+                    )}
+                    <p className="text-xs text-slate-500 capitalize">Privacy: {parsedNotes.youtubeMeta.privacy}</p>
                   </div>
                 )}
                 {parsedNotes.clientNote && (

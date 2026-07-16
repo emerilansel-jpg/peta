@@ -20,6 +20,7 @@ import {
   RefreshCcw,
   Edit3,
   Link as LinkIcon,
+  PlayCircle,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { RedditLayout } from '../components/RedditLayout';
@@ -59,6 +60,17 @@ const SERVICES: Service[] = [
     status: 'active',
     iconBg: 'bg-orange-100',
     iconColor: 'text-orange-600',
+  },
+  {
+    id: 'youtube-upload',
+    platform: 'YouTube',
+    name: 'Video Upload',
+    icon: PlayCircle,
+    description: 'Upload your video to a live YouTube channel with full metadata',
+    status: 'active',
+    badge: 'New',
+    iconBg: 'bg-red-100',
+    iconColor: 'text-red-600',
   },
   {
     id: 'reddit-comment',
@@ -116,7 +128,7 @@ const SERVICES: Service[] = [
   },
 ];
 
-type ViewMode = 'select' | 'reddit-upvote' | 'reddit-comment' | 'coming-soon' | 'feature-request';
+type ViewMode = 'select' | 'reddit-upvote' | 'reddit-comment' | 'youtube-upload' | 'coming-soon' | 'feature-request';
 
 type BulkForumTarget = {
   keyword: string;
@@ -159,6 +171,10 @@ export function RedditNewOrder() {
         .some((k) => straightEnabled(pricing, k, true));
       return { ...s, status: on ? s.status : 'paused' as const };
     }
+    if (s.id === 'youtube-upload') {
+      const on = straightEnabled(pricing, 'youtube_upload', true);
+      return { ...s, status: on ? s.status : 'paused' as const };
+    }
     return s;
   }), [pricing]);
 
@@ -186,6 +202,7 @@ export function RedditNewOrder() {
     <RedditLayout>
       {view === 'select' && <ServiceSelector services={services} onSelect={handleServiceClick} />}
       {view === 'reddit-upvote' && <RedditUpvoteOrderForm onBack={handleBack} />}
+      {view === 'youtube-upload' && <YouTubeUploadOrderForm onBack={handleBack} />}
       {view === 'reddit-comment' && (
         <ForumCommentOrderForm
           onBack={handleBack}
@@ -210,6 +227,7 @@ function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect
   // Reddit cards show when pricing matrix has them enabled.
   const visible = services.filter((s) => s.status !== 'paused');
   const redditServices = visible.filter((s) => s.platform === 'Reddit');
+  const youtubeServices = visible.filter((s) => s.platform === 'YouTube');
   const forumServices = visible.filter((s) => s.platform === 'Forums' || s.platform === 'Facebook');
   const customServices = visible.filter((s) => s.platform === 'Custom');
 
@@ -229,6 +247,21 @@ function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {redditServices.map((s) => (
+              <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Platform: YouTube */}
+      {youtubeServices.length > 0 && (
+        <div className="mb-10">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-7 h-7 rounded bg-red-600 flex items-center justify-center text-white text-sm font-bold">Y</div>
+            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">YouTube</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {youtubeServices.map((s) => (
               <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
             ))}
           </div>
@@ -1329,6 +1362,317 @@ function ForumCommentOrderForm({
           )}
         </button>
       </form>
+    </div>
+  );
+}
+
+// ============================================================
+// View 2c: YouTube Upload Order Form
+// ============================================================
+function YouTubeUploadOrderForm({ onBack }: { onBack: () => void }) {
+  const navigate = useNavigate();
+  const { balance } = useRedditCredits();
+  const { createYouTubeUploadOrder, isCreatingYouTubeUploadOrder } = useRedditOrders();
+  const pricing = useStraightPricing();
+
+  const [videoUrl, setVideoUrl] = useState('');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [tags, setTags] = useState('');
+  const [privacy, setPrivacy] = useState<'public' | 'unlisted' | 'private'>('unlisted');
+  const [notes, setNotes] = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const costCents = straightPrice(pricing, 'youtube_upload', 500);
+  const cost = costCents; // flat per upload
+  const enabled = straightEnabled(pricing, 'youtube_upload', true);
+  const hasEnoughCredit = balance >= cost;
+  const isValidVideoUrl = /^https?:\/\/[^\s.]+\.[^\s]+/i.test(videoUrl.trim());
+  const isValidTitle = title.trim().length >= 1;
+  const canSubmit = isValidVideoUrl && isValidTitle && hasEnoughCredit && enabled && !isCreatingYouTubeUploadOrder;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!enabled) {
+      toast.error('YouTube Upload is paused right now.');
+      return;
+    }
+    if (!isValidVideoUrl) {
+      toast.error('Please enter a valid video URL');
+      return;
+    }
+    if (!isValidTitle) {
+      toast.error('Please enter a video title');
+      return;
+    }
+    if (!hasEnoughCredit) {
+      toast.error('Insufficient credit. Top up to continue.');
+      return;
+    }
+    setShowConfirm(true);
+  };
+
+  const handleConfirm = () => {
+    createYouTubeUploadOrder(
+      {
+        videoUrl: videoUrl.trim(),
+        title: title.trim(),
+        description: description.trim(),
+        tags: tags.trim(),
+        privacy,
+        notes: notes.trim() || null,
+      },
+      {
+        onSuccess: (order: { id?: number } | null) => {
+          toast.success(`YouTube Upload order placed. ${formatUSD(cost)} deducted from credit.`);
+          setShowConfirm(false);
+          navigate(order?.id ? `/reddit/orders/${order.id}` : '/reddit/orders');
+        },
+        onError: (err: Error) => {
+          toast.error(err.message || 'Failed to create order');
+          setShowConfirm(false);
+        },
+      }
+    );
+  };
+
+  return (
+    <div className="p-6 md:p-10 max-w-3xl mx-auto">
+      <button
+        onClick={onBack}
+        className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 mb-4"
+      >
+        <ArrowLeft size={14} /> Choose different service
+      </button>
+
+      <div className="mb-8">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+            <PlayCircle size={20} className="text-red-600" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">YouTube Video Upload</h1>
+            <p className="text-sm text-slate-500">
+              {formatUSD(costCents)} per upload · Flat fee
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-6 p-4 rounded-xl bg-slate-900 text-white flex items-center justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-widest text-slate-400 font-semibold">Available credit</p>
+          <p className="text-2xl font-bold mt-0.5">{formatUSD(balance)}</p>
+        </div>
+        <button
+          onClick={() => navigate('/reddit/topup')}
+          className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-semibold flex items-center gap-2"
+        >
+          <Wallet size={14} />
+          Top up
+        </button>
+      </div>
+
+      {!enabled && (
+        <div className="mb-6 p-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 text-sm text-amber-900 flex items-start gap-2">
+          <AlertCircle size={16} className="shrink-0 mt-0.5 text-amber-500" />
+          <p><span className="font-semibold">YouTube Upload is paused right now.</span> This service is temporarily unavailable — please check back soon.</p>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl ring-1 ring-slate-200 p-8 space-y-8">
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
+            <span className="w-6 h-6 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+            Video source URL
+          </label>
+          <input
+            type="url"
+            value={videoUrl}
+            onChange={(e) => setVideoUrl(e.target.value)}
+            placeholder="https://drive.google.com/... or https://dropbox.com/..."
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 text-slate-900"
+            required
+          />
+          <p className="mt-2 text-xs text-slate-500">Link to the video file you want uploaded. We never host the file.</p>
+        </div>
+
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
+            <span className="w-6 h-6 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center">2</span>
+            YouTube title
+          </label>
+          <input
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="How I scaled my SaaS with Reddit"
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 text-slate-900"
+            required
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-slate-900 mb-2">
+            Description <span className="text-slate-400 font-normal">(optional)</span>
+          </label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Paste the video description you want on YouTube..."
+            rows={4}
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-y text-slate-900"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-slate-900 mb-2">
+            Tags <span className="text-slate-400 font-normal">(optional, comma-separated)</span>
+          </label>
+          <input
+            type="text"
+            value={tags}
+            onChange={(e) => setTags(e.target.value)}
+            placeholder="saas, reddit marketing, growth hacking"
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 text-slate-900"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-slate-900 mb-2">
+            Privacy setting
+          </label>
+          <div className="grid grid-cols-3 gap-3">
+            {(['public', 'unlisted', 'private'] as const).map((p) => (
+              <button
+                key={p}
+                type="button"
+                onClick={() => setPrivacy(p)}
+                className={`py-3 rounded-lg text-sm font-semibold border-2 transition capitalize ${
+                  privacy === p
+                    ? 'border-red-500 bg-red-50 text-red-700'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                }`}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-slate-900 mb-2">
+            Extra instructions <span className="text-slate-400 font-normal">(optional)</span>
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Specific channel type, thumbnail preference, timing, things to avoid..."
+            rows={3}
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none text-slate-900"
+          />
+        </div>
+
+        <div className="p-5 rounded-xl bg-slate-50 ring-1 ring-slate-200">
+          <div className="flex justify-between text-sm mb-2">
+            <span className="text-slate-600">YouTube upload</span>
+            <span className="text-slate-900 font-semibold">1 video</span>
+          </div>
+          <div className="flex justify-between pt-3 mt-3 border-t border-slate-200">
+            <span className="text-slate-900 font-bold">Total</span>
+            <span className="text-2xl font-bold text-red-600">{formatUSD(cost)}</span>
+          </div>
+          {!hasEnoughCredit && (
+            <div className="mt-3 p-3 rounded-lg bg-rose-50 text-sm text-rose-700 flex items-start gap-2">
+              <AlertCircle size={16} className="shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">Insufficient credit</p>
+                <p>You need {formatUSD(cost - balance)} more. <button type="button" onClick={() => navigate('/reddit/topup')} className="underline font-semibold">Top up now</button>.</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-red-600 hover:bg-red-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-semibold transition shadow-lg shadow-red-600/20"
+        >
+          {enabled ? 'Review order' : 'Upload paused'}
+          {enabled && <ArrowRight size={18} />}
+        </button>
+      </form>
+
+      {/* Confirmation modal */}
+      {showConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+            onClick={() => !isCreatingYouTubeUploadOrder && setShowConfirm(false)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="px-6 pt-6 pb-2 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-900">Confirm order</h3>
+              <button
+                onClick={() => !isCreatingYouTubeUploadOrder && setShowConfirm(false)}
+                className="p-1 rounded hover:bg-slate-100"
+                disabled={isCreatingYouTubeUploadOrder}
+              >
+                <X size={18} className="text-slate-500" />
+              </button>
+            </div>
+            <div className="px-6 pb-6 space-y-4">
+              <p className="text-sm text-slate-600">
+                Review your order. <span className="font-semibold text-slate-900">{formatUSD(cost)}</span> will be deducted from your credit balance on confirmation.
+              </p>
+              <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 divide-y divide-slate-200">
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Video URL</p>
+                  <p className="text-sm text-slate-900 mt-1 break-all">{videoUrl}</p>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Title</p>
+                  <p className="text-sm text-slate-900 mt-1">{title}</p>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Privacy</p>
+                  <p className="text-sm text-slate-900 mt-1 capitalize">{privacy}</p>
+                </div>
+                <div className="px-4 py-3 flex justify-between bg-slate-100">
+                  <span className="text-sm font-semibold text-slate-900">Balance after</span>
+                  <span className="text-sm font-bold text-slate-900">{formatUSD(balance - cost)}</span>
+                </div>
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => setShowConfirm(false)}
+                  disabled={isCreatingYouTubeUploadOrder}
+                  className="flex-1 px-4 py-3 rounded-lg ring-1 ring-slate-300 text-slate-700 font-semibold hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleConfirm}
+                  disabled={isCreatingYouTubeUploadOrder}
+                  className="flex-1 px-4 py-3 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isCreatingYouTubeUploadOrder ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      Placing...
+                    </>
+                  ) : (
+                    <>
+                      Confirm & deduct
+                      <ArrowRight size={16} />
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
