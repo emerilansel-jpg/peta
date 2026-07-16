@@ -1131,10 +1131,29 @@ export async function adminCreateTask(u: AdminCreateTaskInput) {
 }
 
 export async function adminApproveAssignment(assignmentId: string): Promise<void> {
-  const { error } = await supabase.rpc('admin_approve_assignment', {
-    p_assignment_id: assignmentId,
+  // v3: bypass supabase.rpc() stale-schema / body-stripping issues by calling
+  // the PostgREST endpoint directly with the current session token.
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !sessionData.session) {
+    throw new Error('Sesi admin tidak aktif. Coba logout dan login ulang.');
+  }
+  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/admin_approve_assignment`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${sessionData.session.access_token}`,
+    },
+    body: JSON.stringify({ p_assignment_id: assignmentId }),
   });
-  if (error) throw error;
+  if (!res.ok) {
+    let message = `Gagal approve (${res.status})`;
+    try {
+      const err = await res.json();
+      message = err.message || message;
+    } catch {}
+    throw new Error(message);
+  }
 }
 
 export async function adminMarkPayoutPaid(payoutId: string): Promise<void> {
