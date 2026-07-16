@@ -23,7 +23,7 @@ import { LEVELS, getLevelInfo } from '../lib/levels';
 import { toast } from '../components/Toast';
 
 // Preview of task TYPES (rate ranges are real, per src/lib/levels.ts).
-// No fake metadata like star ratings or "X slots remaining" â€” those
+// No fake metadata like star ratings or "X slots remaining" — those
 // pretend social proof we cannot verify.
 const PREVIEW_TASKS = [
   { type: 'comment', title: 'Komen di thread populer',           reward: 18000, premium: false },
@@ -86,7 +86,7 @@ const SITE_URL = typeof window !== 'undefined' ? window.location.origin : 'https
 const buildReferralLink = (code?: string) =>
   code ? `${SITE_URL}/?ref=${code}` : SITE_URL;
 
-// (Old single-WhatsApp share helper removed â€” moved to <SocialShare>
+// (Old single-WhatsApp share helper removed — moved to <SocialShare>
 // which fans out to WhatsApp + Telegram + X + Facebook + Native Share.)
 
 export function Tasks() {
@@ -138,7 +138,7 @@ export function Tasks() {
   });
   const isAdmin = userProfile?.role === 'admin';
 
-  // Real active tasks the user can claim right now â€” server-side filtered
+  // Real active tasks the user can claim right now — server-side filtered
   // by karma/age/category/per-account-limit/window. Empty when admin has
   // nothing active or user doesn't meet gates.
   const { data: eligibleTasks = [], isLoading: tasksLoading } = useQuery<EligibleTask[]>({
@@ -150,7 +150,7 @@ export function Tasks() {
 
   // Own submitted / rejected task assignments. Shown ABOVE the active task
   // list because if a user just submitted work, the most important thing
-  // they want to see is "yes admin got it" â€” followed by their pending value.
+  // they want to see is "yes admin got it" — followed by their pending value.
   const { data: myAssignments = [] } = useQuery<MyAssignmentRow[]>({
     queryKey: ['myAssignments', user?.id],
     queryFn: () => getMyPendingAssignments(),
@@ -220,7 +220,7 @@ export function Tasks() {
     <Layout userRole="army">
       <div className="max-w-2xl mx-auto pb-8">
         {/* ============================================================
-            REDDIT SETUP GATE â€” shown only when user has no Reddit account
+            REDDIT SETUP GATE — shown only when user has no Reddit account
             attached yet. Sits above everything (even referral hero) because
             without a Reddit account, payable tasks literally cannot run for
             this user. Tone is friendly when they explicitly deferred,
@@ -234,7 +234,7 @@ export function Tasks() {
         )}
 
         {/* ============================================================
-            REDDIT ACCOUNT FLAGGED BANNER â€” shown when the user HAS a
+            REDDIT ACCOUNT FLAGGED BANNER — shown when the user HAS a
             Reddit account but our most-recent sync detected it as
             suspended or not_found. Different visual from the setup
             banner: red tone, urgency copy, link to /account so they
@@ -270,7 +270,7 @@ export function Tasks() {
         )}
 
         {/* ============================================================
-            REJECTED ASSIGNMENTS â€” admin said redo (or rejected FINAL).
+            REJECTED ASSIGNMENTS — admin said redo (or rejected FINAL).
             Surface above pending and active so user can fix-and-retry
             FAST. Each row shows the admin's reason. Final rejections
             (can_retry=false) get a different "no retry" treatment.
@@ -343,7 +343,7 @@ export function Tasks() {
         )}
 
         {/* ============================================================
-            PENDING APPROVAL â€” submitted task_assignments waiting on admin
+            PENDING APPROVAL — submitted task_assignments waiting on admin
             review. Shows the value at risk so user knows their effort
             isn't lost. Updates every 30s.
         ============================================================= */}
@@ -420,7 +420,7 @@ export function Tasks() {
           </div>
         )}
         {/* ============================================================
-            ACTIVE TASKS â€” real tasks the user can claim RIGHT NOW.
+            ACTIVE TASKS — real tasks the user can claim RIGHT NOW.
             Server-side filtered by karma/age/category/per-account-limit.
             Sits above everything because cash-in-hand beats CRO.
         ============================================================= */}
@@ -481,7 +481,7 @@ export function Tasks() {
           </div>
         )}
 
-        {/* Empty state â€” Reddit setup OK but no eligible tasks right now. */}
+        {/* Empty state — Reddit setup OK but no eligible tasks right now. */}
         {!needsReddit && !tasksLoading && eligibleTasks.length === 0 && inProgressAssignments.length === 0 && pendingAssignments.length === 0 && (
           <Card className="mb-5 text-center py-6" padding="sm">
             <p className="font-bold text-sm">Belum ada task aktif buat kamu</p>
@@ -492,7 +492,7 @@ export function Tasks() {
         )}
 
         {/* ============================================================
-            PRIORITY #1 â€” REFERRAL HERO
+            PRIORITY #1 — REFERRAL HERO
             Highest CRO leverage: every share compounds. Big, friendly,
             with social-proof counters (already-earned + already-invited)
             so the user feels rewarded for past effort and motivated to
@@ -509,9 +509,9 @@ export function Tasks() {
         />
 
         {/* ============================================================
-            PRIORITY #2 â€” KARMA 101
+            PRIORITY #2 — KARMA 101
             Newbies don't know what Reddit/karma is. Educate first
-            (Apa â†’ Why â†’ Gimana), then show progress to next level.
+            (Apa ➡️ Why ➡️ Gimana), then show progress to next level.
             Collapsible so power users skip it.
         ============================================================= */}
         <KarmaSection
@@ -522,7 +522,7 @@ export function Tasks() {
         />
 
         {/* ============================================================
-            PRIORITY #3 â€” STREAK + WHATSAPP
+            PRIORITY #3 — STREAK + WHATSAPP
             Habit nudge + notification opt-in. WhatsApp dismissable
             so users who already joined aren't nagged forever.
         ============================================================= */}
@@ -541,7 +541,7 @@ export function Tasks() {
         )}
 
         {/* ============================================================
-            BELOW THE FOLD â€” task previews + helper cards
+            BELOW THE FOLD — task previews + helper cards
             FOMO mechanism stays. No fake numbers; locked overlay is
             honest ("Akan dialokasikan").
         ============================================================= */}
@@ -553,8 +553,8 @@ export function Tasks() {
         </div>
         <p className="text-xs text-muted mb-3 px-1">
           {needsReddit
-            ? 'Inilah jenis task & bayaran yang nunggu kamu. Selesaikan setup akun dulu â€” task real diumumkan di grup setelah unlock ðŸ‘‡'
-            : 'Inilah jenis task & bayaran yang biasanya muncul. Yang real diumumkan di grup ðŸ‘‡'}
+            ? 'Inilah jenis task & bayaran yang nunggu kamu. Selesaikan setup akun dulu — task real diumumkan di grup setelah unlock 👇'
+            : 'Inilah jenis task & bayaran yang biasanya muncul. Yang real diumumkan di grup 👇'}
         </p>
 
         <div className="space-y-2 mb-5">
@@ -572,7 +572,7 @@ export function Tasks() {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-[10px] font-bold uppercase tracking-wide text-muted">
-                      {task.type === 'upvote' ? 'ðŸ‘ Upvote' : 'ðŸ’¬ Komentar'}
+                      {task.type === 'upvote' ? '👍 Upvote' : '💬 Komentar'}
                     </span>
                     {(task as any).premium && (
                       <span className="text-[9px] font-extrabold uppercase tracking-wide bg-yellow-200 text-yellow-900 px-1.5 py-0.5 rounded">
@@ -615,7 +615,7 @@ export function Tasks() {
             </li>
             <li className="flex items-start gap-2">
               <TrendingUp size={16} className="text-warning shrink-0 mt-0.5" />
-              <span><b>Kualitas akun naik.</b> Level naik â†’ reward per task naik (Rp5K â†’ Rp20K).</span>
+              <span><b>Kualitas akun naik.</b> Level naik ➡️ reward per task naik (Rp5K ➡️ Rp20K).</span>
             </li>
           </ul>
         </Card>
@@ -640,8 +640,8 @@ function platformForTask(task: { title?: string | null; description?: string | n
 // Shown only when the user has no Reddit account attached. This is the
 // single biggest blocker between sign-up and earning, so we lead with it
 // above every other CTA. Two tones:
-//   â€¢ explicitlyDeferred â†’ warm "lanjutkan" framing (they chose to delay)
-//   â€¢ default            â†’ informative "selesaikan" framing (they dropped)
+//   • explicitlyDeferred ➡️ warm "lanjutkan" framing (they chose to delay)
+//   • default            ➡️ informative "selesaikan" framing (they dropped)
 // ============================================================
 function RedditSetupBanner({
   explicitlyDeferred, onResume,
@@ -665,7 +665,7 @@ function RedditSetupBanner({
         <h2 className="text-xl sm:text-2xl font-extrabold leading-tight mb-1 text-yellow-950">
           {explicitlyDeferred
             ? 'Yuk lanjutin setup akunmu'
-            : 'Setup akun kerja dulu â€” baru kamu bisa earn task'}
+            : 'Setup akun kerja dulu — baru kamu bisa earn task'}
         </h2>
         <p className="text-sm text-yellow-950/85 mb-3">
           {explicitlyDeferred
@@ -680,12 +680,12 @@ function RedditSetupBanner({
           size="lg"
           className="!bg-yellow-900 hover:!bg-yellow-950 !text-white"
         >
-          {explicitlyDeferred ? 'ðŸ”“ Lanjutkan Setup' : 'ðŸ”“ Setup Akun Sekarang'}
+          {explicitlyDeferred ? '🔓 Lanjutkan Setup' : '🔓 Setup Akun Sekarang'}
           <ArrowRight size={16} />
         </Button>
 
         <p className="text-[11px] text-yellow-950/70 mt-2 text-center">
-          Sambil nunggu, kamu masih bisa ajak teman â†’ tiap teman = +Rp20K masuk saldo (lihat di bawah)
+          Sambil nunggu, kamu masih bisa ajak teman ➡️ tiap teman = +Rp20K masuk saldo (lihat di bawah)
         </p>
       </div>
     </Card>
@@ -693,7 +693,7 @@ function RedditSetupBanner({
 }
 
 // ============================================================
-// REFERRAL HERO â€” priority #1
+// REFERRAL HERO — priority #1
 // ============================================================
 function ReferralHero({
   code, invitedCount, totalBonus, slotsLeft, totalFounding, isFull, ticker,
@@ -713,7 +713,7 @@ function ReferralHero({
     try {
       await navigator.clipboard.writeText(link);
       setCopied(true);
-      toast.success('Link tersalin â€” paste di chat / story');
+      toast.success('Link tersalin — paste di chat / story');
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error('Browser ga support copy. Tahan & copy manual.');
@@ -745,7 +745,7 @@ function ReferralHero({
           Berlaku selama slot founding 100 belum penuh.
         </p>
 
-        {/* Mini scarcity bar â€” replaces fake "live activity" claims */}
+        {/* Mini scarcity bar — replaces fake "live activity" claims */}
         <div className="mb-4">
           <div className="flex items-center justify-between text-[11px] mb-1 opacity-95">
             <span className="font-semibold">Founding terisi</span>
@@ -776,14 +776,14 @@ function ReferralHero({
           </div>
         </div>
 
-        {/* The code itself â€” tap to copy is the hero CTA */}
+        {/* The code itself — tap to copy is the hero CTA */}
         <button
           onClick={onCopy}
           className="w-full bg-white text-dark rounded-xl px-3 py-3 mb-2 flex items-center gap-3 hover:scale-[1.02] active:scale-[0.99] transition-transform shadow-md"
         >
           <div className="text-left flex-1 min-w-0">
             <p className="text-[10px] uppercase tracking-wide font-bold text-muted">Kode kamu</p>
-            <p className="font-extrabold text-lg tracking-wider truncate">{code ?? 'â€”'}</p>
+            <p className="font-extrabold text-lg tracking-wider truncate">{code ?? '—'}</p>
           </div>
           <div className="flex items-center gap-1 text-primary font-bold text-sm shrink-0">
             <Copy size={14} /> {copied ? 'Tersalin!' : 'Salin link'}
@@ -792,20 +792,20 @@ function ReferralHero({
 
         <SocialShare link={link} title="Share link kamu" />
 
-        {/* Live community ticker â€” small, only shown when real activity exists */}
+        {/* Live community ticker — small, only shown when real activity exists */}
         {ticker && (
           <div className="mt-3 bg-white/10 backdrop-blur rounded-xl px-3 py-2 flex items-center gap-2 text-xs animate-fade-in" key={ticker.at}>
             <div className="shrink-0 opacity-90">
-              {ticker.kind === 'signup' && 'ðŸ‘‹'}
-              {ticker.kind === 'payout' && 'ðŸ’¸'}
-              {ticker.kind === 'referral' && 'ðŸŽ'}
+              {ticker.kind === 'signup' && '👋'}
+              {ticker.kind === 'payout' && '💸'}
+              {ticker.kind === 'referral' && '🎁'}
             </div>
             <p className="leading-tight flex-1 min-w-0 truncate">
               <b>{ticker.who}</b>
               {ticker.kind === 'signup' && ' baru gabung'}
               {ticker.kind === 'payout' && ` cair Rp${ticker.amount?.toLocaleString('id-ID')}`}
               {ticker.kind === 'referral' && ` dapat referral Rp${ticker.amount?.toLocaleString('id-ID')}`}
-              <span className="opacity-70"> Â· {ticker.rel}</span>
+              <span className="opacity-70"> · {ticker.rel}</span>
             </p>
           </div>
         )}
@@ -815,7 +815,7 @@ function ReferralHero({
 }
 
 // ============================================================
-// KARMA 101 â€” priority #2
+// KARMA 101 — priority #2
 // ============================================================
 function KarmaSection({
   karma, level, accountAgeDays, onCta,
@@ -856,10 +856,10 @@ function KarmaSection({
         Bangun Karma Reddit
       </h2>
       <p className="text-sm text-muted mb-3">
-        Karma = "skor reputasi" kamu di Reddit. Makin tinggi â†’ reward per task makin gede.
+        Karma = "skor reputasi" kamu di Reddit. Makin tinggi ➡️ reward per task makin gede.
       </p>
 
-      {/* Current status â€” hero number */}
+      {/* Current status — hero number */}
       <div className="bg-gradient-to-br from-secondary/10 to-primary/10 rounded-xl p-3 mb-3">
         <div className="flex items-center gap-3">
           <div className="text-3xl">{currentLvl.emoji}</div>
@@ -894,17 +894,17 @@ function KarmaSection({
               />
             </div>
             <p className="text-xs text-muted mt-2">
-              Capai keduanya â†’ unlock <b>{nextLvl.emoji} {nextLvl.name}</b> (Rp{nextLvl.reward.toLocaleString('id-ID')}/task)
+              Capai keduanya ➡️ unlock <b>{nextLvl.emoji} {nextLvl.name}</b> (Rp{nextLvl.reward.toLocaleString('id-ID')}/task)
             </p>
           </>
         ) : (
           <p className="text-sm font-bold text-success mt-3">
-            ðŸ† Top tier â€” kamu di level tertinggi.
+            🏆 Top tier — kamu di level tertinggi.
           </p>
         )}
       </div>
 
-      {/* 101 â€” collapsible, default opens "Apa" for newbies */}
+      {/* 101 — collapsible, default opens "Apa" for newbies */}
       <div className="space-y-1.5 mb-3">
         <FaqItem
           icon={<HelpCircle size={16} className="text-primary" />}
@@ -914,11 +914,11 @@ function KarmaSection({
         >
           <p>
             Reddit itu kayak forum gede. Tiap kamu komen / posting, member lain bisa kasih
-            ðŸ‘ (upvote) atau ðŸ‘Ž (downvote).
+            👍 (upvote) atau 👎 (downvote).
           </p>
           <p className="mt-2">
             <b>Karma</b> = total upvote yang pernah kamu dapet. Kayak "skor kepercayaan".
-            Akun yang karma-nya tinggi dianggap lebih kredibel â€” komennya ga kena spam filter.
+            Akun yang karma-nya tinggi dianggap lebih kredibel — komennya ga kena spam filter.
           </p>
         </FaqItem>
 
@@ -930,7 +930,7 @@ function KarmaSection({
         >
           <p>3 alasan langsung pengaruh ke saldo:</p>
           <ul className="mt-2 space-y-1.5">
-            <li className="flex gap-2"><b className="text-primary shrink-0">1.</b> Reward per task naik. Level 0 = Rp5K. Level 5 = Rp20K. Selisih 4Ã—.</li>
+            <li className="flex gap-2"><b className="text-primary shrink-0">1.</b> Reward per task naik. Level 0 = Rp5K. Level 5 = Rp20K. Selisih 4×.</li>
             <li className="flex gap-2"><b className="text-primary shrink-0">2.</b> Task premium (Rp20K+) cuma buka buat level 4+.</li>
             <li className="flex gap-2"><b className="text-primary shrink-0">3.</b> Komen dari akun karma rendah sering kena auto-remove. Karma tinggi = aman.</li>
           </ul>
@@ -942,7 +942,7 @@ function KarmaSection({
           isOpen={openSection === 'how'}
           onToggle={() => setOpenSection(openSection === 'how' ? null : 'how')}
         >
-          <p>Newbie banget? Ikutin step ini, target 50â€“100 karma di minggu pertama:</p>
+          <p>Newbie banget? Ikutin step ini, target 50–100 karma di minggu pertama:</p>
           <ol className="mt-2 space-y-2">
             <li className="flex gap-2">
               <b className="text-primary shrink-0">1.</b>
@@ -954,7 +954,7 @@ function KarmaSection({
             <li className="flex gap-2">
               <b className="text-primary shrink-0">2.</b>
               <span>
-                Join 5â€“10 subreddit yang kamu suka (r/IndonesiaSemua, r/AskReddit, r/explainlikeimfive).
+                Join 5–10 subreddit yang kamu suka (r/IndonesiaSemua, r/AskReddit, r/explainlikeimfive).
                 Subreddit = komunitas berdasar topik.
               </span>
             </li>
@@ -962,19 +962,19 @@ function KarmaSection({
               <b className="text-primary shrink-0">3.</b>
               <span>
                 Lihat thread populer hari ini, komen yang <b>natural & helpful</b> (jangan promo, jangan
-                copy-paste). 1â€“2 kalimat aja udah cukup.
+                copy-paste). 1–2 kalimat aja udah cukup.
               </span>
             </li>
             <li className="flex gap-2">
               <b className="text-primary shrink-0">4.</b>
               <span>
-                Tunggu 1â€“2 jam. Komen yang bagus dapet upvote = karma naik. Konsisten 3â€“5 komen/hari
+                Tunggu 1–2 jam. Komen yang bagus dapet upvote = karma naik. Konsisten 3–5 komen/hari
                 = +50 karma dalam 1 minggu.
               </span>
             </li>
           </ol>
           <div className="mt-3 bg-warning/10 ring-1 ring-warning/30 rounded-lg p-2 text-xs">
-            <b>âš ï¸ Hindari:</b> komen "Nice", "Up", emoji doang, atau iklan. Itu ga dapet karma + bisa banned.
+            <b>⚠️ Hindari:</b> komen "Nice", "Up", emoji doang, atau iklan. Itu ga dapet karma + bisa banned.
           </div>
         </FaqItem>
       </div>
@@ -1003,7 +1003,7 @@ function ProgressRow({
         <span className="font-semibold text-muted">{label}</span>
         <span className="font-bold">
           {current.toLocaleString('id-ID')} / {target.toLocaleString('id-ID')} {unit}
-          {done && ' âœ“'}
+          {done && ' ✅'}
         </span>
       </div>
       <div className="h-2 bg-white rounded-full overflow-hidden ring-1 ring-black/5">
@@ -1047,7 +1047,7 @@ function FaqItem({
 }
 
 // ============================================================
-// STREAK â€” priority #3a
+// STREAK — priority #3a
 // ============================================================
 function StreakSection({
   streak, nextMilestone, milestoneProgress, daysToGo,
@@ -1066,7 +1066,7 @@ function StreakSection({
         <div className="flex-1 min-w-0">
           <p className="text-xs uppercase font-bold tracking-wide text-yellow-900/80">Streak harian</p>
           <p className="text-2xl font-extrabold leading-tight">
-            {streak} hari{streak >= 3 ? ' ðŸ”¥' : ''}
+            {streak} hari{streak >= 3 ? ' 🔥' : ''}
           </p>
         </div>
         <div className="text-right shrink-0">
@@ -1086,11 +1086,11 @@ function StreakSection({
       </div>
       {daysToGo > 0 ? (
         <p className="text-xs text-muted mt-2">
-          âš¡ {daysToGo} hari lagi â€” datang besok jangan sampai putus, lewat 1 hari = streak reset.
+          ⚡ {daysToGo} hari lagi — datang besok jangan sampai putus, lewat 1 hari = streak reset.
         </p>
       ) : (
         <p className="text-xs text-success font-bold mt-2">
-          ðŸŽ‰ Bonus Rp{nextMilestone.bonus.toLocaleString('id-ID')} unlocked! Hubungi admin di grup WA.
+          🎉 Bonus Rp{nextMilestone.bonus.toLocaleString('id-ID')} unlocked! Hubungi admin di grup WA.
         </p>
       )}
     </Card>
@@ -1098,7 +1098,7 @@ function StreakSection({
 }
 
 // ============================================================
-// WHATSAPP â€” priority #3b â€” dismissable forever
+// WHATSAPP — priority #3b — dismissable forever
 // ============================================================
 function WhatsAppSection({
   onDismiss, dismissing,
@@ -1111,7 +1111,7 @@ function WhatsAppSection({
       <button
         onClick={onDismiss}
         disabled={dismissing}
-        title="Sudah join â€” sembunyikan selamanya"
+        title="Sudah join — sembunyikan selamanya"
         aria-label="Sembunyikan link grup selamanya"
         className="absolute top-2 right-2 w-8 h-8 grid place-items-center rounded-full text-success/70 hover:bg-success/15 hover:text-success transition-colors disabled:opacity-50"
       >

@@ -199,7 +199,7 @@ export function TaskDetail() {
     ? !!proofImageUrl && !!assignmentId
     : !!proofUrl.trim() && !!submittedUsername.trim() && !!assignmentId && hasCommentText;
 
-  // ----- DONE STAGE â€” celebrate + nudge to the next high-value action -----
+  // ----- DONE STAGE — celebrate + nudge to the next high-value action -----
   if (stage === 'done') {
     return (
       <Layout userRole="army">
@@ -229,7 +229,7 @@ export function TaskDetail() {
             </p>
           </Card>
 
-          {/* 3 Next-action CTAs â€” ordered by earning leverage */}
+          {/* 3 Next-action CTAs — ordered by earning leverage */}
           <div className="space-y-2 mt-3">
             <button
               onClick={() => navigate('/tasks')}
@@ -291,7 +291,7 @@ export function TaskDetail() {
     );
   }
 
-  // ----- PREVIEW STAGE â€” only shown if user has MULTIPLE reddit accounts -----
+  // ----- PREVIEW STAGE — only shown if user has MULTIPLE reddit accounts -----
   // With the 1-account-per-user enforcement, this stage is auto-skipped via
   // the effect above. Kept here for legacy multi-account rows / admins.
   if (stage === 'preview' && accounts.length > 1) {
@@ -380,7 +380,7 @@ export function TaskDetail() {
     );
   }
 
-  // ----- SUBMIT STAGE â€” 3-step linear flow -----
+  // ----- SUBMIT STAGE — 3-step linear flow -----
   // Defensive: this default branch assumes we already have an active
   // assignment. If the auto-start effect is still waiting for the task to load
   // (e.g. a forum task with no linked Reddit account), show a loading state
@@ -435,7 +435,7 @@ export function TaskDetail() {
           </div>
         </Card>
 
-        {/* ============ STEP 1 â€” BUKA TARGET ============ */}
+        {/* ============ STEP 1 — BUKA TARGET ============ */}
         <StepCard
           num={1}
           done={threadOpened}
@@ -465,7 +465,7 @@ export function TaskDetail() {
           )}
         </StepCard>
 
-        {/* ============ STEP 2 â€” LAKUKAN TASK + EXAMPLE SCREENSHOT ============ */}
+        {/* ============ STEP 2 — LAKUKAN TASK + EXAMPLE SCREENSHOT ============ */}
         <StepCard
           num={2}
           done={false}
@@ -550,12 +550,12 @@ export function TaskDetail() {
             );
           })()}
 
-          {/* Example screenshot reference â€” visual mock so users know
+          {/* Example screenshot reference — visual mock so users know
               what counts as valid proof. CSS-only, no asset weight. */}
           <ExampleScreenshot isUpvote={isUpvote} />
         </StepCard>
 
-        {/* ============ STEP 3 â€” UPLOAD BUKTI ============ */}
+        {/* ============ STEP 3 — UPLOAD BUKTI ============ */}
         <StepCard
           num={3}
           done={false}
@@ -611,7 +611,7 @@ export function TaskDetail() {
             </label>
           )}
 
-          {/* For comment tasks â€” submitted URL + platform username are required, screenshot is optional. */}
+          {/* For comment tasks — submitted URL + platform username are required, screenshot is optional. */}
           {!isUpvote && (
             <>
               <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
@@ -658,7 +658,7 @@ export function TaskDetail() {
             </p>
           )}
 
-          {/* Submit button â€” desktop inline */}
+          {/* Submit button — desktop inline */}
           <div className="hidden sm:block mt-5">
             <Button
               onClick={() => submitMutation.mutate()}
@@ -699,7 +699,7 @@ export function TaskDetail() {
 }
 
 // ============================================================
-// StepCard â€” numbered step container with active / done states
+// StepCard — numbered step container with active / done states
 // ============================================================
 function StepCard({
   num, title, subtitle, active, done, children,
@@ -800,7 +800,7 @@ function memberSafePostingBrief(raw: string) {
 }
 
 // ============================================================
-// ExampleScreenshot â€” CSS-only visual mock of what valid proof
+// ExampleScreenshot — CSS-only visual mock of what valid proof
 // looks like. Saves an asset download + always matches our brand.
 // ============================================================
 function ExampleScreenshot({ isUpvote }: { isUpvote: boolean }) {
@@ -812,7 +812,7 @@ function ExampleScreenshot({ isUpvote }: { isUpvote: boolean }) {
       <div className="bg-white rounded-lg p-3 ring-1 ring-black/10 shadow-inner max-w-[280px] mx-auto">
         {isUpvote ? (
           <>
-            {/* Mock of Reddit upvote button â€” orange = upvoted */}
+            {/* Mock of Reddit upvote button — orange = upvoted */}
             <div className="flex items-start gap-2.5">
               <div className="flex flex-col items-center gap-1 shrink-0">
                 <div className="text-orange-500 text-2xl leading-none font-black animate-pulse">▲</div>

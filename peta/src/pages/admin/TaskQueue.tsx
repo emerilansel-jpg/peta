@@ -296,7 +296,7 @@ export function AdminTaskQueue() {
     setBulkImporting(false);
     queryClient.invalidateQueries({ queryKey: ['pendingRedditOrders'] });
     queryClient.invalidateQueries({ queryKey: ['adminTasks'] });
-    toast.success(`Import selesai: ${ok} sukses Â· ${fail} gagal`);
+    toast.success(`Import selesai: ${ok} sukses · ${fail} gagal`);
   };
 
   const filtered = tasks.filter((t) => filter === 'all' || t.status === filter);
@@ -1301,7 +1301,7 @@ function formatTaskDescription(t: TaskRow) {
         parsed.brand_name || parsed.brand_domain ? `Brand: ${parsed.brand_name || parsed.brand_domain}` : '',
         parsed.source_keyword ? `Keyword: ${parsed.source_keyword}` : '',
       ].filter(Boolean);
-      return pieces.join(' Â· ');
+      return pieces.join(' · ');
     }
   } catch {
     // Non-JSON descriptions are regular PeTa task copy.
