@@ -1,7 +1,11 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Plus, X, Download, ExternalLink, Zap, Pencil, Calendar, ClipboardList, ShieldCheck, Clock3, Users } from 'lucide-react';
+import { Plus, X, Download, ExternalLink, Zap, Pencil, Calendar, ClipboardList, ShieldCheck, Clock3, Users, GripVertical, Eye, EyeOff } from 'lucide-react';
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
@@ -30,7 +34,7 @@ const COMMENT_PRESETS = [5000, 8000, 11000, 14000, 17000, 20000];
 const UPVOTE_PRESETS  = [500, 1000, 1500, 2000];
 // LEVEL_OPTIONS removed; gates now use min_karma + min_age directly.
 
-type FilterKey = 'all' | 'draft' | 'active' | 'paused';
+type FilterKey = 'all' | 'draft' | 'active' | 'paused' | 'hidden';
 type TaskStatus = 'draft' | 'active' | 'paused' | 'completed';
 type TaskCategory = 'reddit_upvote' | 'reddit_comment' | 'reddit_post_thread' | 'forum_comment' | 'youtube_upload';
 
@@ -62,15 +66,170 @@ type TaskRow = {
   start_at: string | null;
   end_at: string | null;
   status: TaskStatus;
+  display_order: number;
+  is_hidden: boolean;
   source_order_id?: number | null;
 };
 
-const FILTERS: Array<[FilterKey, string, (tasks: TaskRow[], stats: { draft: number; active: number; paused: number }) => number]> = [
+const FILTERS: Array<[FilterKey, string, (tasks: TaskRow[], stats: { draft: number; active: number; paused: number; hidden: number }) => number]> = [
   ['all', 'Semua', (tasks) => tasks.length],
   ['draft', 'Draft', (_tasks, stats) => stats.draft],
   ['active', 'Aktif', (_tasks, stats) => stats.active],
   ['paused', 'Paused', (_tasks, stats) => stats.paused],
+  ['hidden', 'Hidden', (_tasks, stats) => stats.hidden],
 ];
+
+// Sortable task row for drag-and-drop reordering in the admin queue.
+function SortableTaskItem({
+  task,
+  onEdit,
+  onToggleStatus,
+  onToggleHidden,
+}: {
+  task: TaskRow;
+  onEdit: (t: TaskRow) => void;
+  onToggleStatus: (t: TaskRow) => void;
+  onToggleHidden: (t: TaskRow) => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: task.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    zIndex: isDragging ? 50 : 'auto',
+    position: 'relative' as const,
+  };
+
+  return (
+    <div ref={setNodeRef} style={style}>
+      <Card padding="sm" className={isDragging ? 'opacity-50 shadow-xl ring-2 ring-primary' : ''}>
+        <div className="flex items-start gap-2">
+          <button
+            {...attributes}
+            {...listeners}
+            className="tap-shrink mt-1 p-1 text-muted hover:text-dark rounded-lg hover:bg-light"
+            aria-label="Drag untuk reorder"
+            title="Drag untuk reorder"
+          >
+            <GripVertical size={18} />
+          </button>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-3 mb-2">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <span className="text-[10px] uppercase tracking-wide font-bold bg-light text-muted px-2 py-0.5 rounded-full">
+                    {formatTaskCategory(task)}
+                  </span>
+                  <span className={`text-[10px] uppercase tracking-wide font-bold px-2 py-0.5 rounded-full ${
+                    task.status === 'active' ? 'bg-success/15 text-success' :
+                    task.status === 'paused' ? 'bg-warning/15 text-warning' :
+                    task.status === 'completed' ? 'bg-light text-dark' : 'bg-light text-muted'
+                  }`}>
+                    {formatStatus(task.status)}
+                  </span>
+                  {task.is_hidden && (
+                    <span className="text-[10px] uppercase tracking-wide font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
+                      Hidden
+                    </span>
+                  )}
+                </div>
+                <p className="font-bold leading-snug">
+                  {task.title}
+                </p>
+                <p className="text-xs text-muted line-clamp-1">{formatTaskDescription(task)}</p>
+                {task.brief && task.brief.trim() && (
+                  <details className="mt-1.5">
+                    <summary className="text-[11px] font-bold text-warning bg-warning/10 px-2 py-0.5 rounded-full inline-flex items-center gap-1 cursor-pointer hover:bg-warning/20 list-none">
+                      Brief lengkap - klik buka
+                    </summary>
+                    <div className="mt-2 space-y-2">
+                      <div className="p-2.5 bg-yellow-50 ring-1 ring-yellow-200 rounded-lg text-xs whitespace-pre-line leading-relaxed text-yellow-950">
+                        <p className="font-extrabold uppercase text-[10px] mb-1">Comment/Post</p>
+                        {cleanInternalText(splitForumBrief(task.brief).commentPost || '-')}
+                      </div>
+                      <div className="p-2.5 bg-sky-50 ring-1 ring-sky-200 rounded-lg text-xs whitespace-pre-line leading-relaxed text-sky-950">
+                        <p className="font-extrabold uppercase text-[10px] mb-1">Standard Brief</p>
+                        {cleanInternalText(splitForumBrief(task.brief).standardBrief || '-')}
+                      </div>
+                      {(task.post_to_wa_group || Boolean(task.wa_group_draft?.trim())) && (
+                        <div className="p-2.5 bg-green-50 ring-1 ring-green-200 rounded-lg text-xs whitespace-pre-line leading-relaxed text-green-950">
+                          <p className="font-extrabold uppercase text-[10px] mb-1">
+                            Draft WA Group {task.post_to_wa_group ? '(siap dipost manual)' : '(preview)'}
+                          </p>
+                          {cleanInternalText(task.wa_group_draft || '-')}
+                        </div>
+                      )}
+                    </div>
+                  </details>
+                )}
+              </div>
+              <p className="text-lg font-extrabold text-primary money shrink-0">
+                Rp{task.reward_amount.toLocaleString('id-ID')}
+              </p>
+            </div>
+            <div className="mb-2">
+              <div className="h-1.5 rounded-full bg-light overflow-hidden">
+                <div
+                  className="h-full bg-primary"
+                  style={{ width: `${Math.min(100, Math.round((Number(task.current_assignments || 0) / Math.max(1, Number(task.max_assignments || 1))) * 100))}%` }}
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between text-xs gap-2 flex-wrap">
+              <div className="flex items-center gap-2 text-muted flex-wrap">
+                <span>{task.current_assignments}/{task.max_assignments} slots filled</span>
+                <span>-</span>
+                <span>{formatGate(task)}</span>
+                {(task.start_at || task.end_at) && (
+                  <span className="text-[10px] bg-light px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                    <Calendar size={10} />
+                    {task.start_at ? new Date(task.start_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '-'}
+                    {' to '}
+                    {task.end_at ? new Date(task.end_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '-'}
+                  </span>
+                )}
+                {task.source_order_id && (
+                  <span className="text-[10px] bg-warning/10 text-warning px-1.5 py-0.5 rounded-full font-bold">
+                    #B2B-{task.source_order_id}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => onEdit(task)}
+                  className="text-primary font-bold hover:underline flex items-center gap-1"
+                  title="Edit semua parameter"
+                >
+                  <Pencil size={12} /> Edit
+                </button>
+                <button
+                  onClick={() => onToggleStatus(task)}
+                  className="text-primary font-bold hover:underline"
+                >
+                  {task.status === 'active' ? 'Pause' : 'Activate'}
+                </button>
+                <button
+                  onClick={() => onToggleHidden(task)}
+                  className={`font-bold hover:underline flex items-center gap-1 ${task.is_hidden ? 'text-success' : 'text-muted'}`}
+                  title={task.is_hidden ? 'Tampilkan ke army' : 'Sembunyikan dari army'}
+                >
+                  {task.is_hidden ? <><Eye size={12} /> Tampilkan</> : <><EyeOff size={12} /> Sembunyikan</>}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </Card>
+    </div>
+  );
+}
 
 export function AdminTaskQueue() {
   const queryClient = useQueryClient();
@@ -131,7 +290,7 @@ export function AdminTaskQueue() {
   const { data: tasks = [], isLoading, refetch } = useQuery({
     queryKey: ['adminTasks'],
     queryFn: async () => {
-      const { data } = await supabase.from('tasks').select('*').order('created_at', { ascending: false });
+      const { data } = await supabase.from('tasks').select('*').order('display_order', { ascending: true }).order('created_at', { ascending: false });
       return (data || []) as TaskRow[];
     },
   });
@@ -181,7 +340,46 @@ export function AdminTaskQueue() {
     onError: (e: any) => toast.error(e?.message || 'Gagal update status'),
   });
 
-  // WA blast: call edge function to send task notifications via Fonnte
+  const toggleHidden = useMutation({
+    mutationFn: async ({ id, hidden }: { id: string; hidden: boolean }) => {
+      const { error } = await supabase.from('tasks').update({ is_hidden: hidden }).eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_data, vars) => {
+      toast.success(vars.hidden ? 'Task disembunyikan dari army' : 'Task ditampilkan kembali');
+      refetch();
+    },
+    onError: () => toast.error('Gagal update visibilitas'),
+  });
+
+  // Drag-and-drop sensors: pointer + touch so it works on desktop and mobile.
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = filtered.findIndex((t) => t.id === active.id);
+    const newIndex = filtered.findIndex((t) => t.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const reordered = arrayMove(filtered, oldIndex, newIndex);
+    // Persist new order for the visible tasks. Non-visible tasks keep their old order.
+    const updates = reordered.map((t, i) => ({
+      id: t.id,
+      display_order: (i + 1) * 1000,
+    }));
+    supabase.from('tasks').upsert(updates).then(({ error }) => {
+      if (error) {
+        toast.error('Gagal menyimpan urutan');
+      } else {
+        toast.success('Urutan task diupdate');
+        refetch();
+      }
+    });
+  };
   const sendTaskBlast = async (taskId: string, testMode: boolean, testPhone?: string) => {
     const { data: sessionData } = await supabase.auth.getSession();
     const token = sessionData.session?.access_token;
@@ -300,10 +498,15 @@ export function AdminTaskQueue() {
     toast.success(`Import selesai: ${ok} sukses · ${fail} gagal`);
   };
 
-  const filtered = tasks.filter((t) => filter === 'all' || t.status === filter);
-  const activeCount = tasks.filter((t) => t.status === 'active').length;
-  const draftCount = tasks.filter((t) => t.status === 'draft').length;
-  const pausedCount = tasks.filter((t) => t.status === 'paused').length;
+  const filtered = tasks.filter((t) => {
+    if (filter === 'all') return true;
+    if (filter === 'hidden') return t.is_hidden;
+    return t.status === filter && !t.is_hidden;
+  });
+  const activeCount = tasks.filter((t) => t.status === 'active' && !t.is_hidden).length;
+  const draftCount = tasks.filter((t) => t.status === 'draft' && !t.is_hidden).length;
+  const pausedCount = tasks.filter((t) => t.status === 'paused' && !t.is_hidden).length;
+  const hiddenCount = tasks.filter((t) => t.is_hidden).length;
   const openSlots = tasks.reduce((sum, t) => sum + Math.max(0, Number(t.max_assignments || 0) - Number(t.current_assignments || 0)), 0);
 
   return (
@@ -408,7 +611,7 @@ export function AdminTaskQueue() {
               filter === k ? 'bg-primary text-white' : 'bg-white ring-1 ring-border text-muted'
             }`}
           >
-            {l} ({getCount(tasks, { draft: draftCount, active: activeCount, paused: pausedCount })})
+            {l} ({getCount(tasks, { draft: draftCount, active: activeCount, paused: pausedCount, hidden: hiddenCount })})
           </button>
         ))}
       </div>
@@ -422,114 +625,36 @@ export function AdminTaskQueue() {
           <p className="text-sm text-muted mb-4">Klik "Task Baru" untuk mulai.</p>
         </Card>
       ) : (
-        <div className="space-y-2">
-          {filtered.map((t) => (
-            <Card key={t.id} padding="sm">
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className="text-[10px] uppercase tracking-wide font-bold bg-light text-muted px-2 py-0.5 rounded-full">
-                      {formatTaskCategory(t)}
-                    </span>
-                    <span className={`text-[10px] uppercase tracking-wide font-bold px-2 py-0.5 rounded-full ${
-                      t.status === 'active' ? 'bg-success/15 text-success' :
-                      t.status === 'paused' ? 'bg-warning/15 text-warning' :
-                      t.status === 'completed' ? 'bg-light text-dark' : 'bg-light text-muted'
-                    }`}>
-                      {formatStatus(t.status)}
-                    </span>
-                  </div>
-                  <p className="font-bold leading-snug">
-                    {t.title}
-                  </p>
-                  <p className="text-xs text-muted line-clamp-1">{formatTaskDescription(t)}</p>
-                  {t.brief && t.brief.trim() && (
-                    // Brief preview, collapsible details so admin can scan + expand to verify
-                    // what army members are seeing. Important for comment/post tasks where
-                    // instructions need to be exactly right.
-                    <details className="mt-1.5">
-                      <summary className="text-[11px] font-bold text-warning bg-warning/10 px-2 py-0.5 rounded-full inline-flex items-center gap-1 cursor-pointer hover:bg-warning/20 list-none">
-                        Brief lengkap - klik buka
-                      </summary>
-                      <div className="mt-2 space-y-2">
-                        <div className="p-2.5 bg-yellow-50 ring-1 ring-yellow-200 rounded-lg text-xs whitespace-pre-line leading-relaxed text-yellow-950">
-                          <p className="font-extrabold uppercase text-[10px] mb-1">Comment/Post</p>
-                          {cleanInternalText(splitForumBrief(t.brief).commentPost || '-')}
-                        </div>
-                        <div className="p-2.5 bg-sky-50 ring-1 ring-sky-200 rounded-lg text-xs whitespace-pre-line leading-relaxed text-sky-950">
-                          <p className="font-extrabold uppercase text-[10px] mb-1">Standard Brief</p>
-                          {cleanInternalText(splitForumBrief(t.brief).standardBrief || '-')}
-                        </div>
-                        {(t.post_to_wa_group || Boolean(t.wa_group_draft?.trim())) && (
-                          <div className="p-2.5 bg-green-50 ring-1 ring-green-200 rounded-lg text-xs whitespace-pre-line leading-relaxed text-green-950">
-                            <p className="font-extrabold uppercase text-[10px] mb-1">
-                              Draft WA Group {t.post_to_wa_group ? '(siap dipost manual)' : '(preview)'}
-                            </p>
-                            {cleanInternalText(t.wa_group_draft || '-')}
-                          </div>
-                        )}
-                      </div>
-                    </details>
-                  )}
-                </div>
-                <p className="text-lg font-extrabold text-primary money shrink-0">
-                  Rp{t.reward_amount.toLocaleString('id-ID')}
-                </p>
-              </div>
-              <div className="mb-2">
-                <div className="h-1.5 rounded-full bg-light overflow-hidden">
-                  <div
-                    className="h-full bg-primary"
-                    style={{ width: `${Math.min(100, Math.round((Number(t.current_assignments || 0) / Math.max(1, Number(t.max_assignments || 1))) * 100))}%` }}
-                  />
-                </div>
-              </div>
-              <div className="flex items-center justify-between text-xs gap-2 flex-wrap">
-                <div className="flex items-center gap-2 text-muted flex-wrap">
-                  <span>{t.current_assignments}/{t.max_assignments} slots filled</span>
-                  <span>-</span>
-                  <span>{formatGate(t)}</span>
-                  {(t.start_at || t.end_at) && (
-                    <span className="text-[10px] bg-light px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                      <Calendar size={10} />
-                      {t.start_at ? new Date(t.start_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '-'}
-                      {' to '}
-                      {t.end_at ? new Date(t.end_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }) : '-'}
-                    </span>
-                  )}
-                  {t.source_order_id && (
-                    <span className="text-[10px] bg-warning/10 text-warning px-1.5 py-0.5 rounded-full font-bold">
-                      #B2B-{t.source_order_id}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => openEdit(t)}
-                    className="text-primary font-bold hover:underline flex items-center gap-1"
-                    title="Edit semua parameter"
-                  >
-                    <Pencil size={12} /> Edit
-                  </button>
-                  <button
-                    onClick={() => {
-                      if (t.status === 'draft') {
-                        setBlastTask(t);
-                        setBlastMode('blast');
-                        setBlastTestPhone('');
-                      } else {
-                        toggleStatus.mutate({ id: t.id, status: t.status === 'active' ? 'paused' : 'active' });
-                      }
-                    }}
-                    className="text-primary font-bold hover:underline"
-                  >
-                    {t.status === 'active' ? 'Pause' : 'Activate'}
-                  </button>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={filtered.map((t) => t.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className="space-y-2">
+              {filtered.map((t) => (
+                <SortableTaskItem
+                  key={t.id}
+                  task={t}
+                  onEdit={openEdit}
+                  onToggleStatus={(task) => {
+                    if (task.status === 'draft') {
+                      setBlastTask(task);
+                      setBlastMode('blast');
+                      setBlastTestPhone('');
+                    } else {
+                      toggleStatus.mutate({ id: task.id, status: task.status === 'active' ? 'paused' : 'active' });
+                    }
+                  }}
+                  onToggleHidden={(task) => toggleHidden.mutate({ id: task.id, hidden: !task.is_hidden })}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {/* Bottom sheet: create task */}
