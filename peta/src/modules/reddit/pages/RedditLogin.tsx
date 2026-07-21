@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft, Loader2, Lock, Shield } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -7,11 +7,12 @@ import { getStraightRegistrationMode } from '../lib/api';
 
 export function RedditLogin() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const emailRef = useRef<HTMLInputElement>(null);
+  const passwordRef = useRef<HTMLInputElement>(null);
   const [showPwd, setShowPwd] = useState(false);
   const [loading, setLoading] = useState(false);
   const [regMode, setRegMode] = useState<'signup' | 'waitlist' | null>(null);
+  const [armyError, setArmyError] = useState(false);
 
   useEffect(() => {
     getStraightRegistrationMode()
@@ -21,11 +22,21 @@ export function RedditLogin() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setArmyError(false);
+
+    const email = emailRef.current?.value.trim().toLowerCase() || '';
+    const password = passwordRef.current?.value || '';
+
+    if (!email || !password) {
+      toast.error('Please enter your email and password.');
+      return;
+    }
+
     setLoading(true);
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim().toLowerCase(),
+        email,
         password,
       });
 
@@ -38,6 +49,15 @@ export function RedditLogin() {
         .select('role')
         .eq('id', data.user.id)
         .single();
+
+      // Army users don't belong in the Straight Ltd dashboard.
+      // Sign them out and surface a clear CTA to the PeTa login.
+      if (profile?.role === 'army') {
+        await supabase.auth.signOut();
+        setArmyError(true);
+        toast.error('This account is a PeTa Army account. Use the PeTa login instead.');
+        return;
+      }
 
       toast.success('Welcome back!');
       if (profile?.role === 'admin') {
@@ -75,13 +95,28 @@ export function RedditLogin() {
           <h1 className="text-2xl font-bold text-slate-900 mt-6">Welcome back</h1>
           <p className="text-sm text-slate-600 mt-1">Sign in to your account</p>
 
-          <form onSubmit={handleLogin} className="space-y-4">
+          {armyError && (
+            <div className="mt-4 p-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 text-sm">
+              <p className="font-semibold text-amber-900 mb-1">This is a PeTa Army account</p>
+              <p className="text-amber-800">
+                Straight Ltd is for clients. Please log in at{' '}
+                <a href="https://www.penghasilantambahan.com/login" className="font-bold underline text-amber-900">
+                  penghasilantambahan.com/login
+                </a>
+                .
+              </p>
+            </div>
+          )}
+
+          <form onSubmit={handleLogin} className="space-y-4 mt-6">
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">Email</label>
               <input
+                ref={emailRef}
                 type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                name="email"
+                autoComplete="username"
+                defaultValue=""
                 placeholder="you@agency.com"
                 className="w-full px-3.5 py-2.5 rounded-lg ring-1 ring-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-900"
                 required
@@ -95,9 +130,11 @@ export function RedditLogin() {
               </div>
               <div className="relative">
                 <input
+                  ref={passwordRef}
                   type={showPwd ? 'text' : 'password'}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  name="password"
+                  autoComplete="current-password"
+                  defaultValue=""
                   placeholder="Your password"
                   className="w-full px-3.5 py-2.5 pr-10 rounded-lg ring-1 ring-slate-300 focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-900"
                   required
