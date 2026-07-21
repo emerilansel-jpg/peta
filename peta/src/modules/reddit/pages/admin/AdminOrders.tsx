@@ -50,6 +50,8 @@ type AdminOrderRecord = {
   cost_credits: number;
   created_at: string;
   completed_at?: string | null;
+  cancelled_at?: string | null;
+  cancel_reason?: string | null;
   notes: string | null;
   admin_notes?: string | null;
   delivery_proof_text?: string | null;
@@ -435,6 +437,7 @@ function OrderEditModal({
     order.delivered_upvotes ? String(order.delivered_upvotes) : ''
   );
   const [adminNotes, setAdminNotes] = useState(order.admin_notes || '');
+  const [cancelReason, setCancelReason] = useState(order.cancel_reason || '');
   const [proofText, setProofText] = useState(order.delivery_proof_text || '');
   const [proofUrl, setProofUrl] = useState(order.delivery_proof_url || '');
   const [proofFile, setProofFile] = useState<File | null>(null);
@@ -474,8 +477,12 @@ function OrderEditModal({
         delivery_proof_url: proofMode !== 'text' ? finalProofUrl : null,
       };
 
+      if (status === 'cancelled') {
+        updates.cancel_reason = cancelReason.trim() || null;
+      }
+
       await updateOrderDetail(order.id, updates);
-      toast.success('Order updated' + (status === 'completed' ? ' · client will be notified' : ''));
+      toast.success('Order updated' + (status === 'completed' ? ' · client will be notified' : status === 'cancelled' ? ' · refund processed automatically' : ''));
       onSaved();
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : 'Failed to update');
@@ -576,9 +583,37 @@ function OrderEditModal({
               <option value="pending">Pending — awaiting our review</option>
               <option value="processing">Processing — delivery in progress</option>
               <option value="completed">Completed — delivery done</option>
-              <option value="cancelled">Cancelled — refund manually if needed</option>
+              <option value="cancelled">Cancelled — credits refunded automatically</option>
             </select>
           </div>
+
+          {status === 'cancelled' && (
+            <div className="p-4 rounded-xl bg-rose-50 ring-1 ring-rose-100 space-y-3">
+              <div>
+                <label className="block text-sm font-semibold text-slate-700 mb-1">
+                  Cancellation reason <span className="text-rose-600">*</span>
+                </label>
+                <textarea
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  rows={2}
+                  placeholder="Why is this order being cancelled? (visible in refund audit)"
+                  className="w-full px-3.5 py-2.5 rounded-lg ring-1 ring-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500 resize-none text-slate-900 bg-white"
+                />
+              </div>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
+                <span>Total paid: {formatUSD(order.cost_credits)}</span>
+                <span>Delivered: {order.delivered_upvotes} / {order.requested_upvotes}</span>
+                <span className="font-semibold text-rose-700">
+                  Refund amount: {formatUSD(
+                    order.delivered_upvotes >= order.requested_upvotes
+                      ? 0
+                      : (order.requested_upvotes - order.delivered_upvotes) * order.cost_credits / order.requested_upvotes
+                  )}
+                </span>
+              </div>
+            </div>
+          )}
 
           {!isSingleUnitOrder && (
           <div>
@@ -728,7 +763,7 @@ function OrderEditModal({
           </button>
           <button
             onClick={handleSave}
-            disabled={saving}
+            disabled={saving || (status === 'cancelled' && !cancelReason.trim())}
             className="flex-1 px-4 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold inline-flex items-center justify-center gap-2"
           >
             {saving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}

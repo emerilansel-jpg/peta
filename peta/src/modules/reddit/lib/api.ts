@@ -1204,6 +1204,8 @@ export async function updateOrderDetail(
     admin_notes: string;
     delivery_proof_text: string;
     delivery_proof_url: string;
+    cancel_reason: string;
+    cancelled_at: string;
   }>
 ) {
   const payload: any = { ...updates, updated_at: new Date().toISOString() };

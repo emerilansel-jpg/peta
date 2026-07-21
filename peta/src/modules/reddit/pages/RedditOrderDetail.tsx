@@ -12,6 +12,7 @@ import {
   XCircle,
   Star,
   Sparkles,
+  AlertOctagon,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { RedditLayout } from '../components/RedditLayout';
@@ -23,12 +24,41 @@ import {
   markTicketRead,
   hasReviewedOrder,
   formatUSD,
+  updateOrderDetail,
 } from '../lib/api';
 import { MessageBubble } from './admin/AdminTickets';
 import { ReviewRequestModal } from '../components/ReviewRequestModal';
 import { EmailWhitelistNotice } from '../components/EmailWhitelistNotice';
 import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 import { cleanInternalText } from '../../../lib/internalText';
+
+const CANCEL_WINDOW_MS = 6 * 60 * 60 * 1000; // 6 hours
+
+function getClientCancelState(order: RedditOrderRecord) {
+  if (order.status === 'cancelled') {
+    return { cancelable: false, remainingMs: 0, reason: 'Order already cancelled' };
+  }
+  if (order.status === 'completed') {
+    return { cancelable: false, remainingMs: 0, reason: 'Order already completed' };
+  }
+  if (order.delivered_upvotes >= order.requested_upvotes) {
+    return { cancelable: false, remainingMs: 0, reason: 'Order already fully delivered' };
+  }
+  const elapsed = Date.now() - new Date(order.created_at).getTime();
+  const remaining = CANCEL_WINDOW_MS - elapsed;
+  if (remaining <= 0) {
+    return { cancelable: false, remainingMs: 0, reason: 'Cancellation window closed (6 hours)' };
+  }
+  return { cancelable: true, remainingMs: remaining, reason: '' };
+}
+
+function formatCountdown(ms: number) {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  return `${h}h ${m}m ${s}s`;
+}
 
 type RedditOrderRecord = {
   id: number;
@@ -41,6 +71,8 @@ type RedditOrderRecord = {
   cost_credits: number;
   created_at: string;
   completed_at?: string | null;
+  cancelled_at?: string | null;
+  cancel_reason?: string | null;
   notes: string | null;
   delivery_proof_text?: string | null;
   delivery_proof_url?: string | null;
@@ -78,7 +110,7 @@ const STATUS_CONFIG: Record<string, { label: string; class: string; icon: Elemen
     label: 'Cancelled',
     class: 'bg-rose-50 text-rose-700 ring-rose-200',
     icon: XCircle,
-    desc: 'Order was cancelled. Credits have been refunded if applicable.',
+    desc: 'Order was cancelled and unused credits were automatically refunded.',
   },
 };
 
@@ -129,7 +161,7 @@ function serviceMeta(order: RedditOrderRecord) {
         pending: 'Our team is reviewing your comment brief and target page.',
         processing: 'We are preparing or placing your forum comment.',
         completed: 'Comment placement is complete. Thanks for choosing Straight Ltd.',
-        cancelled: 'Order was cancelled. Credits have been refunded if applicable.',
+        cancelled: 'Order was cancelled and unused credits were automatically refunded.',
       } as Record<string, string>,
     };
   }
@@ -143,7 +175,7 @@ function serviceMeta(order: RedditOrderRecord) {
         pending: 'Our team is reviewing your upload details.',
         processing: 'We are uploading your video to a YouTube channel.',
         completed: 'Video upload is complete. You will receive the YouTube URL as proof.',
-        cancelled: 'Order was cancelled. Credits have been refunded if applicable.',
+        cancelled: 'Order was cancelled and unused credits were automatically refunded.',
       } as Record<string, string>,
     };
   }
@@ -170,7 +202,44 @@ export function RedditOrderDetail() {
   const [sending, setSending] = useState(false);
   const [hasReviewed, setHasReviewed] = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
+  const [cancelCountdown, setCancelCountdown] = useState(0);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const cancelState = order ? getClientCancelState(order) : { cancelable: false, remainingMs: 0, reason: '' };
+
+  useEffect(() => {
+    if (!cancelState.cancelable) return;
+    setCancelCountdown(cancelState.remainingMs);
+    const timer = setInterval(() => {
+      setCancelCountdown((prev) => {
+        const next = prev - 1000;
+        return next > 0 ? next : 0;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cancelState.cancelable, cancelState.remainingMs]);
+
+  const handleCancelOrder = async () => {
+    if (!order || !cancelReason.trim()) return;
+    setCancelling(true);
+    try {
+      await updateOrderDetail(order.id, {
+        status: 'cancelled',
+        cancel_reason: cancelReason.trim(),
+      });
+      toast.success('Order cancelled — unused credits have been refunded');
+      setShowCancelModal(false);
+      setCancelReason('');
+      await load();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to cancel order');
+    } finally {
+      setCancelling(false);
+    }
+  };
 
   const load = async () => {
     if (!orderId) return;
@@ -481,6 +550,18 @@ export function RedditOrderDetail() {
                     <p className="font-medium">{new Date(order.completed_at).toLocaleString('en-US')}</p>
                   </div>
                 )}
+                {order.status === 'cancelled' && order.cancelled_at && (
+                  <div>
+                    <p className="text-xs text-slate-500">Cancelled</p>
+                    <p className="font-medium">{new Date(order.cancelled_at).toLocaleString('en-US')}</p>
+                  </div>
+                )}
+                {order.status === 'cancelled' && order.cancel_reason && (
+                  <div className="pt-3 border-t border-slate-200">
+                    <p className="text-xs text-slate-500">Cancellation reason</p>
+                    <p className="text-sm text-slate-700 italic mt-0.5">"{order.cancel_reason}"</p>
+                  </div>
+                )}
                 {parsedNotes.commentText && (
                   <div className="pt-3 border-t border-slate-200">
                     <p className="text-xs text-slate-500">Final comment</p>
@@ -514,6 +595,37 @@ export function RedditOrderDetail() {
               </div>
             </div>
 
+            {/* Client self-cancellation window */}
+            {cancelState.cancelable && (
+              <div className="p-5 rounded-2xl bg-rose-50 ring-1 ring-rose-200">
+                <h3 className="font-semibold text-sm text-slate-900 mb-1">Want to cancel this order?</h3>
+                <p className="text-xs text-slate-600 mb-3">
+                  You can cancel automatically within <strong className="text-slate-900">6 hours</strong> of placing the order.
+                  {order.requested_upvotes > 1
+                    ? ' Unused credits will be refunded pro-rata based on what has not been delivered.'
+                    : ' Your payment will be fully refunded as long as nothing has been delivered.'}
+                </p>
+                <p className="text-xs font-medium text-rose-700 mb-3">
+                  Window closes in: {formatCountdown(cancelCountdown)}
+                </p>
+                <button
+                  onClick={() => setShowCancelModal(true)}
+                  className="w-full px-4 py-2 rounded-lg bg-rose-100 text-rose-700 hover:bg-rose-200 font-semibold text-sm inline-flex items-center justify-center gap-2"
+                >
+                  <AlertOctagon size={14} />
+                  Cancel order
+                </button>
+              </div>
+            )}
+            {!cancelState.cancelable && order.status !== 'cancelled' && order.status !== 'completed' && (
+              <div className="p-4 rounded-2xl bg-slate-50 ring-1 ring-slate-200">
+                <p className="text-xs text-slate-500">
+                  <strong className="text-slate-700">Cancellation window closed.</strong> {cancelState.reason}
+                  Contact support if you still need help.
+                </p>
+              </div>
+            )}
+
             <div className="p-5 rounded-2xl bg-slate-50 ring-1 ring-slate-200">
               <h3 className="font-semibold text-sm text-slate-900 mb-2">Need help?</h3>
               <p className="text-xs text-slate-600">
@@ -539,6 +651,54 @@ export function RedditOrderDetail() {
             setHasReviewed(true);
           }}
         />
+      )}
+
+      {showCancelModal && order && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowCancelModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-rose-100 flex items-center justify-center shrink-0">
+                <AlertOctagon size={20} className="text-rose-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Cancel order #{order.id}?</h3>
+                <p className="text-sm text-slate-600 mt-1">
+                  {order.requested_upvotes > 1
+                    ? 'Unused credits will be refunded pro-rata based on undelivered work.'
+                    : 'Your payment will be fully refunded as long as nothing has been delivered.'}
+                </p>
+              </div>
+            </div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">
+              Reason for cancellation <span className="text-rose-600">*</span>
+            </label>
+            <textarea
+              value={cancelReason}
+              onChange={(e) => setCancelReason(e.target.value)}
+              rows={3}
+              placeholder="e.g. Changed my mind, ordered the wrong URL, etc."
+              className="w-full px-3.5 py-2.5 rounded-lg ring-1 ring-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-500 resize-none text-slate-900 bg-white mb-4"
+            />
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => setShowCancelModal(false)}
+                disabled={cancelling}
+                className="px-4 py-2 rounded-lg text-slate-700 hover:bg-slate-100 font-semibold text-sm"
+              >
+                Back
+              </button>
+              <button
+                onClick={handleCancelOrder}
+                disabled={!cancelReason.trim() || cancelling}
+                className="px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 text-white font-semibold text-sm inline-flex items-center gap-2"
+              >
+                {cancelling ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
+                Confirm cancellation
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </RedditLayout>
   );
