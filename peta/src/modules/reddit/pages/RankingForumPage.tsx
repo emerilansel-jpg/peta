@@ -89,7 +89,7 @@ function readRankingDraft(): Partial<RankingDraft> | null {
 
 export function RankingForumPage() {
   const navigate = useNavigate();
-  const { balance } = useRedditCredits();
+  const { balance, refetchBalance } = useRedditCredits();
   const { createForumCommentOrderAsync, isCreatingForumCommentOrder } = useRedditOrders();
   const [initialDraft] = useState<Partial<RankingDraft> | null>(() => readRankingDraft());
   const [seed, setSeed] = useState(initialDraft?.seed || '');
@@ -113,6 +113,7 @@ export function RankingForumPage() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [placedCount, setPlacedCount] = useState(0);
   const [pricing, setPricing] = useState<StraightPricingRow[]>([]);
+  const [submittingOrders, setSubmittingOrders] = useState(false);
 
   // Comment costs come from the admin pricing matrix (per platform + plain/link),
   // with hardcoded fallbacks if the table isn't available yet.
@@ -342,32 +343,59 @@ export function RankingForumPage() {
   };
 
   const placeOrders = async () => {
-    if (!hasEnoughCreditForBulk || !selectedForumUrls.length || !commentReady) return;
+    if (!selectedForumUrls.length || !commentReady) return;
+    setSubmittingOrders(true);
     try {
-      const orders = await Promise.all(selectedForumUrls.map((target) => {
+      const refreshed = await refetchBalance();
+      const freshBalance = refreshed.data ?? balance ?? 0;
+      if (disabledSelected.length > 0) {
+        toast.error('Some selected pages use a service that is currently turned off. Remove them first.');
+        return;
+      }
+      if (freshBalance < selectedUrlCost) {
+        toast.error(`You need ${formatUSD(Math.max(0, selectedUrlCost - freshBalance))} more credit before ordering this queue.`);
+        return;
+      }
+
+      const placed: unknown[] = [];
+      for (const target of selectedForumUrls) {
         const text = wantsSuggestion ? (drafts[target.url] || '').trim() : commentText.trim();
-        return createForumCommentOrderAsync({
-          targetUrl: target.url,
-          platform: target.platform || null,
-          commentText: text,
-          useSuggestedComment: !!wantsSuggestion,
-          brandName: brand.trim() || null,
-          brandDomain: domain.trim() || null,
-          brandMentionMode: wantsSuggestion ? mentionMode : null,
-          sourceKeyword: target.keyword || primaryKeyword || null,
-          notes: [
-            'bulk_source=ranking_forum',
-            `bulk_target_title=${target.title}`,
-            wantsSuggestion ? 'comment=ai_unique_per_page' : 'comment=client_guideline_unique_per_thread',
-          ].join('\n'),
-        });
-      }));
-      setPlacedCount(orders.length);
+        try {
+          const order = await createForumCommentOrderAsync({
+            targetUrl: target.url,
+            platform: target.platform || null,
+            commentText: text,
+            useSuggestedComment: !!wantsSuggestion,
+            brandName: brand.trim() || null,
+            brandDomain: domain.trim() || null,
+            brandMentionMode: wantsSuggestion ? mentionMode : null,
+            sourceKeyword: target.keyword || primaryKeyword || null,
+            notes: [
+              'bulk_source=ranking_forum',
+              `bulk_target_title=${target.title}`,
+              wantsSuggestion ? 'comment=ai_unique_per_page' : 'comment=client_guideline_unique_per_thread',
+            ].join('\n'),
+          });
+          placed.push(order);
+        } catch (err) {
+          const baseMessage = err instanceof Error ? err.message : 'Failed to place orders';
+          throw new Error(
+            placed.length > 0
+              ? `${placed.length} order${placed.length === 1 ? '' : 's'} placed before the queue stopped: ${baseMessage}`
+              : baseMessage
+          );
+        }
+      }
+
+      setPlacedCount(placed.length);
       window.localStorage.removeItem(RANKING_DRAFT_KEY);
-      toast.success(`${orders.length} comment order${orders.length === 1 ? '' : 's'} placed.`);
+      toast.success(`${placed.length} comment order${placed.length === 1 ? '' : 's'} placed.`);
       setShowSuccess(true);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to place orders');
+    } finally {
+      await refetchBalance();
+      setSubmittingOrders(false);
     }
   };
 
@@ -813,7 +841,7 @@ export function RankingForumPage() {
                   You need {formatUSD(Math.max(0, selectedUrlCost - balance))} more credit before ordering this queue.
                 </div>
               )}
-              <button onClick={placeOrders} disabled={!hasEnoughCreditForBulk || !commentReady || isCreatingForumCommentOrder} className="mt-5 w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-semibold">
+              <button onClick={placeOrders} disabled={!hasEnoughCreditForBulk || !commentReady || isCreatingForumCommentOrder || submittingOrders} className="mt-5 w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-semibold">
                 {isCreatingForumCommentOrder ? (<><Loader2 size={16} className="animate-spin" />Placing...</>) : (<>{`Place ${selectedForumUrls.length} comment order${selectedForumUrls.length === 1 ? '' : 's'}`}<ArrowRight size={14} /></>)}
               </button>
               {!commentReady && (

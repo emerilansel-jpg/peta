@@ -4,7 +4,12 @@ import { getCreditsBalance, getCreditsHistory } from '../lib/api';
 export function useRedditCredits() {
   const queryClient = useQueryClient();
 
-  const { data: balance, isLoading, error } = useQuery({
+  const {
+    data: balance,
+    isLoading,
+    error,
+    refetch: refetchBalance,
+  } = useQuery({
     queryKey: ['reddit', 'credits', 'balance'],
     queryFn: () => getCreditsBalance(),
     refetchInterval: 5000,
@@ -25,5 +30,6 @@ export function useRedditCredits() {
     isLoading,
     error,
     refetch,
+    refetchBalance,
   };
 }
