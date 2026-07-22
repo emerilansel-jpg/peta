@@ -402,7 +402,7 @@ function RedditUpvoteOrderForm({ onBack }: { onBack: () => void }) {
   let targetHost = '';
   try { targetHost = new URL(threadUrl.trim()).hostname.replace(/^www\./, ''); } catch { targetHost = ''; }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!upvoteEnabled) {
       toast.error(`Upvotes for ${platform === 'reddit' ? 'Reddit' : 'this platform'} are paused right now.`);
@@ -727,8 +727,8 @@ function ForumCommentOrderForm({
   bulkTargets?: BulkForumTarget[];
 }) {
   const navigate = useNavigate();
-  const { balance } = useRedditCredits();
-  const { createForumCommentOrder, createForumCommentOrderAsync, isCreatingForumCommentOrder } = useRedditOrders();
+  const { balance, refetchBalance } = useRedditCredits();
+  const { createForumCommentOrder, createForumCommentOrdersBulkAsync, isCreatingForumCommentOrder, isCreatingForumCommentOrdersBulk } = useRedditOrders();
   const pricing = useStraightPricing();
 
   const [targetUrl, setTargetUrl] = useState(prefillUrl || bulkTargets[0]?.url || '');
@@ -877,7 +877,7 @@ function ForumCommentOrderForm({
     setGenerationMeta(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!commentEnabled) {
       toast.error('Comment placement is paused right now.');
@@ -902,34 +902,46 @@ function ForumCommentOrderForm({
 
     if (isBulk) {
       setBulkSubmitting(true);
-      Promise.all(bulkQueue.map((target) => {
-        const draft = commentDrafts.find((d) => d.targetUrl === target.url);
-        return createForumCommentOrderAsync({
-          targetUrl: target.url,
-          platform: target.platform || detectForumPlatform(target.url) || null,
-          commentText: draft?.comment_text || commentText.trim(),
-          useSuggestedComment: !!wantsSuggestion,
-          brandName: brandName.trim() || null,
-          brandDomain: brandDomain.trim() || null,
-          brandMentionMode: wantsSuggestion ? mentionMode : null,
-          sourceKeyword: target.keyword || sourceKeyword || null,
-          notes: [
-            notes.trim(),
-            `bulk_source=ranking_forum`,
-            `bulk_target_title=${target.title}`,
-            wantsSuggestion ? 'bulk_suggested=unique_per_thread_draft' : '',
-          ].filter(Boolean).join('\n') || null,
-          commentDrafts: draft ? [{ comment_text: draft.comment_text }] : undefined,
+      try {
+        const refreshed = await refetchBalance();
+        const freshBalance = refreshed.data ?? balance ?? 0;
+        if (freshBalance < cost) {
+          toast.error(`You need ${formatUSD(Math.max(0, cost - freshBalance))} more credit before ordering this queue.`);
+          return;
+        }
+
+        const inputs = bulkQueue.map((target) => {
+          const draft = commentDrafts.find((d) => d.targetUrl === target.url);
+          return {
+            targetUrl: target.url,
+            platform: target.platform || detectForumPlatform(target.url) || null,
+            commentText: draft?.comment_text || commentText.trim(),
+            useSuggestedComment: !!wantsSuggestion,
+            brandName: brandName.trim() || null,
+            brandDomain: brandDomain.trim() || null,
+            brandMentionMode: wantsSuggestion ? mentionMode : null,
+            sourceKeyword: target.keyword || sourceKeyword || null,
+            notes: [
+              notes.trim(),
+              `bulk_source=ranking_forum`,
+              `bulk_target_title=${target.title}`,
+              wantsSuggestion ? 'bulk_suggested=unique_per_thread_draft' : '',
+            ].filter(Boolean).join('\\n') || null,
+            commentDrafts: draft ? [{ comment_text: draft.comment_text }] : undefined,
+          };
         });
-      })).then((orders) => {
+
+        const orders = await createForumCommentOrdersBulkAsync(inputs);
         const ids = orders.map((order: { id?: number } | null) => order?.id).filter(Boolean) as number[];
         setBulkOrderIds(ids);
         window.localStorage.removeItem(BULK_COMMENT_DRAFT_KEY);
         toast.success(`${bulkQueue.length} comment orders placed. ${formatUSD(cost)} deducted from credit.`);
         setShowSuccessModal(true);
-      }).catch((err: Error) => {
-        toast.error(err.message || 'Failed to create bulk comment orders');
-      }).finally(() => setBulkSubmitting(false));
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : 'Failed to create bulk comment orders');
+      } finally {
+        setBulkSubmitting(false);
+      }
       return;
     }
 
@@ -1346,10 +1358,10 @@ function ForumCommentOrderForm({
 
         <button
           type="submit"
-          disabled={!isValidUrl || wantsSuggestion === null || !hasEnoughCredit || isCreatingForumCommentOrder || bulkSubmitting || !commentEnabled}
+          disabled={!isValidUrl || wantsSuggestion === null || !hasEnoughCredit || isCreatingForumCommentOrder || isCreatingForumCommentOrdersBulk || bulkSubmitting || !commentEnabled}
           className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-semibold transition shadow-lg shadow-orange-500/20"
         >
-          {isCreatingForumCommentOrder || bulkSubmitting ? (
+          {isCreatingForumCommentOrder || isCreatingForumCommentOrdersBulk || bulkSubmitting ? (
             <>
               <Loader2 size={18} className="animate-spin" />
               {isBulk ? 'Placing bulk orders...' : 'Placing order...'}
@@ -1391,7 +1403,7 @@ function YouTubeUploadOrderForm({ onBack }: { onBack: () => void }) {
   const isValidTitle = title.trim().length >= 1;
   const canSubmit = isValidVideoUrl && isValidTitle && hasEnoughCredit && enabled && !isCreatingYouTubeUploadOrder;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!enabled) {
       toast.error('YouTube Upload is paused right now.');

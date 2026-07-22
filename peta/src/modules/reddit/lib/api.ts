@@ -123,6 +123,8 @@ export interface ForumCommentOrderInput {
   commentDrafts?: { comment_text: string }[];
 }
 
+export type ForumCommentOrderResult = { id: number } & Record<string, unknown>;
+
 export interface GenerateForumCommentInput {
   targetUrl: string;
   platform: string | null;
@@ -397,22 +399,39 @@ export async function createForumCommentOrder(input: ForumCommentOrderInput) {
     p_source_keyword: input.sourceKeyword ?? null,
     p_notes: input.notes ?? null,
     p_quantity: input.quantity ?? 1,
-    p_comment_drafts: input.commentDrafts && input.commentDrafts.length > 0
-      ? input.commentDrafts
-      : [],
+    p_comment_drafts: input.commentDrafts?.length ? input.commentDrafts : [],
   });
-
   if (error) {
-    if (error.message.includes('insufficient_credits')) {
-      throw new Error('Insufficient credits. Please top up your account.');
-    }
-    if (error.message.includes('service_disabled')) {
-      throw new Error('This service is paused right now. Please check back soon.');
-    }
+    if (error.message.includes('insufficient_credits')) throw new Error('Insufficient credits. Please top up your account.');
+    if (error.message.includes('service_disabled')) throw new Error('This service is paused right now. Please check back soon.');
     throw error;
   }
-
   return data;
+}
+
+export async function createForumCommentOrdersBulk(inputs: ForumCommentOrderInput[]): Promise<ForumCommentOrderResult[]> {
+  if (!inputs.length) return [];
+  const { data, error } = await supabase.rpc('fn_create_forum_comment_orders_bulk', {
+    p_orders: inputs.map((input) => ({
+      target_url: input.targetUrl,
+      platform: input.platform,
+      comment_text: input.commentText,
+      use_suggested_comment: input.useSuggestedComment,
+      brand_name: input.brandName,
+      brand_domain: input.brandDomain,
+      brand_mention_mode: input.brandMentionMode,
+      source_keyword: input.sourceKeyword ?? null,
+      notes: input.notes ?? null,
+      quantity: input.quantity ?? 1,
+      comment_drafts: input.commentDrafts?.length ? input.commentDrafts : [],
+    })),
+  });
+  if (error) {
+    if (error.message.includes('insufficient_credits')) throw new Error('Insufficient credits. Please top up your account.');
+    if (error.message.includes('service_disabled')) throw new Error('This service is paused right now. Please check back soon.');
+    throw error;
+  }
+  return (data || []) as ForumCommentOrderResult[];
 }
 
 export interface RankingKeywordIdea {

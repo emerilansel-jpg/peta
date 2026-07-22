@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getRedditOrders, createRedditOrder, createForumCommentOrder, createYouTubeUploadOrder } from '../lib/api';
+import { getRedditOrders, createRedditOrder, createForumCommentOrder, createForumCommentOrdersBulk, createYouTubeUploadOrder } from '../lib/api';
 import type { ForumCommentOrderInput } from '../lib/api';
 
 export function useRedditOrders() {
@@ -36,6 +36,14 @@ export function useRedditOrders() {
     },
   });
 
+  const createForumCommentOrdersBulkMutation = useMutation({
+    mutationFn: (inputs: ForumCommentOrderInput[]) => createForumCommentOrdersBulk(inputs),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reddit', 'orders'] });
+      queryClient.invalidateQueries({ queryKey: ['reddit', 'credits'] });
+    },
+  });
+
   const createYouTubeUploadOrderMutation = useMutation({
     mutationFn: (input: {
       videoUrl: string;
@@ -58,7 +66,9 @@ export function useRedditOrders() {
     isCreating: createOrderMutation.isPending,
     createForumCommentOrder: createForumCommentOrderMutation.mutate,
     createForumCommentOrderAsync: createForumCommentOrderMutation.mutateAsync,
+    createForumCommentOrdersBulkAsync: createForumCommentOrdersBulkMutation.mutateAsync,
     isCreatingForumCommentOrder: createForumCommentOrderMutation.isPending,
+    isCreatingForumCommentOrdersBulk: createForumCommentOrdersBulkMutation.isPending,
     createYouTubeUploadOrder: createYouTubeUploadOrderMutation.mutate,
     isCreatingYouTubeUploadOrder: createYouTubeUploadOrderMutation.isPending,
     error: createOrderMutation.error,
