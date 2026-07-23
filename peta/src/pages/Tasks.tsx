@@ -170,9 +170,6 @@ export function Tasks() {
   const pendingAssignments = myAssignments.filter((a) => a.status === 'submitted');
   const rejectedAssignments = myAssignments.filter((a) => a.status === 'rejected');
   const completedHistory = taskHistory.filter((a) => a.status === 'approved');
-  const rejectedHistory = taskHistory
-    .filter((a) => a.status === 'rejected')
-    .filter((h) => !rejectedAssignments.some((a) => a.id === h.assignment_id));
   const pendingValue = pendingAssignments.reduce((sum, a) => sum + (a.task_reward || 0), 0);
 
   const retryMutation = useMutation({
@@ -284,68 +281,41 @@ export function Tasks() {
           </Card>
         )}
 
-        {/* Completed history — approved assignments remain visible after they leave the active queue. */}
-        {completedHistory.length > 0 && (
-          <div className="mb-5">
-            <div className="flex items-baseline justify-between mb-2">
-              <h2 className="text-base sm:text-lg font-extrabold flex items-center gap-1.5">
-                Task selesai
-                <span className="text-xs font-bold text-success bg-success/10 px-2 py-0.5 rounded-full">
+        {/* History upsell — approved + rejected live on a dedicated page so
+            the main task list stays focused on what the user can do right now.
+            Counts act as a progress signal ("look how much I've earned / learned"). */}
+        {(completedHistory.length > 0 || rejectedAssignments.length > 0) && (
+          <div className="grid grid-cols-2 gap-2 mb-5">
+            <button
+              onClick={() => navigate('/task-history')}
+              className="tap-shrink rounded-xl p-3 text-left bg-success/10 ring-1 ring-success/30 hover:ring-success/60 transition"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] uppercase font-extrabold tracking-wide text-success">Approved</span>
+                <span className="text-xs font-extrabold text-success bg-success/15 px-2 py-0.5 rounded-full">
                   {completedHistory.length}
                 </span>
-              </h2>
-              <span className="text-sm font-extrabold text-success money">
+              </div>
+              <p className="text-sm font-extrabold text-success money leading-tight">
                 +Rp{completedHistory.reduce((sum, a) => sum + (a.task_reward || 0), 0).toLocaleString('id-ID')}
-              </span>
-            </div>
-            <div className="space-y-2">
-              {completedHistory.map((a) => (
-                <Card key={a.id} padding="sm" className="ring-1 ring-success/25 bg-success/5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-bold text-sm leading-snug truncate">{a.task_title}</p>
-                      <p className="text-[10px] text-muted mt-0.5">
-                        Selesai {new Date(a.event_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-sm font-extrabold text-success money">+Rp{a.task_reward.toLocaleString('id-ID')}</p>
-                      <span className="text-[10px] font-bold text-success">✅ Approved</span>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Historical rejections remain visible after a retry, without duplicating live retry cards. */}
-        {rejectedHistory.length > 0 && (
-          <div className="mb-5">
-            <div className="flex items-baseline justify-between mb-2">
-              <h2 className="text-base sm:text-lg font-extrabold flex items-center gap-1.5">
-                Riwayat task ditolak
-                <span className="text-xs font-bold text-danger bg-danger/10 px-2 py-0.5 rounded-full">
-                  {rejectedHistory.length}
+              </p>
+              <p className="text-[10px] text-muted mt-0.5">Lihat task selesai →</p>
+            </button>
+            <button
+              onClick={() => navigate('/task-history')}
+              className="tap-shrink rounded-xl p-3 text-left bg-danger/10 ring-1 ring-danger/30 hover:ring-danger/60 transition"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] uppercase font-extrabold tracking-wide text-danger">Reject</span>
+                <span className="text-xs font-extrabold text-danger bg-danger/15 px-2 py-0.5 rounded-full">
+                  {rejectedAssignments.length}
                 </span>
-              </h2>
-            </div>
-            <div className="space-y-2">
-              {rejectedHistory.map((a) => (
-                <Card key={a.id} padding="sm" className="ring-1 ring-danger/20 bg-danger/5">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="font-bold text-sm leading-snug truncate">{a.task_title}</p>
-                      <p className="text-[10px] text-muted mt-0.5">
-                        Ditolak {new Date(a.event_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </p>
-                      {a.admin_notes && <p className="text-[11px] text-danger mt-1 line-clamp-2">{a.admin_notes}</p>}
-                    </div>
-                    <span className="text-[10px] font-bold text-danger shrink-0">❌ Ditolak</span>
-                  </div>
-                </Card>
-              ))}
-            </div>
+              </div>
+              <p className="text-sm font-extrabold text-danger leading-tight">
+                {rejectedAssignments.length > 0 ? 'Cek alasan + coba lagi' : 'Belum ada'}
+              </p>
+              <p className="text-[10px] text-muted mt-0.5">Lihat history reject →</p>
+            </button>
           </div>
         )}
 
@@ -563,7 +533,7 @@ export function Tasks() {
         )}
 
         {/* Empty state — Reddit setup OK but no eligible tasks right now. */}
-        {!needsReddit && !tasksLoading && eligibleTasks.length === 0 && inProgressAssignments.length === 0 && pendingAssignments.length === 0 && rejectedAssignments.length === 0 && completedHistory.length === 0 && rejectedHistory.length === 0 && (
+        {!needsReddit && !tasksLoading && eligibleTasks.length === 0 && inProgressAssignments.length === 0 && pendingAssignments.length === 0 && rejectedAssignments.length === 0 && completedHistory.length === 0 && (
           <Card className="mb-5 text-center py-6" padding="sm">
             <p className="font-bold text-sm">Belum ada task aktif buat kamu</p>
             <p className="text-xs text-muted mt-1">
