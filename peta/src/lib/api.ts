@@ -1248,8 +1248,30 @@ export async function getMyPendingAssignments(): Promise<MyAssignmentRow[]> {
   return (data || []) as MyAssignmentRow[];
 }
 
+export type TaskHistoryRow = {
+  id: string;
+  assignment_id: string;
+  task_id: string;
+  status: 'approved' | 'rejected';
+  admin_notes: string | null;
+  can_retry: boolean;
+  proof_url: string | null;
+  draft_comment: string | null;
+  event_at: string;
+  task_title: string;
+  task_category: TaskCategory;
+  task_reward: number;
+  task_target_url: string | null;
+};
+
+export async function getMyTaskHistory(): Promise<TaskHistoryRow[]> {
+  const { data, error } = await supabase.rpc('get_my_task_history');
+  if (error) throw error;
+  return (data || []) as TaskHistoryRow[];
+}
+
 // Reset a rejected assignment back to in_progress so the user can re-upload
-// proof. Frontend navigates them to /task/:taskId after success.
+// proof. The immutable history table keeps the original rejection event.
 export async function retryRejectedAssignment(assignmentId: string): Promise<void> {
   const { error } = await supabase.rpc('retry_rejected_assignment', { p_assignment_id: assignmentId });
   if (error) throw error;
