@@ -37,6 +37,9 @@ function formatSubmittedAt(iso: string | null | undefined): string {
 export function AdminApprovalQueue() {
   // View toggle: pending (live queue) vs approved/rejected (history audit).
   const [view, setView] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  // Date range filter — scoped to the history tabs. Format YYYY-MM-DD.
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   // Lightbox state — opens an in-page modal so admin doesn't lose their
   // place in the approval queue every time they want to inspect proof.
   const [lightbox, setLightbox] = useState<{ src: string; caption?: string } | null>(null);
@@ -99,10 +102,14 @@ export function AdminApprovalQueue() {
 
   // History audit trail — admin can review past approvals + rejections
   // (with the original screenshot/URL/comment) without relying on memory.
+  // Date range filter scopes results to a calendar period.
   const { data: historyRaw = [], isLoading: historyLoading } = useQuery({
-    queryKey: ['adminApprovalHistory'],
+    queryKey: ['adminApprovalHistory', view, fromDate, toDate],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc('admin_approval_history');
+      const { data, error } = await supabase.rpc('admin_approval_history', {
+        p_from: fromDate || null,
+        p_to: toDate || null,
+      });
       if (error) throw error;
       return data || [];
     },
@@ -232,6 +239,71 @@ export function AdminApprovalQueue() {
           </button>
         ))}
       </div>
+
+      {/* Date range filter — only relevant for history views. */}
+      {view !== 'pending' && (
+        <Card className="mb-4" padding="sm">
+          <div className="flex flex-wrap items-end gap-3">
+            <div>
+              <label className="block text-[10px] uppercase font-bold tracking-wide text-muted mb-1">Dari tanggal</label>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(e) => setFromDate(e.target.value)}
+                max={toDate || undefined}
+                className="px-3 py-2 bg-light rounded-lg border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-[10px] uppercase font-bold tracking-wide text-muted mb-1">Sampai tanggal</label>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(e) => setToDate(e.target.value)}
+                min={fromDate || undefined}
+                className="px-3 py-2 bg-light rounded-lg border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm"
+              />
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => { setFromDate(''); setToDate(''); }}
+                disabled={!fromDate && !toDate}
+                className="tap-shrink px-3 py-2 rounded-lg text-xs font-bold bg-light text-muted ring-1 ring-border hover:ring-primary/40 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Reset
+              </button>
+              {([
+                { key: '7', label: '7 hari', from: -6 },
+                { key: '30', label: '30 hari', from: -29 },
+                { key: 'month', label: 'Bulan ini', monthStart: true },
+              ] as const).map((preset) => (
+                <button
+                  key={preset.key}
+                  onClick={() => {
+                    const today = new Date();
+                    const start = new Date();
+                    if ('monthStart' in preset && preset.monthStart) {
+                      start.setDate(1);
+                    } else if ('from' in preset) {
+                      start.setDate(start.getDate() + preset.from);
+                    }
+                    setFromDate(start.toISOString().split('T')[0]);
+                    setToDate(today.toISOString().split('T')[0]);
+                  }}
+                  className="tap-shrink px-3 py-2 rounded-lg text-xs font-bold bg-primary/10 text-primary ring-1 ring-primary/30 hover:bg-primary/20"
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+            {(fromDate || toDate) && (
+              <span className="text-xs text-muted ml-auto">
+                Menampilkan: {fromDate || 'awal'} → {toDate || 'sekarang'}
+              </span>
+            )}
+          </div>
+        </Card>
+      )}
 
       {view === 'pending' && debug && !('error' in debug) && !debug.is_admin && (
         <Card className="mb-3 bg-danger/10 ring-danger/40" padding="sm">
