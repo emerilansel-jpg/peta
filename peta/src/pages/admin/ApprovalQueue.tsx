@@ -35,6 +35,8 @@ function formatSubmittedAt(iso: string | null | undefined): string {
 }
 
 export function AdminApprovalQueue() {
+  // View toggle: pending (live queue) vs approved/rejected (history audit).
+  const [view, setView] = useState<'pending' | 'approved' | 'rejected'>('pending');
   // Lightbox state — opens an in-page modal so admin doesn't lose their
   // place in the approval queue every time they want to inspect proof.
   const [lightbox, setLightbox] = useState<{ src: string; caption?: string } | null>(null);
@@ -95,6 +97,48 @@ export function AdminApprovalQueue() {
     refetchInterval: 30_000, // surface new submissions within 30s
   });
 
+  // History audit trail — admin can review past approvals + rejections
+  // (with the original screenshot/URL/comment) without relying on memory.
+  const { data: historyRaw = [], isLoading: historyLoading } = useQuery({
+    queryKey: ['adminApprovalHistory'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('admin_approval_history');
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: view !== 'pending',
+    refetchInterval: 60_000,
+  });
+  const history = (historyRaw as any[]).map((r) => ({
+    id: r.id,
+    status: r.status,
+    proof_url: r.proof_url,
+    proof_image_url: r.proof_image_url,
+    submitted_url: r.submitted_url,
+    submitted_username: r.submitted_username,
+    draft_comment: r.draft_comment,
+    user_note: r.user_note,
+    admin_notes: r.admin_notes,
+    can_retry: r.can_retry,
+    created_at: r.created_at,
+    updated_at: r.updated_at,
+    resolved_at: r.resolved_at,
+    tasks: {
+      title: r.task_title,
+      reward_amount: r.task_reward,
+      target_url: r.task_target_url,
+      task_category: r.task_category,
+      task_type: r.task_type,
+    },
+    reddit_accounts: { username: r.submitted_username || r.reddit_username },
+    army_user_id: r.army_user_id,
+    army_email: r.army_email,
+    army_name: r.army_name,
+  }));
+  const approvedHistory = history.filter((h) => h.status === 'approved');
+  const rejectedHistory = history.filter((h) => h.status === 'rejected');
+  const visibleHistory = view === 'approved' ? approvedHistory : rejectedHistory;
+
   const approveMutation = useMutation({
     mutationFn: async (a: any) => {
       await adminApproveAssignment(a.id);
@@ -154,16 +198,42 @@ export function AdminApprovalQueue() {
 
   return (
     <Layout userRole="admin">
-      <div className="mb-5">
+      <div className="mb-4">
         <p className="text-xs uppercase tracking-wide font-bold text-muted">Admin Console</p>
         <h1 className="text-2xl sm:text-3xl font-extrabold">Approval Queue</h1>
-        <p className="text-sm text-muted">{assignments.length} task menunggu review</p>
+        <p className="text-sm text-muted">
+          {view === 'pending' && `${assignments.length} task menunggu review`}
+          {view === 'approved' && `${approvedHistory.length} task sudah di-approve`}
+          {view === 'rejected' && `${rejectedHistory.length} task di-reject`}
+        </p>
       </div>
 
-      {/* Session diagnostic — only shown when something's wrong. After the
-          2026-05-20 env-mismatch incident this stays in the codebase as a
-          permanent self-debug surface (don't remove). */}
-      {debug && !('error' in debug) && !debug.is_admin && (
+      {/* View toggle: live queue | approved history | rejected history */}
+      <div className="flex gap-2 overflow-x-auto no-scrollbar mb-4">
+        {([
+          ['pending', `Menunggu (${assignments.length})`],
+          ['approved', `Approved (${approvedHistory.length})`],
+          ['rejected', `Reject (${rejectedHistory.length})`],
+        ] as const).map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setView(k)}
+            className={`tap-shrink shrink-0 px-3 py-1.5 rounded-full text-xs font-bold ${
+              view === k
+                ? k === 'approved'
+                  ? 'bg-success text-white'
+                  : k === 'rejected'
+                    ? 'bg-danger text-white'
+                    : 'bg-primary text-white'
+                : 'bg-white ring-1 ring-border text-muted'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {view === 'pending' && debug && !('error' in debug) && !debug.is_admin && (
         <Card className="mb-3 bg-danger/10 ring-danger/40" padding="sm">
           <p className="font-extrabold text-danger text-sm">⚠️ Session bukan admin</p>
           <p className="text-xs text-danger/90 mt-1 leading-snug">
@@ -172,20 +242,102 @@ export function AdminApprovalQueue() {
           <p className="text-xs text-danger/90 mt-2"><b>Fix:</b> Logout & login ulang (JWT expired) — kalau masih, cek kamu login pakai akun admin yang benar.</p>
         </Card>
       )}
-      {debug && !('error' in debug) && debug.is_admin && debug.submitted_count !== assignments.length && (
+      {view === 'pending' && debug && !('error' in debug) && debug.is_admin && debug.submitted_count !== assignments.length && (
         <Card className="mb-3 bg-warning/10 ring-warning/40" padding="sm">
           <p className="font-extrabold text-warning text-sm">⚠️ Sync mismatch</p>
           <p className="text-xs text-warning/90 mt-1">DB punya <b>{debug.submitted_count}</b> submitted, UI render <b>{assignments.length}</b>. Refresh atau tunggu 30 detik.</p>
         </Card>
       )}
-      {queueError && (
+      {view === 'pending' && queueError && (
         <Card className="mb-3 bg-danger/10 ring-danger/40" padding="sm">
           <p className="font-extrabold text-danger text-sm">⚠️ Query error</p>
           <p className="text-xs text-danger/90 mt-1"><code>{(queueError as any)?.message || String(queueError)}</code></p>
         </Card>
       )}
 
-      {isLoading ? (
+      {/* ===== HISTORY VIEW (approved / rejected audit trail) ===== */}
+      {view !== 'pending' && (
+        historyLoading ? (
+          <div className="space-y-3"><CardSkeleton /><CardSkeleton /></div>
+        ) : visibleHistory.length === 0 ? (
+          <Card className="text-center py-12">
+            <div className="text-5xl mb-3">{view === 'approved' ? '✅' : '📋'}</div>
+            <p className="font-bold">Belum ada riwayat {view === 'approved' ? 'approve' : 'reject'}</p>
+            <p className="text-sm text-muted mt-1">Riwayat {view === 'approved' ? 'approval' : 'rejection'} akan muncul di sini.</p>
+          </Card>
+        ) : (
+          <div className="space-y-2">
+            {visibleHistory.map((a: any) => {
+              const proofImage = a.proof_image_url || (/\.(png|jpe?g|gif|webp)(\?|$)/i.test(a.proof_url || '') ? a.proof_url : '');
+              const submittedUrl = a.submitted_url || a.proof_url;
+              const isApproved = a.status === 'approved';
+              return (
+                <Card key={a.id} padding="sm" className={isApproved ? 'ring-1 ring-success/30 bg-success/5' : 'ring-1 ring-danger/30 bg-danger/5'}>
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${isApproved ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger'}`}>
+                          {isApproved ? '✅ Approved' : '❌ Rejected'}
+                        </span>
+                        {!isApproved && a.can_retry === false && (
+                          <span className="text-[9px] font-extrabold uppercase bg-danger text-white px-1.5 py-0.5 rounded">FINAL</span>
+                        )}
+                        <span className="text-[10px] text-muted">{formatSubmittedAt(a.resolved_at || a.updated_at || a.created_at)}</span>
+                      </div>
+                      <p className="font-bold text-sm leading-snug">{a.tasks?.title}</p>
+                      <p className="text-[11px] text-muted mt-0.5">
+                        u/{a.reddit_accounts?.username || '-'} · {a.army_email || 'no email'}
+                      </p>
+                    </div>
+                    <p className="text-sm font-extrabold money shrink-0" style={{ color: isApproved ? '#06D6A0' : undefined }}>
+                      Rp{(a.tasks?.reward_amount || 0).toLocaleString('id-ID')}
+                    </p>
+                  </div>
+
+                  {/* Evidence row — screenshot thumbnail + URL + comment, same as pending view */}
+                  <div className="flex items-start gap-3 flex-wrap">
+                    {proofImage && (
+                      <button
+                        onClick={() => setLightbox({ src: proofImage, caption: `${a.tasks?.title} - u/${a.reddit_accounts?.username}` })}
+                        className="block w-14 h-14 rounded-lg overflow-hidden ring-1 ring-border hover:ring-primary transition group shrink-0"
+                      >
+                        <img src={proofImage} alt="Bukti" className="w-full h-full object-cover group-hover:scale-105 transition" />
+                      </button>
+                    )}
+                    {submittedUrl && (
+                      <a href={submittedUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-primary font-semibold hover:underline shrink-0">
+                        Submitted URL <ExternalLink size={10} />
+                      </a>
+                    )}
+                    {a.tasks?.target_url && (
+                      <a href={a.tasks.target_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-muted font-semibold hover:underline shrink-0">
+                        Thread asli <ExternalLink size={10} />
+                      </a>
+                    )}
+                  </div>
+
+                  {a.draft_comment?.trim() && (
+                    <div className="mt-2 bg-white ring-1 ring-border rounded-lg p-2">
+                      <p className="text-[10px] uppercase font-bold text-muted mb-0.5">Komentar</p>
+                      <p className="text-xs text-dark whitespace-pre-wrap leading-snug">{a.draft_comment}</p>
+                    </div>
+                  )}
+
+                  {!isApproved && a.admin_notes?.trim() && (
+                    <div className="mt-2 bg-white ring-1 ring-danger/30 rounded-lg p-2">
+                      <p className="text-[10px] uppercase font-bold text-danger mb-0.5">Alasan reject</p>
+                      <p className="text-xs text-dark whitespace-pre-wrap leading-snug">{a.admin_notes}</p>
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
+        )
+      )}
+
+      {/* ===== PENDING VIEW (live queue) ===== */}
+      {view === 'pending' && (isLoading ? (
         <div className="space-y-3"><CardSkeleton /><CardSkeleton /></div>
       ) : assignments.length === 0 ? (
         <Card className="text-center py-12">
@@ -460,7 +612,7 @@ export function AdminApprovalQueue() {
             })}
           </div>
         </>
-      )}
+      ))}
 
       {/* Reject reason modal — admin must provide reason so user knows what
           to fix when they hit "Coba lagi" on the Tasks page. */}
