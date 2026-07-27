@@ -371,8 +371,15 @@ export function AdminTaskQueue() {
       id: t.id,
       display_order: (i + 1) * 1000,
     }));
-    supabase.from('tasks').upsert(updates).then(({ error }) => {
-      if (error) {
+    // Use individual updates instead of upsert — upsert would try INSERT
+    // and fail because status is NOT NULL without a DEFAULT.
+    Promise.all(
+      updates.map((u) =>
+        supabase.from('tasks').update({ display_order: u.display_order }).eq('id', u.id)
+      )
+    ).then((results) => {
+      const errors = results.filter((r) => r.error);
+      if (errors.length > 0) {
         toast.error('Gagal menyimpan urutan');
       } else {
         toast.success('Urutan task diupdate');
