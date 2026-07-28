@@ -168,6 +168,7 @@ export function Tasks() {
 
   const inProgressAssignments = myAssignments.filter((a) => a.status === 'in_progress');
   const pendingAssignments = myAssignments.filter((a) => a.status === 'submitted');
+  const rejectedAssignments = myAssignments.filter((a) => a.status === 'rejected');
   const completedHistory = taskHistory.filter((a) => a.status === 'approved');
   const pendingValue = pendingAssignments.reduce((sum, a) => sum + (a.task_reward || 0), 0);
 
@@ -265,26 +266,43 @@ export function Tasks() {
           </Card>
         )}
 
-        {/* History upsell — approved tasks on a dedicated page.
-            Counts act as a progress signal ("look how much I've earned"). */}
-        {completedHistory.length > 0 && (
-          <button
-            onClick={() => navigate('/task-history')}
-            className="w-full tap-shrink rounded-xl p-3 text-left bg-success/10 ring-1 ring-success/30 hover:ring-success/60 transition mb-5"
-          >
-            <div className="flex items-center justify-between">
-              <div>
+        {/* History upsell — approved + rejected live on a dedicated page.
+            Small cards so users can always access their history. */}
+        {(completedHistory.length > 0 || rejectedAssignments.length > 0) && (
+          <div className="grid grid-cols-2 gap-2 mb-5">
+            <button
+              onClick={() => navigate('/task-history')}
+              className="tap-shrink rounded-xl p-3 text-left bg-success/10 ring-1 ring-success/30 hover:ring-success/60 transition"
+            >
+              <div className="flex items-center justify-between mb-1">
                 <span className="text-[10px] uppercase font-extrabold tracking-wide text-success">Approved</span>
-                <span className="ml-2 text-xs font-extrabold text-success bg-success/15 px-2 py-0.5 rounded-full">
+                <span className="text-xs font-extrabold text-success bg-success/15 px-2 py-0.5 rounded-full">
                   {completedHistory.length}
                 </span>
               </div>
               <p className="text-sm font-extrabold text-success money leading-tight">
                 +Rp{completedHistory.reduce((sum, a) => sum + (a.task_reward || 0), 0).toLocaleString('id-ID')}
               </p>
-            </div>
-            <p className="text-[10px] text-muted mt-0.5">Lihat task selesai →</p>
-          </button>
+              <p className="text-[10px] text-muted mt-0.5">Lihat task selesai →</p>
+            </button>
+            {rejectedAssignments.length > 0 && (
+              <button
+                onClick={() => navigate('/task-history')}
+                className="tap-shrink rounded-xl p-3 text-left bg-danger/10 ring-1 ring-danger/30 hover:ring-danger/60 transition"
+              >
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] uppercase font-extrabold tracking-wide text-danger">Reject</span>
+                  <span className="text-xs font-extrabold text-danger bg-danger/15 px-2 py-0.5 rounded-full">
+                    {rejectedAssignments.length}
+                  </span>
+                </div>
+                <p className="text-sm font-extrabold text-danger leading-tight">
+                  Cek alasan
+                </p>
+                <p className="text-[10px] text-muted mt-0.5">Lihat history →</p>
+              </button>
+            )}
+          </div>
         )}
 
 
