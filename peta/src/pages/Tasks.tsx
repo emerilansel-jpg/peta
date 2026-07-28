@@ -271,7 +271,7 @@ export function Tasks() {
         {(completedHistory.length > 0 || rejectedAssignments.length > 0) && (
           <div className="grid grid-cols-2 gap-2 mb-5">
             <button
-              onClick={() => navigate('/task-history')}
+              onClick={() => navigate('/task-history?tab=approved')}
               className="tap-shrink rounded-xl p-3 text-left bg-success/10 ring-1 ring-success/30 hover:ring-success/60 transition"
             >
               <div className="flex items-center justify-between mb-1">
@@ -287,7 +287,7 @@ export function Tasks() {
             </button>
             {rejectedAssignments.length > 0 && (
               <button
-                onClick={() => navigate('/task-history')}
+                onClick={() => navigate('/task-history?tab=rejected')}
                 className="tap-shrink rounded-xl p-3 text-left bg-danger/10 ring-1 ring-danger/30 hover:ring-danger/60 transition"
               >
                 <div className="flex items-center justify-between mb-1">

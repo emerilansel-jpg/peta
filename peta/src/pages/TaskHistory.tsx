@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, CheckCircle2, XCircle, RotateCcw } from 'lucide-react';
 import { Layout } from '../components/Layout';
@@ -19,7 +19,12 @@ export function TaskHistory() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [user, setUser] = React.useState<any>(null);
-  const [tab, setTab] = React.useState<Tab>('approved');
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = React.useState<Tab>(() => {
+    const t = searchParams.get('tab');
+    if (t === 'rejected') return 'rejected';
+    return 'approved';
+  });
 
   React.useEffect(() => {
     (async () => {
