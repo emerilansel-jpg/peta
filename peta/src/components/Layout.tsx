@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { LogOut, Home, Wallet, User as UserIcon, Menu, X, BarChart3, Users, ListChecks, ClipboardCheck, Coins, Link as LinkIcon, ShieldCheck, Megaphone, Target, Inbox, Key, Radio } from 'lucide-react';
+import { LogOut, Home, Wallet, User as UserIcon, Menu, X, BarChart3, Users, ListChecks, ClipboardCheck, Coins, Link as LinkIcon, ShieldCheck, Megaphone, Target, Inbox, Key, Radio, Trophy } from 'lucide-react';
 import { getMyPendingAssignments } from '../lib/api';
 import { supabase } from '../lib/supabase';
 
@@ -41,6 +41,7 @@ const adminLinks = [
   { href: '/admin/secrets',   label: 'Secrets',     icon: Key },
   { href: '/admin/team',      label: 'Tim',         icon: Users },
   { href: '/admin/payroll',   label: 'Payroll',     icon: Coins },
+  { href: '/admin/reddit-army', label: 'Reddit Army', icon: Trophy },
 ];
 
 export function Layout({ children, userRole = 'army' }: LayoutProps) {

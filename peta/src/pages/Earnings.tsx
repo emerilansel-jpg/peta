@@ -407,6 +407,33 @@ export function Earnings() {
         </Card>
       )}
 
+      {/* Reddit Army — Tabungan Retensi (locked). Tampil kalau user punya hold. */}
+      {Boolean(earningsBreakdown.redditArmyRetentionHeld) &&
+        earningsBreakdown.redditArmyRetentionHeld! > 0 && (
+        <Card
+          className="mb-3 bg-gradient-to-br from-yellow-50 to-orange-50 ring-yellow-300/60"
+          padding="sm"
+        >
+          <p className="text-[10px] font-bold uppercase tracking-wide text-yellow-700 mb-1.5">
+            💰 Tabungan Retensi Reddit Army
+          </p>
+          <div className="flex items-baseline justify-between mb-1">
+            <span className="text-xl font-extrabold text-yellow-700">
+              Rp{(earningsBreakdown.redditArmyRetentionHeld ?? 0).toLocaleString('id-ID')}
+            </span>
+            <span className="text-[10px] text-yellow-700/80 font-semibold uppercase">Locked</span>
+          </div>
+          <p className="text-[11px] text-yellow-800/80 leading-snug">
+            Cair saat kamu pamit berhenti H-30 + aktif minimal 20 hari. Kalau ghosting/kabur, tabungan ini hangus.
+          </p>
+          {(earningsBreakdown.redditArmyPendingCashable ?? 0) > 0 && (
+            <p className="text-[11px] text-yellow-800/70 mt-1.5">
+              + Rp{(earningsBreakdown.redditArmyPendingCashable ?? 0).toLocaleString('id-ID')} pending (cair Sabtu depan)
+            </p>
+          )}
+        </Card>
+      )}
+
       {/* SALDO BREAKDOWN — clear math, no mystery. 3 baris simpel. */}
       <Card className="mb-3" padding="sm">
         <p className="text-[10px] font-bold uppercase tracking-wide text-muted mb-2">Rincian Saldo Kamu</p>

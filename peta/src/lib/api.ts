@@ -560,6 +560,12 @@ export async function getTotalEarnings(_userId: string): Promise<{
   earned: number;
   referral: number;
   fromWork: number;
+  // Reddit Army breakdown (added 2026-07-30)
+  redditArmyPhase1Instant?: number;
+  redditArmyDailyCredited?: number;
+  redditArmyHoldReleased?: number;
+  redditArmyRetentionHeld?: number;
+  redditArmyPendingCashable?: number;
 }> {
   // SECURITY DEFINER RPC: returns the same shape but runs server-side so it
   // does not depend on task_assignments RLS or on user_id being non-NULL.
@@ -579,6 +585,11 @@ export async function getTotalEarnings(_userId: string): Promise<{
     earned: number;
     referral: number;
     fromWork: number;
+    redditArmyPhase1Instant?: number;
+    redditArmyDailyCredited?: number;
+    redditArmyHoldReleased?: number;
+    redditArmyRetentionHeld?: number;
+    redditArmyPendingCashable?: number;
   };
 }
 
@@ -1590,4 +1601,284 @@ export async function sendWaPasswordReset(whatsapp: string): Promise<{
   });
   if (error) return { ok: false, error: error.message || String(error) };
   return data || { ok: false, error: 'unknown_error' };
+}
+
+// ============================================================
+// REDDIT ARMY PROGRAM
+// API client for the gamified 2-phase Reddit Army program.
+// See docs/superpowers/specs/2026-07-29-reddit-army-gamification-design.md
+// ============================================================
+
+export type RedditArmyStatus =
+  | 'not_started'
+  | 'phase1_active'
+  | 'phase1_complete'
+  | 'phase2_active'
+  | 'resigning'
+  | 'resigned'
+  | 'expelled';
+
+export type RedditArmyProfile = {
+  id: string;
+  user_id: string;
+  warmed_account_id: string | null;
+  program_status: RedditArmyStatus;
+  current_challenge_level: number;
+  phase1_started_at: string | null;
+  phase1_completed_at: string | null;
+  phase2_started_at: string | null;
+  resign_requested_at: string | null;
+  resign_effective_at: string | null;
+  resign_active_days: number;
+  resigned_at: string | null;
+  expelled_at: string | null;
+  expelled_reason: string | null;
+  daily_bonus_rate: number;
+  retention_hold_rate: number;
+  last_sync_at: string | null;
+  last_active_date: string | null;
+  notes: string | null;
+  created_at?: string;
+};
+
+export type ChallengeTaskRow = {
+  task_id: string;
+  title: string;
+  description: string | null;
+  target_url: string | null;
+  reward_amount: number;
+  level_number: number;
+  level_name: string;
+  assignment_id: string | null;
+  assignment_status: 'in_progress' | 'submitted' | 'approved' | 'rejected' | null;
+  can_retry: boolean | null;
+};
+
+export type DailyActivityResult = {
+  date: string;
+  active: boolean;
+  credited: boolean;
+  amount: number;
+  comments: number;
+  posts: number;
+  karma_delta: number;
+};
+
+export type RedditArmyProfileResult = {
+  profile: RedditArmyProfile | null;
+  retentionHeld: number;
+  pendingCashable: number;
+  todayActivity: {
+    activity_date: string;
+    is_active_day: boolean;
+    bonus_credited: boolean;
+    credited_amount: number;
+    comments_today: number;
+    posts_today: number;
+    karma_delta: number;
+  } | null;
+  recentActivities: DailyActivityResult[];
+};
+
+/** Read the calling user's Reddit Army profile + summary stats. */
+export async function getRedditArmyProfile(): Promise<RedditArmyProfileResult | null> {
+  const { data, error } = await supabase.rpc('get_reddit_army_profile');
+  if (error) {
+    console.error('[getRedditArmyProfile]', error);
+    return null;
+  }
+  if (!data || data.length === 0) return null;
+  const row = data[0];
+  return {
+    profile: row.profile,
+    retentionHeld: row.retention_held ?? 0,
+    pendingCashable: row.pending_cashable ?? 0,
+    todayActivity: row.today_activity,
+    recentActivities: Array.isArray(row.recent_activities) ? row.recent_activities : [],
+  };
+}
+
+/** Army opts into the program. Requires 1 active Reddit account. */
+export async function joinRedditArmyProgram(): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await supabase.rpc('join_reddit_army_program');
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** List challenge tasks for the user's current level (with assignment status). */
+export async function listChallengeTasksForUser(): Promise<ChallengeTaskRow[]> {
+  const { data, error } = await supabase.rpc('list_challenge_tasks_for_user');
+  if (error) {
+    console.error('[listChallengeTasksForUser]', error);
+    return [];
+  }
+  return data ?? [];
+}
+
+/** Claim a challenge task slot. */
+export async function claimChallengeTask(
+  taskId: string,
+  redditAccountId: string
+): Promise<{ ok: boolean; assignmentId?: string; error?: string }> {
+  const { data, error } = await supabase.rpc('claim_challenge_task', {
+    p_task_id: taskId,
+    p_reddit_account_id: redditAccountId,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, assignmentId: data as string };
+}
+
+/** Army requests resignation. Status -> 'resigning', effective_at = NOW + 30 days. */
+export async function requestRedditArmyResignation(): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await supabase.rpc('request_resignation');
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** Army cancels an in-progress resignation. */
+export async function cancelRedditArmyResignation(): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await supabase.rpc('cancel_resignation');
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+// ---- Admin ----
+
+export type RedditArmyAdminStats = {
+  total_members: number;
+  phase1_active: number;
+  phase2_active: number;
+  resigning: number;
+  resigned: number;
+  expelled: number;
+  total_hold: number;
+  release_this_week: number;
+};
+
+export async function getRedditArmyAdminStats(): Promise<RedditArmyAdminStats | null> {
+  const { data, error } = await supabase.rpc('get_reddit_army_stats_for_admin');
+  if (error) {
+    console.error('[getRedditArmyAdminStats]', error);
+    return null;
+  }
+  if (!data || data.length === 0) return null;
+  return data[0];
+}
+
+/** Admin list all members. */
+export async function adminListRedditArmyMembers(): Promise<RedditArmyProfile[]> {
+  const { data, error } = await supabase
+    .from('reddit_army_profiles')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error('[adminListRedditArmyMembers]', error);
+    return [];
+  }
+  return (data ?? []) as RedditArmyProfile[];
+}
+
+/** Admin list bonus holds, optionally filtered by status. */
+export async function adminListBonusHolds(status?: 'held' | 'vesting' | 'released' | 'forfeited') {
+  let q = supabase.from('bonus_holds').select('*, users(email,full_name)').order('created_at', { ascending: false });
+  if (status) q = q.eq('status', status);
+  const { data, error } = await q;
+  if (error) {
+    console.error('[adminListBonusHolds]', error);
+    return [];
+  }
+  return data ?? [];
+}
+
+/** Admin forfeit all held/vesting holds for a user (ghosting / suspended). */
+export async function adminForfeitRedditArmyHolds(
+  userId: string,
+  reason: string
+): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await supabase.rpc('admin_forfeit_holds', {
+    p_user_id: userId,
+    p_reason: reason,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** Admin list/edit challenge levels (read). */
+export type ChallengeLevel = {
+  id: string;
+  level_number: number;
+  level_name: string;
+  title: string;
+  description: string | null;
+  target_type: 'comment_count' | 'post_count' | 'karma_threshold' | 'combined';
+  target_count: number | null;
+  target_subreddits: string[] | null;
+  reward_amount: number;
+  display_order: number;
+  is_active: boolean;
+};
+
+export async function adminListChallengeLevels(): Promise<ChallengeLevel[]> {
+  const { data, error } = await supabase
+    .from('reddit_challenge_levels')
+    .select('*')
+    .order('level_number', { ascending: true });
+  if (error) {
+    console.error('[adminListChallengeLevels]', error);
+    return [];
+  }
+  return (data ?? []) as ChallengeLevel[];
+}
+
+/** Admin update a challenge level (reward_amount, is_active, etc.). */
+export async function adminUpdateChallengeLevel(
+  levelId: string,
+  updates: Partial<Pick<ChallengeLevel, 'level_name' | 'title' | 'description' | 'reward_amount' | 'is_active' | 'target_count'>>
+): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await supabase
+    .from('reddit_challenge_levels')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', levelId);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** Admin create a challenge task linked to a level. */
+export async function adminCreateChallengeTask(opts: {
+  levelId: string;
+  title: string;
+  description?: string;
+  targetUrl?: string;
+  rewardAmount: number;
+  maxAssignments?: number;
+  perAccountLimit?: number;
+  brief?: string;
+}): Promise<{ ok: boolean; taskId?: string; error?: string }> {
+  const { data, error } = await supabase.rpc('admin_create_challenge_task', {
+    p_level_id: opts.levelId,
+    p_title: opts.title,
+    p_description: opts.description ?? null,
+    p_target_url: opts.targetUrl ?? null,
+    p_reward_amount: opts.rewardAmount,
+    p_max_assignments: opts.maxAssignments ?? 1,
+    p_per_account_limit: opts.perAccountLimit ?? 1,
+    p_brief: opts.brief ?? null,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, taskId: data as string };
+}
+
+/** Admin trigger manual sync for a user (via edge function). */
+export async function adminTriggerDailySync(
+  userIds: string[]
+): Promise<{ ok: boolean; synced?: number; errors?: string[] }> {
+  const { data, error } = await supabase.functions.invoke('sync-reddit-daily-activity', {
+    body: { user_ids: userIds },
+  });
+  if (error) return { ok: false, errors: [error.message] };
+  return {
+    ok: true,
+    synced: data?.synced ?? 0,
+    errors: (data?.errors ?? []).map((e: any) => `${e.user_id}: ${e.reason}`),
+  };
 }

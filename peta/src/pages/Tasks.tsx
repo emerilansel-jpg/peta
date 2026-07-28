@@ -217,6 +217,31 @@ export function Tasks() {
     <Layout userRole="army">
       <div className="max-w-2xl mx-auto pb-8">
         {/* ============================================================
+            REDDIT ARMY PROGRAM — prominent upsell card at top.
+            Drives users to /reddit-army for the gamified 2-phase program
+            (Rp100K bonus + daily passive income). Always shown (the page
+            itself handles "joined vs not joined" states).
+        ============================================================= */}
+        <Card
+          className="mb-3 bg-gradient-to-br from-primary/10 via-secondary/10 to-yellow-50 ring-1 ring-primary/20 cursor-pointer tap-shrink"
+          onClick={() => navigate('/reddit-army')}
+          padding="sm"
+        >
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 bg-gradient-to-br from-primary to-secondary text-white rounded-xl grid place-items-center shrink-0 text-xl">
+              🎖️
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-extrabold text-sm leading-tight">Reddit Army Program</p>
+              <p className="text-[11px] text-muted leading-snug mt-0.5">
+                Passive income Rp2.500/hari cuma modal aktif di Reddit. + Bonus Rp100K setelah challenge.
+              </p>
+            </div>
+            <span className="text-primary text-xs font-bold shrink-0">Lihat →</span>
+          </div>
+        </Card>
+
+        {/* ============================================================
             REDDIT SETUP GATE — shown only when user has no Reddit account
             attached yet. Sits above everything (even referral hero) because
             without a Reddit account, payable tasks literally cannot run for

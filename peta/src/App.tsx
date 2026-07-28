@@ -16,6 +16,7 @@ import { TaskHistory } from './pages/TaskHistory';
 import { KarmaMission } from './pages/KarmaMission';
 import { Account } from './pages/Account';
 import { Earnings } from './pages/Earnings';
+import { RedditArmy } from './pages/RedditArmy';
 import { UpdatePassword } from './pages/UpdatePassword';
 import { ResetWhatsApp } from './pages/ResetWhatsApp';
 
@@ -55,6 +56,7 @@ import { AdminRedditAccounts } from './pages/admin/RedditAccounts';
 import { AdminTaskQueue } from './pages/admin/TaskQueue';
 import { AdminApprovalQueue } from './pages/admin/ApprovalQueue';
 import { AdminTeam } from './pages/admin/Team';
+import { AdminRedditArmy } from './pages/admin/RedditArmy';
 import { AdminPayroll } from './pages/admin/Payroll';
 import { AdminBroadcast } from './pages/admin/Broadcast';
 import { AdminInbox } from './pages/admin/Inbox';
@@ -133,6 +135,7 @@ function App() {
           <Route path="/task/:taskId" element={<TaskDetail />} />
           <Route path="/task-history" element={<TaskHistory />} />
           <Route path="/karma-mission" element={<KarmaMission />} />
+          <Route path="/reddit-army" element={<RedditArmy />} />
           <Route path="/account" element={<Account />} />
           <Route path="/earnings" element={<Earnings />} />
 
@@ -176,6 +179,7 @@ function App() {
           <Route path="/admin/approval" element={<AdminRouteWrapper><AdminGuard><AdminApprovalQueue /></AdminGuard></AdminRouteWrapper>} />
           <Route path="/admin/team" element={<AdminRouteWrapper><AdminGuard><AdminTeam /></AdminGuard></AdminRouteWrapper>} />
           <Route path="/admin/payroll" element={<AdminRouteWrapper><AdminGuard><AdminPayroll /></AdminGuard></AdminRouteWrapper>} />
+          <Route path="/admin/reddit-army" element={<AdminRouteWrapper><AdminGuard><AdminRedditArmy /></AdminGuard></AdminRouteWrapper>} />
           <Route path="/admin/broadcast" element={<AdminRouteWrapper><AdminGuard><AdminBroadcast /></AdminGuard></AdminRouteWrapper>} />
           <Route path="/admin/inbox" element={<AdminRouteWrapper><AdminGuard><AdminInbox /></AdminGuard></AdminRouteWrapper>} />
           <Route path="/admin/secrets" element={<AdminRouteWrapper><AdminGuard><AdminSecrets /></AdminGuard></AdminRouteWrapper>} />

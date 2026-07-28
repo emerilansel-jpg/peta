@@ -37,6 +37,8 @@ function formatSubmittedAt(iso: string | null | undefined): string {
 export function AdminApprovalQueue() {
   // View toggle: pending (live queue) vs approved/rejected (history audit).
   const [view, setView] = useState<'pending' | 'approved' | 'rejected' | 'reverted'>('pending');
+  // Category filter: 'all' | 'regular' (exclude reddit_challenge) | 'challenge'.
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'regular' | 'challenge'>('all');
   // Date range filter — scoped to the history tabs. Format YYYY-MM-DD.
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -101,6 +103,13 @@ export function AdminApprovalQueue() {
       }));
     },
     refetchInterval: 30_000, // surface new submissions within 30s
+  });
+
+  // Apply category filter (all / regular / challenge) to pending view.
+  const filteredAssignments = assignments.filter((a: any) => {
+    if (categoryFilter === 'all') return true;
+    const isChallenge = a.tasks?.task_category === 'reddit_challenge';
+    return categoryFilter === 'challenge' ? isChallenge : !isChallenge;
   });
 
   // History audit trail — admin can review past approvals + rejections
@@ -261,6 +270,37 @@ export function AdminApprovalQueue() {
           </button>
         ))}
       </div>
+
+      {/* Category filter (only for pending view) — surface or hide Reddit Army challenge tasks. */}
+      {view === 'pending' && assignments.length > 0 && (
+        <div className="flex gap-2 mb-4">
+          <span className="text-xs text-muted self-center mr-1">Tipe:</span>
+          {([
+            ['all', 'Semua'],
+            ['regular', 'Regular'],
+            ['challenge', '🏆 Challenge'],
+          ] as const).map(([k, label]) => (
+            <button
+              key={k}
+              onClick={() => setCategoryFilter(k)}
+              className={`tap-shrink px-2.5 py-1 rounded-full text-xs font-semibold ${
+                categoryFilter === k
+                  ? k === 'challenge'
+                    ? 'bg-yellow-400 text-yellow-900'
+                    : 'bg-primary text-white'
+                  : 'bg-white ring-1 ring-border text-muted'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+          {categoryFilter !== 'all' && (
+            <span className="text-xs text-muted self-center ml-auto">
+              {filteredAssignments.length} dari {assignments.length}
+            </span>
+          )}
+        </div>
+      )}
 
       {/* Date range filter — only relevant for history views. */}
       {view !== 'pending' && (
@@ -489,7 +529,7 @@ export function AdminApprovalQueue() {
                 </tr>
               </thead>
               <tbody>
-                {assignments.map((a: any) => {
+                {filteredAssignments.map((a: any) => {
                   const proofImage = a.proof_image_url || (/\.(png|jpe?g|gif|webp)(\?|$)/i.test(a.proof_url || '') ? a.proof_url : '');
                   const submittedUrl = a.submitted_url || a.proof_url;
                   const hasProof = !!proofImage;
@@ -616,7 +656,7 @@ export function AdminApprovalQueue() {
 
           {/* Mobile cards — compact, action-first */}
           <div className="md:hidden space-y-2">
-            {assignments.map((a: any) => {
+            {filteredAssignments.map((a: any) => {
               const proofImage = a.proof_image_url || (/\.(png|jpe?g|gif|webp)(\?|$)/i.test(a.proof_url || '') ? a.proof_url : '');
               const submittedUrl = a.submitted_url || a.proof_url;
                   const hasProof = !!proofImage;
