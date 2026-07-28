@@ -4,6 +4,9 @@
 -- Adds optional p_from / p_to params (inclusive day bounds) so the
 -- admin calendar filter can scope the history to a specific period.
 -- Defaults to NULL = unbounded (preserves existing behavior).
+--
+-- Updated: also includes 'reverted' records from task_assignment_history
+-- table so reverted assignments remain visible in admin history.
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION public.admin_approval_history(
@@ -46,6 +49,7 @@ DECLARE
 BEGIN
   IF NOT public.is_admin() THEN RAISE EXCEPTION 'forbidden'; END IF;
 
+  -- 1) Approved/rejected still on task_assignments (not yet reverted).
   RETURN QUERY
   SELECT
     ta.id,
@@ -79,10 +83,48 @@ BEGIN
   LEFT JOIN public.users army_u ON army_u.id = ta.user_id
   LEFT JOIN auth.users au ON au.id = COALESCE(ta.user_id, ra.user_id)
   WHERE ta.status IN ('approved', 'rejected')
-    AND (v_filter = '' OR v_filter IS NULL OR ta.status = v_filter)
+    AND (v_filter = '' OR v_filter IS NULL OR v_filter != 'reverted')
     AND (v_from IS NULL OR COALESCE(ta.updated_at, ta.created_at) >= v_from)
     AND (v_to IS NULL OR COALESCE(ta.updated_at, ta.created_at) < v_to)
-  ORDER BY ta.updated_at DESC
+
+  UNION ALL
+
+  -- 2) Reverted records from the immutable history table.
+  SELECT
+    tah.assignment_id AS id,
+    'reverted'::text AS status,
+    tah.proof_url::text,
+    tah.draft_comment::text,
+    tah.admin_notes::text,
+    tah.created_at,
+    tah.created_at AS updated_at,
+    tah.event_at AS resolved_at,
+    COALESCE(tah.can_retry, false) AS can_retry,
+    t2.id AS task_id,
+    t2.title::text AS task_title,
+    t2.target_url::text AS task_target_url,
+    t2.task_category::text,
+    t2.task_type::text,
+    t2.reward_amount AS task_reward,
+    NULL::text AS submitted_url,
+    NULL::text AS submitted_username,
+    NULL::text AS proof_image_url,
+    NULL::uuid AS reddit_account_id,
+    NULL::text AS reddit_username,
+    tah.user_id AS army_user_id,
+    au2.email::text AS army_email,
+    COALESCE(u2.full_name, u2.full_name)::text AS army_name,
+    NULL::text AS user_note
+  FROM public.task_assignment_history tah
+  LEFT JOIN public.tasks t2 ON t2.id = tah.task_id
+  LEFT JOIN public.users u2 ON u2.id = tah.user_id
+  LEFT JOIN auth.users au2 ON au2.id = tah.user_id
+  WHERE tah.status = 'reverted'
+    AND (v_filter = '' OR v_filter IS NULL OR v_filter = 'reverted')
+    AND (v_from IS NULL OR tah.event_at >= v_from)
+    AND (v_to IS NULL OR tah.event_at < v_to)
+
+  ORDER BY resolved_at DESC
   LIMIT 200;
 END $$;
 
