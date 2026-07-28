@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Check, X, ExternalLink, Clock, ImageIcon } from 'lucide-react';
+import { Check, X, ExternalLink, Clock, ImageIcon, Undo2 } from 'lucide-react';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
-import { adminApproveAssignment, adminRejectAssignment, adminRepairAssignmentUserId, sendTaskApprovedEmail } from '../../lib/api';
+import { adminApproveAssignment, adminRejectAssignment, adminRevertAssignment, adminRepairAssignmentUserId, sendTaskApprovedEmail } from '../../lib/api';
 import { toast } from '../../components/Toast';
 
 // Pre-baked rejection reasons for fast admin triage — covers ~90% of why
@@ -36,7 +36,7 @@ function formatSubmittedAt(iso: string | null | undefined): string {
 
 export function AdminApprovalQueue() {
   // View toggle: pending (live queue) vs approved/rejected (history audit).
-  const [view, setView] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  const [view, setView] = useState<'pending' | 'approved' | 'rejected' | 'reverted'>('pending');
   // Date range filter — scoped to the history tabs. Format YYYY-MM-DD.
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -50,6 +50,9 @@ export function AdminApprovalQueue() {
   // Repair modal — for legacy forum_comment rows whose user_id is NULL.
   const [repairTarget, setRepairTarget] = useState<{ id: string; title: string } | null>(null);
   const [repairUserId, setRepairUserId] = useState('');
+  // Revert modal — admin can revert approved/rejected back to submitted.
+  const [revertTarget, setRevertTarget] = useState<{ id: string; title: string; username: string; status: string; reward: number } | null>(null);
+  const [revertReason, setRevertReason] = useState('');
 
   // Diagnostic — exposes auth.uid + is_admin so we can see WHY the queue
   // is empty without guessing.  Always runs (anon-callable RPC).
@@ -144,7 +147,8 @@ export function AdminApprovalQueue() {
   }));
   const approvedHistory = history.filter((h) => h.status === 'approved');
   const rejectedHistory = history.filter((h) => h.status === 'rejected');
-  const visibleHistory = view === 'approved' ? approvedHistory : rejectedHistory;
+  const revertedHistory = history.filter((h) => h.status === 'reverted');
+  const visibleHistory = view === 'approved' ? approvedHistory : view === 'rejected' ? rejectedHistory : revertedHistory;
 
   const approveMutation = useMutation({
     mutationFn: async (a: any) => {
@@ -194,6 +198,18 @@ export function AdminApprovalQueue() {
     onError: (e: any) => toast.error(`Gagal repair: ${e.message || e}`),
   });
 
+  const revertMutation = useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason: string }) =>
+      adminRevertAssignment(id, reason),
+    onSuccess: () => {
+      toast.success('Assignment di-revert ke submitted ✅');
+      setRevertTarget(null);
+      setRevertReason('');
+      refetch();
+    },
+    onError: (e: any) => toast.error(`Gagal revert: ${e.message || e}`),
+  });
+
   const openRejectModal = (a: any) => {
     setRejectReason('');
     setRejectTarget({
@@ -212,6 +228,7 @@ export function AdminApprovalQueue() {
           {view === 'pending' && `${assignments.length} task menunggu review`}
           {view === 'approved' && `${approvedHistory.length} task sudah di-approve`}
           {view === 'rejected' && `${rejectedHistory.length} task di-reject`}
+          {view === 'reverted' && `${revertedHistory.length} task di-revert`}
         </p>
       </div>
 
@@ -221,6 +238,7 @@ export function AdminApprovalQueue() {
           ['pending', `Menunggu (${assignments.length})`],
           ['approved', `Approved (${approvedHistory.length})`],
           ['rejected', `Reject (${rejectedHistory.length})`],
+          ['reverted', `Reverted (${revertedHistory.length})`],
         ] as const).map(([k, label]) => (
           <button
             key={k}
@@ -231,7 +249,9 @@ export function AdminApprovalQueue() {
                   ? 'bg-success text-white'
                   : k === 'rejected'
                     ? 'bg-danger text-white'
-                    : 'bg-primary text-white'
+                    : k === 'reverted'
+                      ? 'bg-warning text-white'
+                      : 'bg-primary text-white'
                 : 'bg-white ring-1 ring-border text-muted'
             }`}
           >
@@ -333,9 +353,9 @@ export function AdminApprovalQueue() {
           <div className="space-y-3"><CardSkeleton /><CardSkeleton /></div>
         ) : visibleHistory.length === 0 ? (
           <Card className="text-center py-12">
-            <div className="text-5xl mb-3">{view === 'approved' ? '✅' : '📋'}</div>
-            <p className="font-bold">Belum ada riwayat {view === 'approved' ? 'approve' : 'reject'}</p>
-            <p className="text-sm text-muted mt-1">Riwayat {view === 'approved' ? 'approval' : 'rejection'} akan muncul di sini.</p>
+            <div className="text-5xl mb-3">{view === 'approved' ? '✅' : view === 'reverted' ? '↩️' : '📋'}</div>
+            <p className="font-bold">Belum ada riwayat {view === 'approved' ? 'approve' : view === 'reverted' ? 'revert' : 'reject'}</p>
+            <p className="text-sm text-muted mt-1">Riwayat {view === 'approved' ? 'approval' : view === 'reverted' ? 'revert' : 'rejection'} akan muncul di sini.</p>
           </Card>
         ) : (
           <div className="space-y-2">
@@ -343,13 +363,26 @@ export function AdminApprovalQueue() {
               const proofImage = a.proof_image_url || (/\.(png|jpe?g|gif|webp)(\?|$)/i.test(a.proof_url || '') ? a.proof_url : '');
               const submittedUrl = a.submitted_url || a.proof_url;
               const isApproved = a.status === 'approved';
+              const isReverted = a.status === 'reverted';
               return (
-                <Card key={a.id} padding="sm" className={isApproved ? 'ring-1 ring-success/30 bg-success/5' : 'ring-1 ring-danger/30 bg-danger/5'}>
+                <Card key={a.id} padding="sm" className={
+                  isReverted
+                    ? 'ring-1 ring-warning/30 bg-warning/5'
+                    : isApproved
+                      ? 'ring-1 ring-success/30 bg-success/5'
+                      : 'ring-1 ring-danger/30 bg-danger/5'
+                }>
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${isApproved ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger'}`}>
-                          {isApproved ? '✅ Approved' : '❌ Rejected'}
+                        <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ${
+                          a.status === 'reverted'
+                            ? 'bg-warning/15 text-warning'
+                            : isApproved
+                              ? 'bg-success/15 text-success'
+                              : 'bg-danger/15 text-danger'
+                        }`}>
+                          {a.status === 'reverted' ? '↩️ Reverted' : isApproved ? '✅ Approved' : '❌ Rejected'}
                         </span>
                         {!isApproved && a.can_retry === false && (
                           <span className="text-[9px] font-extrabold uppercase bg-danger text-white px-1.5 py-0.5 rounded">FINAL</span>
@@ -361,7 +394,7 @@ export function AdminApprovalQueue() {
                         u/{a.reddit_accounts?.username || '-'} · {a.army_email || 'no email'}
                       </p>
                     </div>
-                    <p className="text-sm font-extrabold money shrink-0" style={{ color: isApproved ? '#06D6A0' : undefined }}>
+                    <p className="text-sm font-extrabold money shrink-0" style={{ color: isReverted ? '#FFB740' : isApproved ? '#06D6A0' : undefined }}>
                       Rp{(a.tasks?.reward_amount || 0).toLocaleString('id-ID')}
                     </p>
                   </div>
@@ -399,6 +432,26 @@ export function AdminApprovalQueue() {
                     <div className="mt-2 bg-white ring-1 ring-danger/30 rounded-lg p-2">
                       <p className="text-[10px] uppercase font-bold text-danger mb-0.5">Alasan reject</p>
                       <p className="text-xs text-dark whitespace-pre-wrap leading-snug">{a.admin_notes}</p>
+                    </div>
+                  )}
+
+                  {/* Revert button — only show if not already reverted */}
+                  {a.status !== 'reverted' && (
+                    <div className="mt-3 pt-2 border-t border-border/50">
+                      <Button
+                        onClick={() => setRevertTarget({
+                          id: a.id,
+                          title: a.tasks?.title || 'Task',
+                          username: a.reddit_accounts?.username || '?',
+                          status: a.status,
+                          reward: a.tasks?.reward_amount || 0,
+                        })}
+                        variant="outline"
+                        size="sm"
+                        className="!border-warning !text-warning hover:!bg-warning hover:!text-white"
+                      >
+                        <Undo2 size={13} /> Revert ke Submitted
+                      </Button>
                     </div>
                   )}
                 </Card>
@@ -843,6 +896,99 @@ export function AdminApprovalQueue() {
                 Batal
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Revert modal — admin reverts approved/rejected back to submitted. */}
+      {revertTarget && (
+        <div
+          className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setRevertTarget(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-extrabold flex items-center gap-2 text-warning">
+                <Undo2 size={20} /> Revert Task
+              </h3>
+              <button onClick={() => setRevertTarget(null)} className="p-1 text-muted hover:text-dark">
+                <X size={20} />
+              </button>
+            </div>
+            <p className="text-sm text-muted mb-1">
+              <b className="text-dark">{revertTarget.title}</b> · u/{revertTarget.username}
+            </p>
+            <div className={`text-xs font-bold px-2 py-1 rounded-full inline-block mb-3 ${
+              revertTarget.status === 'approved' ? 'bg-success/15 text-success' : 'bg-danger/15 text-danger'
+            }`}>
+              {revertTarget.status === 'approved' ? '✅ Approved' : '❌ Rejected'}
+            </div>
+
+            {revertTarget.status === 'approved' && (
+              <div className="bg-warning/10 ring-1 ring-warning/30 rounded-lg p-3 mb-3">
+                <p className="text-xs font-bold text-warning">
+                  ⚠️ Saldo akan dikurangi Rp{revertTarget.reward.toLocaleString('id-ID')}
+                </p>
+                <p className="text-[11px] text-warning/80 mt-1">
+                  Reward yang sudah masuk ke user akan di-reverse (dimasukkan sebagai negative credit).
+                </p>
+              </div>
+            )}
+
+            {revertTarget.status === 'rejected' && (
+              <div className="bg-light ring-1 ring-border rounded-lg p-3 mb-3">
+                <p className="text-xs font-bold text-muted">
+                  ℹ️ Tidak ada perubahan saldo (task ini belum pernah dikredit).
+                </p>
+                <p className="text-[11px] text-muted/80 mt-1">
+                  Status akan dikembalikan ke submitted dan user bisa submit ulang.
+                </p>
+              </div>
+            )}
+
+            <p className="text-xs uppercase font-bold tracking-wide text-muted mb-1.5">
+              Alasan revert (wajib):
+            </p>
+            <textarea
+              value={revertReason}
+              onChange={(e) => setRevertReason(e.target.value)}
+              placeholder="Tulis alasan revert (min 10 huruf). Contoh: Salah approve, perlu review ulang."
+              rows={3}
+              autoFocus
+              className="w-full px-3 py-2.5 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-warning focus:bg-white transition text-sm mb-3"
+            />
+
+            <div className="space-y-2">
+              <Button
+                onClick={() => {
+                  if (!confirm(`Yakin revert task ini? Status akan kembali ke submitted.`)) return;
+                  revertMutation.mutate({ id: revertTarget.id, reason: revertReason });
+                }}
+                loading={revertMutation.isPending}
+                disabled={revertReason.trim().length < 10 || revertMutation.isPending}
+                variant="primary"
+                size="md"
+                fullWidth
+                className="!bg-warning hover:!brightness-110"
+              >
+                <Undo2 size={15} /> Revert ke Submitted
+              </Button>
+              <button
+                onClick={() => setRevertTarget(null)}
+                disabled={revertMutation.isPending}
+                className="w-full text-xs text-muted hover:text-dark font-semibold py-2 disabled:opacity-50"
+              >
+                Batal
+              </button>
+            </div>
+            <p className="text-[10px] text-muted/80 mt-3 leading-snug">
+              💡 Assignment akan kembali ke status <b>submitted</b> di approval queue. Admin bisa review ulang dan approve/reject kembali.
+            </p>
           </div>
         </div>
       )}

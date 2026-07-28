@@ -1252,7 +1252,7 @@ export type TaskHistoryRow = {
   id: string;
   assignment_id: string;
   task_id: string;
-  status: 'approved' | 'rejected';
+  status: 'approved' | 'rejected' | 'reverted';
   admin_notes: string | null;
   can_retry: boolean;
   proof_url: string | null;
@@ -1286,6 +1286,33 @@ export async function adminRejectAssignment(assignmentId: string, reason: string
     p_can_retry: allowRetry,
   });
   if (error) throw error;
+}
+
+// Admin: revert an approved or rejected assignment back to submitted.
+// Approved → reverses the user_credits reward (negative row), decrements task slots.
+// Rejected → no balance change, just resets status.
+export async function adminRevertAssignment(assignmentId: string, reason: string): Promise<void> {
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError || !sessionData.session) {
+    throw new Error('Sesi admin tidak aktif. Coba logout dan login ulang.');
+  }
+  const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/admin_revert_assignment`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${sessionData.session.access_token}`,
+    },
+    body: JSON.stringify({ p_assignment_id: assignmentId, p_reason: reason }),
+  });
+  if (!res.ok) {
+    let message = `Gagal revert (${res.status})`;
+    try {
+      const err = await res.json();
+      message = err.message || message;
+    } catch {}
+    throw new Error(message);
+  }
 }
 
 // Delete a broadcast (admin only). Cascade deletes recipients.
