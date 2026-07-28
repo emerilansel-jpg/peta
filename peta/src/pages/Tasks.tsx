@@ -17,7 +17,7 @@ import {
   getCommunityFeed, type CommunityEvent,
   getMaxRedditKarma, getReferralStats, getWaDismissed, dismissWaGroup,
   getFoundingMembers, listEligibleTasksForUser, type EligibleTask,
-  getMyPendingAssignments, retryRejectedAssignment, type MyAssignmentRow,
+  getMyPendingAssignments, type MyAssignmentRow,
   getMyTaskHistory, type TaskHistoryRow,
 } from '../lib/api';
 import { LEVELS, getLevelInfo } from '../lib/levels';
@@ -168,24 +168,8 @@ export function Tasks() {
 
   const inProgressAssignments = myAssignments.filter((a) => a.status === 'in_progress');
   const pendingAssignments = myAssignments.filter((a) => a.status === 'submitted');
-  const rejectedAssignments = myAssignments.filter((a) => a.status === 'rejected');
   const completedHistory = taskHistory.filter((a) => a.status === 'approved');
   const pendingValue = pendingAssignments.reduce((sum, a) => sum + (a.task_reward || 0), 0);
-
-  const retryMutation = useMutation({
-    mutationFn: retryRejectedAssignment,
-    onSuccess: (_, assignmentId) => {
-      const assignment = myAssignments.find((a) => a.id === assignmentId);
-      toast.success('OK, coba lagi');
-      queryClient.invalidateQueries({ queryKey: ['myAssignments', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['taskHistory', user?.id] });
-      queryClient.invalidateQueries({ queryKey: ['eligibleTasks', user?.id] });
-      if (assignment) {
-        navigate(`/task/${assignment.task_id}`);
-      }
-    },
-    onError: (e: any) => toast.error(`Gagal: ${e.message || e}`),
-  });
 
   const { data: waDismissed = false } = useQuery({
     queryKey: ['waDismissed', user?.id],
@@ -281,116 +265,28 @@ export function Tasks() {
           </Card>
         )}
 
-        {/* History upsell — approved + rejected live on a dedicated page so
-            the main task list stays focused on what the user can do right now.
-            Counts act as a progress signal ("look how much I've earned / learned"). */}
-        {(completedHistory.length > 0 || rejectedAssignments.length > 0) && (
-          <div className="grid grid-cols-2 gap-2 mb-5">
-            <button
-              onClick={() => navigate('/task-history')}
-              className="tap-shrink rounded-xl p-3 text-left bg-success/10 ring-1 ring-success/30 hover:ring-success/60 transition"
-            >
-              <div className="flex items-center justify-between mb-1">
+        {/* History upsell — approved tasks on a dedicated page.
+            Counts act as a progress signal ("look how much I've earned"). */}
+        {completedHistory.length > 0 && (
+          <button
+            onClick={() => navigate('/task-history')}
+            className="w-full tap-shrink rounded-xl p-3 text-left bg-success/10 ring-1 ring-success/30 hover:ring-success/60 transition mb-5"
+          >
+            <div className="flex items-center justify-between">
+              <div>
                 <span className="text-[10px] uppercase font-extrabold tracking-wide text-success">Approved</span>
-                <span className="text-xs font-extrabold text-success bg-success/15 px-2 py-0.5 rounded-full">
+                <span className="ml-2 text-xs font-extrabold text-success bg-success/15 px-2 py-0.5 rounded-full">
                   {completedHistory.length}
                 </span>
               </div>
               <p className="text-sm font-extrabold text-success money leading-tight">
                 +Rp{completedHistory.reduce((sum, a) => sum + (a.task_reward || 0), 0).toLocaleString('id-ID')}
               </p>
-              <p className="text-[10px] text-muted mt-0.5">Lihat task selesai →</p>
-            </button>
-            <button
-              onClick={() => navigate('/task-history')}
-              className="tap-shrink rounded-xl p-3 text-left bg-danger/10 ring-1 ring-danger/30 hover:ring-danger/60 transition"
-            >
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] uppercase font-extrabold tracking-wide text-danger">Reject</span>
-                <span className="text-xs font-extrabold text-danger bg-danger/15 px-2 py-0.5 rounded-full">
-                  {rejectedAssignments.length}
-                </span>
-              </div>
-              <p className="text-sm font-extrabold text-danger leading-tight">
-                {rejectedAssignments.length > 0 ? 'Cek alasan + coba lagi' : 'Belum ada'}
-              </p>
-              <p className="text-[10px] text-muted mt-0.5">Lihat history reject →</p>
-            </button>
-          </div>
+            </div>
+            <p className="text-[10px] text-muted mt-0.5">Lihat task selesai →</p>
+          </button>
         )}
 
-        {/* ============================================================
-            REJECTED ASSIGNMENTS — admin said redo (or rejected FINAL).
-            Surface above pending and active so user can fix-and-retry
-            FAST. Each row shows the admin's reason. Final rejections
-            (can_retry=false) get a different "no retry" treatment.
-        ============================================================= */}
-        {rejectedAssignments.length > 0 && (
-          <div className="mb-4">
-            <h2 className="text-base sm:text-lg font-extrabold flex items-center gap-1.5 mb-2">
-              Task ditolak
-              <span className="text-xs font-bold text-danger bg-danger/10 px-2 py-0.5 rounded-full">
-                {rejectedAssignments.length}
-              </span>
-            </h2>
-            <div className="space-y-2">
-              {rejectedAssignments.map((a) => {
-                const isFinal = !a.can_retry;
-                return (
-                  <Card key={a.id} padding="sm" className={`ring-2 ${isFinal ? 'ring-danger/60 bg-danger/10' : 'ring-danger/30 bg-danger/5'}`}>
-                    <div className="flex items-start justify-between gap-2 mb-1.5">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-                          <p className="font-bold text-sm leading-snug">{a.task_title}</p>
-                          {isFinal && (
-                            <span className="text-[9px] font-extrabold uppercase tracking-wide bg-danger text-white px-1.5 py-0.5 rounded">
-                              FINAL
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-[11px] text-muted">
-                          Direview: {new Date(a.updated_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                      <p className="text-sm sm:text-base font-extrabold text-muted money shrink-0 line-through">
-                        Rp{a.task_reward.toLocaleString('id-ID')}
-                      </p>
-                    </div>
-                    {a.admin_notes && (
-                      <div className="bg-white ring-1 ring-danger/30 rounded-lg p-2 mb-2">
-                        <p className="text-[10px] uppercase font-bold tracking-wide text-danger mb-0.5">
-                          Alasan ditolak
-                        </p>
-                        <p className="text-xs text-dark leading-snug whitespace-pre-wrap">{a.admin_notes}</p>
-                      </div>
-                    )}
-                    {isFinal ? (
-                      <div className="bg-white ring-1 ring-danger/20 rounded-lg p-2 text-center">
-                        <p className="text-xs font-bold text-danger">
-                          Reject final - task ini tidak bisa di-submit ulang
-                        </p>
-                        <p className="text-[10px] text-muted mt-0.5">
-                          Lakuin task lain di bawah untuk earn dari ulang.
-                        </p>
-                      </div>
-                    ) : (
-                      <Button
-                        onClick={() => retryMutation.mutate(a.id)}
-                        loading={retryMutation.isPending}
-                        variant="primary"
-                        size="sm"
-                        fullWidth
-                        className="!bg-danger hover:!brightness-110"
-                      >
-                        Coba Lagi (upload bukti baru)
-                      </Button>
-                    )}
-                  </Card>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* ============================================================
             PENDING APPROVAL — submitted task_assignments waiting on admin
@@ -533,7 +429,7 @@ export function Tasks() {
         )}
 
         {/* Empty state — Reddit setup OK but no eligible tasks right now. */}
-        {!needsReddit && !tasksLoading && eligibleTasks.length === 0 && inProgressAssignments.length === 0 && pendingAssignments.length === 0 && rejectedAssignments.length === 0 && completedHistory.length === 0 && (
+        {!needsReddit && !tasksLoading && eligibleTasks.length === 0 && inProgressAssignments.length === 0 && pendingAssignments.length === 0 && completedHistory.length === 0 && (
           <Card className="mb-5 text-center py-6" padding="sm">
             <p className="font-bold text-sm">Belum ada task aktif buat kamu</p>
             <p className="text-xs text-muted mt-1">
