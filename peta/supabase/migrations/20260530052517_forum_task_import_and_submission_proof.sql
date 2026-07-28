@@ -3,6 +3,14 @@ ALTER TABLE public.task_assignments
   ADD COLUMN IF NOT EXISTS submitted_username TEXT,
   ADD COLUMN IF NOT EXISTS proof_image_url TEXT;
 
+-- Add task_category column (backfill for shadow-DB rebuild correctness).
+-- This column was originally added directly to prod via the dashboard and
+-- never tracked as a migration, which caused supabase db diff/push to fail
+-- when rebuilding the shadow DB from migrations. Adding it idempotently
+-- here so a fresh shadow DB also has it.
+ALTER TABLE public.tasks
+  ADD COLUMN IF NOT EXISTS task_category TEXT;
+
 ALTER TABLE public.tasks
   DROP CONSTRAINT IF EXISTS tasks_task_category_check;
 
