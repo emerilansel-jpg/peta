@@ -75,8 +75,22 @@ export function TaskDetail() {
   const { data: task, isLoading: taskLoading } = useQuery({
     queryKey: ['task', taskId],
     queryFn: async () => {
-      const { data } = await supabase.from('tasks').select('*').eq('id', taskId).single();
-      return data;
+      // Strategy 1: Direct query (works for publicly active tasks)
+      const { data: direct } = await supabase.from('tasks').select('*').eq('id', taskId).single();
+      if (direct) return direct;
+
+      // Strategy 2: If the user has a valid assignment, fetch via
+      // SECURITY DEFINER RPC that bypasses RLS. This handles tasks
+      // whose status was changed (paused/completed/hidden) after the
+      // user claimed them.
+      const { data: rpcTask, error: rpcError } = await supabase
+        .rpc('get_task_for_assignment_holder', { p_task_id: taskId });
+      if (rpcTask) return rpcTask;
+
+      // Surface RPC errors for debugging, but don't leak to user
+      if (rpcError) console.warn('get_task_for_assignment_holder RPC error:', rpcError);
+
+      return null;
     },
     enabled: !!taskId,
   });
