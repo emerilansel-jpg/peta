@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -15,6 +15,7 @@ import {
   claimChallengeTask,
   requestRedditArmyResignation,
   cancelRedditArmyResignation,
+  syncMyRedditDailyActivity,
 } from '../lib/api';
 import { toast } from '../components/Toast';
 
@@ -97,6 +98,55 @@ export function RedditArmy() {
       toast.error(`Gagal batal: ${err.message}`);
     },
   });
+
+  // Client-side daily activity sync — residential IP fallback.
+  // Fires once per mount when user is in phase2/resigning, throttled to
+  // once per 10 minutes via localStorage flag.
+  const lastClientSyncAt = useRef<string | null>(null);
+  useEffect(() => {
+    const profile = profileQuery.data?.profile;
+    if (!profile) return;
+    if (profile.program_status !== 'phase2_active' && profile.program_status !== 'resigning') return;
+    if (!profile.warmed_account_id) return;
+
+    // Throttle: only fire if last sync > 10 min ago (or never).
+    const key = `ra_last_client_sync:${profile.user_id}`;
+    const stored = typeof window !== 'undefined' ? window.localStorage.getItem(key) : null;
+    if (stored && Date.now() - parseInt(stored, 10) < 10 * 60 * 1000) return;
+
+    // We need the username — fetch it via direct reddit_accounts read.
+    (async () => {
+      try {
+        const { supabase } = await import('../lib/supabase');
+        const { data: acc } = await supabase
+          .from('reddit_accounts')
+          .select('username')
+          .eq('id', profile.warmed_account_id)
+          .single();
+        if (!acc?.username) return;
+
+        if (lastClientSyncAt.current) return; // already in-flight
+        lastClientSyncAt.current = new Date().toISOString();
+
+        const r = await syncMyRedditDailyActivity({
+          username: acc.username,
+          redditAccountId: profile.warmed_account_id!,
+        });
+        if (r?.ok && (r.commentsToday || r.postsToday)) {
+          // Refresh the profile query so UI reflects new activity.
+          queryClient.invalidateQueries({ queryKey: ['reddit-army-profile'] });
+        }
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(key, Date.now().toString());
+        }
+      } catch (e) {
+        // Silent — client-side sync is best-effort.
+        console.warn('[ra client sync]', e);
+      } finally {
+        lastClientSyncAt.current = null;
+      }
+    })();
+  }, [profileQuery.data?.profile?.program_status, profileQuery.data?.profile?.warmed_account_id, queryClient]);
 
   if (profileQuery.isLoading) {
     return (
