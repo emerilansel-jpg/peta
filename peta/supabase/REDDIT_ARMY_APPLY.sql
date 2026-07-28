@@ -1,16 +1,12 @@
 -- ============================================================
 -- PeTa — Reddit Army: ONE-FILE APPLY for Supabase SQL Editor
--- Generated: 2026-07-30
+-- Generated: 2026-07-30 (v3 — fixed DEFAULT param ordering)
 -- 
 -- INSTRUCTIONS:
 --   1. Supabase Dashboard > SQL Editor > New query
 --   2. Paste this whole file
 --   3. Click Run (Ctrl+Enter) — takes ~30 seconds
 --   4. All operations are idempotent — safe to re-run.
--- 
--- Combines 6 migrations:
---   schema + seed + RPCs phase1 + RPCs phase2 +
---   extend earnings + sync targets + cron jobs
 -- ============================================================
 
 BEGIN;
@@ -781,7 +777,7 @@ CREATE OR REPLACE FUNCTION public.admin_create_challenge_task(
   p_reward_amount int,
   p_max_assignments int DEFAULT 1,
   p_per_account_limit int DEFAULT 1,
-  p_brief text
+  p_brief text DEFAULT NULL
 )
 RETURNS uuid  -- task_id
 LANGUAGE plpgsql
@@ -1652,13 +1648,8 @@ END $$;
 NOTIFY pgrst, 'reload schema';
 
 
-
 COMMIT;
 
--- ============================================================
--- DONE. Verify in a NEW SQL Editor tab:
+-- DONE. Verify:
 --   SELECT * FROM reddit_challenge_levels ORDER BY level_number;
---   SELECT table_name FROM information_schema.tables
---     WHERE table_name IN ('reddit_army_profiles','reddit_challenge_levels','reddit_daily_activity','bonus_holds');
 --   SELECT jobname, schedule, active FROM cron.job WHERE jobname LIKE 'ra-%';
--- ============================================================

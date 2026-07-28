@@ -407,7 +407,7 @@ CREATE OR REPLACE FUNCTION public.admin_create_challenge_task(
   p_reward_amount int,
   p_max_assignments int DEFAULT 1,
   p_per_account_limit int DEFAULT 1,
-  p_brief text
+  p_brief text DEFAULT NULL
 )
 RETURNS uuid  -- task_id
 LANGUAGE plpgsql
