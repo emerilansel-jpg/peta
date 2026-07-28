@@ -116,7 +116,9 @@ export function AdminApprovalQueue() {
       if (error) throw error;
       return data || [];
     },
-    enabled: view !== 'pending',
+    // Always fetch so tab counters (Approved/Rejected/Reverted) show
+    // correct counts even when admin is on the "Menunggu" view.
+    enabled: true,
     refetchInterval: 60_000,
   });
   const history = (historyRaw as any[]).map((r) => ({
