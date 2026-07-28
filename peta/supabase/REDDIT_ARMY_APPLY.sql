@@ -1,29 +1,25 @@
 -- ============================================================
--- PeTa — Reddit Army: ONE-FILE APPLY for SQL Editor
+-- PeTa — Reddit Army: ONE-FILE APPLY for Supabase SQL Editor
 -- Generated: 2026-07-30
 -- 
 -- INSTRUCTIONS:
---   1. Open Supabase Dashboard > SQL Editor
+--   1. Supabase Dashboard > SQL Editor > New query
 --   2. Paste this whole file
---   3. Click Run (will take ~30 seconds)
+--   3. Click Run (Ctrl+Enter) — takes ~30 seconds
 --   4. All operations are idempotent — safe to re-run.
 -- 
--- This combines 6 migrations:
---   - schema (4 new tables + extend 2)
---   - seed levels (5 levels)
---   - RPCs phase 1 (challenge flow)
---   - RPCs phase 2 (daily bonus + holds + resignation)
---   - cron jobs (4 scheduled)
---   - extend get_user_earnings RPC
---   - sync targets helper RPC
+-- Combines 6 migrations:
+--   schema + seed + RPCs phase1 + RPCs phase2 +
+--   extend earnings + sync targets + cron jobs
 -- ============================================================
 
-\set ECHO all
 BEGIN;
 
-============================================================
+
+-- ============================================================
 -- FILE: 20260730_reddit_army_schema.sql
-============================================================
+-- ============================================================
+
 -- ============================================================
 -- PeTa — Reddit Army Gamification System (Phase 1: Schema).
 --
@@ -282,9 +278,11 @@ CREATE POLICY "bh_admin_all" ON public.bonus_holds
 NOTIFY pgrst, 'reload schema';
 
 
-============================================================
+
+-- ============================================================
 -- FILE: 20260730_reddit_army_seed_levels.sql
-============================================================
+-- ============================================================
+
 -- ============================================================
 -- PeTa — Reddit Army: Seed initial 5 challenge levels.
 --
@@ -369,9 +367,11 @@ ON CONFLICT (level_number) DO UPDATE SET
 NOTIFY pgrst, 'reload schema';
 
 
-============================================================
+
+-- ============================================================
 -- FILE: 20260730_reddit_army_rpc_phase1.sql
-============================================================
+-- ============================================================
+
 -- ============================================================
 -- PeTa — Reddit Army RPCs (Phase 1: Challenge flow).
 --
@@ -858,9 +858,11 @@ CREATE TRIGGER trg_reddit_army_check_level_after_approval
 NOTIFY pgrst, 'reload schema';
 
 
-============================================================
+
+-- ============================================================
 -- FILE: 20260730_reddit_army_rpc_phase2.sql
-============================================================
+-- ============================================================
+
 -- ============================================================
 -- PeTa — Reddit Army RPCs (Phase 2: Daily bonus + holds + resignation).
 --
@@ -1418,9 +1420,11 @@ GRANT EXECUTE ON FUNCTION public.get_reddit_army_stats_for_admin() TO authentica
 NOTIFY pgrst, 'reload schema';
 
 
-============================================================
+
+-- ============================================================
 -- FILE: 20260730_reddit_army_extend_earnings.sql
-============================================================
+-- ============================================================
+
 -- ============================================================
 -- PeTa — Reddit Army: extend get_user_earnings() with retention
 -- fields for display on the Earnings page.
@@ -1530,9 +1534,11 @@ GRANT EXECUTE ON FUNCTION public.get_user_earnings() TO authenticated;
 NOTIFY pgrst, 'reload schema';
 
 
-============================================================
+
+-- ============================================================
 -- FILE: 20260730_reddit_army_sync_targets.sql
-============================================================
+-- ============================================================
+
 -- ============================================================
 -- PeTa — Reddit Army: helper RPC for the sync edge function.
 --
@@ -1575,9 +1581,11 @@ GRANT EXECUTE ON FUNCTION public.list_reddit_army_sync_targets(uuid[]) TO authen
 NOTIFY pgrst, 'reload schema';
 
 
-============================================================
+
+-- ============================================================
 -- FILE: 20260730_reddit_army_cron_jobs.sql
-============================================================
+-- ============================================================
+
 -- ============================================================
 -- PeTa — Reddit Army pg_cron jobs.
 --
@@ -1644,9 +1652,13 @@ END $$;
 NOTIFY pgrst, 'reload schema';
 
 
+
 COMMIT;
 
--- Done. Run these to verify (in a NEW SQL Editor tab):
+-- ============================================================
+-- DONE. Verify in a NEW SQL Editor tab:
 --   SELECT * FROM reddit_challenge_levels ORDER BY level_number;
---   SELECT * FROM information_schema.tables WHERE table_name LIKE 'reddit_%' OR table_name = 'bonus_holds';
+--   SELECT table_name FROM information_schema.tables
+--     WHERE table_name IN ('reddit_army_profiles','reddit_challenge_levels','reddit_daily_activity','bonus_holds');
 --   SELECT jobname, schedule, active FROM cron.job WHERE jobname LIKE 'ra-%';
+-- ============================================================
