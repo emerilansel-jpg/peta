@@ -13,7 +13,6 @@ import { Onboarding } from './pages/Onboarding';
 import { Tasks } from './pages/Tasks';
 import { TaskDetail } from './pages/TaskDetail';
 import { TaskHistory } from './pages/TaskHistory';
-import { KarmaMission } from './pages/KarmaMission';
 import { Account } from './pages/Account';
 import { Earnings } from './pages/Earnings';
 import { RedditArmy } from './pages/RedditArmy';
@@ -134,8 +133,8 @@ function App() {
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/task/:taskId" element={<TaskDetail />} />
           <Route path="/task-history" element={<TaskHistory />} />
-          <Route path="/karma-mission" element={<KarmaMission />} />
           <Route path="/reddit-army" element={<RedditArmy />} />
+          <Route path="/karma-mission" element={<Navigate to="/reddit-army" replace />} />
           <Route path="/account" element={<Account />} />
           <Route path="/earnings" element={<Earnings />} />
 

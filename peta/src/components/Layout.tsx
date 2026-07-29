@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { LogOut, Home, Wallet, User as UserIcon, Menu, X, BarChart3, Users, ListChecks, ClipboardCheck, Coins, Link as LinkIcon, ShieldCheck, Megaphone, Target, Inbox, Key, Radio, Trophy } from 'lucide-react';
+import { LogOut, Home, Wallet, User as UserIcon, Menu, X, BarChart3, Users, ListChecks, ClipboardCheck, Coins, Link as LinkIcon, ShieldCheck, Megaphone, Inbox, Key, Radio, Trophy } from 'lucide-react';
 import { getMyPendingAssignments } from '../lib/api';
 import { supabase } from '../lib/supabase';
 
@@ -24,10 +24,10 @@ interface LayoutProps {
 // administered. Admin gets a separate jump-link at the top when their role
 // hits the public client area (see <AdminJumpLink/>).
 const armyTabs = [
-  { href: '/tasks',         label: 'Tugas', icon: Home },
-  { href: '/karma-mission', label: 'Karma', icon: Target },
-  { href: '/earnings',      label: 'Saldo', icon: Wallet },
-  { href: '/account',       label: 'Akun',  icon: UserIcon },
+  { href: '/tasks',         label: 'Tugas',     icon: Home },
+  { href: '/reddit-army',   label: 'Reddit',    icon: Trophy },
+  { href: '/earnings',      label: 'Saldo',     icon: Wallet },
+  { href: '/account',       label: 'Akun',      icon: UserIcon },
 ];
 
 const adminLinks = [

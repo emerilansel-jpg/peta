@@ -643,33 +643,7 @@ export async function claimOnboardingBonus(step: OnboardingStep) {
   if (error) throw error;
 }
 
-// Karma milestone (post-onboarding "Misi Wajib #1"): awards Rp5K when the
-// user's highest reddit_accounts.karma >= 10. Server-side check + idempotent.
-export type KarmaMilestoneResult =
-  | { awarded: true;  karma: number; amount: number }
-  | { awarded: false; karma: number; reason: 'karma_below_threshold' | 'already_claimed' };
-
-export async function claimKarmaMilestone(): Promise<KarmaMilestoneResult> {
-  const { data, error } = await supabase.rpc('claim_karma_milestone');
-  if (error) throw error;
-  return data as KarmaMilestoneResult;
-}
-
-// Has the user already claimed the karma milestone? (For UI state)
-// Description was 'karma_10' before 2026-05-13, then bumped to 'karma_100'.
-// Unique index is now per (user_id, source='karma_milestone') so any row counts.
-export async function hasClaimedKarmaMilestone(userId: string): Promise<boolean> {
-  const { data, error } = await supabase
-    .from('user_credits')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('source', 'karma_milestone')
-    .maybeSingle();
-  if (error) throw error;
-  return !!data;
-}
-
-// Highest karma across all reddit accounts for a user. Used by Karma Mission
+// Highest karma across all reddit accounts for a user. Used by Reddit Army
 // progress bar without re-hitting reddit.com. Also surfaces status_flag so
 // Tasks/Earnings/Account pages can show a "your Reddit account got banned —
 // fix it" banner without re-running the sync.
@@ -1618,12 +1592,19 @@ export type RedditArmyStatus =
   | 'resigned'
   | 'expelled';
 
+export type RedditArmyCohort = 'new_self_register' | 'warmed_purchased';
+
 export type RedditArmyProfile = {
   id: string;
   user_id: string;
   warmed_account_id: string | null;
   program_status: RedditArmyStatus;
   current_challenge_level: number;
+  cohort: RedditArmyCohort | null;
+  invited_by: string | null;
+  invited_at: string | null;
+  warmed_account_provided_at: string | null;
+  current_level_started_at: string | null;
   phase1_started_at: string | null;
   phase1_completed_at: string | null;
   phase2_started_at: string | null;
@@ -1652,6 +1633,9 @@ export type ChallengeTaskRow = {
   assignment_id: string | null;
   assignment_status: 'in_progress' | 'submitted' | 'approved' | 'rejected' | null;
   can_retry: boolean | null;
+  level_locked: boolean;
+  days_until_unlock: number;
+  min_days_at_level: number;
 };
 
 export type DailyActivityResult = {
@@ -1698,9 +1682,18 @@ export async function getRedditArmyProfile(): Promise<RedditArmyProfileResult | 
   };
 }
 
-/** Army opts into the program. Requires 1 active Reddit account. */
-export async function joinRedditArmyProgram(): Promise<{ ok: boolean; error?: string }> {
-  const { error } = await supabase.rpc('join_reddit_army_program');
+/**
+ * Army activates a pending invitation. For cohort 'new_self_register',
+ * the username is required (it's the army's own Reddit account). For
+ * 'warmed_purchased', the warmed account is already assigned by admin
+ * and the username is ignored.
+ */
+export async function activateRedditArmyInvitation(
+  username?: string
+): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await supabase.rpc('activate_reddit_army_invitation', {
+    p_username: username ?? null,
+  });
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
@@ -1763,6 +1756,30 @@ export async function getRedditArmyAdminStats(): Promise<RedditArmyAdminStats | 
   }
   if (!data || data.length === 0) return null;
   return data[0];
+}
+
+/** Admin invite a user into Reddit Army with a specific cohort. */
+export async function adminInviteRedditArmy(
+  userId: string,
+  cohort: RedditArmyCohort
+): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await supabase.rpc('admin_invite_reddit_army', {
+    p_user_id: userId,
+    p_cohort: cohort,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+/** Admin revoke a pending invitation (status must be 'not_started'). */
+export async function adminRevokeRedditArmyInvitation(
+  userId: string
+): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await supabase.rpc('admin_revoke_reddit_army_invitation', {
+    p_user_id: userId,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
 }
 
 /** Admin list all members. */

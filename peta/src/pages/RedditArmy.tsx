@@ -3,14 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Trophy, Flame, Lock, Sparkles, Clock,
-  CheckCircle2, XCircle, AlertTriangle, Wallet, RefreshCw,
+  CheckCircle2, XCircle, AlertTriangle, Wallet, RefreshCw, Hourglass,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import {
   getRedditArmyProfile,
-  joinRedditArmyProgram,
+  activateRedditArmyInvitation,
   listChallengeTasksForUser,
   claimChallengeTask,
   requestRedditArmyResignation,
@@ -50,14 +50,14 @@ export function RedditArmy() {
     staleTime: 30_000,
   });
 
-  const joinMut = useMutation({
-    mutationFn: joinRedditArmyProgram,
+  const activateMut = useMutation({
+    mutationFn: (username: string | undefined) => activateRedditArmyInvitation(username),
     onSuccess: () => {
       toast.success('🎉 Selamat bergabung! Challenge Phase 1 udah aktif. Gas kerjain misi pertama!');
       queryClient.invalidateQueries({ queryKey: ['reddit-army-profile'] });
     },
     onError: (err: Error) => {
-      toast.error(`Gagal gabung: ${err.message}`);
+      toast.error(`Gagal aktivasi: ${err.message}`);
     },
   });
 
@@ -185,7 +185,11 @@ export function RedditArmy() {
         </div>
 
         {status === 'not_started' && (
-          <NotJoinedState onJoin={() => joinMut.mutate()} joining={joinMut.isPending} />
+          <InvitedState
+            profile={profile}
+            onActivate={(username) => activateMut.mutate(username)}
+            activating={activateMut.isPending}
+          />
         )}
 
         {status === 'phase1_active' && (
@@ -281,51 +285,122 @@ export function RedditArmy() {
 }
 
 // ---------------------------------------------------------------
-// STATE 1: not_started
+// STATE 1: not_started — Invitation pending
 // ---------------------------------------------------------------
-function NotJoinedState({ onJoin, joining }: { onJoin: () => void; joining: boolean }) {
+function InvitedState({
+  profile,
+  onActivate,
+  activating,
+}: {
+  profile: any;
+  onActivate: (username?: string) => void;
+  activating: boolean;
+}) {
+  const [username, setUsername] = useState('');
+
+  // No profile at all → not invited
+  if (!profile || profile.cohort === null) {
+    return (
+      <>
+        <Card className="bg-gradient-to-br from-gray-100 to-gray-50 mb-4">
+          <div className="text-center">
+            <div className="text-4xl mb-2">🔒</div>
+            <h2 className="text-lg font-bold mb-1">Akses Terkunci</h2>
+            <p className="text-sm text-gray-600">
+              Kamu belum diundang ke Reddit Army Program. Hubungi admin buat dapet undangan.
+            </p>
+          </div>
+        </Card>
+        <Card>
+          <h3 className="font-bold mb-2">Tentang program ini</h3>
+          <ul className="space-y-2 text-sm text-gray-700">
+            <li>🏆 Bonus Rp100K setelah selesai 5 level challenge</li>
+            <li>💰 Bonus harian Rp2.500 selama aktif (≈Rp75K/bulan)</li>
+            <li>🔒 Tabungan retensi yang cair saat pamit berhenti</li>
+            <li>⏰ Challenge min 30 hari (warmup account — anti bot detection)</li>
+          </ul>
+        </Card>
+      </>
+    );
+  }
+
+  const isWarmed = profile.cohort === 'warmed_purchased';
+
   return (
     <>
       <Card className="bg-gradient-to-br from-primary/10 to-secondary/10 mb-4">
         <div className="text-center">
           <div className="text-4xl mb-2">🎖️</div>
-          <h2 className="text-lg font-bold mb-1">Reddit Army Program</h2>
+          <h2 className="text-lg font-bold mb-1">Kamu Diundang!</h2>
           <p className="text-sm text-gray-600">
-            Mau dapet passive income tiap hari cuma modal aktif di Reddit?
+            {isWarmed
+              ? 'Admin udah siapin akun Reddit warmed buat kamu. Tinggal aktivasi & gas!'
+              : 'Kamu ikut program ini pakai akun Reddit kamu sendiri. Persiapkan dulu ya.'}
           </p>
         </div>
       </Card>
 
       <Card className="mb-4">
-        <h3 className="font-bold mb-3">Kamu akan dapat:</h3>
-        <ul className="space-y-2 text-sm">
-          <li className="flex items-start gap-2">
-            <Trophy size={18} className="text-yellow-500 mt-0.5 shrink-0" />
-            <span>Bonus <strong>Rp100K</strong> setelah selesaiin warmup challenge</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <Wallet size={18} className="text-success mt-0.5 shrink-0" />
-            <span>Bonus harian <strong>Rp2.500</strong> selama aktif (≈Rp75K/bulan)</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <Lock size={18} className="text-secondary mt-0.5 shrink-0" />
-            <span>Tabungan retensi yang cair saat kamu pamit berhenti</span>
-          </li>
-        </ul>
+        <h3 className="font-bold mb-2">Tipe partisipasi kamu:</h3>
+        <div className={`p-3 rounded-lg mb-3 ${isWarmed ? 'bg-success/10' : 'bg-blue-50'}`}>
+          <div className="font-semibold text-sm flex items-center gap-2">
+            {isWarmed ? '✅ Warmed Account' : '🆕 Akun Baru'}
+          </div>
+          <div className="text-xs text-gray-600 mt-1">
+            {isWarmed
+              ? 'Akun Reddit udah matured & dikasih admin. Lihat detail via WA.'
+              : 'Kamu daftar & rawat akun Reddit sendiri. Cocok buat long-term.'}
+          </div>
+        </div>
+
+        {!isWarmed && (
+          <label className="block">
+            <span className="text-xs font-medium text-gray-600 mb-1 block">Username Reddit kamu</span>
+            <input
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="contoh: namasaya123"
+              className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20"
+            />
+            <p className="text-[11px] text-gray-500 mt-1">
+              Tanpa prefix u/ atau URL. Cuma username.
+            </p>
+          </label>
+        )}
       </Card>
 
       <Card className="mb-4">
-        <h3 className="font-bold mb-3">Syarat main:</h3>
-        <ul className="space-y-2 text-sm text-gray-700">
-          <li>📱 Pakai akun Reddit kamu sendiri (di link pas gabung)</li>
-          <li>🔒 1 device & 1 IP (jangan ganti selama program)</li>
-          <li>⏰ Pamit <strong>H-30</strong> kalau mau berhenti</li>
-          <li>🔥 Tetap aktif minimal 20 hari selama masa berhenti</li>
+        <h3 className="font-bold mb-2 text-sm">Yang kamu bakal dapet:</h3>
+        <ul className="space-y-2 text-sm">
+          <li className="flex items-start gap-2">
+            <Trophy size={16} className="text-yellow-500 mt-0.5 shrink-0" />
+            <span>Bonus <strong>Rp100K</strong> setelah selesaiin 5 level (50% cair + 50% hold 30 hari)</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <Wallet size={16} className="text-success mt-0.5 shrink-0" />
+            <span>Bonus harian <strong>Rp2.500</strong> selama aktif di Fase 2</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <Hourglass size={16} className="text-orange-500 mt-0.5 shrink-0" />
+            <span>Minimal <strong>30 hari</strong> buat selesain challenge (warmup)</span>
+          </li>
         </ul>
       </Card>
 
-      <Button fullWidth size="lg" loading={joining} onClick={onJoin}>
-        Gabung Program →
+      <Card className="mb-4 bg-yellow-50 border border-yellow-200">
+        <p className="text-xs text-yellow-800 leading-relaxed">
+          ⚠️ <strong>Syarat main:</strong> 1 device & 1 IP. Jangan ganti selama program. Pamit H-30 kalau mau berhenti.
+        </p>
+      </Card>
+
+      <Button
+        fullWidth
+        size="lg"
+        loading={activating}
+        disabled={!isWarmed && !username.trim()}
+        onClick={() => onActivate(isWarmed ? undefined : username.trim())}
+      >
+        {isWarmed ? 'Aktivasi & Mulai Challenge →' : 'Daftar & Mulai Challenge →'}
       </Button>
     </>
   );
@@ -349,6 +424,9 @@ function Phase1ActiveState({
   const approvedCount = tasks.filter((t) => t.assignment_status === 'approved').length;
   const totalCount = tasks.length;
   const progressPct = totalCount > 0 ? Math.round((approvedCount / totalCount) * 100) : 0;
+  const isLevelLocked = tasks[0]?.level_locked === true;
+  const daysUntilUnlock = tasks[0]?.days_until_unlock ?? 0;
+  const minDays = tasks[0]?.min_days_at_level ?? 0;
 
   return (
     <>
@@ -380,6 +458,30 @@ function Phase1ActiveState({
         </div>
       </Card>
 
+      {/* Warmup time gate — show countdown when level still locked */}
+      {isLevelLocked && (
+        <Card className="mb-4 bg-gradient-to-br from-orange-50 to-yellow-50 border border-orange-200">
+          <div className="flex items-center gap-3 mb-2">
+            <Hourglass size={28} className="text-orange-500 shrink-0" />
+            <div>
+              <div className="font-bold text-sm text-orange-700">Warmup Period</div>
+              <div className="text-xs text-gray-600">
+                Level {currentLevel} baru bisa di-approve setelah <strong>{minDays} hari</strong> warmup
+              </div>
+            </div>
+          </div>
+          <div className="bg-white rounded-lg p-3 text-center">
+            <div className="text-2xl font-bold text-orange-600">{daysUntilUnlock}</div>
+            <div className="text-xs text-gray-500">
+              hari lagi sebelum task level ini bisa di-approve
+            </div>
+          </div>
+          <p className="text-[11px] text-gray-500 mt-2 leading-relaxed">
+            💡 Warmup dibutuhin biar akun keliatan natural &amp; ga kena shadowban Reddit. Sambil nunggu, army tetap bisa liat task di bawah tapi admin belum bisa approve.
+          </p>
+        </Card>
+      )}
+
       <h3 className="font-bold mb-2 text-sm uppercase tracking-wide text-gray-600">
         Misi Level {currentLevel}
       </h3>
@@ -392,16 +494,17 @@ function Phase1ActiveState({
         <div className="space-y-3 mb-4">
           {tasks.map((task) => {
             const status = task.assignment_status;
+            const canApproveVisually = !isLevelLocked;
             return (
               <Card key={task.task_id} padding="md">
                 <div className="flex items-start gap-3">
                   <div className="shrink-0 mt-1">
                     {status === 'approved' ? (
-                      <CheckCircle2 size={20} className="text-success" />
+                      <CheckCircle2 size={20} className={canApproveVisually ? 'text-success' : 'text-gray-400'} />
                     ) : status === 'rejected' ? (
                       <XCircle size={20} className="text-danger" />
                     ) : status === 'submitted' ? (
-                      <Clock size={20} className="text-warning" />
+                      <Clock size={20} className={canApproveVisually ? 'text-warning' : 'text-gray-400'} />
                     ) : (
                       <div className="w-5 h-5 rounded-full border-2 border-gray-300" />
                     )}
@@ -418,15 +521,18 @@ function Phase1ActiveState({
 
                     <div className="mt-3">
                       {status === 'approved' ? (
-                        <span className="text-xs text-success font-semibold">✓ Selesai</span>
+                        <span className="text-xs text-success font-semibold">
+                          {canApproveVisually ? '✓ Selesai' : '⏳ Selesai — menunggu warmup'}
+                        </span>
                       ) : status === 'submitted' ? (
-                        <span className="text-xs text-warning font-semibold">⏳ Menunggu approve admin</span>
+                        <span className="text-xs text-warning font-semibold">
+                          {canApproveVisually ? '⏳ Menunggu approve admin' : '🔒 Submitted — antri warmup'}
+                        </span>
                       ) : status === 'in_progress' ? (
                         <Button
                           size="sm"
                           variant="outline"
                           onClick={() => {
-                            // navigate to task detail — handled by parent
                             window.location.href = `/task/${task.task_id}`;
                           }}
                         >
@@ -462,8 +568,7 @@ function Phase1ActiveState({
 
       <Card className="bg-blue-50 border border-blue-200">
         <p className="text-xs text-blue-700 leading-relaxed">
-          💡 <strong>Tips:</strong> Setiap kali task challenge di-approve, sistem otomatis cek apakah level udah kelar.
-          Kalau iya, kamu naik level & dapat bonus locked. Kalau semua level kelar, kamu dapat Rp100K & masuk Fase 2!
+          💡 <strong>Tips:</strong> Kerjain task kapan aja, tapi admin baru bisa approve setelah warmup period selesai. Begitu approve + warmup cukup, kamu naik level &amp; dapat bonus locked!
         </p>
       </Card>
     </>

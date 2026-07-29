@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Trophy, Users, Target, RefreshCw, Lock, AlertTriangle,
-  CheckCircle2, XCircle, Clock,
+  CheckCircle2, XCircle, Clock, Mail,
 } from 'lucide-react';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
@@ -17,15 +17,18 @@ import {
   adminListChallengeLevels,
   adminUpdateChallengeLevel,
   adminCreateChallengeTask,
+  adminInviteRedditArmy,
+  adminRevokeRedditArmyInvitation,
   adminTriggerDailySync,
   type RedditArmyAdminStats,
   type RedditArmyProfile,
   type ChallengeLevel,
 } from '../../lib/api';
 
-type TabKey = 'members' | 'challenges' | 'sync' | 'holds' | 'exit';
+type TabKey = 'invitations' | 'members' | 'challenges' | 'sync' | 'holds' | 'exit';
 
 const TABS: { key: TabKey; label: string; icon: typeof Users }[] = [
+  { key: 'invitations', label: 'Invitations', icon: Mail },
   { key: 'members', label: 'Members', icon: Users },
   { key: 'challenges', label: 'Challenges', icon: Target },
   { key: 'sync', label: 'Daily Sync', icon: RefreshCw },
@@ -53,7 +56,7 @@ const STATUS_BADGE: Record<string, { label: string; cls: string; icon: typeof Cl
 };
 
 export function AdminRedditArmy() {
-  const [tab, setTab] = useState<TabKey>('members');
+  const [tab, setTab] = useState<TabKey>('invitations');
 
   return (
     <Layout>
@@ -85,6 +88,7 @@ export function AdminRedditArmy() {
           ))}
         </div>
 
+        {tab === 'invitations' && <InvitationsTab />}
         {tab === 'members' && <MembersTab />}
         {tab === 'challenges' && <ChallengesTab />}
         {tab === 'sync' && <SyncTab />}
@@ -129,6 +133,142 @@ function Stat({ label, value, accent = 'text-gray-800' }: { label: string; value
     <div className="p-2">
       <div className={`text-lg font-bold ${accent}`}>{value}</div>
       <div className="text-xs text-gray-500">{label}</div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------
+// INVITATIONS TAB — invite users, manage cohort
+// ---------------------------------------------------------------
+function InvitationsTab() {
+  const queryClient = useQueryClient();
+  const [userId, setUserId] = useState('');
+  const [cohort, setCohort] = useState<'new_self_register' | 'warmed_purchased'>('warmed_purchased');
+
+  const { data: members = [], isLoading } = useQuery({
+    queryKey: ['ra-admin-members'],
+    queryFn: adminListRedditArmyMembers,
+    staleTime: 30_000,
+  });
+
+  const inviteMut = useMutation({
+    mutationFn: () => adminInviteRedditArmy(userId.trim(), cohort),
+    onSuccess: () => {
+      toast.success(`User ${userId.trim().slice(0, 8)} diundang (${cohort === 'warmed_purchased' ? 'Warmed' : 'New'})`);
+      setUserId('');
+      queryClient.invalidateQueries({ queryKey: ['ra-admin-members'] });
+      queryClient.invalidateQueries({ queryKey: ['ra-admin-stats'] });
+    },
+    onError: (err: Error) => toast.error(`Gagal invite: ${err.message}`),
+  });
+
+  const revokeMut = useMutation({
+    mutationFn: (uid: string) => adminRevokeRedditArmyInvitation(uid),
+    onSuccess: () => {
+      toast.success('Undangan dicabut');
+      queryClient.invalidateQueries({ queryKey: ['ra-admin-members'] });
+      queryClient.invalidateQueries({ queryKey: ['ra-admin-stats'] });
+    },
+    onError: (err: Error) => toast.error(`Gagal revoke: ${err.message}`),
+  });
+
+  // Pending invitations = profile exists but program_status='not_started'
+  const pendingInvites = members.filter((m) => m.program_status === 'not_started');
+
+  return (
+    <div className="space-y-3">
+      <Card>
+        <h3 className="font-bold mb-2">📨 Invite User Baru</h3>
+        <p className="text-xs text-gray-500 mb-3">
+          Pilih user & tentuin cohort. User bakal lihat undangan di halaman <code>/reddit-army</code>.
+        </p>
+        <div className="space-y-3">
+          <input
+            value={userId}
+            onChange={(e) => setUserId(e.target.value)}
+            placeholder="User UUID (copy dari /admin/team)"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 font-mono"
+          />
+          <div>
+            <span className="text-xs font-medium text-gray-600 mb-1 block">Tipe partisipasi (cohort):</span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCohort('warmed_purchased')}
+                className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border-2 transition ${
+                  cohort === 'warmed_purchased'
+                    ? 'border-success bg-success/10 text-success'
+                    : 'border-gray-200 text-gray-600'
+                }`}
+              >
+                ✅ Warmed Account
+                <div className="text-[10px] text-gray-500 mt-0.5">Admin kasih akun matang</div>
+              </button>
+              <button
+                onClick={() => setCohort('new_self_register')}
+                className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium border-2 transition ${
+                  cohort === 'new_self_register'
+                    ? 'border-blue-500 bg-blue-50 text-blue-600'
+                    : 'border-gray-200 text-gray-600'
+                }`}
+              >
+                🆕 Akun Baru
+                <div className="text-[10px] text-gray-500 mt-0.5">Army daftar sendiri</div>
+              </button>
+            </div>
+          </div>
+          <Button
+            fullWidth
+            loading={inviteMut.isPending}
+            disabled={!userId.trim()}
+            onClick={() => inviteMut.mutate()}
+          >
+            Kirim Undangan
+          </Button>
+        </div>
+      </Card>
+
+      <Card>
+        <h3 className="font-bold mb-3">⏳ Undangan Pending ({pendingInvites.length})</h3>
+        {isLoading ? (
+          <CardSkeleton />
+        ) : pendingInvites.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-4">Belum ada undangan pending.</p>
+        ) : (
+          <div className="space-y-2">
+            {pendingInvites.map((m) => (
+              <div key={m.id} className="border border-gray-200 rounded p-3">
+                <div className="flex justify-between items-start gap-2">
+                  <div className="min-w-0">
+                    <div className="font-mono text-xs">{m.user_id.slice(0, 8)}…</div>
+                    <div className="mt-1 flex items-center gap-2 flex-wrap">
+                      <span className={`text-[11px] px-2 py-0.5 rounded ${
+                        m.cohort === 'warmed_purchased'
+                          ? 'bg-success/20 text-success'
+                          : 'bg-blue-100 text-blue-700'
+                      }`}>
+                        {m.cohort === 'warmed_purchased' ? '✅ Warmed' : '🆕 New'}
+                      </span>
+                      <span className="text-[11px] text-gray-500">
+                        invited {m.invited_at ? new Date(m.invited_at).toLocaleDateString('id-ID') : '-'}
+                      </span>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    loading={revokeMut.isPending}
+                    onClick={() => {
+                      if (confirm('Cabut undangan ini?')) revokeMut.mutate(m.user_id);
+                    }}
+                  >
+                    Revoke
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
     </div>
   );
 }
