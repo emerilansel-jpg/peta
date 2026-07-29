@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-route
 import { useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from './components/Toast';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Pages
 import { Landing } from './pages/Landing';
@@ -16,6 +17,8 @@ import { TaskHistory } from './pages/TaskHistory';
 import { Account } from './pages/Account';
 import { Earnings } from './pages/Earnings';
 import { RedditArmy } from './pages/RedditArmy';
+import { Privacy } from './pages/Privacy';
+import { Terms } from './pages/Terms';
 import { UpdatePassword } from './pages/UpdatePassword';
 import { ResetWhatsApp } from './pages/ResetWhatsApp';
 
@@ -118,6 +121,7 @@ function App() {
       <ToastProvider />
       <BrowserRouter>
         <HostnameHomeRouter />
+        <ErrorBoundary>
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<HomePage />} />
@@ -179,6 +183,10 @@ function App() {
           <Route path="/admin/team" element={<AdminRouteWrapper><AdminGuard><AdminTeam /></AdminGuard></AdminRouteWrapper>} />
           <Route path="/admin/payroll" element={<AdminRouteWrapper><AdminGuard><AdminPayroll /></AdminGuard></AdminRouteWrapper>} />
           <Route path="/admin/reddit-army" element={<AdminRouteWrapper><AdminGuard><AdminRedditArmy /></AdminGuard></AdminRouteWrapper>} />
+
+          {/* Privacy & Terms */}
+          <Route path="/privacy" element={<Privacy />} />
+          <Route path="/terms" element={<Terms />} />
           <Route path="/admin/broadcast" element={<AdminRouteWrapper><AdminGuard><AdminBroadcast /></AdminGuard></AdminRouteWrapper>} />
           <Route path="/admin/inbox" element={<AdminRouteWrapper><AdminGuard><AdminInbox /></AdminGuard></AdminRouteWrapper>} />
           <Route path="/admin/secrets" element={<AdminRouteWrapper><AdminGuard><AdminSecrets /></AdminGuard></AdminRouteWrapper>} />
@@ -187,6 +195,7 @@ function App() {
           {/* Catch all */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        </ErrorBoundary>
       </BrowserRouter>
     </QueryClientProvider>
   );

@@ -350,17 +350,22 @@ export function Landing() {
         </div>
       </section>
 
-      <footer className="bg-dark text-white/70 text-xs py-12 text-center">
-        <div className="inline-flex bg-white rounded-2xl px-6 py-4 shadow-md mb-4">
-          <img
-            src="/logo-horizontal.png"
-            alt="PeTa · PenghasilanTambahan.com"
-            className="h-12 w-auto"
-          />
-        </div>
-        <p>© 2026 PenghasilanTambahan.com (PeTa) · Komunitas PeTa Army</p>
-        <p className="opacity-60 mt-1">Komentar · Hasilkan · Tambahan</p>
-      </footer>
+	      <footer className="bg-dark text-white/70 text-xs py-12 text-center">
+	        <div className="inline-flex bg-white rounded-2xl px-6 py-4 shadow-md mb-4">
+	          <img
+	            src="/logo-horizontal.png"
+	            alt="PeTa · PenghasilanTambahan.com"
+	            className="h-12 w-auto"
+	          />
+	        </div>
+	        <p className="mb-2">
+	          <a href="/privacy" className="hover:text-white underline underline-offset-2">Kebijakan Privasi</a>
+	          <span className="mx-2 opacity-40">·</span>
+	          <a href="/terms" className="hover:text-white underline underline-offset-2">Syarat & Ketentuan</a>
+	        </p>
+	        <p>© 2026 Penghasilantanbahan.com (PeTa) · Komunitas PeTa Army</p>
+	        <p className="opacity-60 mt-1">Komentar · Hasilkan · Tambahan</p>
+	      </footer>
 
       {/* Sticky mobile CTA */}
       <div className="md:hidden fixed bottom-0 inset-x-0 z-40 p-3 bg-white/95 backdrop-blur ring-1 ring-black/5 safe-bottom">
