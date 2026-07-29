@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Plus, X, Pencil, Trash2, MessageCircle, Mail, Power } from 'lucide-react';
+import { Plus, X, Pencil, Trash2, MessageCircle, Mail, Power, Copy } from 'lucide-react';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
@@ -84,6 +84,7 @@ export function AdminTeam() {
                   <th className="px-2 py-2 font-semibold text-muted">WhatsApp</th>
                   <th className="px-2 py-2 font-semibold text-muted">Akun Reddit</th>
                   <th className="px-2 py-2 font-semibold text-muted">Karma</th>
+                  <th className="px-2 py-2 font-semibold text-muted">UUID</th>
                   <th className="px-2 py-2 font-semibold text-muted">Status</th>
                   <th className="px-2 py-2 font-semibold text-muted">Joined</th>
                   <th className="px-2 py-2 font-semibold text-muted text-right">Aksi</th>
@@ -110,6 +111,18 @@ export function AdminTeam() {
                       </td>
                       <td className="px-2 py-3">{acc ? `u/${acc.username}` : '–'}</td>
                       <td className="px-2 py-3 money">{acc?.karma ?? '–'}</td>
+                      <td className="px-2 py-3">
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(u.id);
+                            toast.success('UUID disalin!');
+                          }}
+                          className="inline-flex items-center gap-1 text-xs text-muted hover:text-primary tap-shrink font-mono"
+                          title="Copy UUID"
+                        >
+                          <Copy size={10} /> {u.id.slice(0, 8)}…
+                        </button>
+                      </td>
                       <td className="px-2 py-3">
                         <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                           u.is_active ? 'bg-success/15 text-success' : 'bg-muted/15 text-muted'
@@ -159,6 +172,17 @@ function MemberCard({ member, onEdit, onRefetch }: { member: Member; onEdit: () 
               <MessageCircle size={11} /> {member.whatsapp}
             </a>
           )}
+          <button
+            onClick={() => {
+              navigator.clipboard.writeText(member.id);
+              toast.success('UUID disalin!');
+            }}
+            className="inline-flex items-center gap-1 text-[10px] text-muted mt-1.5 hover:text-primary tap-shrink"
+            title="Copy UUID untuk Reddit Army invitation"
+          >
+            <Copy size={10} /> <code className="font-mono">{member.id.slice(0, 8)}…</code>
+            <span className="text-muted/60">tap to copy</span>
+          </button>
           {acc && (
             <p className="text-xs mt-1.5">
               <span className="text-primary font-semibold">u/{acc.username}</span>
