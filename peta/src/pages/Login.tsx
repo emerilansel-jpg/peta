@@ -1,12 +1,16 @@
 import React from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { Eye, EyeOff, ArrowLeft, MailCheck } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
 import { toast } from '../components/Toast';
 
 export function Login() {
-  const [email, setEmail] = React.useState('');
+  const [params] = useSearchParams();
+  const verifyPending = params.get('verify') === 'pending';
+  const verifyEmail = params.get('email') || '';
+
+  const [email, setEmail] = React.useState(verifyEmail);
   const [password, setPassword] = React.useState('');
   const [showPwd, setShowPwd] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
@@ -39,9 +43,10 @@ export function Login() {
       if (/invalid login credentials/i.test(msg)) {
         toast.error('Email atau password salah. Coba lagi ya.');
       } else if (/email not confirmed|not.+confirmed/i.test(msg)) {
-        // Should not happen now that DB auto-confirms, but just in case any
-        // legacy account is still in unconfirmed limbo.
-        toast.error('Akun masih nunggu verifikasi. Hubungi admin di grup WA ya 🙏');
+        // Email verification is now required (auto-confirm disabled). The user
+        // registered but hasn't clicked the verification link yet — offer to
+        // resend rather than sending them to admin.
+        toast.error('Email kamu belum diverifikasi. Cek inbox (termasuk folder Spam), atau kirim ulang link di bawah ya.');
       } else {
         toast.error(msg);
       }
@@ -70,6 +75,33 @@ export function Login() {
           />
           <h2 className="text-xl sm:text-2xl font-extrabold text-dark mb-1">Welcome back, PeTa Army!</h2>
           <p className="text-sm text-muted mb-6">Lanjut earning, ambil saldonya.</p>
+
+          {verifyPending && (
+            <div className="mb-5 rounded-2xl bg-secondary/10 ring-1 ring-secondary/30 p-4 flex gap-3">
+              <MailCheck className="text-secondary shrink-0 mt-0.5" size={22} />
+              <div className="text-sm">
+                <p className="font-bold text-secondary">Cek email kamu dulu ya 📩</p>
+                <p className="text-dark/80 mt-0.5">
+                  Kami udah kirim link verifikasi. Klik link-nya buat aktifin akun, baru balik sini login.
+                  Cek folder <b>Spam</b> juga kalau nggak ketemu.
+                </p>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!email.trim()) { toast.error('Isi email kamu dulu'); return; }
+                    setLoading(true);
+                    const { error } = await supabase.auth.resend({ type: 'signup', email: email.trim() });
+                    setLoading(false);
+                    if (error) toast.error('Gagal kirim ulang: ' + error.message);
+                    else toast.success('Link verifikasi udah dikirim ulang!');
+                  }}
+                  className="mt-2 text-xs font-bold text-primary hover:underline"
+                >
+                  Kirim ulang link verifikasi →
+                </button>
+              </div>
+            </div>
+          )}
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div>

@@ -70,28 +70,25 @@ export function Register() {
       if (error) throw error;
       if (!data.user) throw new Error('Registrasi gagal — coba lagi');
 
-      const successMsg = referralCode.trim()
-        ? 'Daftar berhasil! +Rp20K bonus referral 🎉'
-        : 'Daftar berhasil! Bonus Rp50K menunggu 🎉';
-
-      // With the DB-level auto-confirm trigger, signUp returns a live session.
-      // Fallback: if for any reason session is null, attempt password sign-in
-      // so user lands in /onboarding instead of bouncing to /login.
+      // Email verification is required (auto-confirm disabled, see migration
+      // 20260731_disable_email_autoconfirm). Supabase returns a live session
+      // ONLY when confirmation is already satisfied; otherwise data.session is
+      // null and the user must click the verification link emailed to them.
       if (data.session) {
+        // Already verified (e.g. project had confirm disabled briefly, or
+        // OAuth provider that auto-confirms). Proceed straight to onboarding.
+        const successMsg = referralCode.trim()
+          ? 'Daftar berhasil! +Rp20K bonus referral 🎉'
+          : 'Daftar berhasil! Bonus Rp50K menunggu 🎉';
         toast.success(successMsg);
-        // Send welcome email in background; don't block navigation on failure.
         sendWelcomeEmail(email, fullName.trim()).catch(() => {});
         navigate('/onboarding');
       } else {
-        const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
-        if (signInErr) {
-          toast.success('Akun siap! Login sekali ya, terus langsung onboarding.');
-          navigate('/login');
-        } else {
-          toast.success(successMsg);
-          sendWelcomeEmail(email, fullName.trim()).catch(() => {});
-          navigate('/onboarding');
-        }
+        // Verification email sent — do NOT auto sign-in (that would fail with
+        // "Email not confirmed"). Send the user to a dedicated notice so they
+        // know to check their inbox, instead of bouncing to /login confused.
+        toast.success('Cek email kamu buat verifikasi akun ya!');
+        navigate(`/login?verify=pending&email=${encodeURIComponent(email)}`);
       }
     } catch (error: any) {
       const msg = error?.message || 'Registrasi gagal';

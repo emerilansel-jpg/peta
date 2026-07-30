@@ -66,6 +66,7 @@ import { AdminSecrets } from './pages/admin/Secrets';
 import { AdminWaBot } from './pages/admin/WaBot';
 import { AdminGuard } from './components/AdminGuard';
 import { AdminRouteWrapper } from './components/AdminRouteWrapper';
+import { RequireAuth } from './components/RequireAuth';
 
 import './App.css';
 import './index.css';
@@ -134,28 +135,28 @@ function App() {
           <Route path="/onboarding" element={<Onboarding />} />
 
           {/* Army Routes */}
-          <Route path="/tasks" element={<Tasks />} />
-          <Route path="/task/:taskId" element={<TaskDetail />} />
-          <Route path="/task-history" element={<TaskHistory />} />
-          <Route path="/reddit-army" element={<RedditArmy />} />
+          <Route path="/tasks" element={<RequireAuth><Tasks /></RequireAuth>} />
+          <Route path="/task/:taskId" element={<RequireAuth><TaskDetail /></RequireAuth>} />
+          <Route path="/task-history" element={<RequireAuth><TaskHistory /></RequireAuth>} />
+          <Route path="/reddit-army" element={<RequireAuth><RedditArmy /></RequireAuth>} />
           <Route path="/karma-mission" element={<Navigate to="/reddit-army" replace />} />
-          <Route path="/account" element={<Account />} />
-          <Route path="/earnings" element={<Earnings />} />
+          <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
+          <Route path="/earnings" element={<RequireAuth><Earnings /></RequireAuth>} />
 
           {/* Reddit Upvotes Routes */}
           <Route path="/reddit" element={<RedditLanding />} />
           <Route path="/reddit/waitlist" element={<WaitlistPage />} />
           <Route path="/reddit/signup" element={<RedditSignup />} />
           <Route path="/reddit/login" element={<RedditLogin />} />
-          <Route path="/reddit/dashboard" element={<RedditDashboard />} />
-          <Route path="/reddit/new-order" element={<RedditNewOrder />} />
-          <Route path="/reddit/orders" element={<RedditOrders />} />
-          <Route path="/reddit/orders/:orderId" element={<RedditOrderDetail />} />
-          <Route path="/reddit/topup" element={<RedditTopup />} />
-          <Route path="/reddit/reviews" element={<RedditReviews />} />
-          <Route path="/reddit/feature-requests" element={<RedditFeatureRequests />} />
-          <Route path="/reddit/ranking-forum" element={<RankingForumPage />} />
-          <Route path="/reddit/ai-visibility" element={<AiVisibilityPage />} />
+          <Route path="/reddit/dashboard" element={<RequireAuth loginPath="/reddit/login"><RedditDashboard /></RequireAuth>} />
+          <Route path="/reddit/new-order" element={<RequireAuth loginPath="/reddit/login"><RedditNewOrder /></RequireAuth>} />
+          <Route path="/reddit/orders" element={<RequireAuth loginPath="/reddit/login"><RedditOrders /></RequireAuth>} />
+          <Route path="/reddit/orders/:orderId" element={<RequireAuth loginPath="/reddit/login"><RedditOrderDetail /></RequireAuth>} />
+          <Route path="/reddit/topup" element={<RequireAuth loginPath="/reddit/login"><RedditTopup /></RequireAuth>} />
+          <Route path="/reddit/reviews" element={<RequireAuth loginPath="/reddit/login"><RedditReviews /></RequireAuth>} />
+          <Route path="/reddit/feature-requests" element={<RequireAuth loginPath="/reddit/login"><RedditFeatureRequests /></RequireAuth>} />
+          <Route path="/reddit/ranking-forum" element={<RequireAuth loginPath="/reddit/login"><RankingForumPage /></RequireAuth>} />
+          <Route path="/reddit/ai-visibility" element={<RequireAuth loginPath="/reddit/login"><AiVisibilityPage /></RequireAuth>} />
           <Route path="/reddit/terms" element={<TermsPage />} />
           <Route path="/reddit/privacy" element={<PrivacyPage />} />
           <Route path="/reddit/refunds" element={<RefundsPage />} />
