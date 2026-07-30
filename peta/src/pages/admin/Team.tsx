@@ -5,6 +5,7 @@ import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { supabase } from '../../lib/supabase';
 import { toast } from '../../components/Toast';
 
@@ -207,6 +208,7 @@ function MemberCard({ member, onEdit, onRefetch }: { member: Member; onEdit: () 
 }
 
 function RowActions({ member, onEdit, onRefetch }: { member: Member; onEdit: () => void; onRefetch: () => void }) {
+  const [confirmDelete, setConfirmDelete] = React.useState(false);
   const toggleActive = useMutation({
     mutationFn: async () => {
       const { error } = await supabase.rpc('admin_update_member', {
@@ -229,33 +231,46 @@ function RowActions({ member, onEdit, onRefetch }: { member: Member; onEdit: () 
   });
 
   return (
-    <div className="flex items-center gap-1">
-      <button
-        onClick={onEdit}
-        className="tap-shrink p-2 text-primary hover:bg-primary/10 rounded-lg"
-        aria-label="Edit"
-      >
-        <Pencil size={16} />
-      </button>
-      <button
-        onClick={() => toggleActive.mutate()}
-        className={`tap-shrink p-2 rounded-lg ${member.is_active ? 'text-warning hover:bg-warning/10' : 'text-success hover:bg-success/10'}`}
-        aria-label={member.is_active ? 'Nonaktifkan' : 'Aktifkan'}
-        disabled={toggleActive.isPending}
-      >
-        <Power size={16} />
-      </button>
-      <button
-        onClick={() => {
-          if (confirm(`Hapus ${member.email}? Tidak bisa di-undo.`)) del.mutate();
-        }}
-        className="tap-shrink p-2 text-danger hover:bg-danger/10 rounded-lg"
-        aria-label="Hapus"
-        disabled={del.isPending}
-      >
-        <Trash2 size={16} />
-      </button>
-    </div>
+    <>
+      <div className="flex items-center gap-1">
+        <button
+          onClick={onEdit}
+          className="tap-shrink p-2 text-primary hover:bg-primary/10 rounded-lg"
+          aria-label="Edit"
+        >
+          <Pencil size={16} />
+        </button>
+        <button
+          onClick={() => toggleActive.mutate()}
+          className={`tap-shrink p-2 rounded-lg ${member.is_active ? 'text-warning hover:bg-warning/10' : 'text-success hover:bg-success/10'}`}
+          aria-label={member.is_active ? 'Nonaktifkan' : 'Aktifkan'}
+          disabled={toggleActive.isPending}
+        >
+          <Power size={16} />
+        </button>
+        <button
+          onClick={() => setConfirmDelete(true)}
+          className="tap-shrink p-2 text-danger hover:bg-danger/10 rounded-lg"
+          aria-label="Hapus"
+          disabled={del.isPending}
+        >
+          <Trash2 size={16} />
+        </button>
+      </div>
+
+      {/* Hard-deleting a member cascades to all their data — irreversible, so
+          it gets a real modal instead of window.confirm. */}
+      <ConfirmDialog
+        open={confirmDelete}
+        title={`Hapus ${member.email}?`}
+        description="Member dan semua data terkait (akun, saldo, task) akan dihapus permanen. Tidak bisa di-undo."
+        confirmLabel="Hapus Member"
+        tone="danger"
+        loading={del.isPending}
+        onConfirm={() => del.mutate(undefined, { onSuccess: () => setConfirmDelete(false) })}
+        onClose={() => setConfirmDelete(false)}
+      />
+    </>
   );
 }
 

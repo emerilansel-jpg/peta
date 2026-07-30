@@ -7,6 +7,7 @@ import {
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { supabase } from '../../lib/supabase';
 import { toast } from '../../components/Toast';
 
@@ -91,6 +92,7 @@ export function AdminSecrets() {
   const queryClient = useQueryClient();
   const [editingKey, setEditingKey] = React.useState<string | null>(null);
   const [showAddModal, setShowAddModal] = React.useState(false);
+  const [deleteTarget, setDeleteTarget] = React.useState<string | null>(null);
 
   const secretsQuery = useQuery({
     queryKey: ['admin-secrets'],
@@ -204,17 +206,27 @@ export function AdminSecrets() {
                 secret={s}
                 meta={KNOWN_SECRETS[s.key]}
                 onEdit={() => setEditingKey(s.key)}
-                onDelete={() => {
-                  if (confirm(`Hapus secret "${s.key}"? Edge functions yang pakai bakal langsung berhenti jalan.`)) {
-                    deleteMutation.mutate(s.key);
-                  }
-                }}
+                onDelete={() => setDeleteTarget(s.key)}
                 deleting={deleteMutation.isPending}
               />
             ))}
           </div>
         )}
       </div>
+
+      {/* Delete-secret confirmation — deleting a secret breaks every edge
+          function that depends on it, so it needs a real modal, not
+          window.confirm. */}
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title={`Hapus secret "${deleteTarget}"?`}
+        description="Edge functions yang pakai secret ini bakal langsung berhenti jalan. Pastikan tidak ada fungsi penting yang bergantung padanya sebelum dihapus."
+        confirmLabel="Hapus Secret"
+        tone="danger"
+        loading={deleteMutation.isPending}
+        onConfirm={() => deleteTarget && deleteMutation.mutate(deleteTarget, { onSuccess: () => setDeleteTarget(null) })}
+        onClose={() => setDeleteTarget(null)}
+      />
 
       {/* Edit / create modal */}
       {(editingKey !== null || showAddModal) && (

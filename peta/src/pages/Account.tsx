@@ -20,6 +20,9 @@ export function Account() {
   const [showSheet, setShowSheet] = React.useState(params.get('add') === '1');
   const [editingWa, setEditingWa] = React.useState(false);
   const [waValue, setWaValue] = React.useState('');
+  const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [deleteConfirm, setDeleteConfirm] = React.useState('');
+  const [deleting, setDeleting] = React.useState(false);
 
   React.useEffect(() => {
     if (params.get('add') === '1') {
@@ -203,6 +206,29 @@ export function Account() {
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/login');
+  };
+
+  const handleDeleteAccount = async () => {
+    // Type-to-confirm: user must type their email exactly. The actual delete
+    // is server-side via self_delete_account() RPC, which is SECURITY DEFINER
+    // and scoped to auth.uid() (the owner). No p_user_id param — callers can
+    // only ever delete their own account.
+    if (deleteConfirm.trim().toLowerCase() !== (user?.email || '').toLowerCase()) {
+      toast.error('Email ketikannya nggak cocok. Ketik email kamu persis.');
+      return;
+    }
+    setDeleting(true);
+    try {
+      const { error } = await supabase.rpc('self_delete_account');
+      if (error) throw error;
+      await supabase.auth.signOut();
+      toast.success('Akun kamu udah dihapus permanen. Sampai jumpa! 👋');
+      navigate('/');
+    } catch (e: any) {
+      toast.error(e?.message || 'Gagal menghapus akun. Coba lagi atau hubungi admin.');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   if (isLoading) {
@@ -513,6 +539,37 @@ export function Account() {
         <LogOut size={18} /> Logout
       </button>
 
+      {/* Account deletion (self-service, fulfills Privacy Policy / UU PDP) */}
+      <Card className="mt-6 !border-danger/20" padding="sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 bg-danger/10 text-danger rounded-lg grid place-items-center shrink-0">
+              <AlertTriangle size={18} />
+            </div>
+            <div>
+              <p className="font-bold text-dark">Hapus akun permanen</p>
+              <p className="text-xs text-muted leading-snug mt-0.5">
+                Semua data kamu (saldo, akun Reddit, riwayat) akan dihapus selamanya. Nggak bisa dibalikin.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setDeleteOpen(true)}
+            className="shrink-0 text-xs font-bold text-danger ring-1 ring-danger/40 hover:bg-danger hover:text-white px-3 py-2 rounded-lg transition tap-shrink"
+          >
+            Hapus Akun
+          </button>
+        </div>
+      </Card>
+
+      {/* Desktop logout (kept inline with deletion section for symmetry) */}
+      <button
+        onClick={handleLogout}
+        className="hidden md:flex w-full mt-3 items-center justify-center gap-2 py-2 text-muted text-sm font-semibold tap-shrink"
+      >
+        <LogOut size={16} /> Logout
+      </button>
+
       {/* Bottom sheet: add account */}
       {showSheet && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center animate-fade-in">
@@ -543,6 +600,64 @@ export function Account() {
               >
                 ✅ Tambah Akun
               </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete account confirmation modal (type-email-to-confirm) */}
+      {deleteOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center animate-fade-in">
+          <div className="absolute inset-0 bg-black/60" onClick={() => !deleting && setDeleteOpen(false)} />
+          <div className="relative bg-white w-full sm:max-w-md sm:rounded-3xl rounded-t-3xl shadow-2xl animate-slide-up safe-bottom">
+            <div className="p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xl font-extrabold text-danger flex items-center gap-2">
+                  <AlertTriangle size={22} /> Hapus Akun Permanen
+                </h3>
+                <button
+                  onClick={() => !deleting && setDeleteOpen(false)}
+                  disabled={deleting}
+                  className="p-2 -mr-2 text-muted hover:text-dark disabled:opacity-50"
+                >
+                  <X size={22} />
+                </button>
+              </div>
+              <div className="bg-danger/10 ring-1 ring-danger/30 rounded-xl p-3 mb-4 text-sm text-danger/90">
+                <p className="font-bold mb-1">⚠️ Aksi ini nggak bisa di-undo</p>
+                <p className="leading-snug">
+                  Akun, saldo (termasuk yang belum dicair), akun Reddit, dan seluruh riwayat kamu akan <b>dihapus permanen</b>.
+                  Kalau ada saldo yang belum ditarik, akan <b>hilang</b>. Yakin banget?
+                </p>
+              </div>
+              <p className="text-sm text-dark mb-1.5">
+                Ketik email kamu <b className="font-mono">{user?.email}</b> buat konfirmasi:
+              </p>
+              <input
+                type="email"
+                value={deleteConfirm}
+                onChange={(e) => setDeleteConfirm(e.target.value)}
+                placeholder={user?.email}
+                className="w-full min-h-[48px] px-4 py-3 text-base bg-light border-2 border-transparent rounded-xl focus:outline-none focus:border-danger focus:bg-white transition mb-4"
+                autoFocus
+                disabled={deleting}
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setDeleteOpen(false)}
+                  disabled={deleting}
+                  className="flex-1 py-3 rounded-xl font-bold text-dark bg-light hover:bg-border tap-shrink disabled:opacity-50"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleDeleteAccount}
+                  disabled={deleting || deleteConfirm.trim().toLowerCase() !== (user?.email || '').toLowerCase()}
+                  className="flex-1 py-3 rounded-xl font-bold text-white bg-danger hover:brightness-110 tap-shrink disabled:opacity-40 flex items-center justify-center gap-2"
+                >
+                  {deleting ? 'Menghapus…' : (<><Trash2 size={16} /> Hapus Permanen</>)}
+                </button>
+              </div>
             </div>
           </div>
         </div>

@@ -5,7 +5,7 @@ import type { ForumCommentOrderInput } from '../lib/api';
 export function useRedditOrders() {
   const queryClient = useQueryClient();
 
-  const { data: orders, isLoading } = useQuery({
+  const { data: orders, isLoading, error } = useQuery({
     queryKey: ['reddit', 'orders'],
     queryFn: getRedditOrders,
   });
@@ -62,6 +62,10 @@ export function useRedditOrders() {
   return {
     orders: orders || [],
     isLoading,
+    // Surface the LIST query error (network/RLS failure) separately from
+    // mutation errors. Callers that previously destructured only `orders`
+    // silently rendered an empty list on failure; now they can show a banner.
+    listError: error,
     createOrder: createOrderMutation.mutate,
     isCreating: createOrderMutation.isPending,
     createForumCommentOrder: createForumCommentOrderMutation.mutate,

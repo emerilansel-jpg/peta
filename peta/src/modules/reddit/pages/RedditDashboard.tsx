@@ -13,6 +13,7 @@ import {
   Sparkles,
   X,
   Check,
+  AlertCircle,
 } from 'lucide-react';
 import { RedditLayout } from '../components/RedditLayout';
 import { useRedditCredits } from '../hooks/useRedditCredits';
@@ -21,9 +22,14 @@ import { formatUSD, getPricePerUpvoteUSD } from '../lib/api';
 
 export function RedditDashboard() {
   const navigate = useNavigate();
-  const { balance } = useRedditCredits();
-  const { orders } = useRedditOrders();
+  const { balance, error: balanceError } = useRedditCredits();
+  const { orders, listError } = useRedditOrders();
   const [showGuide, setShowGuide] = useState(false);
+
+  // If balance or orders failed to load (network, RLS, 5xx), surface a clear
+  // banner instead of silently showing $0 / empty list. A user with 50 orders
+  // seeing zeros would otherwise think their account is broken.
+  const loadError = balanceError || listError;
 
   const pricePerUpvote = getPricePerUpvoteUSD();
   const upvotesAvailable = Math.floor((balance / 100) / pricePerUpvote);
@@ -42,6 +48,19 @@ export function RedditDashboard() {
   return (
     <RedditLayout>
       <div className="p-6 md:p-10 max-w-6xl mx-auto">
+        {/* Load-error banner */}
+        {loadError && (
+          <div className="mb-6 flex items-start gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            <AlertCircle size={20} className="shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">Couldn&rsquo;t load your dashboard data</p>
+              <p className="mt-0.5 text-red-700/90">
+                Check your connection and refresh. If it persists, contact support.
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-10 gap-4">
           <div>

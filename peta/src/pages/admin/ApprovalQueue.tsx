@@ -5,6 +5,7 @@ import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { supabase } from '../../lib/supabase';
 import { adminApproveAssignment, adminRejectAssignment, adminRevertAssignment, adminRepairAssignmentUserId, sendTaskApprovedEmail } from '../../lib/api';
 import { toast } from '../../components/Toast';
@@ -49,6 +50,7 @@ export function AdminApprovalQueue() {
   // provide a reason so the army member knows what to fix when they retry.
   const [rejectTarget, setRejectTarget] = useState<{ id: string; title: string; username: string } | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [finalRejectOpen, setFinalRejectOpen] = useState(false);
   // Repair modal — for legacy forum_comment rows whose user_id is NULL.
   const [repairTarget, setRepairTarget] = useState<{ id: string; title: string } | null>(null);
   const [repairUserId, setRepairUserId] = useState('');
@@ -853,10 +855,7 @@ export function AdminApprovalQueue() {
                 🔄 Reject + Kasih Kesempatan Coba Lagi
               </Button>
               <Button
-                onClick={() => {
-                  if (!confirm('Yakin reject FINAL? Army member tidak bisa coba lagi untuk task ini. Pakai jika curang / cheating / berkali-kali gagal.')) return;
-                  rejectMutation.mutate({ id: rejectTarget.id, reason: rejectReason, allowRetry: false });
-                }}
+                onClick={() => setFinalRejectOpen(true)}
                 loading={rejectMutation.isPending && rejectMutation.variables?.allowRetry === false}
                 disabled={rejectReason.trim().length < 10 || rejectMutation.isPending}
                 variant="outline"
@@ -880,6 +879,33 @@ export function AdminApprovalQueue() {
             </p>
           </div>
         </div>
+      )}
+
+      {/* FINAL reject confirmation — irreversible, so it gets an explicit modal
+          (window.confirm was too weak for an action that permanently blocks a
+          worker from retrying). */}
+      {finalRejectOpen && rejectTarget && (
+        <ConfirmDialog
+          open={finalRejectOpen}
+          title="Reject FINAL?"
+          tone="danger"
+          description={
+            <>
+              <p>Army member <b>@{rejectTarget.username}</b> tidak bisa coba lagi untuk task ini. Pakai hanya jika jelas curang / cheating / berkali-kali gagal.</p>
+              <p className="mt-2 text-xs">Aksi ini tidak bisa di-undo.</p>
+            </>
+          }
+          confirmLabel="⛔ Ya, Reject FINAL"
+          cancelLabel="Batal"
+          loading={rejectMutation.isPending && rejectMutation.variables?.allowRetry === false}
+          onConfirm={() => {
+            rejectMutation.mutate(
+              { id: rejectTarget.id, reason: rejectReason, allowRetry: false },
+              { onSuccess: () => setFinalRejectOpen(false) }
+            );
+          }}
+          onClose={() => setFinalRejectOpen(false)}
+        />
       )}
 
       {/* Repair owner modal — for legacy forum_comment rows with user_id = NULL. */}
