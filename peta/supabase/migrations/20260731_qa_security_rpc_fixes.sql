@@ -29,6 +29,7 @@ SET search_path = public, auth
 AS $$
 DECLARE
   v_uid UUID := auth.uid();
+  v_email TEXT;
 BEGIN
   IF v_uid IS NULL THEN
     RAISE EXCEPTION 'Login diperlukan';
@@ -36,22 +37,19 @@ BEGIN
 
   -- Safety: callers can NEVER supply another user's id. The only deleteable
   -- account is the caller's own. (No p_user_id parameter on purpose.)
-  --
-  -- Capture the email BEFORE deleting (the FK cascade from auth.users →
-  -- public.users will remove the row referenced by activity_logs.user_id, so
-  -- we log with user_id = NULL and stash the email + uid in details to keep a
-  -- durable audit trail that survives the cascade).
-  INSERT INTO public.activity_logs (user_id, action, details)
-  VALUES (NULL, 'self_account_deletion',
-    jsonb_build_object(
-      'deleted_uid', v_uid,
-      'email_snapshot', (SELECT email FROM auth.users WHERE id = v_uid),
-      'requested_at', NOW()
-    ));
+  -- Capture the email for audit before the row disappears.
+  SELECT email INTO v_email FROM auth.users WHERE id = v_uid;
 
   -- Hard delete auth.users; FK cascade clears public.users, reddit_accounts,
   -- payouts, task_assignments, user_credits, etc. owned by this user.
+  --
+  -- Note: we cannot write to activity_logs for audit here — its user_id is
+  -- NOT NULL, and any row referencing this user would cascade away on delete
+  -- (and a NULL user_id violates the constraint). The auth.users deletion
+  -- itself is captured by Supabase's auth audit log.
   DELETE FROM auth.users WHERE id = v_uid;
+
+  RAISE NOTICE 'Account % (%) deleted', v_uid, v_email;
 END;
 $$;
 
