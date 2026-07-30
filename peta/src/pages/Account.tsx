@@ -531,6 +531,17 @@ export function Account() {
         </div>
       )}
 
+      {/* Help */}
+      <div className="mt-6 p-4 bg-gradient-to-br from-gray-50 to-white rounded-2xl border border-gray-100">
+        <p className="text-[10px] uppercase font-bold tracking-wide text-muted mb-2">Bantuan</p>
+        <a href="/help" className="flex items-center gap-2 text-sm font-semibold text-primary hover:underline tap-shrink">
+          📖 Panduan PeTa
+        </a>
+        <p className="text-[11px] text-muted mt-1">
+          Cara kerja task, payout, Reddit Army, FAQ & tips.
+        </p>
+      </div>
+
       {/* Logout (mobile) */}
       <button
         onClick={handleLogout}

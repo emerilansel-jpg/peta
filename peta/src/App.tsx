@@ -19,6 +19,7 @@ import { Earnings } from './pages/Earnings';
 import { RedditArmy } from './pages/RedditArmy';
 import { Privacy } from './pages/Privacy';
 import { Terms } from './pages/Terms';
+import { Help } from './pages/Help';
 import { UpdatePassword } from './pages/UpdatePassword';
 import { ResetWhatsApp } from './pages/ResetWhatsApp';
 
@@ -185,9 +186,10 @@ function App() {
           <Route path="/admin/payroll" element={<AdminRouteWrapper><AdminGuard><AdminPayroll /></AdminGuard></AdminRouteWrapper>} />
           <Route path="/admin/reddit-army" element={<AdminRouteWrapper><AdminGuard><AdminRedditArmy /></AdminGuard></AdminRouteWrapper>} />
 
-          {/* Privacy & Terms */}
+          {/* Privacy & Terms & Help */}
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="/help" element={<Help />} />
           <Route path="/admin/broadcast" element={<AdminRouteWrapper><AdminGuard><AdminBroadcast /></AdminGuard></AdminRouteWrapper>} />
           <Route path="/admin/inbox" element={<AdminRouteWrapper><AdminGuard><AdminInbox /></AdminGuard></AdminRouteWrapper>} />
           <Route path="/admin/secrets" element={<AdminRouteWrapper><AdminGuard><AdminSecrets /></AdminGuard></AdminRouteWrapper>} />
