@@ -36,9 +36,18 @@ BEGIN
 
   -- Safety: callers can NEVER supply another user's id. The only deleteable
   -- account is the caller's own. (No p_user_id parameter on purpose.)
+  --
+  -- Capture the email BEFORE deleting (the FK cascade from auth.users →
+  -- public.users will remove the row referenced by activity_logs.user_id, so
+  -- we log with user_id = NULL and stash the email + uid in details to keep a
+  -- durable audit trail that survives the cascade).
   INSERT INTO public.activity_logs (user_id, action, details)
-  VALUES (v_uid, 'self_account_deletion',
-    jsonb_build_object('requested_at', NOW(), 'email_snapshot', (SELECT email FROM auth.users WHERE id = v_uid)));
+  VALUES (NULL, 'self_account_deletion',
+    jsonb_build_object(
+      'deleted_uid', v_uid,
+      'email_snapshot', (SELECT email FROM auth.users WHERE id = v_uid),
+      'requested_at', NOW()
+    ));
 
   -- Hard delete auth.users; FK cascade clears public.users, reddit_accounts,
   -- payouts, task_assignments, user_credits, etc. owned by this user.
@@ -152,10 +161,12 @@ BEGIN
 END;
 $$;
 
--- service_role (cron edge function) still needs it; authenticated no longer
--- does because the cron runs server-side. Admins needing manual triggers use
--- service_role. Revoke the authenticated grant that enabled the abuse path.
-REVOKE EXECUTE ON FUNCTION public.record_reddit_daily_activity(uuid, uuid, date, int, int, int, text) FROM PUBLIC, authenticated;
+-- service_role (cron edge function) still needs it; authenticated + anon no
+-- longer do because the cron runs server-side. Admins needing manual triggers
+-- use service_role. Revoke the grants that enabled the abuse path — include
+-- anon explicitly because an earlier migration granted it directly (REVOKE
+-- FROM PUBLIC alone does not drop an explicit per-role grant).
+REVOKE EXECUTE ON FUNCTION public.record_reddit_daily_activity(uuid, uuid, date, int, int, int, text) FROM PUBLIC, authenticated, anon;
 GRANT EXECUTE ON FUNCTION public.record_reddit_daily_activity(uuid, uuid, date, int, int, int, text) TO service_role;
 
 -- Defense in depth: the phase1/level reward helpers are internal (called from
