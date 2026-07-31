@@ -508,7 +508,7 @@ export function Tasks() {
           karma={karmaInfo?.karma ?? 0}
           level={karmaInfo?.level ?? 0}
           accountAgeDays={karmaInfo?.accountAgeDays ?? 0}
-          onCta={() => navigate('/karma-mission')}
+          onCta={() => navigate('/reddit-army')}
         />
 
         {/* ============================================================
@@ -970,7 +970,7 @@ function KarmaSection({
       </div>
 
       <Button onClick={onCta} variant="primary" fullWidth size="md">
-        <Target size={16} /> Buka Misi Karma + Cek Karma Sekarang
+        <Target size={16} /> 🎖️ Cek Reddit Army + Progress Karma
         <ArrowRight size={14} />
       </Button>
     </Card>

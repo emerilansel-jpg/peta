@@ -265,16 +265,16 @@ export function TaskDetail() {
             </button>
 
             <button
-              onClick={() => navigate('/karma-mission')}
+              onClick={() => navigate('/reddit-army')}
               className="w-full bg-white hover:bg-light text-dark rounded-2xl p-4 flex items-center gap-3 tap-shrink ring-1 ring-yellow-300"
             >
               <div className="w-11 h-11 bg-yellow-100 text-yellow-700 rounded-xl grid place-items-center shrink-0">
                 <Sparkles size={22} />
               </div>
               <div className="flex-1 text-left min-w-0">
-                <p className="font-extrabold text-base leading-tight">Bangun karma Reddit</p>
+                <p className="font-extrabold text-base leading-tight">🎖️ Reddit Army Program</p>
                 <p className="text-xs text-muted mt-0.5">
-                  Karma naik = reward task naik (Rp5K ke Rp20K) + buka task premium.
+                  Bonus Rp100K + passive income harian. Cek challenge &amp; progress kamu.
                 </p>
               </div>
               <ArrowRight size={20} className="shrink-0 text-muted" />

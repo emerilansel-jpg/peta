@@ -167,7 +167,7 @@ export function Account() {
         } else if (data.statusFlag === 'suspended') {
           toast.error('⛔ Akun Reddit kamu kena suspend. Daftar akun baru di reddit.com.');
         } else {
-          toast.error('🌐 Reddit memblokir auto-sync — lapor karma manual di tab Karma.');
+          toast.error('🌐 Reddit memblokir auto-sync. Hubungi admin buat update karma manual.');
         }
       } else if (newKarma > data.beforeKarma) {
         setSyncFailedFor(null);
@@ -482,7 +482,7 @@ export function Account() {
                           <>
                             <p className="font-extrabold text-warning">Reddit memblokir auto-sync</p>
                             <p className="text-warning/80 mt-0.5">
-                              Bukan salah kamu — Reddit anti-bot ke server. Lapor karma manual, admin verify dalam &lt; 24 jam.
+                              Bukan salah kamu — Reddit anti-bot ke server. Hubungi admin buat update karma manual.
                             </p>
                           </>
                         )}
@@ -490,13 +490,13 @@ export function Account() {
                     </div>
                     {account.status_flag !== 'not_found' && account.status_flag !== 'suspended' && (
                       <Button
-                        onClick={() => navigate('/karma-mission')}
+                        onClick={() => navigate('/reddit-army')}
                         variant="primary"
                         size="sm"
                         fullWidth
                         className="!bg-warning hover:!brightness-110"
                       >
-                        <Target size={14} /> Lapor Karma Manual
+                        <Target size={14} /> Cek Reddit Army
                       </Button>
                     )}
                   </div>
