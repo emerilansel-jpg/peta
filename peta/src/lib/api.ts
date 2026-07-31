@@ -1626,12 +1626,16 @@ export type ChallengeTaskRow = {
   task_id: string;
   title: string;
   description: string | null;
+  brief?: string | null;
   target_url: string | null;
   reward_amount: number;
+  target_count?: number;
   level_number: number;
   level_name: string;
   assignment_id: string | null;
   assignment_status: 'in_progress' | 'submitted' | 'approved' | 'rejected' | null;
+  proof_image_url?: string | null;
+  proof_url?: string | null;
   can_retry: boolean | null;
   level_locked: boolean;
   days_until_unlock: number;
@@ -1719,6 +1723,43 @@ export async function claimChallengeTask(
   });
   if (error) return { ok: false, error: error.message };
   return { ok: true, assignmentId: data as string };
+}
+
+export type ChallengeTaskProgress = {
+  task_id: string;
+  assignment_id: string | null;
+  assignment_status: 'in_progress' | 'submitted' | 'approved' | 'rejected' | null;
+  progress_count: number;
+  target_count: number;
+  progress_complete: boolean;
+  can_submit: boolean;
+};
+
+/** Get live progress for a challenge task (counts detected Reddit activity). */
+export async function getChallengeTaskProgress(taskId: string): Promise<ChallengeTaskProgress | null> {
+  const { data, error } = await supabase.rpc('get_challenge_task_progress', {
+    p_task_id: taskId,
+  });
+  if (error) {
+    console.error('[getChallengeTaskProgress]', error);
+    return null;
+  }
+  return data as ChallengeTaskProgress;
+}
+
+/** Submit a challenge task with mandatory proof (screenshot or profile URL). */
+export async function submitChallengeTaskWithProof(
+  taskId: string,
+  proofUrl?: string,
+  proofImageUrl?: string
+): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await supabase.rpc('submit_challenge_task_with_proof', {
+    p_task_id: taskId,
+    p_proof_url: proofUrl ?? null,
+    p_proof_image_url: proofImageUrl ?? null,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
 }
 
 /** Army requests resignation. Status -> 'resigning', effective_at = NOW + 30 days. */

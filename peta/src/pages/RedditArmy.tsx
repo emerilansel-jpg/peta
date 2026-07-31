@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Trophy, Flame, Lock, Sparkles, Clock,
   CheckCircle2, XCircle, AlertTriangle, Wallet, RefreshCw, Hourglass,
+  Camera,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
@@ -204,6 +205,10 @@ export function RedditArmy() {
             onClaim={(taskId) =>
               claimMut.mutate({ taskId, accountId: profile!.warmed_account_id! })
             }
+            onTaskSubmitted={() => {
+              queryClient.invalidateQueries({ queryKey: ['reddit-army-challenge-tasks'] });
+              queryClient.invalidateQueries({ queryKey: ['reddit-army-profile'] });
+            }}
           />
         )}
 
@@ -411,6 +416,187 @@ function InvitedState({
 }
 
 // ---------------------------------------------------------------
+// Proof Upload Sheet — submit challenge task with screenshot
+// ---------------------------------------------------------------
+function ProofUploadSheet({
+  task,
+  onClose,
+  onSubmitted,
+}: {
+  task: any;
+  onClose: () => void;
+  onSubmitted: () => void;
+}) {
+  const [proofImage, setProofImage] = useState<File | null>(null);
+  const [proofUrl, setProofUrl] = useState('');
+  const [preview, setPreview] = useState<string>('');
+  const [submitting, setSubmitting] = useState(false);
+  const targetCount = task.target_count || 1;
+
+  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setProofImage(f);
+    setPreview(URL.createObjectURL(f));
+  };
+
+  const handleSubmit = async () => {
+    if (!proofImage) {
+      toast.error('Screenshot profile Reddit wajib diupload!');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      // Upload image to storage
+      const { supabase } = await import('../lib/supabase');
+      const ext = proofImage.name.split('.').pop() || 'png';
+      const path = `challenge-proofs/${task.assignment_id}.${ext}`;
+      const { error: uploadErr } = await supabase.storage
+        .from('task-proofs')
+        .upload(path, proofImage, { upsert: true });
+      if (uploadErr) throw uploadErr;
+      const { data: pub } = supabase.storage.from('task-proofs').getPublicUrl(path);
+
+      // Update assignment: status submitted + proof
+      const { error: updErr } = await supabase
+        .from('task_assignments')
+        .update({
+          status: 'submitted',
+          proof_image_url: pub.publicUrl,
+          proof_url: proofUrl.trim() || null,
+          submitted_url: proofUrl.trim() || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', task.assignment_id);
+      if (updErr) throw updErr;
+
+      toast.success('Misi dikirim! Tunggu admin review ya 🙏');
+      onSubmitted();
+    } catch (e: any) {
+      toast.error(`Gagal submit: ${e.message || e}`);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-bold text-lg">Submit Misi</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <XCircle size={22} />
+          </button>
+        </div>
+
+        <div className="mb-4 p-3 bg-blue-50 rounded-lg text-xs text-blue-700">
+          <p className="font-semibold mb-1">📋 Yang harus dilakuin:</p>
+          <p>Kerjakan <strong>{targetCount}x aktivitas</strong> sesuai misi, terus upload screenshot profile Reddit kamu yang nunjukin:</p>
+          <ul className="list-disc pl-4 mt-1 space-y-0.5">
+            <li>Username Reddit kamu</li>
+            <li>Karma terkini</li>
+            <li>Aktivitas terbaru (komentar/post)</li>
+          </ul>
+        </div>
+
+        {/* Proof Image Upload */}
+        <label className="block mb-3">
+          <span className="text-xs font-semibold text-gray-700 mb-1.5 block">
+            📸 Screenshot Profile Reddit (WAJIB)
+          </span>
+          <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center cursor-pointer hover:border-primary tap-shrink">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={handleFile}
+              className="hidden"
+              id="proof-upload"
+            />
+            <label htmlFor="proof-upload" className="cursor-pointer block">
+              {preview ? (
+                <img src={preview} alt="Preview" className="max-h-40 mx-auto rounded-lg" />
+              ) : (
+                <>
+                  <Camera size={32} className="mx-auto text-gray-400 mb-2" />
+                  <p className="text-xs text-gray-500">Klik untuk upload screenshot</p>
+                </>
+              )}
+            </label>
+          </div>
+        </label>
+
+        {/* Optional URL */}
+        <label className="block mb-4">
+          <span className="text-xs font-semibold text-gray-700 mb-1.5 block">
+            🔗 Link salah satu komentar/post kamu (opsional)
+          </span>
+          <input
+            value={proofUrl}
+            onChange={(e) => setProofUrl(e.target.value)}
+            placeholder="https://reddit.com/r/indonesia/comments/..."
+            className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20"
+          />
+        </label>
+
+        <div className="flex gap-2">
+          <button
+            onClick={onClose}
+            disabled={submitting}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 tap-shrink"
+          >
+            Batal
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!proofImage || submitting}
+            className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white bg-primary disabled:opacity-50 tap-shrink"
+          >
+            {submitting ? 'Mengirim...' : 'Kirim Misi ✅'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------
+// Sync progress button — fires client-side Reddit sync, refreshes UI
+// ---------------------------------------------------------------
+function SyncProgressButton({ task, onSynced }: { task: any; onSynced: () => void }) {
+  const [syncing, setSyncing] = useState(false);
+
+  const handleSync = async () => {
+    if (!task.reddit_username) {
+      toast.error('Username Reddit belum terhubung. Hubungi admin.');
+      return;
+    }
+    setSyncing(true);
+    try {
+      const r = await syncMyRedditDailyActivity({
+        username: task.reddit_username,
+        redditAccountId: task.reddit_account_id,
+      });
+      if (r?.ok) {
+        toast.success(`Sync selesai! Detected: ${r.commentsToday ?? 0} comment hari ini`);
+        onSynced();
+      } else {
+        toast.error(`Sync gagal: ${r?.error || 'unknown'} — cek koneksi atau coba lagi`);
+      }
+    } catch (e: any) {
+      toast.error(`Sync gagal: ${e?.message || e}`);
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  return (
+    <Button size="sm" variant="outline" onClick={handleSync} loading={syncing}>
+      <RefreshCw size={14} /> Sync Progress
+    </Button>
+  );
+}
+
+// ---------------------------------------------------------------
 // STATE 2: phase1_active — Warmup Challenge
 // ---------------------------------------------------------------
 function Phase1ActiveState({
@@ -418,12 +604,15 @@ function Phase1ActiveState({
   tasks,
   claimingTaskId,
   onClaim,
+  onTaskSubmitted,
 }: {
   profile: any;
   tasks: any[];
   claimingTaskId: string | null;
   onClaim: (taskId: string) => void;
+  onTaskSubmitted: () => void;
 }) {
+  const [submitTask, setSubmitTask] = useState<any | null>(null);
   const currentLevel = profile.current_challenge_level + 1;
   const approvedCount = tasks.filter((t) => t.assignment_status === 'approved').length;
   const totalCount = tasks.length;
@@ -499,6 +688,9 @@ function Phase1ActiveState({
           {tasks.map((task) => {
             const status = task.assignment_status;
             const canApproveVisually = !isLevelLocked;
+            const pc = task.progress_count ?? 0;
+            const tc = task.target_count ?? 1;
+            const progressPct = Math.min(Math.round((pc / tc) * 100), 100);
             return (
               <Card key={task.task_id} padding="md">
                 <div className="flex items-start gap-3">
@@ -523,6 +715,39 @@ function Phase1ActiveState({
                       <span>Reward level: {formatRupiah(task.reward_amount)} (locked)</span>
                     </div>
 
+                    {/* Progress checklist — shown when claimed */}
+                    {status === 'in_progress' && (
+                      <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="font-semibold text-gray-700">Checklist aktivitas</span>
+                          <span className="text-primary font-bold">{pc}/{tc}</span>
+                        </div>
+                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden mb-2">
+                          <div
+                            className="h-full bg-gradient-to-r from-secondary to-primary transition-all"
+                            style={{ width: `${progressPct}%` }}
+                          />
+                        </div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {Array.from({ length: tc }).map((_, i) => (
+                            <span
+                              key={i}
+                              className={`text-[10px] px-2 py-1 rounded-full font-semibold ${
+                                i < pc
+                                  ? 'bg-success/15 text-success'
+                                  : 'bg-gray-200 text-gray-500'
+                              }`}
+                            >
+                              {i < pc ? '✅' : '⬜'} #{i + 1}
+                            </span>
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-gray-500 mt-2">
+                          💡 Kerjain &amp; comment di Reddit, terus tekan <strong>Sync</strong> biar progress ke-update.
+                        </p>
+                      </div>
+                    )}
+
                     <div className="mt-3">
                       {status === 'approved' ? (
                         <span className="text-xs text-success font-semibold">
@@ -533,15 +758,25 @@ function Phase1ActiveState({
                           {canApproveVisually ? '⏳ Menunggu approve admin' : '🔒 Submitted — antri warmup'}
                         </span>
                       ) : status === 'in_progress' ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => {
-                            window.location.href = `/task/${task.task_id}`;
-                          }}
-                        >
-                          Lanjutkan Misi →
-                        </Button>
+                        <div className="flex gap-2 flex-wrap">
+                          <SyncProgressButton
+                            task={task}
+                            onSynced={() => onTaskSubmitted()}
+                          />
+                          {task.progress_complete ? (
+                            <Button
+                              size="sm"
+                              variant="success"
+                              onClick={() => setSubmitTask(task)}
+                            >
+                              Selesaikan Misi 📸
+                            </Button>
+                          ) : (
+                            <span className="text-[11px] text-gray-400 self-center">
+                              Lengkapi {tc - pc} lagi buat bisa submit
+                            </span>
+                          )}
+                        </div>
                       ) : status === 'rejected' && task.can_retry ? (
                         <Button
                           size="sm"
@@ -575,6 +810,18 @@ function Phase1ActiveState({
           💡 <strong>Tips:</strong> Kerjain task kapan aja, tapi admin baru bisa approve setelah warmup period selesai. Begitu approve + warmup cukup, kamu naik level &amp; dapat bonus locked!
         </p>
       </Card>
+
+      {/* Proof upload modal */}
+      {submitTask && (
+        <ProofUploadSheet
+          task={submitTask}
+          onClose={() => setSubmitTask(null)}
+          onSubmitted={() => {
+            setSubmitTask(null);
+            onTaskSubmitted();
+          }}
+        />
+      )}
     </>
   );
 }
