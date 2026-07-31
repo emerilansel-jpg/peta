@@ -313,6 +313,7 @@ export async function getActiveTasks() {
     .from('tasks')
     .select('*')
     .eq('status', 'active')
+    .neq('task_category', 'reddit_challenge')
     .order('created_at', { ascending: false });
 
   if (error) throw error;
@@ -324,6 +325,7 @@ export async function getTasksForLevel(level: number) {
     .from('tasks')
     .select('*')
     .eq('status', 'active')
+    .neq('task_category', 'reddit_challenge')
     .lte('min_level', level)
     .order('created_at', { ascending: false });
 
