@@ -1942,14 +1942,11 @@ export async function adminTriggerDailySync(
 }
 
 /**
- * Client-side daily activity sync (residential IP fallback).
+ * Sync Reddit activity for the calling user via the deployed edge function.
  *
- * Called when the army user opens /reddit-army. Their residential browser IP
- * fetches their own Reddit activity via the same CORS proxy chain used by
- * syncRedditKarma — this is the most reliable path because Reddit does not
- * block residential IPs (unlike Supabase edge function egress).
- *
- * Returns the recorded activity row, or null if anything failed.
+ * The edge function runs server-side and uses a multi-proxy chain with
+ * retries, which is far more reliable than the browser's direct fetch to
+ * public CORS proxies (which frequently fail with all_proxies_failed).
  */
 export async function syncMyRedditDailyActivity(opts: {
   username: string;
@@ -1967,101 +1964,27 @@ export async function syncMyRedditDailyActivity(opts: {
     .slice(0, 32);
   if (!clean) return { ok: false, error: 'invalid_username' };
 
-  // Reuse the same proxy chain helper. We expose the inner fetcher via
-  // a small inline implementation here to avoid refactoring syncRedditKarma.
-  const cutoff = Math.floor(Date.now() / 1000) - 24 * 3600; // last 24h slack
-  const target = (path: string) => `https://www.reddit.com${path}`;
-  const enc = (path: string) => encodeURIComponent(target(path));
-  const proxies = (path: string) => [
-    `https://api.codetabs.com/v1/proxy/?quest=${enc(path)}`,
-    `https://api.allorigins.win/raw?url=${enc(path)}`,
-    `https://corsproxy.io/?${enc(path)}`,
-  ];
+  // Get the calling user's id so the edge function can target them.
+  const session = (await supabase.auth.getSession()).data.session;
+  const uid = session?.user?.id;
+  if (!uid) return { ok: false, error: 'unauthenticated' };
 
-  async function fetchJson(path: string): Promise<any | null> {
-    for (const proxyUrl of proxies(path)) {
-      for (let attempt = 0; attempt < 2; attempt++) {
-        if (attempt > 0) await new Promise((r) => setTimeout(r, 350));
-        try {
-          const r = await fetch(proxyUrl, { headers: { 'Accept': 'application/json' } });
-          if (!r.ok) continue;
-          const text = await r.text();
-          try {
-            return JSON.parse(text);
-          } catch {
-            continue;
-          }
-        } catch {
-          continue;
-        }
-      }
-    }
-    return null;
-  }
-
-  const cPath = `/user/${clean}/comments.json?limit=100&t=day`;
-  const pPath = `/user/${clean}/submitted.json?limit=100&t=day`;
-  const aPath = `/user/${clean}/about.json`;
-
-  const [cJson, pJson, aJson] = await Promise.all([
-    fetchJson(cPath),
-    fetchJson(pPath),
-    fetchJson(aPath),
-  ]);
-
-  if (!cJson && !pJson && !aJson) {
-    return { ok: false, error: 'all_proxies_failed' };
-  }
-
-  const commentsToday = (cJson?.data?.children ?? []).filter(
-    (c: any) => (c?.data?.created_utc ?? 0) >= cutoff
-  ).length;
-  const postsToday = (pJson?.data?.children ?? []).filter(
-    (c: any) => (c?.data?.created_utc ?? 0) >= cutoff
-  ).length;
-  const karmaAtEnd = aJson?.data?.total_karma ?? null;
-
-  // Push to backend via SECURITY DEFINER RPC (bypasses RLS, idempotent).
-  const today = new Date().toISOString().slice(0, 10);
-  const { error } = await supabase.rpc('record_reddit_daily_activity', {
-    p_user_id: undefined as any, // server reads auth.uid()
-    p_reddit_account_id: opts.redditAccountId,
-    p_activity_date: today,
-    p_comments_today: commentsToday,
-    p_posts_today: postsToday,
-    p_karma_at_end: karmaAtEnd,
-    p_sync_source: 'client_side',
-  });
-  // The RPC signature doesn't actually take p_user_id (it reads auth.uid()),
-  // but supabase-js may complain about unknown params. Use direct REST call
-  // as a cleaner fallback if rpc() rejects.
-  if (error && error.code === 'PGRST202') {
-    // Schema cache stale — try direct POST.
-    const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/record_reddit_daily_activity`;
-    const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-    const session = (await supabase.auth.getSession()).data.session;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'apikey': anonKey,
-        'Authorization': `Bearer ${session?.access_token ?? anonKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        p_reddit_account_id: opts.redditAccountId,
-        p_activity_date: today,
-        p_comments_today: commentsToday,
-        p_posts_today: postsToday,
-        p_karma_at_end: karmaAtEnd,
-        p_sync_source: 'client_side',
-      }),
+  try {
+    const { data, error } = await supabase.functions.invoke('sync-reddit-daily-activity', {
+      body: { user_ids: [uid] },
     });
-    if (!res.ok) {
-      return { ok: false, error: `rpc_record_${res.status}` };
-    }
-  } else if (error) {
-    return { ok: false, error: error.message };
-  }
+    if (error) return { ok: false, error: error.message || 'edge_function_error' };
+    if (!data?.ok) return { ok: false, error: data?.error || 'edge_function_error' };
 
-  return { ok: true, commentsToday, postsToday, karmaAtEnd: karmaAtEnd ?? undefined };
+    const errors: any[] = data.errors ?? [];
+    if (errors.length > 0) {
+      // If the edge function could not fetch for this user (proxies down),
+      // report the reason — UI will offer manual fallback.
+      return { ok: false, error: errors[0]?.reason || 'sync_failed' };
+    }
+    // synced >= 1 means the user's activity was recorded.
+    return { ok: true, commentsToday: data.synced ?? 0 };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'edge_function_error' };
+  }
 }

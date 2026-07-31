@@ -560,10 +560,20 @@ function ProofUploadSheet({
 }
 
 // ---------------------------------------------------------------
-// Sync progress button — fires client-side Reddit sync, refreshes UI
+// Sync progress button — fires edge-function sync, falls back to
+// manual ticking when proxies are down
 // ---------------------------------------------------------------
 function SyncProgressButton({ task, onSynced }: { task: any; onSynced: () => void }) {
   const [syncing, setSyncing] = useState(false);
+  const [showManual, setShowManual] = useState(false);
+  const manualKey = `ra_manual_progress_${task.task_id}`;
+  const manualCount = Number(
+    typeof window !== 'undefined' ? window.localStorage.getItem(manualKey) || 0 : 0
+  );
+  const tc = task.target_count ?? 1;
+  const autoCount = task.progress_count ?? 0;
+  // Effective progress = max(auto-detected, manual ticks)
+  const effectiveCount = Math.max(autoCount, manualCount);
 
   const handleSync = async () => {
     if (!task.reddit_username) {
@@ -577,22 +587,69 @@ function SyncProgressButton({ task, onSynced }: { task: any; onSynced: () => voi
         redditAccountId: task.reddit_account_id,
       });
       if (r?.ok) {
-        toast.success(`Sync selesai! Detected: ${r.commentsToday ?? 0} comment hari ini`);
+        toast.success(`Sync selesai! Aktivitas terdeteksi & tercatat.`);
         onSynced();
       } else {
-        toast.error(`Sync gagal: ${r?.error || 'unknown'} — cek koneksi atau coba lagi`);
+        toast.error(`Sync gagal: ${r?.error || 'unknown'}`);
+        setShowManual(true); // offer manual fallback
       }
     } catch (e: any) {
       toast.error(`Sync gagal: ${e?.message || e}`);
+      setShowManual(true);
     } finally {
       setSyncing(false);
     }
   };
 
+  const tickManual = (i: number) => {
+    const next = i + 1 <= tc ? i + 1 : 0; // toggle back to uncheck all
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(manualKey, String(i + 1 <= tc ? i + 1 : 0));
+    }
+    setShowManual(false);
+    toast.success(`Ditandai ${next}/${tc} — jangan lupa tetap kerjain di Reddit ya!`);
+    onSynced();
+  };
+
   return (
-    <Button size="sm" variant="outline" onClick={handleSync} loading={syncing}>
-      <RefreshCw size={14} /> Sync Progress
-    </Button>
+    <div className="flex flex-col gap-2">
+      <div className="flex gap-2 flex-wrap">
+        <Button size="sm" variant="outline" onClick={handleSync} loading={syncing}>
+          <RefreshCw size={14} /> Sync Progress
+        </Button>
+        {effectiveCount >= tc && (
+          <span className="text-[11px] text-success font-semibold self-center">
+            ✅ Lengkap ({effectiveCount}/{tc})
+          </span>
+        )}
+      </div>
+
+      {showManual && (
+        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+          <p className="text-[11px] font-semibold text-yellow-800 mb-2">
+            ⚠️ Sync otomatis gagal (Reddit/proxy sedang sibuk). Mau tandai manual?
+          </p>
+          <div className="flex gap-1.5 flex-wrap">
+            {Array.from({ length: tc }).map((_, i) => (
+              <button
+                key={i}
+                onClick={() => tickManual(i)}
+                className={`text-[10px] px-2 py-1.5 rounded-full font-semibold tap-shrink ${
+                  i < effectiveCount
+                    ? 'bg-success/20 text-success'
+                    : 'bg-white border border-gray-300 text-gray-500'
+                }`}
+              >
+                {i < effectiveCount ? '✅' : '⬜'} #{i + 1}
+              </button>
+            ))}
+          </div>
+          <p className="text-[10px] text-yellow-700/80 mt-2">
+            Tandai sesuai yang udah kamu kerjain. Admin tetap cek screenshot proof pas submit.
+          </p>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -688,8 +745,14 @@ function Phase1ActiveState({
           {tasks.map((task) => {
             const status = task.assignment_status;
             const canApproveVisually = !isLevelLocked;
-            const pc = task.progress_count ?? 0;
+            const autoCount = task.progress_count ?? 0;
             const tc = task.target_count ?? 1;
+            // Merge manual ticks (localStorage) with auto-detected progress
+            const manualKey = `ra_manual_progress_${task.task_id}`;
+            const manualCount = Number(
+              typeof window !== 'undefined' ? window.localStorage.getItem(manualKey) || 0 : 0
+            );
+            const pc = Math.max(autoCount, manualCount);
             const progressPct = Math.min(Math.round((pc / tc) * 100), 100);
             return (
               <Card key={task.task_id} padding="md">
