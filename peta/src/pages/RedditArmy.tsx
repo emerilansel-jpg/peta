@@ -216,6 +216,7 @@ export function RedditArmy() {
           <Phase2ActiveState
             profile={profile!}
             summary={profileQuery.data!}
+            redditUsername={profileQuery.data?.redditUsername ?? null}
             onResign={() => setShowResignConfirm(true)}
           />
         )}
@@ -224,6 +225,7 @@ export function RedditArmy() {
           <ResigningState
             profile={profile!}
             summary={profileQuery.data!}
+            redditUsername={profileQuery.data?.redditUsername ?? null}
             onCancel={() => cancelResignMut.mutate()}
             cancelling={cancelResignMut.isPending}
           />
@@ -689,6 +691,21 @@ function Phase1ActiveState({
           </div>
         </div>
 
+        {/* Reddit account badge — always visible */}
+        {tasks[0]?.reddit_username && (
+          <div className="mb-3 inline-flex items-center gap-2 bg-white/80 rounded-full px-3 py-1.5">
+            <span className="text-xs text-gray-500">Akun Reddit:</span>
+            <a
+              href={`https://www.reddit.com/user/${tasks[0].reddit_username}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm font-bold text-primary hover:underline"
+            >
+              u/{tasks[0].reddit_username} ↗
+            </a>
+          </div>
+        )}
+
         <div className="mb-2">
           <div className="flex justify-between text-xs text-gray-600 mb-1">
             <span>Progress level</span>
@@ -894,10 +911,12 @@ function Phase1ActiveState({
 // ---------------------------------------------------------------
 function Phase2ActiveState({
   summary,
+  redditUsername,
   onResign,
 }: {
   profile: any;
   summary: any;
+  redditUsername: string | null;
   onResign: () => void;
 }) {
   const todayActive = summary.todayActivity?.is_active_day;
@@ -921,6 +940,19 @@ function Phase2ActiveState({
           </div>
           <Flame size={32} className="opacity-90" />
         </div>
+        {redditUsername && (
+          <div className="mb-3 inline-flex items-center gap-2 bg-white/20 rounded-full px-3 py-1.5">
+            <span className="text-xs opacity-90">Akun Reddit:</span>
+            <a
+              href={`https://www.reddit.com/user/${redditUsername}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm font-bold hover:underline"
+            >
+              u/{redditUsername} ↗
+            </a>
+          </div>
+        )}
         <div className="grid grid-cols-3 gap-2 text-center">
           <div>
             <div className="text-xl font-bold">{todayCredited ? '+Rp2.5K' : '—'}</div>
@@ -1028,11 +1060,13 @@ function Phase2ActiveState({
 function ResigningState({
   profile,
   summary,
+  redditUsername,
   onCancel,
   cancelling,
 }: {
   profile: any;
   summary: any;
+  redditUsername: string | null;
   onCancel: () => void;
   cancelling: boolean;
 }) {
@@ -1050,6 +1084,20 @@ function ResigningState({
             <h2 className="text-lg font-bold">Berhenti Diproses</h2>
           </div>
         </div>
+
+        {redditUsername && (
+          <div className="mb-3 inline-flex items-center gap-2 bg-white rounded-full px-3 py-1.5">
+            <span className="text-xs text-gray-500">Akun Reddit:</span>
+            <a
+              href={`https://www.reddit.com/user/${redditUsername}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-sm font-bold text-primary hover:underline"
+            >
+              u/{redditUsername} ↗
+            </a>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3 mb-3">
           <div className="bg-white rounded-lg p-3 text-center">

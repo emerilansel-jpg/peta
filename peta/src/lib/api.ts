@@ -1666,6 +1666,7 @@ export type RedditArmyProfileResult = {
     karma_delta: number;
   } | null;
   recentActivities: DailyActivityResult[];
+  redditUsername: string | null;
 };
 
 /** Read the calling user's Reddit Army profile + summary stats. */
@@ -1683,6 +1684,7 @@ export async function getRedditArmyProfile(): Promise<RedditArmyProfileResult | 
     pendingCashable: row.pending_cashable ?? 0,
     todayActivity: row.today_activity,
     recentActivities: Array.isArray(row.recent_activities) ? row.recent_activities : [],
+    redditUsername: row.reddit_username ?? null,
   };
 }
 
