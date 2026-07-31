@@ -52,7 +52,11 @@ export function RedditArmy() {
 
   const activateMut = useMutation({
     mutationFn: (username: string | undefined) => activateRedditArmyInvitation(username),
-    onSuccess: () => {
+    onSuccess: (result) => {
+      if (!result.ok) {
+        toast.error(`Gagal aktivasi: ${result.error || 'Unknown error'}`);
+        return;
+      }
       toast.success('🎉 Selamat bergabung! Challenge Phase 1 udah aktif. Gas kerjain misi pertama!');
       queryClient.invalidateQueries({ queryKey: ['reddit-army-profile'] });
     },
