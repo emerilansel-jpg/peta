@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -16,7 +16,6 @@ import {
   claimChallengeTask,
   requestRedditArmyResignation,
   cancelRedditArmyResignation,
-  syncMyRedditDailyActivity,
 } from '../lib/api';
 import { toast } from '../components/Toast';
 
@@ -104,54 +103,8 @@ export function RedditArmy() {
     },
   });
 
-  // Client-side daily activity sync — residential IP fallback.
-  // Fires once per mount when user is in phase2/resigning, throttled to
-  // once per 10 minutes via localStorage flag.
-  const lastClientSyncAt = useRef<string | null>(null);
-  useEffect(() => {
-    const profile = profileQuery.data?.profile;
-    if (!profile) return;
-    if (profile.program_status !== 'phase2_active' && profile.program_status !== 'resigning') return;
-    if (!profile.warmed_account_id) return;
-
-    // Throttle: only fire if last sync > 10 min ago (or never).
-    const key = `ra_last_client_sync:${profile.user_id}`;
-    const stored = typeof window !== 'undefined' ? window.localStorage.getItem(key) : null;
-    if (stored && Date.now() - parseInt(stored, 10) < 10 * 60 * 1000) return;
-
-    // We need the username — fetch it via direct reddit_accounts read.
-    (async () => {
-      try {
-        const { supabase } = await import('../lib/supabase');
-        const { data: acc } = await supabase
-          .from('reddit_accounts')
-          .select('username')
-          .eq('id', profile.warmed_account_id)
-          .single();
-        if (!acc?.username) return;
-
-        if (lastClientSyncAt.current) return; // already in-flight
-        lastClientSyncAt.current = new Date().toISOString();
-
-        const r = await syncMyRedditDailyActivity({
-          username: acc.username,
-          redditAccountId: profile.warmed_account_id!,
-        });
-        if (r?.ok && (r.commentsToday || r.postsToday)) {
-          // Refresh the profile query so UI reflects new activity.
-          queryClient.invalidateQueries({ queryKey: ['reddit-army-profile'] });
-        }
-        if (typeof window !== 'undefined') {
-          window.localStorage.setItem(key, Date.now().toString());
-        }
-      } catch (e) {
-        // Silent — client-side sync is best-effort.
-        console.warn('[ra client sync]', e);
-      } finally {
-        lastClientSyncAt.current = null;
-      }
-    })();
-  }, [profileQuery.data?.profile?.program_status, profileQuery.data?.profile?.warmed_account_id, queryClient]);
+  // NOTE: Auto-sync handled by hourly cron (ra-sync-daily-activity).
+  // No client-side sync needed — account is admin-issued (warmed).
 
   if (profileQuery.isLoading) {
     return (
@@ -562,96 +515,26 @@ function ProofUploadSheet({
 }
 
 // ---------------------------------------------------------------
-// Sync progress button — fires edge-function sync, falls back to
-// manual ticking when proxies are down
+// Progress status — auto-detected by system cron (no manual sync).
+// Admin-issued accounts are verified server-side; army just sees
+// progress and waits for detection.
 // ---------------------------------------------------------------
-function SyncProgressButton({ task, onSynced }: { task: any; onSynced: () => void }) {
-  const [syncing, setSyncing] = useState(false);
-  const [showManual, setShowManual] = useState(false);
-  const manualKey = `ra_manual_progress_${task.task_id}`;
-  const manualCount = Number(
-    typeof window !== 'undefined' ? window.localStorage.getItem(manualKey) || 0 : 0
-  );
+function ProgressStatus({ task }: { task: any }) {
   const tc = task.target_count ?? 1;
-  const autoCount = task.progress_count ?? 0;
-  // Effective progress = max(auto-detected, manual ticks)
-  const effectiveCount = Math.max(autoCount, manualCount);
+  const pc = task.progress_count ?? 0;
+  const complete = pc >= tc;
 
-  const handleSync = async () => {
-    if (!task.reddit_username) {
-      toast.error('Username Reddit belum terhubung. Hubungi admin.');
-      return;
-    }
-    setSyncing(true);
-    try {
-      const r = await syncMyRedditDailyActivity({
-        username: task.reddit_username,
-        redditAccountId: task.reddit_account_id,
-      });
-      if (r?.ok) {
-        toast.success(`Sync selesai! Aktivitas terdeteksi & tercatat.`);
-        onSynced();
-      } else {
-        toast.error(`Sync gagal: ${r?.error || 'unknown'}`);
-        setShowManual(true); // offer manual fallback
-      }
-    } catch (e: any) {
-      toast.error(`Sync gagal: ${e?.message || e}`);
-      setShowManual(true);
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const tickManual = (i: number) => {
-    const next = i + 1 <= tc ? i + 1 : 0; // toggle back to uncheck all
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem(manualKey, String(i + 1 <= tc ? i + 1 : 0));
-    }
-    setShowManual(false);
-    toast.success(`Ditandai ${next}/${tc} — jangan lupa tetap kerjain di Reddit ya!`);
-    onSynced();
-  };
-
+  if (complete) {
+    return (
+      <span className="text-[11px] text-success font-semibold">
+        ✅ Aktivitas terdeteksi ({pc}/{tc}) — kamu bisa selesaikan misi!
+      </span>
+    );
+  }
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex gap-2 flex-wrap">
-        <Button size="sm" variant="outline" onClick={handleSync} loading={syncing}>
-          <RefreshCw size={14} /> Sync Progress
-        </Button>
-        {effectiveCount >= tc && (
-          <span className="text-[11px] text-success font-semibold self-center">
-            ✅ Lengkap ({effectiveCount}/{tc})
-          </span>
-        )}
-      </div>
-
-      {showManual && (
-        <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-          <p className="text-[11px] font-semibold text-yellow-800 mb-2">
-            ⚠️ Sync otomatis gagal (Reddit/proxy sedang sibuk). Mau tandai manual?
-          </p>
-          <div className="flex gap-1.5 flex-wrap">
-            {Array.from({ length: tc }).map((_, i) => (
-              <button
-                key={i}
-                onClick={() => tickManual(i)}
-                className={`text-[10px] px-2 py-1.5 rounded-full font-semibold tap-shrink ${
-                  i < effectiveCount
-                    ? 'bg-success/20 text-success'
-                    : 'bg-white border border-gray-300 text-gray-500'
-                }`}
-              >
-                {i < effectiveCount ? '✅' : '⬜'} #{i + 1}
-              </button>
-            ))}
-          </div>
-          <p className="text-[10px] text-yellow-700/80 mt-2">
-            Tandai sesuai yang udah kamu kerjain. Admin tetap cek screenshot proof pas submit.
-          </p>
-        </div>
-      )}
-    </div>
+    <span className="text-[11px] text-gray-500">
+      🔄 Sistem otomatis cek aktivitas tiap jam. {pc}/{tc} terdeteksi — {tc - pc} lagi biar bisa submit.
+    </span>
   );
 }
 
@@ -762,14 +645,8 @@ function Phase1ActiveState({
           {tasks.map((task) => {
             const status = task.assignment_status;
             const canApproveVisually = !isLevelLocked;
-            const autoCount = task.progress_count ?? 0;
+            const pc = task.progress_count ?? 0;
             const tc = task.target_count ?? 1;
-            // Merge manual ticks (localStorage) with auto-detected progress
-            const manualKey = `ra_manual_progress_${task.task_id}`;
-            const manualCount = Number(
-              typeof window !== 'undefined' ? window.localStorage.getItem(manualKey) || 0 : 0
-            );
-            const pc = Math.max(autoCount, manualCount);
             const progressPct = Math.min(Math.round((pc / tc) * 100), 100);
             return (
               <Card key={task.task_id} padding="md">
@@ -823,7 +700,7 @@ function Phase1ActiveState({
                           ))}
                         </div>
                         <p className="text-[10px] text-gray-500 mt-2">
-                          💡 Kerjain &amp; comment di Reddit, terus tekan <strong>Sync</strong> biar progress ke-update.
+                          💡 Kerjain &amp; comment di Reddit, sistem otomatis deteksi tiap jam. Ga perlu sync manual.
                         </p>
                       </div>
                     )}
@@ -838,11 +715,8 @@ function Phase1ActiveState({
                           {canApproveVisually ? '⏳ Menunggu approve admin' : '🔒 Submitted — antri warmup'}
                         </span>
                       ) : status === 'in_progress' ? (
-                        <div className="flex gap-2 flex-wrap">
-                          <SyncProgressButton
-                            task={task}
-                            onSynced={() => onTaskSubmitted()}
-                          />
+                        <div className="flex flex-col gap-2">
+                          <ProgressStatus task={task} />
                           {task.progress_complete ? (
                             <Button
                               size="sm"
@@ -852,8 +726,8 @@ function Phase1ActiveState({
                               Selesaikan Misi 📸
                             </Button>
                           ) : (
-                            <span className="text-[11px] text-gray-400 self-center">
-                              Lengkapi {tc - pc} lagi buat bisa submit
+                            <span className="text-[11px] text-gray-400">
+                              Kerjain dulu di Reddit, sistem cek otomatis tiap jam.
                             </span>
                           )}
                         </div>
