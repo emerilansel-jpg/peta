@@ -8,7 +8,8 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [state, setState] = React.useState<'checking' | 'allowed' | 'denied'>('checking');
 
-  const isRedditPath = location.pathname.startsWith('/reddit');
+  // '/reddit-army' is a PeTa page — only '/reddit' + '/reddit/*' are Straight.
+  const isRedditPath = location.pathname === '/reddit' || location.pathname.startsWith('/reddit/');
   const loginPath = isRedditPath ? '/reddit/login' : '/login';
   const fallbackPath = isRedditPath ? '/reddit/dashboard' : '/tasks';
   const accessDeniedMsg = isRedditPath

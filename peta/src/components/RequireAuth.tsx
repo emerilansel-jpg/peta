@@ -28,8 +28,11 @@ export function RequireAuth({ children, loginPath }: RequireAuthProps) {
   // Resolve the right login path for the tenant/host. /reddit/* uses the
   // Straight Ltd login; everything else uses the PeTa login. Default to the
   // peer of the current path so the user lands back where they came from.
+  // NOTE: use '/reddit/' (with trailing slash) — '/reddit-army' is a PeTa
+  // army page and must NOT match the Straight /reddit prefix.
+  const isRedditArea = location.pathname === '/reddit' || location.pathname.startsWith('/reddit/');
   const resolvedLogin = loginPath
-    ?? (location.pathname.startsWith('/reddit') ? '/reddit/login' : '/login');
+    ?? (isRedditArea ? '/reddit/login' : '/login');
 
   const [state, setState] = React.useState<'checking' | 'ok' | 'denied'>('checking');
 

@@ -185,7 +185,7 @@ BEGIN
   SELECT
     COALESCE(SUM(CASE WHEN source = 'signup_bonus' THEN amount ELSE 0 END), 0)::int,
     COALESCE(SUM(CASE WHEN source IN ('referral_bonus_referrer','referral_bonus_referee') THEN amount ELSE 0 END), 0)::int,
-    COALESCE(SUM(CASE WHEN source NOT IN ('signup_bonus','referral_bonus_referrer','referral_bonus_referee','task_reward') THEN amount ELSE 0 END), 0)::int
+    COALESCE(SUM(CASE WHEN source NOT IN ('signup_bonus','referral_bonus_referrer','referral_bonus_referee','task_reward','task_revert') THEN amount ELSE 0 END), 0)::int
   INTO v_signup_bonus, v_referral_bonus, v_other_credits
   FROM public.user_credits
   WHERE user_id = p_user_id;

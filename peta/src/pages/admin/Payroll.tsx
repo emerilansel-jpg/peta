@@ -1,14 +1,17 @@
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Download, Check } from 'lucide-react';
+import { Download, Check, X } from 'lucide-react';
+import { useState } from 'react';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
+import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { supabase } from '../../lib/supabase';
-import { adminMarkPayoutPaid, sendPayoutPaidEmail } from '../../lib/api';
+import { adminMarkPayoutPaid, adminCancelPayout, sendPayoutPaidEmail } from '../../lib/api';
 import { toast } from '../../components/Toast';
 
 export function AdminPayroll() {
+  const [cancelTarget, setCancelTarget] = useState<any>(null);
   const { data: payouts = [], isLoading, refetch } = useQuery({
     queryKey: ['adminPayouts'],
     queryFn: async () => {
@@ -41,6 +44,21 @@ export function AdminPayroll() {
       refetch();
     },
     onError: () => toast.error('Gagal update'),
+  });
+
+  const cancelPayout = useMutation({
+    mutationFn: async (p: any) => {
+      await adminCancelPayout(p.id);
+      return p;
+    },
+    onSuccess: () => {
+      toast.success('Payout dibatalkan — dana kembali ke member');
+      setCancelTarget(null);
+      refetch();
+    },
+    onError: (e: any) => {
+      toast.error(e?.message || 'Gagal batalkan payout');
+    },
   });
 
   const total = payouts.reduce((s: number, p: any) => s + p.amount, 0);
@@ -130,17 +148,40 @@ export function AdminPayroll() {
                   Rp{p.amount.toLocaleString('id-ID')}
                 </p>
               </div>
-              <Button
-                onClick={() => markPaid.mutate(p)}
-                variant="success"
-                loading={markPaid.isPending}
-                fullWidth
-              >
-                <Check size={18} /> Mark as Paid
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  onClick={() => markPaid.mutate(p)}
+                  variant="success"
+                  loading={markPaid.isPending}
+                  fullWidth
+                >
+                  <Check size={18} /> Mark as Paid
+                </Button>
+                <Button
+                  onClick={() => setCancelTarget(p)}
+                  variant="outline"
+                  loading={cancelPayout.isPending}
+                  className="!border-danger !text-danger hover:!bg-danger hover:!text-white shrink-0"
+                  title="Batalkan payout (dana kembali ke member)"
+                >
+                  <X size={18} />
+                </Button>
+              </div>
             </Card>
           ))}
         </div>
+      )}
+
+      {cancelTarget && (
+        <ConfirmDialog
+          open
+          title="Batalkan payout?"
+          description={`Payout Rp${cancelTarget.amount.toLocaleString('id-ID')} untuk ${cancelTarget.users?.full_name || cancelTarget.users?.email} akan dibatalkan. Dana otomatis kembali ke saldo member.`}
+          confirmLabel="Ya, Batalkan"
+          cancelLabel="Batal"
+          onConfirm={() => cancelPayout.mutate(cancelTarget)}
+          onClose={() => setCancelTarget(null)}
+        />
       )}
     </Layout>
   );

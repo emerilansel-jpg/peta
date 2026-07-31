@@ -119,7 +119,13 @@ export function TaskDetail() {
 
   // If user has exactly 1 reddit account (which is the enforced limit), skip
   // the manual account-pick step. Forum tasks can also start without Reddit.
+  // autoStartAttempted guards against an infinite retry loop: when the start
+  // mutation fails (e.g. already-submitted assignment), stage stays 'preview'
+  // and this effect would otherwise re-fire on every dependency tick and spam
+  // error toasts (observed in QA: "Gagal memulai task" x10+).
+  const autoStartAttempted = React.useRef(false);
   React.useEffect(() => {
+    if (autoStartAttempted.current) return;
     if (
       stage === 'preview' &&
       ((accounts.length === 1 && selectedAccountId) || ((isForumComment || isYouTubeUpload) && accounts.length === 0)) &&
@@ -127,6 +133,7 @@ export function TaskDetail() {
       !checkingExistingAssignment &&
       !assignmentId
     ) {
+      autoStartAttempted.current = true;
       startMutation.mutate();
     }
     // isForumComment/isYouTubeUpload must be in deps so the effect fires when

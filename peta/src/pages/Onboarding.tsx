@@ -5,7 +5,7 @@ import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { toast } from '../components/Toast';
-import { addRedditAccount, claimOnboardingBonus, type OnboardingStep } from '../lib/api';
+import { addRedditAccount, claimOnboardingBonus, getFoundingMembers, type OnboardingStep } from '../lib/api';
 import { WHATSAPP_GROUP_URL } from '../lib/config';
 import { ConfettiBurst } from '../components/Confetti';
 import { ArrowRight, ExternalLink } from 'lucide-react';
@@ -22,6 +22,13 @@ export function Onboarding() {
   const [waGroupConfirmed, setWaGroupConfirmed] = React.useState(false);
   const [confettiActive, setConfettiActive] = React.useState(false);
   const [completedSteps, setCompletedSteps] = React.useState<number[]>([]);
+  // Founding cap: when the 100 slots are full, onboarding bonuses are no
+  // longer awarded server-side — surface that honestly instead of claiming.
+  const [foundingFull, setFoundingFull] = React.useState(false);
+
+  React.useEffect(() => {
+    getFoundingMembers().then((f) => setFoundingFull(f.isFull)).catch(() => {});
+  }, []);
 
   const celebrate = () => {
     // Re-trigger by toggling — set false first so even successive calls fire fresh
@@ -111,9 +118,14 @@ export function Onboarding() {
     }
     if (!completedSteps.includes(1)) {
       markStepComplete(1);
-      await safeClaim('signup');
-      celebrate();
-      toast.success('+Rp25.000 masuk saldo! 🎉');
+      if (!foundingFull) {
+        await safeClaim('signup');
+        celebrate();
+        toast.success('+Rp25.000 masuk saldo! 🎉');
+      } else {
+        // Slots 101+ don't get the founding bonus — advance without lying about it.
+        toast('Bonus founding sudah penuh — kamu tetap bisa kerjain task 💪');
+      }
     }
     setCurrentStep(2);
   };
@@ -253,16 +265,18 @@ export function Onboarding() {
   const step1: any = {
     number: 1,
     title: '💰 Saldo kamu',
-    balance: 'Rp25.000',
-    bonus: '+Rp25.000 dari step ini',
+    balance: foundingFull ? 'Rp0' : 'Rp25.000',
+    bonus: foundingFull ? 'Bonus founding sudah penuh' : '+Rp25.000 dari step ini',
     emoji: '🎁',
     heading: 'Selamat Datang!',
     subheading: 'Step 1 dari 6',
     description: needsWhatsappStep
       ? 'Selamat datang di PenghasilanTambahan.com (PeTa) — kamu sekarang bagian dari PeTa Army. Bakal dibayar buat komen di internet — gampang banget.\n\nIsi nomor WhatsApp di bawah supaya admin bisa kontak kamu untuk konfirmasi payout. Lalu klik klaim bonus.'
-      : 'Selamat datang di PenghasilanTambahan.com (PeTa) — kamu sekarang bagian dari PeTa Army. Bonus Rp25.000 udah siap masuk saldo kamu.\n\nKlik tombol di bawah untuk klaim, lalu lanjut ke step setup berikutnya.',
-    buttonText: '💰 Klaim Bonus Rp25.000',
-    hint: 'Bonus langsung masuk saldo setelah klaim',
+      : foundingFull
+        ? 'Selamat datang di PenghasilanTambahan.com (PeTa) — kamu sekarang bagian dari PeTa Army. Bakal dibayar buat komen di internet — gampang banget.\n\nSlot founding (100 member pertama) sudah penuh, jadi bonus Rp50.000 founding tidak berlaku untuk kamu. Tapi kamu tetap bisa earning dari task — Rp5.000–Rp20.000 per komen.'
+        : 'Selamat datang di PenghasilanTambahan.com (PeTa) — kamu sekarang bagian dari PeTa Army. Bonus Rp25.000 udah siap masuk saldo kamu.\n\nKlik tombol di bawah untuk klaim, lalu lanjut ke step setup berikutnya.',
+    buttonText: foundingFull ? 'Lanjut Setup ➜' : '💰 Klaim Bonus Rp25.000',
+    hint: foundingFull ? 'Bonus founding penuh — lanjut setup, task tetap bisa dikerjakan' : 'Bonus langsung masuk saldo setelah klaim',
     action: handleStep1,
   };
   if (needsWhatsappStep) {
@@ -387,6 +401,12 @@ export function Onboarding() {
       )}
 
       {/* Current Step */}
+      {foundingFull && (
+        <div className="mb-4 p-3 bg-amber-50 ring-1 ring-amber-300 rounded-lg text-xs text-amber-900 leading-relaxed">
+          <b>Bonus founding sudah penuh.</b> Slot ke-101+ tidak mendapat bonus Rp50.000 — tapi task tetap dibayar
+          Rp5.000–Rp20.000 per komen, cair ke e-wallet.
+        </div>
+      )}
       <Card className="mb-8">
         <div className="flex items-start gap-4 mb-6">
           <div className="text-5xl">{current.emoji}</div>

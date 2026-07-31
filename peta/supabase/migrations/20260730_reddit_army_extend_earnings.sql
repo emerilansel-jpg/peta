@@ -45,14 +45,17 @@ BEGIN
   WHERE COALESCE(ta.user_id, ra.user_id) = v_uid
     AND ta.status = 'approved';
 
-  -- Credits split (excluding task_reward which is a ledger mirror).
+  -- Credits split (excluding task_reward which is a ledger mirror, and
+  -- task_revert which is the negative reversal of task_reward — excluding
+  -- both avoids double-counting since the canonical source of task earnings
+  -- is task_assignments.status='approved', not user_credits).
   -- Note: phase1_completion / daily_bonus_cashable / hold_release are now
   -- captured inside v_manual_adj (they're all cashable), AND broken out
   -- explicitly below for the UI to display.
   SELECT
     COALESCE(SUM(CASE WHEN source = 'signup_bonus' THEN amount ELSE 0 END), 0)::int,
     COALESCE(SUM(CASE WHEN source IN ('referral_bonus_referrer','referral_bonus_referee') THEN amount ELSE 0 END), 0)::int,
-    COALESCE(SUM(CASE WHEN source NOT IN ('signup_bonus','referral_bonus_referrer','referral_bonus_referee','task_reward') THEN amount ELSE 0 END), 0)::int,
+    COALESCE(SUM(CASE WHEN source NOT IN ('signup_bonus','referral_bonus_referrer','referral_bonus_referee','task_reward','task_revert') THEN amount ELSE 0 END), 0)::int,
     COALESCE(SUM(CASE WHEN source = 'phase1_completion' THEN amount ELSE 0 END), 0)::int,
     COALESCE(SUM(CASE WHEN source = 'daily_bonus_cashable' THEN amount ELSE 0 END), 0)::int,
     COALESCE(SUM(CASE WHEN source = 'hold_release' THEN amount ELSE 0 END), 0)::int

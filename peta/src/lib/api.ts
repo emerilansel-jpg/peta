@@ -1174,6 +1174,13 @@ export async function adminMarkPayoutPaid(payoutId: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function adminCancelPayout(payoutId: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_cancel_payout', {
+    p_payout_id: payoutId,
+  });
+  if (error) throw error;
+}
+
 export async function adminUpdateTaskStatus(taskId: string, status: 'draft' | 'active' | 'paused' | 'completed'): Promise<void> {
   const { error } = await supabase.rpc('admin_update_task_status', {
     p_task_id: taskId,

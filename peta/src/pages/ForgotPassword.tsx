@@ -45,6 +45,9 @@ export function ForgotPassword() {
         toast.error('Terlalu banyak request. Coba lagi dalam 60 detik.');
       } else if (/smtp_not_configured/i.test(msg)) {
         toast.error('Email gateway belum di-setup. Hubungi admin ya.');
+      } else if (/non-2xx|internal_error|sender address|553/i.test(msg)) {
+        // Surface friendly copy instead of the raw edge-function error
+        toast.error('Gagal kirim email. Coba pakai WhatsApp, atau hubungi admin di grup WA ya 🙏');
       } else {
         toast.error(msg);
       }
@@ -81,6 +84,8 @@ export function ForgotPassword() {
         toast.error('Fonnte belum di-setup. Hubungi admin ya.');
       } else if (/rate limit/i.test(msg)) {
         toast.error('Terlalu banyak request. Coba lagi dalam 60 detik.');
+      } else if (/non-2xx|internal_error/i.test(msg)) {
+        toast.error('Gagal kirim WhatsApp. Coba pakai email, atau hubungi admin di grup WA ya 🙏');
       } else {
         toast.error(msg);
       }
