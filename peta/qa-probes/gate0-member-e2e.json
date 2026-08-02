@@ -1,0 +1,120 @@
+{
+  "member": {
+    "name": "QA Test Member",
+    "email": "qa-test-86451315@penghasilantambahan.com",
+    "password": "QaTest#2026!",
+    "whatsapp": "081286451315"
+  },
+  "results": [
+    {
+      "phase": "A",
+      "step": "create-member",
+      "memberVisible": false,
+      "errors": [
+        "Failed to load resource: the server responded with a status of 404 ()"
+      ],
+      "toast": "function gen_salt(unknown) does not exist\nAdmin\n\nADMIN CONSOLE\n\nPeTa Army\n\n112 member terdaftar di komunitas\n\nTambah\n\nJayadi\n\neagan1607@gmail.com\n\n6287741234479\n3a6761a2…\ntap to copy\nActive\n27 Jul 2026, 16.40\n\nKevin Imanuel Setiawan\n\nsetiawankevin530@gmail.com\n\n6282236039191\n037f29e4…\ntap to copy\nAc"
+    },
+    {
+      "phase": "B",
+      "step": "login",
+      "finalUrl": "/login",
+      "errors": [
+        "Failed to load resource: the server responded with a status of 400 ()"
+      ],
+      "failed": [
+        "400 https://yorlsgzsawchpeeazcvi.supabase.co/auth/v1/token?grant_type=password"
+      ]
+    },
+    {
+      "phase": "B",
+      "route": "/tasks",
+      "url": "/login",
+      "h1": "",
+      "textLen": 206,
+      "errors": [],
+      "failed": []
+    },
+    {
+      "phase": "B",
+      "route": "/task-history",
+      "url": "/login",
+      "h1": "",
+      "textLen": 206,
+      "errors": [],
+      "failed": []
+    },
+    {
+      "phase": "B",
+      "route": "/reddit-army",
+      "url": "/reddit/login",
+      "h1": "Welcome back",
+      "textLen": 181,
+      "errors": [],
+      "failed": []
+    },
+    {
+      "phase": "B",
+      "route": "/account",
+      "url": "/login",
+      "h1": "",
+      "textLen": 206,
+      "errors": [],
+      "failed": []
+    },
+    {
+      "phase": "B",
+      "route": "/earnings",
+      "url": "/login",
+      "h1": "",
+      "textLen": 206,
+      "errors": [],
+      "failed": []
+    },
+    {
+      "phase": "B",
+      "route": "/reddit/dashboard",
+      "url": "/reddit/login",
+      "h1": "Welcome back",
+      "textLen": 181,
+      "errors": [],
+      "failed": []
+    },
+    {
+      "phase": "B",
+      "route": "/reddit/orders",
+      "url": "/reddit/login",
+      "h1": "Welcome back",
+      "textLen": 181,
+      "errors": [],
+      "failed": []
+    },
+    {
+      "phase": "B",
+      "route": "/reddit/new-order",
+      "url": "/reddit/login",
+      "h1": "Welcome back",
+      "textLen": 181,
+      "errors": [],
+      "failed": []
+    },
+    {
+      "phase": "B",
+      "route": "/reddit/topup",
+      "url": "/reddit/login",
+      "h1": "Welcome back",
+      "textLen": 181,
+      "errors": [],
+      "failed": []
+    },
+    {
+      "phase": "B",
+      "route": "/reddit/reviews",
+      "url": "/reddit/login",
+      "h1": "Welcome back",
+      "textLen": 181,
+      "errors": [],
+      "failed": []
+    }
+  ]
+}

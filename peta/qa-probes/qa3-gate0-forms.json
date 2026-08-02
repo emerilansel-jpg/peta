@@ -1,0 +1,32 @@
+{
+  "steps": [
+    {
+      "name": "register-empty-submit",
+      "errors": []
+    },
+    {
+      "name": "register-invalid-email",
+      "errors": []
+    },
+    {
+      "name": "unknown-route",
+      "errors": []
+    },
+    {
+      "name": "payout-empty-state",
+      "errors": [
+        "Failed to load resource: the server responded with a status of 400 ()"
+      ]
+    }
+  ],
+  "validationMessages": [],
+  "registerInputCount": 4,
+  "invalidEmailMsgs": [
+    "EMAIL"
+  ],
+  "unknownRouteUrl": "/",
+  "unknownRouteTitle": "Penghasilan Tambahan Online — Dibayar Cuma Buat Komentar | PeTa",
+  "wrongLoginMsg": [
+    "salah. Coba lagi ya."
+  ]
+}

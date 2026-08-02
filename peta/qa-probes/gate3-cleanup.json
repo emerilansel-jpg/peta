@@ -1,0 +1,60 @@
+{
+  "deleted": [
+    {
+      "email": "qa-obo-86644849@penghasilantambahan.com",
+      "status": 204,
+      "body": ""
+    },
+    {
+      "email": "xss-check-745859@example.com",
+      "status": 204,
+      "body": ""
+    },
+    {
+      "email": "qa-test-86532121@penghasilantambahan.com",
+      "status": 204,
+      "body": ""
+    },
+    {
+      "email": "qa-obo-86621703@penghasilantambahan.com",
+      "status": 204,
+      "body": ""
+    }
+  ],
+  "errors": [],
+  "leftoverUsers": [],
+  "foundUsers": [
+    {
+      "id": "3fd5a8f2-18c6-4521-a819-ca3743ce0f13",
+      "email": "qa-obo-86644849@penghasilantambahan.com"
+    },
+    {
+      "id": "adac92a9-e3b4-4a26-ae1d-86f055fcc704",
+      "email": "xss-check-745859@example.com"
+    },
+    {
+      "id": "65e0ec8c-4bb5-4bb8-beac-b39e19e68c9c",
+      "email": "qa-test-86532121@penghasilantambahan.com"
+    },
+    {
+      "id": "405ddadf-d052-4d98-b57c-371b86fbb81d",
+      "email": "qa-obo-86621703@penghasilantambahan.com"
+    }
+  ],
+  "qaTasks": [
+    {
+      "id": "210abad4-e4ff-474e-ac7c-1879322cc0c3",
+      "title": "QA Test Task 86968743",
+      "status": "active",
+      "is_hidden": false
+    }
+  ],
+  "qaTasksAfter": [
+    {
+      "id": "210abad4-e4ff-474e-ac7c-1879322cc0c3",
+      "title": "QA Test Task 86968743",
+      "status": "paused",
+      "is_hidden": true
+    }
+  ]
+}

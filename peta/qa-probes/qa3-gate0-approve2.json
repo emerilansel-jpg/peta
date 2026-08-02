@@ -1,0 +1,28 @@
+{
+  "steps": [
+    {
+      "name": "admin-login",
+      "errors": []
+    },
+    {
+      "name": "approve-exact",
+      "errors": [
+        "Failed to load resource: the server responded with a status of 502 ()",
+        "send-peta-email failed: FunctionsHttpError: Edge Function returned a non-2xx status code\n    at za.<anonymous> (https://www.penghasilantambahan.com/assets/main-"
+      ]
+    },
+    {
+      "name": "member-login",
+      "errors": []
+    },
+    {
+      "name": "earnings-saldo",
+      "errors": []
+    }
+  ],
+  "queueHasTask": true,
+  "approveButtons": 1,
+  "toast": "Approved",
+  "saldoFull": "📬\n\nSimpan email PeTa di kontak kamu\n\nKonfirmasi payout + update task dikirim dari peta@penghasilantambahan.com. Sering masuk folder Spam / Promotions — save ke contacts biar nggak ketinggalan.\n\nSetup Reddit dulu biar saldo bisa naik\n\nTask baru dibayar lewat akun Reddit kamu. Selesai 5 menit + bonus Rp10K masuk saldo.\n\n🔓 Lanjutkan Setup\n\n💰 SALDO CAIR\n\nCara hitung\n\nRp6.000\n\nMinimum tarik Rp20K. Yuk earning lagi buat nyampe minimum.\n\n🚀 Lanjut Earning\n\nRINCIAN SALDO KAMU\n\n✅\nDari task approved\nRp6.000\n💰 Bisa cair sekarang\nRp6.000\n\nTOTAL HASIL\n\nRp6K\n\nUDAH CAIR\n\nRp0K\n\nRiwayat Payout\n💸\n\nBelum ada payout\n\nRequest pertama kamu akan muncul di sini.\n\nTugas\nReddit\nSaldo\nAkun",
+  "saldoHas6000": true
+}

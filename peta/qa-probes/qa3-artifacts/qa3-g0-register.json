@@ -1,0 +1,81 @@
+{
+  "member": {
+    "name": "QA3 Register User",
+    "email": "qa3-reg-53679060@gmail.com",
+    "whatsapp": "085753679060",
+    "password": "Qa3Reg#2026!"
+  },
+  "registerPageHasReddit": false,
+  "afterRegister": {
+    "url": "/onboarding",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 502 ()",
+      "send-peta-email failed: FunctionsHttpError: Edge Function returned a non-2xx status code\n    at za.<anonymous> (https://www.penghasilantambahan.com/as"
+    ],
+    "failed": [
+      "502 SB/functions/v1/send-peta-email"
+    ]
+  },
+  "onboardingSteps": [
+    {
+      "i": 0,
+      "url": "/onboarding",
+      "text": "💰 Saldo kamu\n\nRp0\n\nBonus founding sudah penuh\n\nBonus founding sudah penuh. Slot ke-101+ tidak mendapat bonus Rp50.000 — tapi task tetap dibayar Rp5.000–Rp20.000 per komen, cair ke e-wallet.\n🎁\n\nStep 1 dari 6\n\nSelamat Datang!\n\nSelamat datang di Pengh",
+      "primary": "Lanjut Setup ➜"
+    },
+    {
+      "i": 1,
+      "url": "/onboarding",
+      "text": "Bonus founding sudah penuh — kamu tetap bisa kerjain task 💪\n\n💰 Saldo kamu\n\nRp30.000\n\n+Rp5.000 dari step ini\n\n← Kembali\nBonus founding sudah penuh. Slot ke-101+ tidak mendapat bonus Rp50.000 — tapi task tetap dibayar Rp5.000–Rp20.000 per komen, cair",
+      "primary": "💬 Buka Grup"
+    },
+    {
+      "i": 2,
+      "url": "/onboarding",
+      "text": "Bonus founding sudah penuh — kamu tetap bisa kerjain task 💪\n\n💰 Saldo kamu\n\nRp30.000\n\n+Rp5.000 dari step ini\n\n← Kembali\nBonus founding sudah penuh. Slot ke-101+ tidak mendapat bonus Rp50.000 — tapi task tetap dibayar Rp5.000–Rp20.000 per komen, cair",
+      "primary": "💬 Buka Grup"
+    },
+    {
+      "i": 3,
+      "url": "/onboarding",
+      "text": "💰 Saldo kamu\n\nRp30.000\n\n+Rp5.000 dari step ini\n\n← Kembali\nBonus founding sudah penuh. Slot ke-101+ tidak mendapat bonus Rp50.000 — tapi task tetap dibayar Rp5.000–Rp20.000 per komen, cair ke e-wallet.\n💬\n\nStep 2 dari 6\n\nGabung Grup WhatsApp\n\n🚨 Task",
+      "primary": "💬 Buka Grup"
+    },
+    {
+      "i": 4,
+      "url": "/onboarding",
+      "text": "💰 Saldo kamu\n\nRp30.000\n\n+Rp5.000 dari step ini\n\n← Kembali\nBonus founding sudah penuh. Slot ke-101+ tidak mendapat bonus Rp50.000 — tapi task tetap dibayar Rp5.000–Rp20.000 per komen, cair ke e-wallet.\n💬\n\nStep 2 dari 6\n\nGabung Grup WhatsApp\n\n🚨 Task",
+      "primary": "💬 Buka Grup"
+    },
+    {
+      "i": 5,
+      "url": "/onboarding",
+      "text": "💰 Saldo kamu\n\nRp30.000\n\n+Rp5.000 dari step ini\n\n← Kembali\nBonus founding sudah penuh. Slot ke-101+ tidak mendapat bonus Rp50.000 — tapi task tetap dibayar Rp5.000–Rp20.000 per komen, cair ke e-wallet.\n💬\n\nStep 2 dari 6\n\nGabung Grup WhatsApp\n\n🚨 Task",
+      "primary": "💬 Buka Grup"
+    },
+    {
+      "i": 6,
+      "url": "/onboarding",
+      "text": "💰 Saldo kamu\n\nRp30.000\n\n+Rp5.000 dari step ini\n\n← Kembali\nBonus founding sudah penuh. Slot ke-101+ tidak mendapat bonus Rp50.000 — tapi task tetap dibayar Rp5.000–Rp20.000 per komen, cair ke e-wallet.\n💬\n\nStep 2 dari 6\n\nGabung Grup WhatsApp\n\n🚨 Task",
+      "primary": "💬 Buka Grup"
+    },
+    {
+      "i": 7,
+      "url": "/onboarding",
+      "text": "💰 Saldo kamu\n\nRp30.000\n\n+Rp5.000 dari step ini\n\n← Kembali\nBonus founding sudah penuh. Slot ke-101+ tidak mendapat bonus Rp50.000 — tapi task tetap dibayar Rp5.000–Rp20.000 per komen, cair ke e-wallet.\n💬\n\nStep 2 dari 6\n\nGabung Grup WhatsApp\n\n🚨 Task",
+      "primary": "💬 Buka Grup"
+    }
+  ],
+  "onboardingErrors": [
+    "Failed to load resource: the server responded with a status of 502 ()",
+    "send-peta-email failed: FunctionsHttpError: Edge Function returned a non-2xx status code\n    at za.<anonymous> (https://www.penghasilantambahan.com/as"
+  ],
+  "onboardingFailed": [
+    "502 SB/functions/v1/send-peta-email"
+  ],
+  "tasksUrl": "/onboarding",
+  "foundingCapVisible": true,
+  "saldoRp0": false,
+  "tasksTextSample": "💰 Saldo kamu\n\nRp30.000\n\n+Rp5.000 dari step ini\n\n← Kembali\nBonus founding sudah penuh. Slot ke-101+ tidak mendapat bonus Rp50.000 — tapi task tetap dibayar Rp5.000–Rp20.000 per komen, cair ke e-wallet.\n💬\n\nStep 2 dari 6\n\nGabung Grup WhatsApp\n\n🚨 Task baru DROP DI GRUP — first come first served.\n\n⏰ Slot task limited. Member di grup biasanya dapat slot 5-10 menit duluan dibanding yang ga gabung. Telat = slot abis = nunggu task berikutnya.\n\n💸 Notif payout, bukti transfer, tips naikin level — semua",
+  "earningsText": "📬\n\nSimpan email PeTa di kontak kamu\n\nKonfirmasi payout + update task dikirim dari peta@penghasilantambahan.com. Sering masuk folder Spam / Promotions — save ke contacts biar nggak ketinggalan.\n\nSetup Reddit dulu biar saldo bisa naik\n\nTask baru dibayar lewat akun Reddit kamu. Selesai 5 menit + bonus Rp10K masuk saldo.\n\n🔓 Lanjutkan Setup\n\n💰 SALDO CAIR\n\nCara hitung\n\nRp0\n\nBelum ada saldo. Kerjain task pertama → langsung cair anytime.\n\n🚀 Lanjut Earning\n\nRINCIAN SALDO KAMU\n\n✅\nDari task approved\nRp0\n💰 Bisa cair sekarang\nRp0\n\nTOTAL HASIL\n\nRp0K\n\nUDAH CAIR\n\nRp0K\n\nRiwayat Payout\n💸\n\nBelum ada payout\n\nRequest pertama kamu akan muncul di sini.\n\nTugas\nReddit\nSaldo\nAkun"
+}

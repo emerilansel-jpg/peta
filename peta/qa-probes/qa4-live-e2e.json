@@ -1,0 +1,44 @@
+{
+  "ts": "86223838",
+  "member": "qa4-86223838@penghasilantambahan.com",
+  "taskTitle": "QA4 Live E2E 86223838",
+  "steps": [
+    {
+      "name": "admin-login",
+      "errors": []
+    },
+    {
+      "name": "create-member",
+      "errors": []
+    },
+    {
+      "name": "create-forum-task",
+      "errors": []
+    },
+    {
+      "name": "member-login",
+      "errors": []
+    },
+    {
+      "name": "claim",
+      "errors": []
+    },
+    {
+      "name": "submit",
+      "errors": []
+    },
+    {
+      "name": "admin-login-2",
+      "errors": []
+    },
+    {
+      "name": "approve",
+      "errors": []
+    }
+  ],
+  "submitDisabled": false,
+  "submitted": true,
+  "approveButtons": 1,
+  "toast": "Approved",
+  "approveConsoleErrors": []
+}

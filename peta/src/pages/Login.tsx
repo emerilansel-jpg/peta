@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
@@ -11,6 +11,7 @@ export function Login() {
   const [showPwd, setShowPwd] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,7 +34,29 @@ export function Login() {
       const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
       if (error) throw error;
       toast.success('Login berhasil! 🎉');
-      navigate('/tasks');
+
+      // QA3 FIX 5 — redirect by role instead of always /tasks:
+      // admin → /admin, client → /reddit/dashboard, army → /tasks.
+      // Honor RequireAuth's location.state.from when present.
+      const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
+      if (from) {
+        navigate(from, { replace: true });
+        return;
+      }
+      let role: string = 'army';
+      try {
+        const { data: profile } = await supabase
+          .from('users')
+          .select('role')
+          .eq('id', (await supabase.auth.getUser()).data.user?.id)
+          .maybeSingle();
+        role = profile?.role ?? 'army';
+      } catch {
+        // Role lookup failed — keep army default rather than blocking login.
+      }
+      if (role === 'admin') navigate('/admin', { replace: true });
+      else if (role === 'client') navigate('/reddit/dashboard', { replace: true });
+      else navigate('/tasks', { replace: true });
     } catch (error: any) {
       const msg = error?.message || 'Login gagal';
       if (/invalid login credentials/i.test(msg)) {

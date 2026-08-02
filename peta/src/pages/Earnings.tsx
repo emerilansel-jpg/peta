@@ -109,7 +109,7 @@ export function Earnings() {
   const payoutMutation = useMutation({
     mutationFn: () => requestPayout(user.id, amount, paymentType, provider, accountNumber, accountHolderName),
     onSuccess: () => {
-      toast.success('Payout request terkirim! 24 jam max ✅ Cek inbox + spam folder buat konfirmasi (peta@penghasilantambahan.com)');
+      toast.success('Payout request terkirim! 24 jam max ✅ Cek inbox + spam folder buat konfirmasi (care@straight.ltd)');
       if (user?.email) {
         sendPayoutRequestEmail(user.email, userName, amount).catch(() => {});
       }
@@ -191,7 +191,7 @@ export function Earnings() {
             <div className="flex-1">
               <p className="font-extrabold text-orange-950 text-sm">Simpan email PeTa di kontak kamu</p>
               <p className="text-xs text-orange-900/85 mt-0.5 leading-snug">
-                Konfirmasi payout + update task dikirim dari <b>peta@penghasilantambahan.com</b>.
+                Konfirmasi payout + update task dikirim dari <b>care@straight.ltd</b>.
                 Sering masuk <b>folder Spam / Promotions</b> — save ke contacts biar nggak ketinggalan.
               </p>
             </div>

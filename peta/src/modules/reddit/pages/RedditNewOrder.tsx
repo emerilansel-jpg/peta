@@ -163,8 +163,13 @@ export function RedditNewOrder() {
   // OFF shows as paused (and can't be opened). The order RPCs enforce this too.
   const services = useMemo(() => SERVICES.map((s) => {
     if (s.id === 'reddit-upvote') {
-      const on = straightEnabled(pricing, 'reddit_upvote', true) || straightEnabled(pricing, 'forum_upvote', true);
-      return { ...s, status: on ? s.status : 'paused' as const };
+      // QA3 FIX 6 — per-platform status, no more contradiction between the
+      // card ("ACTIVE") and the order form ("Reddit upvotes are paused").
+      const redditOn = straightEnabled(pricing, 'reddit_upvote', true);
+      const forumOn = straightEnabled(pricing, 'forum_upvote', true);
+      if (!redditOn && !forumOn) return { ...s, status: 'paused' as const };
+      if (!redditOn && forumOn) return { ...s, status: 'active' as const, badge: 'Forum only' };
+      return { ...s, status: s.status };
     }
     if (s.id === 'reddit-comment') {
       const on = ['reddit_comment_plain', 'reddit_comment_link', 'forum_comment_plain', 'forum_comment_link']

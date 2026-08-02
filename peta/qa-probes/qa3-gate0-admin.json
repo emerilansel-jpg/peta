@@ -1,0 +1,64 @@
+{
+  "ts": "60014047",
+  "member": {
+    "name": "QA3 Member 60014047",
+    "email": "qa3-60014047@penghasilantambahan.com",
+    "password": "Qa3Test#2026!",
+    "whatsapp": "081360014047"
+  },
+  "steps": [
+    {
+      "name": "admin-login",
+      "errors": []
+    },
+    {
+      "name": "create-member",
+      "errors": []
+    },
+    {
+      "name": "create-forum-task",
+      "errors": []
+    },
+    {
+      "name": "create-upvote-task",
+      "errors": []
+    },
+    {
+      "name": "create-reddit-comment-task",
+      "errors": []
+    },
+    {
+      "name": "walk /admin/approval",
+      "errors": []
+    },
+    {
+      "name": "walk /admin/payroll",
+      "errors": []
+    },
+    {
+      "name": "walk /admin/reddit-army",
+      "errors": []
+    },
+    {
+      "name": "walk /admin/accounts",
+      "errors": []
+    },
+    {
+      "name": "walk /admin/inbox",
+      "errors": []
+    },
+    {
+      "name": "walk /admin/broadcast (no send)",
+      "errors": []
+    },
+    {
+      "name": "walk /admin/secrets (masked?)",
+      "errors": []
+    },
+    {
+      "name": "walk /admin/wa-bot",
+      "errors": []
+    }
+  ],
+  "loginRedirect": "/tasks"
+}

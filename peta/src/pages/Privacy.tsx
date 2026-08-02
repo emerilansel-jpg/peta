@@ -12,9 +12,9 @@ export function Privacy() {
       <div className="prose prose-sm max-w-none space-y-4 text-gray-700">
         <p>Terakhir diperbarui: 29 Juli 2026</p>
         <h3 className="font-bold text-base mt-6">1. Data yang Kami Kumpulkan</h3>
-        <p>Kami mengumpulkan data yang kamu berikan saat mendaftar: nama, email, nomor WhatsApp, dan username Reddit (jika dihubungkan).</p>
+        <p>Kami mengumpulkan data yang kamu berikan saat mendaftar: nama, email, nomor WhatsApp, dan username platform (jika dihubungkan).</p>
         <h3 className="font-bold text-base mt-6">2. Penggunaan Data</h3>
-        <p>Data kamu digunakan untuk: (a) mengelola akun dan payout, (b) mengirim notifikasi task dan bonus, (c) verifikasi aktivitas Reddit, (d) komunikasi via WhatsApp.</p>
+        <p>Data kamu digunakan untuk: (a) mengelola akun dan payout, (b) mengirim notifikasi task dan bonus, (c) verifikasi aktivitas platform, (d) komunikasi via WhatsApp.</p>
         <h3 className="font-bold text-base mt-6">3. Penyimpanan & Keamanan</h3>
         <p>Data disimpan di server Supabase (infrastruktur cloud). Kami tidak menjual data ke pihak ketiga. Password di-hash dan tidak bisa dibaca oleh siapapun termasuk admin.</p>
         <h3 className="font-bold text-base mt-6">4. Hak Kamu</h3>

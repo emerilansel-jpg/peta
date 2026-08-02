@@ -1,0 +1,68 @@
+{
+  "results": [
+    {
+      "step": "login",
+      "url": "/tasks",
+      "errors": [],
+      "failed": []
+    },
+    {
+      "step": "onboarding",
+      "url": "/tasks",
+      "errors": [],
+      "failed": []
+    },
+    {
+      "step": "tasks",
+      "url": "/tasks",
+      "errors": [],
+      "failed": []
+    },
+    {
+      "step": "task-detail",
+      "url": "/task/07e806d6-c79a-452a-9b38-dabb5a3b44fe",
+      "errors": [],
+      "failed": []
+    },
+    {
+      "step": "earnings",
+      "url": "/earnings",
+      "errors": [],
+      "failed": []
+    },
+    {
+      "step": "account",
+      "url": "/account",
+      "errors": [],
+      "failed": []
+    },
+    {
+      "step": "reddit-army-redirect",
+      "url": "/reddit-army",
+      "errors": [],
+      "failed": []
+    },
+    {
+      "step": "logout",
+      "url": "/login",
+      "errors": [],
+      "failed": []
+    },
+    {
+      "step": "relogin-earnings",
+      "url": "/earnings",
+      "errors": [],
+      "failed": []
+    }
+  ],
+  "onboardingText": "",
+  "tasksText": "🎖️\n\nReddit Army Program\n\nPassive income Rp2.500/hari cuma modal aktif di Reddit. + Bonus Rp100K setelah challenge.\n\nLihat →\nBELUM UNLOCK\nSELESAI 5 MENIT\nSetup akun kerja dulu — baru kamu bisa earn task\n\nTanpa setup akun, task belum bisa kamu ambil. 2 step lagi (5 menit) + bonus Rp10K masuk saldo.\n\n🔓 Setup Akun Sekarang\n\nSambil nunggu, kamu masih bisa ajak teman ➡️ tiap teman = +Rp20K masuk saldo (lihat di bawah)\n\nTask aktif buat kamu\n18 tersedia\nHUBSPOT COMMENT\n3 SLOT\n\nQA3 Forum Task 53262646\n\nQA3: komentar di forum (bisa dikerjakan tanpa akun Reddit).\n\nRp5.000\n\n/task\n\nHUBSPOT COMMENT\n3 SLOT\n\nQA3 Forum High 53290968\n\nQA3: komentar forum reward tinggi (bantu uji eligibility payout).\n\nRp15.000\n\n/task\n\nHUBSPOT COMMENT\n3 SLOT\n\nQA3 Forum Task 53290968\n\nQA3: komentar di forum (bisa dikerjakan tanpa akun Reddit).\n\nRp5.000\n\n/task\n\nFORUM COMMENT\n1 SLOT\n\nKomen di google - Network Threat Detection\n\nKomen di google sesuai brief. Tulis natural pakai bahasamu sendiri, jangan spammy, cukup 1 link aja. Habis komen tayang, screenshot buat bukti.\n\nRp5.000\n\n/task\n\nINDIE HACKERS COMMENT\n1 SLOT\n\nKomen di Indie Hackers - Secure Coding Practices\n\nKomen di Indie Hackers sesuai brief. Tulis natural pakai bahasamu sendiri, jangan spammy, cukup 1 link aja. Habis komen tayang, screenshot buat bukti.\n\nRp5.000\n\n/task\n\nFORUM COMMENT\n1 SLOT\n\nKomen di google - Secure Coding Practices\n\nKomen di google sesuai ",
+  "taskTitles": [
+    "QA3 Forum Task 53262646",
+    "QA3 Forum High 53290968",
+    "QA3 Forum Task 53290968"
+  ],
+  "forumClaimed": false,
+  "earningsText": "📬\n\nSimpan email PeTa di kontak kamu\n\nKonfirmasi payout + update task dikirim dari peta@penghasilantambahan.com. Sering masuk folder Spam / Promotions — save ke contacts biar nggak ketinggalan.\n\nSetup Reddit dulu biar saldo bisa naik\n\nTask baru dibayar lewat akun Reddit kamu. Selesai 5 menit + bonus Rp10K masuk saldo.\n\n🔓 Lanjutkan Setup\n\n💰 SALDO CAIR\n\nCara hitung\n\nRp0\n\nBelum ada saldo. Kerjain task pertama → langsung cair anytime.\n\n🚀 Lanjut Earning\n\nRINCIAN SALDO KAMU\n\n✅\nDari task approved\nRp0\n💰 Bisa cair sekarang\nRp0\n\nTOTAL HASIL\n\nRp0K\n\nUDAH CAIR\n\nRp0K\n\nRiwayat Payout\n💸\n\nBelum ada payout\n\nRequest pertama kamu akan muncul di sini.\n\nTugas\nReddit\nSaldo\nAkun",
+  "earnings2": "📬\n\nSimpan email PeTa di kontak kamu\n\nKonfirmasi payout + update task dikirim dari peta@penghasilantambahan.com. Sering masuk folder Spam / Promotions — save ke contacts biar nggak ketinggalan.\n\nSetup Reddit dulu biar saldo bisa naik\n\nTask baru dibayar lewat akun Reddit kamu. Selesai 5 menit + bonus Rp10K masuk saldo.\n\n🔓 Lanjutkan Setup\n\n💰 SALDO CAIR\n\nCara hitung\n\nRp0\n\nBelum ada saldo. Kerjain task pertama → langsung cair anytime.\n\n🚀 Lanjut Earning\n\nRINCIAN SALDO KAMU\n\n✅\nDari task approved\nRp0\n💰 Bisa cair sekarang\nRp0\n\nTOTAL HASIL\n\nRp0K\n\nUDAH CAIR\n\nRp0K\n\nRiwayat Payout\n💸\n\nBelum ada payout"
+}

@@ -1,0 +1,190 @@
+{
+  "member": {
+    "name": "QA Test Member",
+    "email": "qa-test-86532121@penghasilantambahan.com",
+    "password": "QaTest#2026!",
+    "whatsapp": "081286532121000"
+  },
+  "results": [
+    {
+      "phase": "C",
+      "step": "register",
+      "finalUrl": "/onboarding",
+      "errors": [],
+      "failed": []
+    },
+    {
+      "phase": "C",
+      "step": "onboarding-1",
+      "buttons": [
+        "",
+        "💰 Klaim Bonus Rp25.000",
+        "1",
+        "2",
+        "3",
+        "4"
+      ]
+    },
+    {
+      "phase": "C",
+      "step": "onboarding-2",
+      "buttons": [
+        "",
+        "← Kembali",
+        "💬 Buka Grup",
+        "✅ Sudah Gabung, Lanjut",
+        "✓",
+        "2"
+      ]
+    },
+    {
+      "phase": "C",
+      "step": "onboarding-3",
+      "buttons": [
+        "",
+        "← Kembali",
+        "💬 Buka Grup",
+        "✅ Sudah Gabung, Lanjut",
+        "✓",
+        "2"
+      ]
+    },
+    {
+      "phase": "C",
+      "step": "onboarding-4",
+      "buttons": [
+        "",
+        "← Kembali",
+        "💬 Buka Grup",
+        "✅ Sudah Gabung, Lanjut",
+        "✓",
+        "2"
+      ]
+    },
+    {
+      "phase": "C",
+      "step": "onboarding-5",
+      "buttons": [
+        "",
+        "← Kembali",
+        "💬 Buka Grup",
+        "✅ Sudah Gabung, Lanjut",
+        "✓",
+        "2"
+      ]
+    },
+    {
+      "phase": "C",
+      "step": "onboarding-6",
+      "buttons": [
+        "",
+        "← Kembali",
+        "💬 Buka Grup",
+        "✅ Sudah Gabung, Lanjut",
+        "✓",
+        "2"
+      ]
+    },
+    {
+      "phase": "C",
+      "step": "onboarding-end",
+      "finalUrl": "/onboarding",
+      "errors": []
+    },
+    {
+      "phase": "C",
+      "route": "/tasks",
+      "url": "/tasks",
+      "h1": "Ajak teman = +Rp20K masuk saldo",
+      "textLen": 6958,
+      "errors": [],
+      "failed": []
+    },
+    {
+      "phase": "C",
+      "route": "/task-history",
+      "url": "/task-history",
+      "h1": "Riwayat Task",
+      "textLen": 202,
+      "errors": [],
+      "failed": []
+    },
+    {
+      "phase": "C",
+      "route": "/reddit-army",
+      "url": "/reddit-army",
+      "h1": "🎖️ Reddit Army Program",
+      "textLen": 380,
+      "errors": [],
+      "failed": []
+    },
+    {
+      "phase": "C",
+      "route": "/account",
+      "url": "/account",
+      "h1": "Akun Saya",
+      "textLen": 716,
+      "errors": [],
+      "failed": []
+    },
+    {
+      "phase": "C",
+      "route": "/earnings",
+      "url": "/earnings",
+      "h1": "",
+      "textLen": 1000,
+      "errors": [],
+      "failed": []
+    },
+    {
+      "phase": "C",
+      "route": "/reddit/dashboard",
+      "url": "/tasks",
+      "h1": "Ajak teman = +Rp20K masuk saldo",
+      "textLen": 6958,
+      "errors": [],
+      "failed": []
+    },
+    {
+      "phase": "C",
+      "route": "/reddit/orders",
+      "url": "/tasks",
+      "h1": "Ajak teman = +Rp20K masuk saldo",
+      "textLen": 6958,
+      "errors": [],
+      "failed": []
+    },
+    {
+      "phase": "C",
+      "route": "/reddit/new-order",
+      "url": "/tasks",
+      "h1": "Ajak teman = +Rp20K masuk saldo",
+      "textLen": 6958,
+      "errors": [],
+      "failed": []
+    },
+    {
+      "phase": "C",
+      "route": "/reddit/topup",
+      "url": "/tasks",
+      "h1": "Ajak teman = +Rp20K masuk saldo",
+      "textLen": 6958,
+      "errors": [],
+      "failed": []
+    },
+    {
+      "phase": "C",
+      "route": "/reddit/reviews",
+      "url": "/tasks",
+      "h1": "Ajak teman = +Rp20K masuk saldo",
+      "textLen": 6958,
+      "errors": [],
+      "failed": []
+    },
+    {
+      "phase": "C",
+      "step": "earnings-text",
+      "text": "📬\n\nSimpan email PeTa di kontak kamu\n\nKonfirmasi payout + update task dikirim dari peta@penghasilantambahan.com. Sering masuk folder Spam / Promotions — save ke contacts biar nggak ketinggalan.\n\nSetup Reddit dulu biar saldo bisa naik\n\nTask baru dibayar lewat akun Reddit kamu. Selesai 5 menit + bonus Rp10K masuk saldo.\n\n🔓 Lanjutkan Setup\n\n💰 SALDO CAIR\n\nCara hitung\n\nRp0\n\nBelum ada saldo. Kerjain task pertama → langsung cair anytime.\n\n🚀 Lanjut Earning\n\nBONUS TERKUNCI\n\nRp25.000\n\nsignup + referral — tinggal kerjain task dikit, kebuka semua\n\nProgress task: Rp0 / Rp100.000\n0%\nKerjain task biar saldo ke100.000 dulu — semua bonus langsung kebuka.\nKurang Rp100.000 lagi.\n🚀 Ambil Task Sekarang\n\nRINCIAN SALDO KAMU\n\n✅\nDari task approved\nRp0\nSaldo bonus (signup)\nRp25.000(locked)\n💰 Bisa cair sekarang\nRp0\n\n+ Rp25.000 nunggu unlock (lihat card kuning di atas)\n\nTOTAL HASIL\n\nRp25K\n\nUDAH CAIR\n\nRp0K\n\nRiwayat Payout\n💸\n\nBelum ada payout\n\nRequest pertama kamu akan muncul di sini.\n\nTugas\nReddit\nSaldo\nAkun"
+    }
+  ]
+}

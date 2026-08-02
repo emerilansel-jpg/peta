@@ -1,0 +1,29 @@
+[
+  {
+    "name": "dead-links",
+    "count": 0,
+    "deadLinks": []
+  },
+  {
+    "name": "register-validation",
+    "text": "Kembali\n\nBonus Rp50.000 menunggu\n\nSelesai onboarding 5 menit, langsung masuk saldo.\n\nGabung PeTa Army, gratis\n\nSelesai dalam 30 detik.\n\nNAMA\nEMAIL\nWHATSAPP AKTIF\n\nBuat verifikasi & konfirmasi payout\n\n"
+  },
+  {
+    "name": "login-validation",
+    "url": "/login",
+    "text": "Email atau password salah. Coba lagi ya.\nKembali\nWelcome back, PeTa Army!\n\nLanjut earning, ambil saldonya.\n\nEMAIL ATAU NO. WHATSAPP\nPASSWORD\nLupa pass"
+  },
+  {
+    "name": "topup-page",
+    "text": "Straight Ltd\nBETA\n$1149.25\n9+\n\n⭐ Earn up to $25 in free credits\n\nLeave review\nTop up credit\n\nSecure PayPal checkout. Credits never expire.\n\nCURRENT BALANCE\n\n$1149.25\n\nAfter this top up\n\n$1249.25\n\nCHOOSE PACKAGE\n\nSTARTER\n\n$25\n\n50 upvotes\n\nGROWTH\n\n$50\n\n100 upvotes\n\nPOPULAR\n\nOPERATOR\n\n$100\n\n200 upvotes"
+  },
+  {
+    "name": "new-order-page",
+    "text": "Straight Ltd\nBETA\n$1149.25\n9+\n\n⭐ Earn up to $25 in free credits\n\nLeave review\nNew order\n\nChoose a service to start. Or request something we don't yet offer.\n\nR\nREDDIT\nACTIVE\nUpvotes\n\nHigh-retention upvotes for Reddit & other forums\n\nOrder now\nQ3 2026\nShares\n\nCross-post amplification to relevant subreddits\n\nNotify me\nQ4 2026\nNew Threads\n\nOriginal th"
+  },
+  {
+    "name": "services-enabled",
+    "status": 404,
+    "enabled": {}
+  }
+]

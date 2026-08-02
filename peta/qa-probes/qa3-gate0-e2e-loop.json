@@ -1,0 +1,59 @@
+{
+  "ts": "60014047",
+  "steps": [
+    {
+      "name": "admin-login",
+      "errors": []
+    },
+    {
+      "name": "create-forum-task-with-brief",
+      "errors": []
+    },
+    {
+      "name": "member-login",
+      "errors": []
+    },
+    {
+      "name": "open-task",
+      "errors": []
+    },
+    {
+      "name": "claim",
+      "errors": []
+    },
+    {
+      "name": "submit",
+      "errors": []
+    },
+    {
+      "name": "verify-history",
+      "errors": []
+    },
+    {
+      "name": "admin-login-2",
+      "errors": []
+    },
+    {
+      "name": "approve-in-queue",
+      "errors": []
+    },
+    {
+      "name": "member-login-3",
+      "errors": []
+    },
+    {
+      "name": "earnings-saldo",
+      "errors": []
+    }
+  ],
+  "taskTitle": "QA3 Forum WithBrief 60014047",
+  "taskUrl": "https://www.penghasilantambahan.com/task/d986af6a-749c-4b31-a3a8-ee012ac1e04a",
+  "commentPrefilled": "",
+  "submitDisabled": false,
+  "submitOk": true,
+  "historyHasTask": false,
+  "approvalQueueHasTask": true,
+  "approved": true,
+  "saldoSample": "📬\n\nSimpan email PeTa di kontak kamu\n\nKonfirmasi payout + update task dikirim dari peta@penghasilantambahan.com. Sering masuk folder Spam / Promotions — save ke contacts biar nggak ketinggalan.\n\nSetup Reddit dulu biar saldo bisa naik\n\nTask baru dibayar lewat akun Reddit kamu. Selesai 5 menit + bonus Rp10K masuk saldo.\n\n🔓 Lanjutkan Setup\n\n💰 SALDO CAIR\n\nCara hitung\n\nRp0\n\nBelum ada saldo. Kerjain task pertama → langsung cair anytime.\n\n🚀 Lanjut Earning\n\nRINCIAN SALDO KAMU\n\n✅\nDari task approved\nRp",
+  "saldoHas6000": false
+}

@@ -1,0 +1,33 @@
+{
+  "adminJwt": true,
+  "submit": {
+    "disabledBefore": false,
+    "errors": []
+  },
+  "assignmentAfterSubmit": [
+    {
+      "id": "d6541d79",
+      "status": "submitted",
+      "proof": "https://community.hubspot.com/t5/Forums/qa3-proof-comment-1",
+      "user": "d0fa8a97"
+    }
+  ],
+  "approve": {
+    "status": 204,
+    "body": ""
+  },
+  "assignmentAfterApprove": [
+    {
+      "id": "d6541d79-d9a3-4502-9bc3-9dc2b41377db",
+      "status": "approved"
+    }
+  ],
+  "ledger": [
+    {
+      "amount": 5000,
+      "source": "task_reward",
+      "description": "Reward task: QA3 Forum Task 53262646",
+      "created_at": "2026-08-02T06:54:23.881587"
+    }
+  ]
+}

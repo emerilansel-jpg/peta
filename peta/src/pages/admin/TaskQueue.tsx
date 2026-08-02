@@ -920,6 +920,10 @@ export function AdminTaskQueue() {
                   <Button
                     onClick={() => {
                       if (!form.title.trim()) { toast.error('Judul wajib diisi'); return; }
+                      if (form.task_category === 'forum_comment' && !forumTaskHasSubmittableComment(form.brief, form.description)) {
+                        toast.error("Task forum butuh 'Komentar siap-posting' atau brief biar member bisa submit");
+                        return;
+                      }
                       create.mutate('active');
                     }}
                     variant="primary"
@@ -1226,6 +1230,10 @@ export function AdminTaskQueue() {
                     if (editForm.end_at && editForm.start_at && editForm.end_at < editForm.start_at) {
                       toast.error('End date harus setelah Start date'); return;
                     }
+                    if (editForm.task_category === 'forum_comment' && editForm.status === 'active' && !forumTaskHasSubmittableComment(editForm.brief, editForm.description)) {
+                      toast.error("Task forum butuh 'Komentar siap-posting' atau brief biar member bisa submit");
+                      return;
+                    }
                     editMutation.mutate();
                   }}
                   variant="primary"
@@ -1515,6 +1523,13 @@ function buildStandardBriefTemplate(platform: string, targetUrl: string) {
     '',
     ...platformSpecific,
   ].join('\n');
+}
+
+// QA3 fix: forum comment tasks need a comment the member can post — either
+// "Komentar siap-posting" (brief) or the description as fallback. Block publishing
+// an active forum task that would leave members unable to submit.
+function forumTaskHasSubmittableComment(brief: string, description: string) {
+  return !!(splitForumBrief(brief).commentPost.trim() || description.trim());
 }
 
 function splitForumBrief(raw: string | null | undefined) {

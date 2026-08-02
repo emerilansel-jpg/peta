@@ -1,0 +1,17 @@
+{
+  "url": "https://www.penghasilantambahan.com/tasks",
+  "tokenFound": false,
+  "localStorage": {
+    "allKeys": [
+      "peta_streak:8e688eae-eb66-4633-ba8a-722fc03cae7f",
+      "sb-yorlsgzsawchpeeazcvi-auth-token"
+    ],
+    "sessionKeys": [
+      "sb-yorlsgzsawchpeeazcvi-auth-token"
+    ],
+    "data": {
+      "sb-yorlsgzsawchpeeazcvi-auth-token": "{\"access_token\":\"eyJhbGciOiJFUzI1NiIsImtpZCI6ImU2NjBiOTZkLWUxYzQtNDJkMC1hYTc0LWM2OTQzMWIwYWZlYyIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL3lvcmxzZ3pzYXdjaHBlZWF6Y3ZpLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiI4ZTY4OGVhZS1lYjY2LTQ2MzMtYmE4YS03MjJmYzAzY2FlN2YiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzg1NTIxMjUxLCJpYXQiOjE3ODU1MTc2NTEsImVtYWlsIjoiaW5mb0BqZXRkaWdpdGFscHJvLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZnVsbF9uYW1lIjoiQWRtaW4gUGVUYSJ9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6InBhc3N3b3JkIiwidGltZXN0YW1wIjoxNzg1NTE3NjUxfV0sInNlc3Npb25faWQiOiI4MjI5ODRjMS0wZWE2LTQ1NmMtYmZkMi1kNjIwODE1ZDlhMmIiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.BXRJGDmlavAXWk_Yc-q-exIfcUqac8d2Wes9MarQiLT-efDbUBxGDRvS9YVaRqSY6wy6AoZcEXgsP7PBq84Z-g\",\"token_type\":\"bearer\",\"expires_in\":3600,\"expires_at\":1785521251,\"refresh_token\":\"6eu27k3qdyni\",\"user\":{\"id\":\"8e688eae-eb66-4633-ba8a-722fc03cae7f\",\"aud\":\"authenticated\",\"role\":\"authenticated\",\"email\":\"info@jetdigitalpro.com\",\"email_confirmed_at\":\"2026-05-05T15:06:45.520492Z\",\"phone\":\"\",\"confirmed_at\":\"2026-05-05T15:06:45.520492Z\",\"last_sign_in_at\":\"2026-07-31T17:07:31.056510799Z\",\"app_metadata\":{\"provider\":\"email\",\"providers\":[\"email\"]},\"user_metadata\":{\"full_name\":\"Admin PeTa\"},\"identities\":[],\"created_at\":\"2026-05-05T15:06:45.520492Z\",\"updated_at\":\"2026-07-31T17:07:31.090774Z\",\"is_anonymous\":false},\"weak_password\":{\"message\":\"Password should be at least 8 characters.\",\"reasons\":[\"length\"]}}"
+    }
+  },
+  "consoleErrors": []
+}

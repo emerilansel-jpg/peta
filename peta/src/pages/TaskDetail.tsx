@@ -211,10 +211,18 @@ export function TaskDetail() {
   }
 
   const minutes = task.reward_amount > 15000 ? '5-10' : '3-5';
+  // Comment text the member is expected to post. For forum tasks the brief holds
+  // the comment; fall back to description when the admin left brief empty
+  // (QA3: empty-brief forum tasks could never be submitted — submit stayed disabled).
+  // Standard-brief descriptions (marker-only) yield an empty commentPost, so the
+  // final fallback is the raw description — never block the member.
+  const commentPost =
+    splitForumBrief(task.brief || task.description || '').commentPost.trim() ||
+    (task.description || '').trim();
   // Comment tasks must have a non-empty comment text before submit.
   const hasCommentText = isComment
     ? (isForumComment
-        ? !!(draftComment?.trim() || splitForumBrief(task.brief).commentPost.trim())
+        ? !!(draftComment?.trim() || commentPost)
         : !!draftComment?.trim())
     : true;
   const canSubmit = isUpvote
@@ -548,7 +556,7 @@ export function TaskDetail() {
             }
 
             const comment = isForumComment
-              ? (draftComment?.trim() || splitForumBrief(task.brief).commentPost.trim())
+              ? (draftComment?.trim() || commentPost)
               : draftComment?.trim();
             const legacyStd = splitForumBrief(task.brief).standardBrief;
             const instructions = memberSafePostingBrief(legacyStd || task.description || '').trim();

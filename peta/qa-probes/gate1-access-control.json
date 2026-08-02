@@ -1,0 +1,54 @@
+{
+  "myId": null,
+  "listAllUsers": {
+    "status": 200,
+    "body": "[{\"id\":\"3fd5a8f2-18c6-4521-a819-ca3743ce0f13\",\"email\":\"qa-obo-86644849@penghasilantambahan.com\"}]"
+  },
+  "otherUserId": "3fd5a8f2-18c6-4521-a819-ca3743ce0f13",
+  "readOtherCredits": {
+    "status": 200,
+    "body": "[{\"id\":\"b1a2538c-ec69-43ca-b14c-9e2d21745a8f\",\"user_id\":\"3fd5a8f2-18c6-4521-a819-ca3743ce0f13\",\"amount\":25000,\"source\":\"signup_bonus\",\"description\":\"Bonus pendaftaran\",\"reference_id\":null,\"created_at\""
+  },
+  "readOtherOrders": {
+    "status": 200,
+    "body": "[]"
+  },
+  "readOtherPayouts": {
+    "status": 200,
+    "body": "[]"
+  },
+  "updateOtherUser": {
+    "status": 204,
+    "body": ""
+  },
+  "rpc:admin_pending_approvals": {
+    "status": 400,
+    "body": "{\"code\":\"P0001\",\"details\":null,\"hint\":null,\"message\":\"forbidden\"}"
+  },
+  "rpc:admin_create_member": {
+    "status": 404,
+    "body": "{\"code\":\"PGRST202\",\"details\":\"Searched for the function public.admin_create_member without parameters or with a single unnamed json/jsonb parameter, b"
+  },
+  "rpc:get_reddit_army_stats_for_admin": {
+    "status": 400,
+    "body": "{\"code\":\"P0001\",\"details\":null,\"hint\":null,\"message\":\"forbidden\"}"
+  },
+  "rpc:admin_mark_payout_paid": {
+    "status": 404,
+    "body": "{\"code\":\"PGRST202\",\"details\":\"Searched for the function public.admin_mark_payout_paid without parameters or with a single unnamed json/jsonb parameter"
+  },
+  "rpc:admin_task_queue_stats": {
+    "status": 404,
+    "body": "{\"code\":\"PGRST202\",\"details\":\"Searched for the function public.admin_task_queue_stats without parameters or with a single unnamed json/jsonb parameter"
+  },
+  "claimTwice": {
+    "first": {
+      "status": 200,
+      "body": "25000"
+    },
+    "second": {
+      "status": 200,
+      "body": "25000"
+    }
+  }
+}

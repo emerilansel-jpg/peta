@@ -1,0 +1,95 @@
+{
+  "/": {
+    "url": "/reddit",
+    "errors": [],
+    "failed": [],
+    "hasPaypal": true,
+    "textSample": "Straight Ltd\nPro\nSign in\nStart free\nTrusted by 1,200+ agencies and operators\nThe Reddit growth engine for serious operators\n\nScale visibility on Reddit with high-retention upvotes from real, aged accounts. Built for digital agencies and growth teams who need r"
+  },
+  "/reddit/login": {
+    "url": "/reddit/login",
+    "errors": [],
+    "failed": [],
+    "hasPaypal": false,
+    "textSample": "Back to Straight Ltd\nStraight Ltd\nPro Dashboard\nWelcome back\n\nSign in to your account\n\nEmail\nPassword\nForgot?\nSign in\n\nDon't have an account? Sign up free\n\n256-bit SSL\nSOC 2 hosting"
+  },
+  "/reddit/register": {
+    "url": "/reddit",
+    "errors": [],
+    "failed": [],
+    "hasPaypal": true,
+    "textSample": "Straight Ltd\nPro\nSign in\nStart free\nTrusted by 1,200+ agencies and operators\nThe Reddit growth engine for serious operators\n\nScale visibility on Reddit with high-retention upvotes from real, aged accounts. Built for digital agencies and growth teams who need r"
+  },
+  "/reddit/waitlist": {
+    "url": "/reddit/waitlist",
+    "errors": [],
+    "failed": [],
+    "hasPaypal": false,
+    "textSample": "Straight Ltd\nSign in\nNOW IN PRIVATE BETA\nGet mentioned where Google and AI actually look\n\nReddit isn’t the only place that matters. Quora, HubSpot Community, and niche forums still rank in Google’s top 10 — and they’re what AI assistants read. We find those pa"
+  },
+  "/reddit/topup": {
+    "url": "/reddit/login",
+    "errors": [],
+    "failed": [],
+    "hasPaypal": false,
+    "textSample": "Back to Straight Ltd\nStraight Ltd\nPro Dashboard\nWelcome back\n\nSign in to your account\n\nEmail\nPassword\nForgot?\nSign in\n\nDon't have an account? Sign up free\n\n256-bit SSL\nSOC 2 hosting"
+  },
+  "/reddit/new-order": {
+    "url": "/reddit/login",
+    "errors": [],
+    "failed": [],
+    "hasPaypal": false,
+    "textSample": "Back to Straight Ltd\nStraight Ltd\nPro Dashboard\nWelcome back\n\nSign in to your account\n\nEmail\nPassword\nForgot?\nSign in\n\nDon't have an account? Sign up free\n\n256-bit SSL\nSOC 2 hosting"
+  },
+  "/reddit/reviews": {
+    "url": "/reddit/login",
+    "errors": [],
+    "failed": [],
+    "hasPaypal": false,
+    "textSample": "Failed to load reviews\nBack to Straight Ltd\nStraight Ltd\nPro Dashboard\nWelcome back\n\nSign in to your account\n\nEmail\nPassword\nForgot?\nSign in\n\nDon't have an account? Sign up free\n\n256-bit SSL\nSOC 2 hosting"
+  },
+  "/reddit/tickets": {
+    "url": "/reddit",
+    "errors": [],
+    "failed": [],
+    "hasPaypal": true,
+    "textSample": "Straight Ltd\nPro\nSign in\nStart free\nTrusted by 1,200+ agencies and operators\nThe Reddit growth engine for serious operators\n\nScale visibility on Reddit with high-retention upvotes from real, aged accounts. Built for digital agencies and growth teams who need r"
+  },
+  "/reddit/feature-requests": {
+    "url": "/reddit/login",
+    "errors": [],
+    "failed": [],
+    "hasPaypal": false,
+    "textSample": "Back to Straight Ltd\nStraight Ltd\nPro Dashboard\nWelcome back\n\nSign in to your account\n\nEmail\nPassword\nForgot?\nSign in\n\nDon't have an account? Sign up free\n\n256-bit SSL\nSOC 2 hosting"
+  },
+  "/reddit/pricing": {
+    "url": "/reddit",
+    "errors": [],
+    "failed": [],
+    "hasPaypal": true,
+    "textSample": "Straight Ltd\nPro\nSign in\nStart free\nTrusted by 1,200+ agencies and operators\nThe Reddit growth engine for serious operators\n\nScale visibility on Reddit with high-retention upvotes from real, aged accounts. Built for digital agencies and growth teams who need r"
+  },
+  "/reddit/orders": {
+    "url": "/reddit/login",
+    "errors": [],
+    "failed": [],
+    "hasPaypal": false,
+    "textSample": "Back to Straight Ltd\nStraight Ltd\nPro Dashboard\nWelcome back\n\nSign in to your account\n\nEmail\nPassword\nForgot?\nSign in\n\nDon't have an account? Sign up free\n\n256-bit SSL\nSOC 2 hosting"
+  },
+  "/reddit/dashboard": {
+    "url": "/reddit/login",
+    "errors": [],
+    "failed": [],
+    "hasPaypal": false,
+    "textSample": "Back to Straight Ltd\nStraight Ltd\nPro Dashboard\nWelcome back\n\nSign in to your account\n\nEmail\nPassword\nForgot?\nSign in\n\nDon't have an account? Sign up free\n\n256-bit SSL\nSOC 2 hosting"
+  },
+  "topupPaypalMode": {
+    "hasSandbox": false,
+    "hasPaypalButton": false,
+    "sample": "Back to Straight Ltd\nStraight Ltd\nPro Dashboard\nWelcome back\n\nSign in to your account\n\nEmail\nPassword\nForgot?\nSign in\n\nDon't have an account? Sign up free\n\n256-bit SSL\nSOC 2 hosting"
+  },
+  "orderPage": {
+    "hasRedditService": false,
+    "sample": "Back to Straight Ltd\nStraight Ltd\nPro Dashboard\nWelcome back\n\nSign in to your account\n\nEmail\nPassword\nForgot?\nSign in\n\nDon't have an account? Sign up free\n\n256-bit SSL\nSOC 2 hosting"
+  }
+}

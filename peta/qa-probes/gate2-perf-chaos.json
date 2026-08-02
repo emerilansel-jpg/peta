@@ -1,0 +1,74 @@
+[
+  {
+    "name": "perf-/",
+    "best": {
+      "ttfb": -1,
+      "domReady": 278
+    }
+  },
+  {
+    "name": "perf-/reddit",
+    "best": {
+      "ttfb": -1,
+      "domReady": 354
+    }
+  },
+  {
+    "name": "perf-/login",
+    "best": {
+      "ttfb": -1,
+      "domReady": 463
+    }
+  },
+  {
+    "name": "perf-/tasks",
+    "best": {
+      "ttfb": -1,
+      "domReady": 394
+    }
+  },
+  {
+    "name": "webkit",
+    "results": {
+      "/": {
+        "h1": "Cuma komen.Dibayar tiap hari.",
+        "len": 3122
+      },
+      "/reddit": {
+        "h1": "The Reddit growth engine for serious operators",
+        "len": 4129
+      },
+      "/login": {
+        "h1": "",
+        "len": 208
+      },
+      "/register": {
+        "h1": "Gabung PeTa Army, gratis",
+        "len": 346
+      },
+      "/tasks": {
+        "h1": "",
+        "len": 208
+      }
+    },
+    "pageErrors": []
+  },
+  {
+    "name": "chaos-task-state",
+    "text": "Gagal memulai task\nGagal memulai task\nGagal memulai task\nGagal memulai task\nGagal memulai task\nGagal memulai task\nGagal memulai task\nGagal memulai task\nGagal memulai task\nGagal mem"
+  },
+  {
+    "name": "chaos-refresh-midflow",
+    "afterReload": {
+      "url": "/task/210abad4-e4ff-474e-ac7c-1879322cc0c3",
+      "len": 339
+    }
+  },
+  {
+    "name": "chaos-two-tabs",
+    "bothRender": [
+      true,
+      true
+    ]
+  }
+]

@@ -1,0 +1,63 @@
+[
+  {
+    "name": "perf-/",
+    "bestMs": 189
+  },
+  {
+    "name": "perf-/reddit",
+    "bestMs": 191
+  },
+  {
+    "name": "perf-/login",
+    "bestMs": 181
+  },
+  {
+    "name": "perf-/register",
+    "bestMs": 180
+  },
+  {
+    "name": "webkit",
+    "results": {
+      "/": {
+        "len": 3122,
+        "h1": "Cuma komen.Dibayar tiap hari."
+      },
+      "/reddit": {
+        "len": 4129,
+        "h1": "The Reddit growth engine for serious ope"
+      },
+      "/login": {
+        "len": 208,
+        "h1": ""
+      },
+      "/register": {
+        "len": 346,
+        "h1": "Gabung PeTa Army, gratis"
+      },
+      "/tasks": {
+        "len": 208,
+        "h1": ""
+      }
+    },
+    "pageErrors": []
+  },
+  {
+    "name": "chaos-two-tabs",
+    "bothRender": [
+      true,
+      true
+    ]
+  },
+  {
+    "name": "chaos-refresh-midflow",
+    "url": "/task/64433009-8937-4a52-aa58-b354222cd14a",
+    "len": 557
+  },
+  {
+    "name": "persistence-logout-login",
+    "loggedOut": true,
+    "historyBefore": "Riwayat Task\n\nSemua task yang sudah kamu kerjakan\n\nApproved (0)\nReject (0)\n🎯\n\nBelum ada task approved\n\nKerjain task pertama kamu, approved masuk sini",
+    "historyAfter": "Riwayat Task\n\nSemua task yang sudah kamu kerjakan\n\nApproved (0)\nReject (0)\n🎯\n\nBelum ada task approved\n\nKerjain task pertama kamu, approved masuk sini",
+    "dataIntact": true
+  }
+]

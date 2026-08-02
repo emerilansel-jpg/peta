@@ -1,0 +1,79 @@
+{
+  "member": {
+    "name": "QA Onboarding Test",
+    "email": "qa-obo-86644849@penghasilantambahan.com",
+    "password": "QaTest#2026!",
+    "whatsapp": "085786644849000"
+  },
+  "results": [
+    {
+      "label": "after-register",
+      "url": "/onboarding"
+    },
+    {
+      "label": "step1-claimed",
+      "h2": "Gabung Grup WhatsApp",
+      "stepLabel": "Step 2 dari 6Gabung Grup WhatsApp",
+      "bodyLen": 698,
+      "errors": [],
+      "failed": []
+    },
+    {
+      "label": "step2-wa-group",
+      "h2": "Pasang Cloudflare WARP",
+      "stepLabel": "Step 3 dari 6Pasang Cloudflare WARP",
+      "bodyLen": 685,
+      "errors": [],
+      "failed": []
+    },
+    {
+      "label": "step3-warp",
+      "h2": "Buat Akun Reddit",
+      "stepLabel": "Step 4 dari 6Buat Akun Reddit",
+      "bodyLen": 981,
+      "errors": [],
+      "failed": []
+    },
+    {
+      "label": "step4-reddit-account",
+      "h2": "URL Profil Reddit Kamu",
+      "stepLabel": "Step 5 dari 6URL Profil Reddit Kamu",
+      "bodyLen": 503,
+      "errors": [],
+      "failed": []
+    },
+    {
+      "label": "step5-reddit-url",
+      "h2": "Siap Mulai Earn!",
+      "stepLabel": "Step 6 dari 6Siap Mulai Earn!",
+      "bodyLen": 465,
+      "errors": [
+        "Connecting to 'https://api.codetabs.com/v1/proxy/?quest=https%3A%2F%2Fwww.reddit.com%2Fuser%2Fqa_test_86644849%2Fabout.json' violates the following Content Security Policy directive: \"connect-src 'sel",
+        "Fetch API cannot load https://api.codetabs.com/v1/proxy/?quest=https%3A%2F%2Fwww.reddit.com%2Fuser%2Fqa_test_86644849%2Fabout.json. Refused to connect because it violates the document's Content Securi",
+        "Connecting to 'https://api.allorigins.win/raw?url=https%3A%2F%2Fwww.reddit.com%2Fuser%2Fqa_test_86644849%2Fabout.json' violates the following Content Security Policy directive: \"connect-src 'self' htt"
+      ],
+      "failed": []
+    },
+    {
+      "label": "step6-buttons",
+      "buttons": [
+        "",
+        "← Kembali",
+        "🚀 Mulai Earning Sekarang!",
+        "✓",
+        "✓",
+        "✓",
+        "✓",
+        "✓"
+      ]
+    },
+    {
+      "label": "after-onboarding",
+      "url": "/tasks"
+    },
+    {
+      "label": "earnings-after-onboarding",
+      "text": "📬\n\nSimpan email PeTa di kontak kamu\n\nKonfirmasi payout + update task dikirim dari peta@penghasilantambahan.com. Sering masuk folder Spam / Promotions — save ke contacts biar nggak ketinggalan.\n\n💰 SALDO CAIR\n\nCara hitung\n\nRp0\n\nBelum ada saldo. Kerjain task pertama → langsung cair anytime.\n\n🚀 Mulai dari Rp5.000/task\n\nKomen sekali, saldo masuk setelah admin approve\n\nBONUS TERKUNCI\n\nRp50.000\n\nsignup + referral — tinggal kerjain task dikit, kebuka semua\n\nProgress task: Rp0 / Rp100.000\n0%\n\nQUICK WIN\n\n20× task = unlock Rp50.000 bonus\n\nRp5.000 per task × 20 task\n\n🚀 Ambil Task Sekarang\n\nRINCIAN SALDO KAMU\n\n✅\nDari task approved\nRp0\nSaldo bonus (signup)\nRp50.000(locked)\n💰 Bisa cair sekarang\nRp0\n\n+ Rp50.000 nunggu unlock (lihat card kuning di atas)\n\nTOTAL HASIL\n\nRp50K\n\nUDAH CAIR\n\nRp0K\n\n⚡ 18 task siap dikerjain\n\nMulai dari Rp5.000 • saldo nambah otomatis tiap approved\n\nRiwayat Payout\n💸\n\nBelum a"
+    }
+  ]
+}

@@ -1,0 +1,53 @@
+[
+  {
+    "name": "xss-register",
+    "finalUrl": "/onboarding",
+    "dialogs": [],
+    "scriptExecuted": false,
+    "payloadVisibleRaw": false
+  },
+  {
+    "name": "xss-rendered-on-account",
+    "rawScript": false,
+    "escaped": false
+  },
+  {
+    "name": "injection-login",
+    "url": "/login",
+    "text": "Nomor WhatsApp ini belum terdaftar. Cek lagi atau pakai email ya.\nKembali\nWelcome back, PeTa Army!\n\nLanjut earning, ambil saldonya.\n\nEMAIL ATAU NO. WH"
+  },
+  {
+    "name": "jwt",
+    "jwtInfo": {
+      "expIn": 3596,
+      "iatIn": 4,
+      "aud": "authenticated",
+      "role": "authenticated"
+    }
+  },
+  {
+    "name": "logout-btn",
+    "found": true,
+    "buttons": [
+      "",
+      "Approved1+Rp2.000Lihat task selesai →",
+      "Reject4Cek alasanLihat history →",
+      "Kode kamu9a123ede Salin link",
+      " WhatsApp",
+      " Telegram",
+      " Instagram",
+      "X",
+      "Facebook",
+      " Lainnya"
+    ]
+  },
+  {
+    "name": "after-logout",
+    "url": "/login",
+    "tokenKeysLeft": []
+  },
+  {
+    "name": "after-logout-protected",
+    "url": "/login"
+  }
+]

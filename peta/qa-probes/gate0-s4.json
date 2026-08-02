@@ -1,0 +1,54 @@
+[
+  {
+    "name": "register-invalid",
+    "text": "Kembali\n\nBonus Rp50.000 menunggu\n\nSelesai onboarding 5 menit, langsung masuk saldo.\n\nGabung PeTa Army, gratis\n\nSelesai dalam 30 detik.\n\nNAMA\nEMAIL\nWHATSAPP AKTIF\n\nBuat verifikasi & konfirmasi payout\n\nPASSWORD\n\nLemah. Tambah lagi sampai min 6 karakter"
+  },
+  {
+    "name": "register-short-pwd",
+    "text": "Password minimal 6 karakter ya.\nKembali\n\nBonus Rp50.000 menunggu\n\nSelesai onboarding 5 menit, langsung masuk saldo.\n\nGabung PeTa Army, gratis\n\nSelesai dalam 30 detik.\n\nNAMA\nEMAIL\nWHATSAPP AKTIF\n\nBuat verifikasi & konfirmasi payout\n\nPASSWORD\n\nLemah. T"
+  },
+  {
+    "name": "login-wrong",
+    "text": "Email atau password salah. Coba lagi ya.\nKembali\nWelcome back, PeTa Army!\n\nLanjut earning, ambil saldonya.\n\nEMAIL ATAU NO. WHATSAPP\nPASSWORD\nLupa password?\n✨ Login & Lanjut Earning\n\nBelum punya akun? Daftar gratis →\n\n🔒 Data aman • Encrypted login",
+    "url": "/login"
+  },
+  {
+    "name": "forgot-page",
+    "text": "Kembali ke login\nLupa password?\n\nPilih cara reset password kamu.\n\nEmail\nWhatsApp\nEMAIL\n📩 Kirim Link Reset\n\nIngat password? Login →\n\n🔒 Data aman • Encrypted login"
+  },
+  {
+    "name": "forgot-submit",
+    "text": "Edge Function returned a non-2xx status code\nKembali ke login\nLupa password?\n\nPilih cara reset password kamu.\n\nEmail\nWhatsApp\nEMAIL\n📩 Kirim Link Reset\n\nIngat password? Login →\n\n🔒 Data aman • Encrypted login"
+  },
+  {
+    "name": "dead-links",
+    "deadLinks": []
+  },
+  {
+    "name": "account-page",
+    "text": "Akun Saya\n\nqa-obo-86644849@penghasilantambahan.com\n\nWHATSAPP\n\n6285786644849000\n\nAJAK TEMAN\n\nTiap teman daftar = Rp20K untuk kamu\n\nDIUNDANG\n\n0\n\nKODE KAMU — KLIK UNTUK SALIN LINK\n\n12634502\n\nSHARE LINK KAMU\n\nWhatsApp\nTelegram\nInstagram\nX\nFacebook\nLainnya\nCopy pesan\nCopy link\n\nKLIK\n\n0\n\nunik\n\nDAFTAR\n\n0\n\nteman gabung\n\nCONVERSION\n\n0%\n\nklik → daftar\n\nCUAN\n\nRp0K\n\ntotal bonus\n\nAkun Reddit\n1 akun max\n\nu/qa_t"
+  },
+  {
+    "name": "account-buttons",
+    "buttons": [
+      "",
+      "",
+      "Kode kamu — klik untuk salin link12634502",
+      " WhatsApp",
+      " Telegram",
+      " Instagram",
+      "X",
+      "Facebook",
+      " Lainnya",
+      " Copy pesan"
+    ]
+  },
+  {
+    "name": "reddit-army-page",
+    "text": "🎖️ Reddit Army Program\n🔒\nAkses Terkunci\n\nKamu belum diundang ke Reddit Army Program. Hubungi admin buat dapet undangan.\n\nTentang program ini\n🏆 Bonus Rp100K setelah selesai 5 level challenge\n💰 Bonus harian Rp2.500 selama aktif (≈Rp75K/bulan)\n🔒 Tabungan retensi yang cair saat pamit berhenti\n⏰ Challenge min 30 hari (warmup account — anti bot detection)\nTugas\nReddit\nSaldo\nAkun"
+  },
+  {
+    "name": "task-history",
+    "text": "Riwayat Task\n\nSemua task yang sudah kamu kerjakan\n\nApproved (1)\nReject (0)\n\nQA Test Task 86968743\n\nSelesai 31 Jul 2026\n\n+Rp8.000\n\n✅ Approved\nTugas\nReddit\nSaldo\nAkun"
+  }
+]

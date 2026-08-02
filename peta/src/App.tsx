@@ -22,6 +22,7 @@ import { Terms } from './pages/Terms';
 import { Help } from './pages/Help';
 import { UpdatePassword } from './pages/UpdatePassword';
 import { ResetWhatsApp } from './pages/ResetWhatsApp';
+import { NotFound } from './pages/NotFound';
 
 // Reddit Upvotes Pages
 import { RedditLanding } from './modules/reddit/pages/RedditLanding';
@@ -195,8 +196,8 @@ function App() {
           <Route path="/admin/secrets" element={<AdminRouteWrapper><AdminGuard><AdminSecrets /></AdminGuard></AdminRouteWrapper>} />
           <Route path="/admin/wa-bot" element={<AdminRouteWrapper><AdminGuard><AdminWaBot /></AdminGuard></AdminRouteWrapper>} />
 
-          {/* Catch all */}
-          <Route path="*" element={<Navigate to="/" replace />} />
+          {/* Catch all — QA3 FIX 6: human 404 page, not a silent redirect */}
+          <Route path="*" element={<NotFound />} />
         </Routes>
         </ErrorBoundary>
       </BrowserRouter>

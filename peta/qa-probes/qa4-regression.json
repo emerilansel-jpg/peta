@@ -1,0 +1,54 @@
+{
+  "steps": [
+    {
+      "name": "404-page",
+      "errors": []
+    },
+    {
+      "name": "landing-no-reddit",
+      "errors": []
+    },
+    {
+      "name": "privacy-no-reddit",
+      "errors": []
+    },
+    {
+      "name": "terms-no-reddit",
+      "errors": []
+    },
+    {
+      "name": "help-no-reddit",
+      "errors": []
+    },
+    {
+      "name": "admin-login-redirect",
+      "errors": []
+    },
+    {
+      "name": "member-login-redirect",
+      "errors": []
+    },
+    {
+      "name": "forum-no-brief-submit",
+      "errors": []
+    },
+    {
+      "name": "admin-block-empty-brief",
+      "errors": []
+    }
+  ],
+  "notFoundShown": true,
+  "notFoundUrl": "http://localhost:4173/halaman-nggak-ada-xyz",
+  "landingReddit": false,
+  "landingHasAman": true,
+  "privacyReddit": false,
+  "termsReddit": false,
+  "termsHasProgramArmy": true,
+  "helpReddit": false,
+  "helpHasProgramArmy": true,
+  "adminLoginUrl": "/admin",
+  "memberLoginUrl": "/tasks",
+  "taskFound": true,
+  "submitDisabled": false,
+  "blockToast": false
+}

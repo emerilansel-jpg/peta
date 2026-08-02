@@ -1,0 +1,71 @@
+[
+  {
+    "name": "url-manipulation",
+    "out": {
+      "/task/not-a-uuid": {
+        "url": "/login",
+        "len": 206
+      },
+      "/task/00000000-0000-0000-0000-000000000000": {
+        "url": "/login",
+        "len": 206
+      },
+      "/task/": {
+        "url": "/",
+        "len": 3122
+      },
+      "/admin/nonexistent-page": {
+        "url": "/",
+        "len": 3122
+      },
+      "/reddit/admin/nonexistent": {
+        "url": "/",
+        "len": 3122
+      }
+    }
+  },
+  {
+    "name": "back-forward",
+    "back": "/reddit",
+    "back2": "/",
+    "fwd": "/reddit"
+  },
+  {
+    "name": "long-input",
+    "entered": 10000,
+    "accepted": true
+  },
+  {
+    "name": "rapid-signup",
+    "statuses": [
+      {
+        "status": 200,
+        "body": "{\"access_token\":\"eyJhbGciOiJFUzI1NiIsImtpZCI6ImU2NjBiOTZkLWUxYzQtNDJkMC1hYTc0LWM2OTQzMWIwYWZlYyIsInR5cCI6IkpXVCJ9.eyJpc3"
+      },
+      {
+        "status": 200,
+        "body": "{\"access_token\":\"eyJhbGciOiJFUzI1NiIsImtpZCI6ImU2NjBiOTZkLWUxYzQtNDJkMC1hYTc0LWM2OTQzMWIwYWZlYyIsInR5cCI6IkpXVCJ9.eyJpc3"
+      },
+      {
+        "status": 200,
+        "body": "{\"access_token\":\"eyJhbGciOiJFUzI1NiIsImtpZCI6ImU2NjBiOTZkLWUxYzQtNDJkMC1hYTc0LWM2OTQzMWIwYWZlYyIsInR5cCI6IkpXVCJ9.eyJpc3"
+      },
+      {
+        "status": 200,
+        "body": "{\"access_token\":\"eyJhbGciOiJFUzI1NiIsImtpZCI6ImU2NjBiOTZkLWUxYzQtNDJkMC1hYTc0LWM2OTQzMWIwYWZlYyIsInR5cCI6IkpXVCJ9.eyJpc3"
+      },
+      {
+        "status": 200,
+        "body": "{\"access_token\":\"eyJhbGciOiJFUzI1NiIsImtpZCI6ImU2NjBiOTZkLWUxYzQtNDJkMC1hYTc0LWM2OTQzMWIwYWZlYyIsInR5cCI6IkpXVCJ9.eyJpc3"
+      }
+    ]
+  },
+  {
+    "name": "slow-network-during",
+    "text": "Founding 100\n·\nsisa 100 slot\n\nPENGHASILAN TAMBAHAN ONLINE\n\nCuma komen.\nDibayar tiap hari.\n\nPeTa (PenghasilanTambahan.com"
+  },
+  {
+    "name": "slow-network-after",
+    "text": "Founding 100\n·\nslot habis\n\nPENGHASILAN TAMBAHAN ONLINE\n\nCuma komen.\nDibayar tiap hari.\n\nPeTa (PenghasilanTambahan.com) b"
+  }
+]

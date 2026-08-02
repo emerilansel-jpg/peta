@@ -1,0 +1,29 @@
+[
+  {
+    "name": "admin-login",
+    "success": true
+  },
+  {
+    "name": "admin-create-member",
+    "status": 200,
+    "data": "9e885b02-20a2-487a-8e3b-a71172422942"
+  },
+  {
+    "0": {
+      "id": "9e885b02-20a2-487a-8e3b-a71172422942",
+      "email": "qa2-member-21050628@penghasilantambahan.com",
+      "full_name": "QA2 Member Test",
+      "role": "army"
+    },
+    "name": "member-check"
+  },
+  {
+    "name": "admin-delete-member",
+    "status": 204
+  },
+  {
+    "name": "admin-cancel-payout-rpc",
+    "status": 400,
+    "body": "{\"code\":\"P0001\",\"details\":null,\"hint\":null,\"message\":\"Payout not found or not pending\"}"
+  }
+]

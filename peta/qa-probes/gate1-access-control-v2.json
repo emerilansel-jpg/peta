@@ -1,0 +1,77 @@
+{
+  "myId": "3fd5a8f2-18c6-4521-a819-ca3743ce0f13",
+  "credits_3c7b5940": {
+    "status": 200,
+    "body": "[]"
+  },
+  "orders_3c7b5940": {
+    "status": 200,
+    "body": "[]"
+  },
+  "payouts_3c7b5940": {
+    "status": 200,
+    "body": "[]"
+  },
+  "assignments_3c7b5940": {
+    "status": 200,
+    "body": "[]"
+  },
+  "update_3c7b5940": {
+    "status": 204,
+    "body": ""
+  },
+  "deleteOrder_3c7b5940": {
+    "status": 204,
+    "body": ""
+  },
+  "credits_b62c1231": {
+    "status": 200,
+    "body": "[]"
+  },
+  "orders_b62c1231": {
+    "status": 200,
+    "body": "[]"
+  },
+  "payouts_b62c1231": {
+    "status": 200,
+    "body": "[]"
+  },
+  "assignments_b62c1231": {
+    "status": 200,
+    "body": "[]"
+  },
+  "update_b62c1231": {
+    "status": 204,
+    "body": ""
+  },
+  "deleteOrder_b62c1231": {
+    "status": 204,
+    "body": ""
+  },
+  "mySignupBonusRows": [
+    {
+      "id": "7987c3e7-3e28-4271-8baa-2c79c51d8537",
+      "source": "signup_bonus"
+    },
+    {
+      "id": "1d53d434-52c0-43f8-a323-2a6eab90022e",
+      "source": "signup_bonus"
+    },
+    {
+      "id": "b1a2538c-ec69-43ca-b14c-9e2d21745a8f",
+      "source": "signup_bonus"
+    },
+    {
+      "id": "55252986-2f1f-40e7-b413-56cb396d35d2",
+      "source": "signup_bonus"
+    },
+    {
+      "id": "a295b4f3-6e07-48b9-bd3c-7ba6df3d7476",
+      "source": "signup_bonus"
+    }
+  ],
+  "adminCreateMemberAsMember": {
+    "status": 400,
+    "body": "{\"code\":\"P0001\",\"details\":null,\"hint\":null,\"message\":\"Only admins can create members\"}"
+  }
+}

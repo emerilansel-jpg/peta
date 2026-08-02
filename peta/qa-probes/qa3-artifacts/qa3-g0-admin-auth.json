@@ -1,0 +1,29 @@
+{
+  "adminSignIn": {
+    "status": 200,
+    "error": null,
+    "hasToken": true,
+    "role": "authenticated",
+    "email": "info@jetdigitalpro.com"
+  },
+  "createMember": {
+    "status": 200,
+    "body": "d0fa8a97-8349-4ea0-805e-996c19b84efd"
+  },
+  "member": {
+    "email": "qa3-m1-53221769@penghasilantambahan.com",
+    "password": "Qa3Pass#2026!",
+    "whatsapp": "081353221980",
+    "full_name": "QA3 Member Satu"
+  },
+  "createMemberB": {
+    "status": 200,
+    "body": "f00662a5-56d8-43aa-9c9f-632c93bbd755"
+  },
+  "memberB": {
+    "email": "qa3-m2-53221769@penghasilantambahan.com",
+    "password": "Qa3Pass#2026!",
+    "whatsapp": "081453222200",
+    "full_name": "QA3 Member Dua"
+  }
+}

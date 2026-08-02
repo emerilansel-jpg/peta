@@ -1,0 +1,19 @@
+[
+  {
+    "name": "queue",
+    "hasQA": true,
+    "sample": "Admin\n\nADMIN CONSOLE\n\nApproval Queue\n\n13 task menunggu review\n\nMenunggu (13)\nApproved (27)\nReject (82)\nReverted (3)\nTipe:\nSemua\nRegular\n🏆 Challenge\n\nQA Test Task 86968743\n\nqa_test_86644849\n\nJum, 31 Jul 2026 · 15.36\n\nRp8.000\n\n💬 QA E2E submission\nBuka thread\nSubmitted URL\nApprove\nReject\n\nComment 3x di r/indonesia\n\nu/HistoricalCulture206\n\nJum, 31 Jul 2026 · 10.15\n\nRp5.000\n\n💬 itu komennya berbeda t"
+  },
+  {
+    "name": "approve-btn",
+    "count": 1
+  },
+  {
+    "name": "after-click",
+    "text": "Approved ✅\nAdmin\n\nADMIN CONSOLE\n\nApproval Queue\n\n12 task menunggu review\n\nMenunggu (12)\nApproved (27)\nReject (82)\nReverted (3)\nTipe:\nSemua\nRegular\n🏆 Challenge\n\n⚠️ Sync mismatch\n\nDB punya 13 submitted, UI render 12. Refresh atau tunggu 30 detik.\n\nCom"
+  },
+  {
+    "name": "member-earnings",
+    "text": "📬\n\nSimpan email PeTa di kontak kamu\n\nKonfirmasi payout + update task dikirim dari peta@penghasilantambahan.com. Sering masuk folder Spam / Promotions — save ke contacts biar nggak ketinggalan.\n\n💰 SALDO CAIR\n\nCara hitung\n\nRp8.000\n\nMinimum tarik Rp20K. Yuk earning lagi buat nyampe minimum.\n\n🚀 Mulai dari Rp5.000/task\n\nKomen sekali, saldo masuk setelah admin approve\n\nBONUS TERKUNCI\n\nRp50.000\n\nsignup + referral — tinggal kerjain task dikit, kebuka semua\n\nProgress task: Rp8.000 / Rp100.000\n8%\n\nQUICK WIN\n\n19× task = unlock Rp50.000 bonus\n\nRp5.000 per task × 19 task\n\n🚀 Ambil Task Sekarang\n\nRINCIAN"
+  }
+]

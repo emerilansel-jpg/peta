@@ -1,0 +1,42 @@
+[
+  {
+    "name": "task-create-sheet",
+    "catCards": [
+      "UpvoteRp500-2K",
+      "Reddit commentRp5K-20K",
+      "Forum commentRp5K-20K",
+      "Post threadRp10K-25K",
+      "YouTube uploadRp25K"
+    ]
+  },
+  {
+    "name": "task-created-in-list",
+    "listHas": true
+  },
+  {
+    "name": "task-status-in-queue",
+    "active": true,
+    "isActive": true
+  },
+  {
+    "name": "member-sees-task",
+    "count": 1
+  },
+  {
+    "name": "task-detail",
+    "url": "/task/210abad4-e4ff-474e-ac7c-1879322cc0c3"
+  },
+  {
+    "name": "task-detail-text",
+    "text": "Semua Tugas\nREDDIT COMMENT\nQA Test Task 86968743\n\nQA E2E test comment 86968743 — great post!\n\n3-5 min\n0/5 dikerjakan\n\nREWARD\n\nRp8.000\n\n1\n\nBuka halaman Reddit\n\nKlik tombol di bawah. Target akan terbuka di tab baru.\n\nTARGET URL\n\nhttps://reddit.com/r/qa-test-86968743\n\nBuka\n2\n\nPost komentar di Reddit\n\nC"
+  },
+  {
+    "name": "approval-queue",
+    "hasPending": false,
+    "taskVisible": false
+  },
+  {
+    "name": "member-earnings-after",
+    "text": "📬\n\nSimpan email PeTa di kontak kamu\n\nKonfirmasi payout + update task dikirim dari peta@penghasilantambahan.com. Sering masuk folder Spam / Promotions — save ke contacts biar nggak ketinggalan.\n\n💰 SALDO CAIR\n\nCara hitung\n\nRp0\n\nBelum ada saldo. Kerjain task pertama → langsung cair anytime.\n\n🚀 Mulai dari Rp5.000/task\n\nKomen sekali, saldo masuk setelah admin approve\n\nBONUS TERKUNCI\n\nRp50.000\n\nsignu"
+  }
+]

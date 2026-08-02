@@ -1,0 +1,48 @@
+{
+  "ts": "60633738",
+  "saas": {
+    "name": "QA3 SaaS Client",
+    "email": "qa3-60633738-saas@penghasilantambahan.com",
+    "password": "Qa3SaaSTest#2026!",
+    "role": "QA3 tester"
+  },
+  "steps": [
+    {
+      "name": "saas-signup",
+      "errors": []
+    },
+    {
+      "name": "saas-login",
+      "errors": []
+    },
+    {
+      "name": "saas-dashboard",
+      "errors": []
+    },
+    {
+      "name": "saas-topup",
+      "errors": []
+    },
+    {
+      "name": "saas-new-order",
+      "errors": []
+    },
+    {
+      "name": "saas-tickets",
+      "errors": []
+    }
+  ],
+  "signupPageSample": "Back to Straight Ltd\nStraight Ltd\nPro Dashboard\nCreate your account\n\nNo credit card required.\n\nNo subscription\nCancel anytime\nPayPal secured\nFull name\nWork email\nYour role (optional)\nSelect...\nFounder\nCEO\nEntrepreneur\nMarketing Director\nGrowth Lead\nSEO Manager\nContent Manager\nAffiliate Marketer\nAgen",
+  "signupResultUrl": "/reddit/dashboard",
+  "signupResultSample": "Account created! Welcome aboard.\nStraight Ltd\nBETA\n$0.00\nDashboard\n\nManage your Reddit growth campaigns\n\nNew order\nCAMPAIGN\nStart a Ranking Forum campaign\n\nFind live discussion pages already ranking on Google for your topic, then place helpful comments in bulk. Built for trying ideas fast — no setup.\n\nSee how it works\nStart now\n\nAVAILABLE CREDIT\n\n$",
+  "afterLoginUrl": "/reddit/dashboard",
+  "loginError": null,
+  "dashboardSample": "Straight Ltd\nBETA\n$0.00\nDashboard\n\nManage your Reddit growth campaigns\n\nNew order\nCAMPAIGN\nStart a Ranking Forum campaign\n\nFind live discussion pages already ranking on Google for your topic, then place helpful comments in bulk. Built for trying ideas fast — no setup.\n\nSee how it works\nStart now\n\nAVAILABLE CREDIT\n\n$0.00\n\n≈ 0 upvotes available\n\nTop up via PayPal\n\n0\n\nTotal orders\n\n0\n\nIn progress\n\n0\n\nCompleted orders\n\n0\n\nUpvotes delivered\n\nRecent orders\n\nYour latest 5 campaigns\n\nView all →\n\nNo orders yet\n\nCreate your first Reddit upvote order\n\nCreate order",
+  "paypalScripts": [
+    "https://www.paypal.com/sdk/js?client-id=ATrWPZrj6kzatwA16oVEICdvfMWXodhB5ttzMFdGzlSduQLbOHgZKe1_WX7tROisV4euucHOzWL_N6LZ&currency=USD&intent=capture"
+  ],
+  "paypalMode": "LIVE",
+  "topupSample": "Straight Ltd\nBETA\n$0.00\nTop up credit\n\nSecure PayPal checkout. Credits never expire.\n\nCURRENT BALANCE\n\n$0.00\n\nAfter this top up\n\n$100.00\n\nCHOOSE PACKAGE\n\nSTARTER\n\n$25\n\n50 upvotes\n\nGROWTH\n\n$50\n\n100 upvotes\n\nPOPULAR\n\nOPERATOR\n\n$100\n\n200 upvotes\n\nSTUDIO\n\n$250\n\n500 upvotes\n\nAGENCY\n\n$500\n\n1,000 upvotes\n\nSCALE\n\n$1000\n\n2,000 upvotes\n\nNeed a larger package or volume pricing? Contact sales\n\nOrder summary\nYou pay\n$100.00\nCredit you receive\n$100.00\nSecure checkout · 256-bit SSL encryption\nBuyer Protection · 30-day refund window\nCredits added instantly · No waiting",
+  "orderSample": "Straight Ltd\nBETA\n$0.00\nNew order\n\nChoose a service to start. Or request something we don't yet offer.\n\nR\nREDDIT\nACTIVE\nUpvotes\n\nHigh-retention upvotes for Reddit & other forums\n\nOrder now\nQ3 2026\nShares\n\nCross-post amplification to relevant subreddits\n\nNotify me\nQ4 2026\nNew Threads\n\nOriginal thread submissions to target subs\n\nNotify me\nY\nYOUTUBE\nACTIVE\nVideo Upload\n\nUpload your video to a live YouTube channel with full metadata\n\nOrder now\nFORUM DISCOVERY\nACTIVE\nComments\n\nHelpful comments for Reddit, Quora, HubSpot, and niche forums\n\nOrder now\nQ4 2026\nLikes & Shares\n\nNative Facebook engagement at scale\n\nNotify me\nREQUEST\nRequest a service\n\nTwitter, Discord, custom integration?\n\nSubmit request\nNeed something we don't offer?\n\nWe ship new platforms based on demand. Request what you need — popular requests get fast-tracked.",
+  "ordersSample": "Straight Ltd\nBETA\n$0.00\nOrders\n\nTrack upvotes, comments, and forum growth campaigns\n\nNew order\nAll0\nPending0\nProcessing0\nCompleted0\nCancelled0\n\nNo orders yet\n\nSubmit your first Straight Ltd order in under 2 minutes\n\nCreate order"
+}

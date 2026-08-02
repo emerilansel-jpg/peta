@@ -1,0 +1,97 @@
+[
+  {
+    "step": "LOGIN",
+    "finalUrl": "/login",
+    "errors": [
+      "Failed to load resource: the server responded with a status of 400 ()"
+    ]
+  },
+  {
+    "route": "/tasks",
+    "url": "/login",
+    "h1": "",
+    "textLen": 206,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/task-history",
+    "url": "/login",
+    "h1": "",
+    "textLen": 206,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit-army",
+    "url": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 181,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/account",
+    "url": "/login",
+    "h1": "",
+    "textLen": 206,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/earnings",
+    "url": "/login",
+    "h1": "",
+    "textLen": 206,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/dashboard",
+    "url": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 181,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/orders",
+    "url": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 181,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/topup",
+    "url": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 181,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/new-order",
+    "url": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 181,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/reviews",
+    "url": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 181,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/feature-requests",
+    "url": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 181,
+    "errors": [],
+    "failed": []
+  }
+]

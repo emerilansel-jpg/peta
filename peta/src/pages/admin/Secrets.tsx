@@ -46,7 +46,7 @@ const KNOWN_SECRETS: Record<string, { label: string; description: string; setupU
   },
   SMTP_USER: {
     label: 'Email SMTP — Username',
-    description: 'Email address used as login. Example: peta@penghasilantambahan.com',
+    description: 'Email address used as login. Example: care@straight.ltd',
   },
   SMTP_PASS: {
     label: 'Email SMTP — Password',
@@ -55,7 +55,7 @@ const KNOWN_SECRETS: Record<string, { label: string; description: string; setupU
   },
   BROADCAST_FROM: {
     label: 'Email — From Address',
-    description: 'Display name + email for outgoing broadcasts. Format: "PeTa <peta@penghasilantambahan.com>"',
+    description: 'Display name + email for outgoing broadcasts. Format: "PeTa <care@straight.ltd>"',
   },
   RESEND_API_KEY: {
     label: 'Resend API Key (optional)',

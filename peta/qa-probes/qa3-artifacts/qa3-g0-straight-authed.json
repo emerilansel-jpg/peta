@@ -1,0 +1,79 @@
+{
+  "email": "qa3-saas-54744114@straight.ltd",
+  "afterSignup": {
+    "url": "/reddit/dashboard",
+    "errors": [],
+    "failed": []
+  },
+  "signupResultText": "Straight Ltd\nBETA\n$0.00\nDashboard\n\nManage your Reddit growth campaigns\n\nNew order\nCAMPAIGN\nStart a Ranking Forum campaign\n\nFind live discussion pages already ranking on Google for your topic, then place helpful comments in bulk. Built for trying ideas fast — no setup.\n\nSee how it works\nStart now\n\nAV",
+  "/reddit/dashboard": {
+    "url": "/reddit/dashboard",
+    "errors": [],
+    "failed": [],
+    "hasPaypal": true,
+    "hasSandbox": false,
+    "textSample": "Straight Ltd\nBETA\n$0.00\nDashboard\n\nManage your Reddit growth campaigns\n\nNew order\nCAMPAIGN\nStart a Ranking Forum campaign\n\nFind live discussion pages already ranking on Google for your topic, then place helpful comments in bulk. Built for trying ideas fast — no setup.\n\nSee how it works\nStart now\n\nAVAILABLE CREDIT\n\n$0.00\n\n≈ 0 upvotes available\n\nTop "
+  },
+  "/reddit/topup": {
+    "url": "/reddit/topup",
+    "errors": [],
+    "failed": [],
+    "hasPaypal": true,
+    "hasSandbox": false,
+    "textSample": "Straight Ltd\nBETA\n$0.00\nTop up credit\n\nSecure PayPal checkout. Credits never expire.\n\nCURRENT BALANCE\n\n$0.00\n\nAfter this top up\n\n$100.00\n\nCHOOSE PACKAGE\n\nSTARTER\n\n$25\n\n50 upvotes\n\nGROWTH\n\n$50\n\n100 upvotes\n\nPOPULAR\n\nOPERATOR\n\n$100\n\n200 upvotes\n\nSTUDIO\n\n$250\n\n500 upvotes\n\nAGENCY\n\n$500\n\n1,000 upvotes\n\nSCALE\n\n$1000\n\n2,000 upvotes\n\nNeed a larger package"
+  },
+  "/reddit/new-order": {
+    "url": "/reddit/new-order",
+    "errors": [],
+    "failed": [],
+    "hasPaypal": false,
+    "hasSandbox": false,
+    "textSample": "Straight Ltd\nBETA\n$0.00\nNew order\n\nChoose a service to start. Or request something we don't yet offer.\n\nR\nREDDIT\nACTIVE\nUpvotes\n\nHigh-retention upvotes for Reddit & other forums\n\nOrder now\nQ3 2026\nShares\n\nCross-post amplification to relevant subreddits\n\nNotify me\nQ4 2026\nNew Threads\n\nOriginal thread submissions to target subs\n\nNotify me\nY\nYOUTUBE\nA"
+  },
+  "/reddit/orders": {
+    "url": "/reddit/orders",
+    "errors": [],
+    "failed": [],
+    "hasPaypal": false,
+    "hasSandbox": false,
+    "textSample": "Straight Ltd\nBETA\n$0.00\nOrders\n\nTrack upvotes, comments, and forum growth campaigns\n\nNew order\nAll0\nPending0\nProcessing0\nCompleted0\nCancelled0\n\nNo orders yet\n\nSubmit your first Straight Ltd order in under 2 minutes\n\nCreate order"
+  },
+  "/reddit/reviews": {
+    "url": "/reddit/reviews",
+    "errors": [],
+    "failed": [],
+    "hasPaypal": false,
+    "hasSandbox": false,
+    "textSample": "Straight Ltd\nBETA\n$0.00\nREWARDS PROGRAM\nEarn up to $25 in free credits\n\n3 reviews · 3 simple steps · stacks with future orders\n\nIn-app review\n$5\nTrustpilot review\n$10\nadvise.so / Slack\n$10\nMy Reviews\nTrustpilot\n+$10\nadvise.so\n+$10\n\nNo reviews yet\n\nComplete your first order, then leave a review to earn $5. Stack with Trustpilot & advise.so for up to"
+  },
+  "/reddit/feature-requests": {
+    "url": "/reddit/feature-requests",
+    "errors": [],
+    "failed": [],
+    "hasPaypal": false,
+    "hasSandbox": false,
+    "textSample": "Straight Ltd\nBETA\n$0.00\nPUBLIC ROADMAP\nHelp shape what we build next\n\nWe ship 1-2 new platforms per quarter, prioritized by demand from operators like you. Tell us what's missing — popular requests get fast-tracked.\n\nRequest a feature\nRoadmap\nMy requests\nSubmit new\n\nRoadmap is empty\n\nBe the first to submit a request"
+  },
+  "waitlistInputs": [
+    {
+      "t": "email",
+      "ph": "you@company.com"
+    },
+    {
+      "t": "text",
+      "ph": "e.g. crm software"
+    },
+    {
+      "t": "text",
+      "ph": "Your brand"
+    },
+    {
+      "t": "text",
+      "ph": "yourdomain.com"
+    }
+  ],
+  "waitlistSubmit": {
+    "text": "Straight Ltd\nPro\nDashboard\nTrusted by 1,200+ agencies and operators\nThe Reddit growth engine for serious operators\n\nScale visibility on Reddit with high-retention upvotes from real, aged accounts. Built for digital agencies and growth teams who need ",
+    "errors": []
+  }
+}

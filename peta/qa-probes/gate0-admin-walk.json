@@ -1,0 +1,271 @@
+[
+  {
+    "step": "LOGIN",
+    "finalUrl": "/tasks",
+    "errors": []
+  },
+  {
+    "route": "/tasks",
+    "url": "/tasks",
+    "h1": "Ajak teman = +Rp20K masuk saldo",
+    "textLen": 6585,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/task-history",
+    "url": "/task-history",
+    "h1": "Riwayat Task",
+    "textLen": 184,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit-army",
+    "url": "/reddit-army",
+    "h1": "🎖️ Reddit Army Program",
+    "textLen": 382,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/account",
+    "url": "/account",
+    "h1": "Akun Saya",
+    "textLen": 795,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/earnings",
+    "url": "/earnings",
+    "h1": "",
+    "textLen": 956,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/admin",
+    "url": "/admin",
+    "h1": "Dashboard",
+    "textLen": 844,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/admin/accounts",
+    "url": "/admin/accounts",
+    "h1": "Akun Reddit",
+    "textLen": 5732,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/admin/tasks",
+    "url": "/admin/tasks",
+    "h1": "Task Queue",
+    "textLen": 23541,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/admin/approval",
+    "url": "/admin/approval",
+    "h1": "Approval Queue",
+    "textLen": 2370,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/admin/team",
+    "url": "/admin/team",
+    "h1": "PeTa Army",
+    "textLen": 11450,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/admin/payroll",
+    "url": "/admin/payroll",
+    "h1": "Payroll",
+    "textLen": 98,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/admin/reddit-army",
+    "url": "/admin/reddit-army",
+    "h1": "🎖️ Reddit Army",
+    "textLen": 523,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/admin/broadcast",
+    "url": "/admin/broadcast",
+    "h1": "Kirim Pesan",
+    "textLen": 3619,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/admin/inbox",
+    "url": "/admin/inbox",
+    "h1": "Inbox",
+    "textLen": 999,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/admin/secrets",
+    "url": "/admin/secrets",
+    "h1": "App Secrets",
+    "textLen": 2983,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/admin/wa-bot",
+    "url": "/admin/wa-bot",
+    "h1": "WhatsApp Bot Verifier",
+    "textLen": 7097,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/dashboard",
+    "url": "/reddit/dashboard",
+    "h1": "Dashboard",
+    "textLen": 971,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/new-order",
+    "url": "/reddit/new-order",
+    "h1": "New order",
+    "textLen": 885,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/orders",
+    "url": "/reddit/orders",
+    "h1": "Orders",
+    "textLen": 2212,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/topup",
+    "url": "/reddit/topup",
+    "h1": "Top up credit",
+    "textLen": 816,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/reviews",
+    "url": "/reddit/reviews",
+    "h1": "Earn up to $25 in free credits",
+    "textLen": 361,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/feature-requests",
+    "url": "/reddit/feature-requests",
+    "h1": "Help shape what we build next",
+    "textLen": 371,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/ranking-forum",
+    "url": "/reddit/ranking-forum",
+    "h1": "Find forum pages worth ordering",
+    "textLen": 644,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/ai-visibility",
+    "url": "/reddit/ai-visibility",
+    "h1": "Are you mentioned where Google & AI look?",
+    "textLen": 402,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/admin",
+    "url": "/reddit/admin",
+    "h1": "Overview",
+    "textLen": 711,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/admin/orders",
+    "url": "/reddit/admin/orders",
+    "h1": "Orders",
+    "textLen": 5445,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/admin/tickets",
+    "url": "/reddit/admin/tickets",
+    "h1": "Messages",
+    "textLen": 170,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/admin/clients",
+    "url": "/reddit/admin/clients",
+    "h1": "Clients",
+    "textLen": 842,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/admin/reviews",
+    "url": "/reddit/admin/reviews",
+    "h1": "Reviews & Testimonials",
+    "textLen": 262,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/admin/feature-requests",
+    "url": "/reddit/admin/feature-requests",
+    "h1": "Feature Requests",
+    "textLen": 347,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/admin/finance",
+    "url": "/reddit/admin/finance",
+    "h1": "Finance",
+    "textLen": 1853,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/admin/settings",
+    "url": "/reddit/admin/settings",
+    "h1": "AI Provider Settings",
+    "textLen": 1759,
+    "errors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/admin/waitlist",
+    "url": "/reddit/admin/waitlist",
+    "h1": "Waitlist",
+    "textLen": 592,
+    "errors": [],
+    "failed": []
+  }
+]

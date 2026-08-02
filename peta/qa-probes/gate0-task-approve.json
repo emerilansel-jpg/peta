@@ -1,0 +1,30 @@
+[
+  {
+    "name": "submit-stage",
+    "text": "Semua Tugas\nREDDIT COMMENT\nQA Test Task 86968743\n\nQA E2E test comment 86968743 — great post!\n\n3-5 min\n1/5 dikerjakan\n\nREWARD\n\nRp8.000\n\n1\n\nBuka halaman Reddit\n\nKlik tombol di bawah. Target akan terbuka di tab baru.\n\nTARGET URL\n\nhttps://reddit.com/r/qa"
+  },
+  {
+    "name": "url-input-count",
+    "count": 1
+  },
+  {
+    "name": "after-submit",
+    "text": "Tersubmit! Admin verify dalam max 3 hari kerja.\nTersubmit!\n\nAdmin lagi verify screenshot kamu sekarang.\n\nESTIMASI APPROVAL\n\nMax 3 hari kerja\n\nBiasanya jauh lebih cepat - rata-rata 24 jam. Kalau approved, reward Rp8.000 otomatis masuk saldo.\n\nSambil nunggu, jangan diem aja\n\nLakuin task lain dulu\n\nCua"
+  },
+  {
+    "name": "approval-queue",
+    "hasQA": true,
+    "hasSubmitted": true
+  },
+  {
+    "name": "card-buttons",
+    "buttons": []
+  },
+  {
+    "name": "no-approve-button"
+  },
+  {
+    "name": "member-earnings",
+    "text": "📬\n\nSimpan email PeTa di kontak kamu\n\nKonfirmasi payout + update task dikirim dari peta@penghasilantambahan.com. Sering masuk folder Spam / Promotions — save ke contacts biar nggak ketinggalan.\n\n💰 SALDO CAIR\n\nCara hitung\n\nRp0\n\nBelum ada saldo. Kerjain task pertama → langsung cair anytime.\n\n🚀 Mulai dari Rp5.000/task\n\nKomen sekali, saldo masuk setelah admin approve\n\nBONUS TERKUNCI\n\nRp50.000\n\nsignup + referral — tinggal kerjain task dikit, kebuka semua\n\nProgress task: Rp0 / Rp100.000\n0%\n\nQUICK WI"
+  }
+]

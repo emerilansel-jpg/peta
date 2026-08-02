@@ -1,0 +1,26 @@
+{
+  "steps": [
+    {
+      "name": "login",
+      "errors": []
+    },
+    {
+      "name": "open-task-detail",
+      "errors": []
+    },
+    {
+      "name": "fill-proof-section",
+      "errors": [
+        "EXC: submit still disabled after filling proof+username"
+      ]
+    },
+    {
+      "name": "verify-history",
+      "errors": []
+    }
+  ],
+  "hasSubmitForm": true,
+  "submitDisabledAfterFill": true,
+  "historySample": "Riwayat Task\n\nSemua task yang sudah kamu kerjakan\n\nApproved (0)\nReject (0)\n🎯\n\nBelum ada task approved\n\nKerjain task pertama kamu, approved masuk sini otomatis.\n\nLihat task aktif\nTugas\nReddit\nSaldo\nAkun",
+  "historyHasTask": false
+}

@@ -1,0 +1,63 @@
+[
+  {
+    "name": "access-control",
+    "userAId": null,
+    "adminSeesUsers": 5,
+    "aReadsB_credits": {
+      "status": 200,
+      "body": "[]"
+    },
+    "aReadsB_payouts": {
+      "status": 200,
+      "body": "[]"
+    },
+    "aReadsB_assignments": {
+      "status": 200,
+      "body": "[]"
+    },
+    "aUpdatesB": {
+      "status": 204,
+      "body": ""
+    },
+    "aDeletesB_payouts": {
+      "status": 204,
+      "body": ""
+    },
+    "aCallsAdminRPC": {
+      "status": 400,
+      "body": "{\"code\":\"P0001\",\"details\":null,\"hint\":null,\"message\":\"forbidden\"}"
+    },
+    "aReadsOwn": {
+      "status": 200,
+      "rows": 1
+    }
+  },
+  {
+    "name": "xss-register",
+    "finalUrl": "/onboarding",
+    "dialogsFired": 0,
+    "rawScriptInDom": false,
+    "escaped": false
+  },
+  {
+    "name": "injection-login",
+    "url": "/login",
+    "notLoggedIn": true,
+    "text": "Nomor WhatsApp ini belum terdaftar. Cek lagi atau pakai email ya.\nKembali\nWelcome back, PeTa Army!\n\n"
+  },
+  {
+    "name": "jwt-info",
+    "expInSec": 3597,
+    "role": "authenticated",
+    "aud": "authenticated"
+  },
+  {
+    "name": "logout-btn",
+    "found": 1
+  },
+  {
+    "name": "after-logout",
+    "url": "/login",
+    "tokenKeys": 0
+  }
+]

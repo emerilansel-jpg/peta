@@ -1,0 +1,38 @@
+[
+  {
+    "name": "url-manipulation",
+    "/task/not-a-uuid": {
+      "url": "/login",
+      "len": 206
+    },
+    "/task/00000000-0000-0000-0000-000000000000": {
+      "url": "/login",
+      "len": 206
+    },
+    "/admin/nonexistent-page": {
+      "url": "/",
+      "len": 3122
+    },
+    "/reddit/admin/nonexistent": {
+      "url": "/",
+      "len": 3122
+    }
+  },
+  {
+    "name": "long-input",
+    "entered": 10000,
+    "accepted": true,
+    "noCrash": true
+  },
+  {
+    "name": "slow-network",
+    "duringLen": 3137,
+    "afterText": "Founding 100\n·\nslot habis\n\nPENGHASILAN TAMBAHAN ONLINE\n\nCuma komen.\nDibayar tiap hari.\n\nPeTa (Pengha"
+  },
+  {
+    "name": "back-forward",
+    "back": "/reddit",
+    "back2": "/",
+    "fwd": "/reddit"
+  }
+]

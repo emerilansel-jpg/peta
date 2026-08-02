@@ -1,0 +1,47 @@
+[
+  {
+    "name": "admin-create-member",
+    "status": 200,
+    "body": "\"23e35a46-5fa6-4381-8bab-9314cdc685d2\""
+  },
+  {
+    "name": "task-created",
+    "listHas": true
+  },
+  {
+    "name": "member-login",
+    "url": "https://www.penghasilantambahan.com/tasks"
+  },
+  {
+    "name": "member-sees-task",
+    "count": 0
+  },
+  {
+    "0": {
+      "id": "ff884f61-4dd0-49af-aeeb-faa08f42a195",
+      "title": "QA2 Task 21118641",
+      "status": "active"
+    },
+    "1": {
+      "id": "64433009-8937-4a52-aa58-b354222cd14a",
+      "title": "Komen di fb",
+      "status": "active"
+    },
+    "2": {
+      "id": "72b46d13-091e-4378-97c3-11a0dd5e9309",
+      "title": "Komen di FB",
+      "status": "active"
+    },
+    "3": {
+      "id": "a9afeca9-7eeb-4265-9e74-c2b2c6feb004",
+      "title": "Komen di Facebook Groups",
+      "status": "active"
+    },
+    "4": {
+      "id": "90b04bde-5cf3-4b22-bd2c-ed4a725fccd0",
+      "title": "Comment 5x + 1 post di Reddit",
+      "status": "active"
+    },
+    "name": "tasks-api"
+  }
+]

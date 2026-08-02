@@ -1,0 +1,75 @@
+{
+  "payout": {
+    "text": "📬\n\nSimpan email PeTa di kontak kamu\n\nKonfirmasi payout + update task dikirim dari peta@penghasilantambahan.com. Sering masuk folder Spam / Promotions — save ke contacts biar nggak ketinggalan.\n\nSetup Reddit dulu biar saldo bisa naik\n\nTask baru dibayar lewat akun Reddit kamu. Selesai 5 menit + bonus Rp10K masuk saldo.\n\n🔓 Lanjutkan Setup\n\n💰 SALDO CAIR\n\nCara hitung\n\nRp5.000\n\nMinimum tarik Rp20K. Yuk earning lagi buat nyampe minimum.\n\n🚀 Lanjut Earning\n\nRINCIAN SALDO KAMU\n\n✅\nDari task approved\nRp5.000\n💰 Bisa cair sekarang\nRp5.000\n\nTOTAL HASIL\n\nRp5K\n\nUDAH CAIR\n\nRp0K\n\nRiwayat Payout\n💸\n\nBelum ada payout\n\nRequest pertama kamu akan muncul di sini.\n\nTugas\nReddit\nSaldo\nAkun",
+    "hasSaldo5k": true,
+    "payoutSection": true
+  },
+  "admin": {
+    "dashboard": {
+      "url": "/admin",
+      "errors": [],
+      "failed": [],
+      "textSample": "Admin Console\n\nDashboard\nTask Queue\nApproval\nAkun Reddit\nKirim Pesan\nWA Bot\nInbox\nSecrets\nTim\nPayroll\nReddit Army\nLihat Sisi Army\nLogout\n\nADMIN CONSOLE\n\nDashboard\n\nArmy\n\n117\n\nAkun Reddit\n\n59\n\nTask Aktif\n\n25\n\nApproval\n\n15\n\nQUICK ACTIONS\n\nApproval Queue\n!\n\n15 menunggu review\n\nPayroll\n\n0 payout • Rp0\n\nTask Queue\n\nBuat & kelola task\n\nPeTa Army\n\nLihat s"
+    },
+    "taskqueue": {
+      "url": "/admin/tasks",
+      "errors": [],
+      "failed": [],
+      "textSample": "Admin Console\n\nDashboard\nTask Queue\nApproval\nAkun Reddit\nKirim Pesan\nWA Bot\nInbox\nSecrets\nTim\nPayroll\nReddit Army\nLihat Sisi Army\nLogout\n\nOPERATIONS CONTROL\n\nTask Queue\n\nReview client orders, set reward economics, and publish only tasks that are ready for PeTa members.\n\nTask Baru\n\nACTIVE\n\n25\n\nDRAFT REVIEW\n\n9\n\nOPEN SLOTS\n\n276\n\nCLIENT ORDERS\n\n0\n\nSemu"
+    },
+    "approval": {
+      "url": "/admin/approval",
+      "errors": [],
+      "failed": [],
+      "textSample": "Admin Console\n\nDashboard\nTask Queue\nApproval\nAkun Reddit\nKirim Pesan\nWA Bot\nInbox\nSecrets\nTim\nPayroll\nReddit Army\nLihat Sisi Army\nLogout\n\nADMIN CONSOLE\n\nApproval Queue\n\n15 task menunggu review\n\nMenunggu (15)\nApproved (28)\nReject (87)\nReverted (3)\nTipe:\nSemua\nRegular\n🏆 Challenge\nSubmitted\tTask\tUsername\tBukti\tKomentar\tReward\tAksi\n\nSab, 1 Agu 2026 · "
+    },
+    "reddit-accounts": {
+      "url": "/admin/accounts",
+      "errors": [],
+      "failed": [],
+      "textSample": "Admin Console\n\nDashboard\nTask Queue\nApproval\nAkun Reddit\nKirim Pesan\nWA Bot\nInbox\nSecrets\nTim\nPayroll\nReddit Army\nLihat Sisi Army\nLogout\n\nADMIN CONSOLE\n\nAkun Reddit\n\n59 akun terdaftar — ✏️ set manual · 🔄 sync per-akun · ⚡ sync semua\n\n6 bermasalah\nSync Semua (59)\nUsername\tOwner\tStatus\tKarma\tAge (days)\tLevel\tLast Sync\tAksi\nu/david\tinfo@jetdigitalpro"
+    },
+    "broadcast": {
+      "url": "/admin/broadcast",
+      "errors": [],
+      "failed": [],
+      "textSample": "Admin Console\n\nDashboard\nTask Queue\nApproval\nAkun Reddit\nKirim Pesan\nWA Bot\nInbox\nSecrets\nTim\nPayroll\nReddit Army\nLihat Sisi Army\nLogout\n\nADMIN CONSOLE\n\nKirim Pesan\n\nEmail otomatis via Resend/Spacemail. WhatsApp background blast via Fonnte.\n\n📖 Cara setup Email + WhatsApp (klik untuk buka)\nsetup sekali, dipakai selamanya\nTulis Pesan Baru\nSUBJECT\nIS"
+    },
+    "wa-bot": {
+      "url": "/admin/wa-bot",
+      "errors": [],
+      "failed": [],
+      "textSample": "Admin Console\n\nDashboard\nTask Queue\nApproval\nAkun Reddit\nKirim Pesan\nWA Bot\nInbox\nSecrets\nTim\nPayroll\nReddit Army\nLihat Sisi Army\nLogout\n\nADMIN CONSOLE\n\nWhatsApp Bot Verifier\n\nVerifikasi army yang join grup WA — auto-credit Rp5.000 saat ketik peta\n\nBot Connection\n🟡 CONNECTING\n\nScan QR di WhatsApp burner phone → Settings → Linked Devices → Link a D"
+    },
+    "inbox": {
+      "url": "/admin/inbox",
+      "errors": [],
+      "failed": [],
+      "textSample": "Admin Console\n\nDashboard\nTask Queue\nApproval\nAkun Reddit\nKirim Pesan\nWA Bot\nInbox\nSecrets\nTim\nPayroll\nReddit Army\nLihat Sisi Army\nLogout\nInbox\nThread Baru\nSemua\n(11)\n📧 Email\n(0)\n💬 WhatsApp\n(11)\n\nAlfu Salam Badar\n\n16 Jul\n\n↪ tes\n\nNada Hasna Tsuroya\n\n12 Jul\n\nTadi di saldo juga masih 4.000\n\nNell VH\n\n10 Jul\n\nsipp, email saya ke n311311@gmail.com ya\n\nF"
+    },
+    "secrets": {
+      "url": "/admin/secrets",
+      "errors": [],
+      "failed": [],
+      "textSample": "Admin Console\n\nDashboard\nTask Queue\nApproval\nAkun Reddit\nKirim Pesan\nWA Bot\nInbox\nSecrets\nTim\nPayroll\nReddit Army\nLihat Sisi Army\nLogout\nApp Secrets\nTambah Secret\n\nCredential rahasia (Reddit API, SMTP, Fonnte, dll). Hanya admin yang bisa baca/edit. Disimpan di tabel app_secrets dengan RLS.\n\nKarma sync belum nyala\n\nReddit blok IP datacenter untuk en"
+    },
+    "team": {
+      "url": "/admin/team",
+      "errors": [],
+      "failed": [],
+      "textSample": "Admin Console\n\nDashboard\nTask Queue\nApproval\nAkun Reddit\nKirim Pesan\nWA Bot\nInbox\nSecrets\nTim\nPayroll\nReddit Army\nLihat Sisi Army\nLogout\n\nADMIN CONSOLE\n\nPeTa Army\n\n117 member terdaftar di komunitas\n\nTambah\nMember\tEmail\tWhatsApp\tAkun Reddit\tKarma\tUUID\tStatus\tJoined\tAksi\nQA3 Register User\tqa3-reg-53679060@gmail.com\t6285753679060\t–\t–\t\n2fd96390…\tActive"
+    },
+    "payroll": {
+      "url": "/admin/payroll",
+      "errors": [],
+      "failed": [],
+      "textSample": "Admin Console\n\nDashboard\nTask Queue\nApproval\nAkun Reddit\nKirim Pesan\nWA Bot\nInbox\nSecrets\nTim\nPayroll\nReddit Army\nLihat Sisi Army\nLogout\n\nADMIN CONSOLE\n\nPayroll\n\n0 pending • Rp0\n\n💸\n\nTidak ada payout pending\n\nSemua sudah dibayar."
+    },
+    "reddit-army": {
+      "url": "/admin/reddit-army",
+      "errors": [],
+      "failed": [],
+      "textSample": "Tugas\nReddit\nSaldo\nAkun\nAdmin\nLogout\n🎖️ Reddit Army\n\nGamification system — challenge, daily bonus, retention hold.\n\n1\nTotal\n1\nPhase 1\n0\nPhase 2\n0\nResigning\n0\nResigned\n0\nExpelled\nRp0\nTotal Hold\nRp0\nRelease Week\nInvitations\nMembers\nChallenges\nDaily Sync\nHolds\nExit\n📨 Invite User Baru\n\nPilih user & tentuin cohort. User bakal lihat undangan di halaman"
+    }
+  }
+}

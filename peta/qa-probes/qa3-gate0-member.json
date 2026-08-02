@@ -1,0 +1,54 @@
+{
+  "member": "qa3-60014047@penghasilantambahan.com",
+  "steps": [
+    {
+      "name": "member-login",
+      "errors": []
+    },
+    {
+      "name": "onboarding-founding-cap",
+      "errors": []
+    },
+    {
+      "name": "tasks-page",
+      "errors": []
+    },
+    {
+      "name": "claim-forum-task",
+      "errors": []
+    },
+    {
+      "name": "start-task-and-write-comment",
+      "errors": [
+        "EXC: locator.click: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for getByRole('button', { name: /kirim|submit/i }).first()\u001b[22m\n\u001b[2m    - locator resolved to <button disabled type=\"button\" class=\"inline-flex items-cen"
+      ]
+    },
+    {
+      "name": "task-history",
+      "errors": []
+    },
+    {
+      "name": "earnings-page",
+      "errors": []
+    },
+    {
+      "name": "account-page",
+      "errors": [
+        "EXC: Cannot use 'in' operator to search for '08136' in Akun Saya\n\nqa3-60014047@penghasilantambahan.com\n\nWHATSAPP\n\n6281360014047\n\nAJAK TEMAN\n\nTiap teman daftar = Rp20K untuk kamu\n\nDIUNDANG\n\n0\n\nKODE KAMU — KLIK UNTUK SALIN LINK"
+      ]
+    }
+  ],
+  "landingAfterLogin": "/tasks",
+  "foundingCapText": "Bonus founding sudah penuh",
+  "onboardingHasBonusStep": false,
+  "tasksPageHasForumTask": true,
+  "tasksPageHasRedditTask": false,
+  "tasksPageSample": "🎖️\n\nReddit Army Program\n\nPassive income Rp2.500/hari cuma modal aktif di Reddit. + Bonus Rp100K setelah challenge.\n\nLihat →\nBELUM UNLOCK\nSELESAI 5 MENIT\nSetup akun kerja dulu — baru kamu bisa earn task\n\nTanpa setup akun, task belum bisa kamu ambil. 2 step lagi (5 menit) + bonus Rp10K masuk saldo.\n\n🔓 Setup Akun Sekarang\n\nSambil nunggu, kamu masih bisa ajak teman ➡️ tiap teman = +Rp20K masuk saldo (lihat di bawah)\n\nTask aktif buat kamu\n19 tersedia\nHUBSPOT COMMENT\n2 SLOT\n\nQA3 Forum Task 53262646\n",
+  "taskDetailUrl": "https://www.penghasilantambahan.com/task/8147b7c2-5da1-4dd3-bb90-800c82ca32ea",
+  "taskDetailHasForumTarget": true,
+  "afterStart": "Semua Tugas\nHUBSPOT COMMENT\nQA3 Forum Task 60014047\n\nQA3 desc: komen di thread HubSpot — target 60014047\n\n3-5 min\n0/3 dikerjakan\n\nREWARD\n\nRp5.000\n\n1\n\nBuka halaman HubSpot\n\nKlik tombol di bawah. Target akan terbuka di tab baru.\n\nTARGET URL\n\nhttps://community.hubspot.com/t5/Forums/ct-p/Forums\n\nBuka\n2\n\nPost komentar di HubSpot\n\nCopy komentar yang sudah disediakan. Brief biru hanya untuk cara posting ",
+  "historyHasSubmission": false,
+  "earningsSample": "📬\n\nSimpan email PeTa di kontak kamu\n\nKonfirmasi payout + update task dikirim dari peta@penghasilantambahan.com. Sering masuk folder Spam / Promotions — save ke contacts biar nggak ketinggalan.\n\nSetup Reddit dulu biar saldo bisa naik\n\nTask baru dibayar lewat akun Reddit kamu. Selesai 5 menit + bonus Rp10K masuk saldo.\n\n🔓 Lanjutkan Setup\n\n💰 SALDO CAIR\n\nCara hitung\n\nRp0\n\nBelum ada saldo. Kerjain task pertama → langsung cair anytime.\n\n🚀 Lanjut Earning\n\nRINCIAN SALDO KAMU\n\n✅\nDari task approved\nRp0\n💰 Bisa cair sekarang\nRp0\n\nTOTAL HASIL\n\nRp0K\n\nUDAH CAIR\n\nRp0K\n\nRiwayat Payout\n💸\n\nBelum ada payout\n\nRequest pertama kamu akan muncul di sini.\n\nTugas\nReddit\nSaldo\nAkun",
+  "hasSaldo": true,
+  "hasPayoutInfo": true
+}

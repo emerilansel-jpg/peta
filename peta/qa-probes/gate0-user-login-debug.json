@@ -1,0 +1,14 @@
+[
+  {
+    "req": "POST SB/rest/v1/rpc/get_email_by_whatsapp",
+    "apikey": "sb_publishable_bNHruuoS5zoLtvbp7Eq-Yw_oD"
+  },
+  {
+    "req": "POST SB/auth/v1/token?grant_type=password",
+    "apikey": "sb_publishable_bNHruuoS5zoLtvbp7Eq-Yw_oD"
+  },
+  {
+    "resp": "400 SB/auth/v1/token?grant_type=password",
+    "body": "{\"code\":\"invalid_credentials\",\"message\":\"Invalid login credentials\"}"
+  }
+]

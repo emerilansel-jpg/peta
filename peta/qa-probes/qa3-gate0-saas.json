@@ -1,0 +1,58 @@
+{
+  "steps": [
+    {
+      "name": "landing-redirect",
+      "errors": []
+    },
+    {
+      "name": "topup-paypal-mode",
+      "errors": []
+    },
+    {
+      "name": "new-order-services",
+      "errors": []
+    },
+    {
+      "name": "reviews-page",
+      "errors": []
+    },
+    {
+      "name": "waitlist-page",
+      "errors": []
+    },
+    {
+      "name": "feature-requests-page",
+      "errors": []
+    },
+    {
+      "name": "contact-page",
+      "errors": []
+    },
+    {
+      "name": "saas-login-member",
+      "errors": []
+    },
+    {
+      "name": "saas-tickets",
+      "errors": []
+    }
+  ],
+  "landingUrl": "/reddit",
+  "paypalScripts": [],
+  "paypalMode": "none",
+  "topupSample": "Back to Straight Ltd\nStraight Ltd\nPro Dashboard\nWelcome back\n\nSign in to your account\n\nEmail\nPassword\nForgot?\nSign in\n\nDon't have an account? Sign up free\n\n256-bit SSL\nSOC 2 hosting",
+  "orderSample": "Back to Straight Ltd\nStraight Ltd\nPro Dashboard\nWelcome back\n\nSign in to your account\n\nEmail\nPassword\nForgot?\nSign in\n\nDon't have an account? Sign up free\n\n256-bit SSL\nSOC 2 hosting",
+  "serviceMarkers": {
+    "redditUpvote": false,
+    "forum": false,
+    "youtube": false,
+    "unavailable": false
+  },
+  "reviewsSample": "Failed to load reviews\nBack to Straight Ltd\nStraight Ltd\nPro Dashboard\nWelcome back\n\nSign in to your account\n\nEmail\nPassword\nForgot?\nSign in\n\nDon't have an account? Sign up free\n\n256-bit SSL\nSOC 2 hosting",
+  "waitlistForm": true,
+  "featureRequestsSample": "Back to Straight Ltd\nStraight Ltd\nPro Dashboard\nWelcome back\n\nSign in to your account\n\nEmail\nPassword\nForgot?\nSign in\n\nDon't have an account? Sign up free\n\n256-bit SSL\nSOC 2 hosting",
+  "contactHasForm": false,
+  "saasLoginUrl": "/reddit/login",
+  "dashboardSample": "Back to Straight Ltd\nStraight Ltd\nPro Dashboard\nWelcome back\n\nSign in to your account\n\nEmail\nPassword\nForgot?\nSign in\n\nDon't have an account? Sign up free\n\n256-bit SSL\nSOC 2 hosting",
+  "ticketLinks": 0
+}

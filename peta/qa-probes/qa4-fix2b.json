@@ -1,0 +1,19 @@
+{
+  "steps": [
+    {
+      "name": "admin-login",
+      "errors": []
+    },
+    {
+      "name": "publish-forum-empty-everything",
+      "errors": []
+    },
+    {
+      "name": "publish-forum-with-brief",
+      "errors": []
+    }
+  ],
+  "blockToastSeen": true,
+  "sheetStillOpen": true,
+  "positivePublished": true
+}

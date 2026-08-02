@@ -15,12 +15,12 @@ export function Terms() {
         <p>Kamu bertanggung jawab atas keamanan akun dan aktivitas yang dilakukan. Satu akun per orang.</p>
         <h3 className="font-bold text-base mt-6">2. Task & Reward</h3>
         <p>Reward dibayar setelah task di-approve oleh admin. Keputusan admin bersifat final. Penyalahgunaan sistem (spam, plagiarisme, fake account) menyebabkan banned tanpa kompensasi.</p>
-        <h3 className="font-bold text-base mt-6">3. Reddit Army Program</h3>
-        <p>Peserta Reddit Army wajib: menggunakan 1 device & 1 IP, memberi notice H-30 sebelum berhenti, tidak melakukan aktivitas yang melanggar kebijakan Reddit. Pelanggaran menyebabkan hold hangus dan expulsion.</p>
+        <h3 className="font-bold text-base mt-6">3. Program Army</h3>
+        <p>Peserta Program Army wajib: menggunakan 1 device & 1 IP, memberi notice H-30 sebelum berhenti, tidak melakukan aktivitas yang melanggar kebijakan platform. Pelanggaran menyebabkan hold hangus dan expulsion.</p>
         <h3 className="font-bold text-base mt-6">4. Payout</h3>
         <p>Minimum payout Rp150.000. Payout diproses dalam 24 jam kerja setelah di-mark paid oleh admin. Pembayaran via e-wallet (Dana, OVO, GoPay) atau transfer bank.</p>
         <h3 className="font-bold text-base mt-6">5. Pembatasan Tanggung Jawab</h3>
-        <p>PeTa tidak bertanggung jawab atas perubahan kebijakan Reddit yang memengaruhi ketersediaan task. Kami berhak mengubah ketentuan dengan pemberitahuan via grup WhatsApp.</p>
+        <p>PeTa tidak bertanggung jawab atas perubahan kebijakan platform yang memengaruhi ketersediaan task. Kami berhak mengubah ketentuan dengan pemberitahuan via grup WhatsApp.</p>
         <h3 className="font-bold text-base mt-6">6. Hukum yang Berlaku</h3>
         <p>Perjanjian ini diatur oleh hukum Republik Indonesia.</p>
       </div>

@@ -1,16 +1,23 @@
 // Supabase Edge Function: send-notification-email
 //
-// Sends an email via Resend when a notification is triggered.
-// Set the RESEND_API_KEY secret first:
-//   supabase secrets set RESEND_API_KEY=re_xxx --project-ref duxzxizedtvnopfihllz
+// Sends an email via SMTP (nodemailer) when a notification is triggered.
+// Required secrets: SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASSWORD,
+// EMAIL_FROM (optional, default: Straight Ltd <care@straight.ltd>).
+//
+// History: previously used Resend HTTP API (RESEND_API_KEY) but the key's account
+// had no verified sending domain → all sends failed 403 "domain is not verified"
+// (QA3 CRITICAL). Switched to the same SMTP transport as send-password-reset-email,
+// which is verified working in production.
 //
 // Then deploy:
-//   supabase functions deploy send-notification-email --project-ref duxzxizedtvnopfihllz
+//   supabase functions deploy send-notification-email --project-ref <ref>
 //
 // Then enable the DB trigger (see SQL in EMAIL_NOTIFICATIONS.md).
 
 // @ts-ignore - Deno runtime, will be resolved at deploy
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
+// @ts-ignore - Deno runtime, will be resolved at deploy
+import nodemailer from 'npm:nodemailer';
 
 interface EmailRequest {
   to: string;
@@ -89,42 +96,41 @@ serve(async (req: Request) => {
     }
 
     // @ts-ignore - Deno env API
-    const apiKey = Deno.env.get('RESEND_API_KEY');
+    const smtpHost = Deno.env.get('SMTP_HOST');
     // @ts-ignore - Deno env API
-    const fromAddress = Deno.env.get('EMAIL_FROM') || 'Straight Ltd <onboarding@resend.dev>';
+    const smtpPort = Deno.env.get('SMTP_PORT');
+    // @ts-ignore - Deno env API
+    const smtpUser = Deno.env.get('SMTP_USER');
+    // @ts-ignore - Deno env API
+    const smtpPass = Deno.env.get('SMTP_PASSWORD');
+    // @ts-ignore - Deno env API
+    const fromAddress = Deno.env.get('EMAIL_FROM') || 'Straight Ltd <care@straight.ltd>';
 
-    if (!apiKey) {
-      return new Response(JSON.stringify({ error: 'RESEND_API_KEY not configured' }), {
+    if (!smtpHost || !smtpUser || !smtpPass) {
+      return new Response(JSON.stringify({ error: 'SMTP not configured' }), {
         status: 500,
         headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
       });
     }
 
-    const resendRes = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: parseInt(smtpPort || '465', 10),
+      secure: parseInt(smtpPort || '465', 10) === 465,
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
       },
-      body: JSON.stringify({
-        from: fromAddress,
-        to: payload.to,
-        subject: payload.subject,
-        html: emailTemplate(payload, payload.link),
-      }),
     });
 
-    const resendData = await resendRes.json();
+    const info = await transporter.sendMail({
+      from: fromAddress,
+      to: payload.to,
+      subject: payload.subject,
+      html: emailTemplate(payload, payload.link),
+    });
 
-    if (!resendRes.ok) {
-      console.error('Resend error:', resendData);
-      return new Response(JSON.stringify({ error: 'Email send failed', detail: resendData }), {
-        status: 502,
-        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-      });
-    }
-
-    return new Response(JSON.stringify({ ok: true, id: resendData.id }), {
+    return new Response(JSON.stringify({ ok: true, id: info.messageId }), {
       status: 200,
       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
     });

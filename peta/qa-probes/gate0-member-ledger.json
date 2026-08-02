@@ -1,0 +1,64 @@
+{
+  "me": [
+    {
+      "id": "3fd5a8f2-18c6-4521-a819-ca3743ce0f13",
+      "email": "qa-obo-86644849@penghasilantambahan.com",
+      "role": "army",
+      "credit_balance": 0,
+      "is_active": true
+    }
+  ],
+  "credits": [
+    {
+      "source": "signup_bonus",
+      "amount": 25000,
+      "created_at": "2026-07-31T08:30:52.916187"
+    },
+    {
+      "source": "signup_bonus",
+      "amount": 5000,
+      "created_at": "2026-07-31T08:30:55.502206"
+    },
+    {
+      "source": "signup_bonus",
+      "amount": 10000,
+      "created_at": "2026-07-31T08:30:58.125691"
+    },
+    {
+      "source": "signup_bonus",
+      "amount": 5000,
+      "created_at": "2026-07-31T08:31:00.74186"
+    },
+    {
+      "source": "signup_bonus",
+      "amount": 5000,
+      "created_at": "2026-07-31T08:31:05.919493"
+    }
+  ],
+  "reddit_accounts": [
+    {
+      "username": "qa_test_86644849",
+      "karma": 0,
+      "level": 0,
+      "created_at": "2026-07-31T08:31:05.693765+00:00"
+    }
+  ],
+  "earnings": {
+    "tasks": 0,
+    "manualAdj": 0,
+    "signupBonus": 50000,
+    "referralBonus": 0,
+    "bonus": 50000,
+    "bonusUnlocked": false,
+    "cashable": 0,
+    "total": 50000,
+    "earned": 0,
+    "referral": 50000,
+    "fromWork": 0,
+    "redditArmyPhase1Instant": 0,
+    "redditArmyDailyCredited": 0,
+    "redditArmyHoldReleased": 0,
+    "redditArmyRetentionHeld": 0,
+    "redditArmyPendingCashable": 0
+  }
+}

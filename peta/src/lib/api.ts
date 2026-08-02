@@ -111,18 +111,39 @@ export async function syncRedditKarma(username: string): Promise<SyncRedditResul
   const aboutUrl = `https://www.reddit.com/user/${clean}/about.json`;
   const aboutUrlEnc = encodeURIComponent(aboutUrl);
 
-  // Multi-tier CORS proxy chain. User's residential IP fetches Reddit's
-  // public JSON endpoint via these proxies because reddit.com doesn't set
-  // CORS headers on its JSON API.
-  //
-  // 2026-05-14 audit: corsproxy.io now paywalled, allorigins.win flaky/dead,
-  // codetabs REQUIRES trailing slash (/v1/proxy/?quest=) — without it returns
-  // a 301 that fetch doesn't follow cleanly. Order below reflects which
-  // proxies actually return valid JSON today.
+  // QA3 FIX 4 — Tier 1: our own edge function. reddit.com doesn't set CORS
+  // headers on its JSON API and every third-party CORS proxy (codetabs 521,
+  // allorigins 408, corsproxy paywalled) has been dead or CSP-blocked, so the
+  // browser cannot fetch Reddit directly. The edge function fetches
+  // server-side (no CORS/CSP) and returns a definitive verdict.
+  try {
+    const { data, error } = await supabase.functions.invoke('fetch-reddit-profile', {
+      body: { username: clean },
+    });
+    if (!error && data?.ok) {
+      if (data.found) {
+        const karma = Number(data.karma) || 0;
+        const accountAgeDays = Number(data.account_age_days) || 0;
+        return {
+          karma,
+          accountAgeDays,
+          level: calculateLevel(karma, accountAgeDays),
+          success: true,
+          fallback: false,
+          statusFlag: 'ok',
+        };
+      }
+      // Definitive 404 — user doesn't exist.
+      return { karma: 0, accountAgeDays: 0, level: 0, success: true, fallback: true, statusFlag: 'not_found' };
+    }
+  } catch (error) {
+    console.warn('fetch-reddit-profile edge function failed:', error);
+  }
+
+  // Tier 2 — codetabs proxy (kept as a fallback; may work when Reddit
+  // unblocks cloud egress or from residential networks).
   const proxyUrls: string[] = [
     `https://api.codetabs.com/v1/proxy/?quest=${aboutUrlEnc}`,
-    `https://api.allorigins.win/raw?url=${aboutUrlEnc}`,
-    `https://corsproxy.io/?${aboutUrlEnc}`,
   ];
 
   let lastFlag: RedditStatusFlag = 'unknown';
@@ -152,7 +173,7 @@ export async function syncRedditKarma(username: string): Promise<SyncRedditResul
     }
   }
 
-  // Tier 2 — edge function (OAuth path if REDDIT_CLIENT_ID set, else falls back).
+  // Tier 3 — legacy edge function (OAuth path if REDDIT_CLIENT_ID set, else falls back).
   try {
     const { data, error } = await supabase.functions.invoke('sync-reddit-karma', {
       body: { username: clean },
@@ -173,7 +194,7 @@ export async function syncRedditKarma(username: string): Promise<SyncRedditResul
     console.warn('edge-function fallback also failed:', error);
   }
 
-  // Tier 3 — all paths failed. Return zeros with unknown flag.
+  // Tier 4 — all paths failed. Return zeros with unknown flag.
   return { karma: 0, accountAgeDays: 0, level: 0, success: true, fallback: true, statusFlag: 'unknown' };
 }
 

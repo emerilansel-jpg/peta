@@ -1,15 +1,19 @@
 // Supabase Edge Function: send-peta-email
 //
-// Sends a single transactional email for PeTa using Resend.
+// Sends a single transactional email for PeTa using SMTP (nodemailer).
 // Required secrets:
-//   RESEND_API_KEY   (e.g. re_xxx)
+//   SMTP_HOST / SMTP_PORT / SMTP_USER / SMTP_PASSWORD  (same transport as send-password-reset-email — proven working)
 //   EMAIL_FROM       (optional, default: PeTA <peta@penghasilantambahan.com>)
 //
+// History: previously used Resend HTTP API (RESEND_API_KEY) but the key's account
+// had no verified sending domain → all sends failed 403 "domain is not verified"
+// (QA3 CRITICAL). Switched to the same SMTP transport as the password-reset
+// function, which is verified working in production.
+//
 // Deploy:
-//   supabase secrets set RESEND_API_KEY=re_xxx --project-ref <ref>
 //   supabase functions deploy send-peta-email --project-ref <ref>
-
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import nodemailer from "npm:nodemailer";
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -146,35 +150,34 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'missing_required_fields', fields: 'to, subject, body' }, 400);
     }
 
-    const apiKey = Deno.env.get('RESEND_API_KEY');
+    const smtpHost = Deno.env.get('SMTP_HOST');
+    const smtpPort = Deno.env.get('SMTP_PORT');
+    const smtpUser = Deno.env.get('SMTP_USER');
+    const smtpPass = Deno.env.get('SMTP_PASSWORD');
     const fromAddress = Deno.env.get('EMAIL_FROM') || 'PeTA <peta@penghasilantambahan.com>';
 
-    if (!apiKey) {
-      return json({ error: 'resend_api_key_not_configured' }, 500);
+    if (!smtpHost || !smtpUser || !smtpPass) {
+      return json({ error: 'smtp_not_configured' }, 500);
     }
 
-    const resendRes = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+    const transporter = nodemailer.createTransport({
+      host: smtpHost,
+      port: parseInt(smtpPort || '465', 10),
+      secure: parseInt(smtpPort || '465', 10) === 465,
+      auth: {
+        user: smtpUser,
+        pass: smtpPass,
       },
-      body: JSON.stringify({
-        from: fromAddress,
-        to: payload.to,
-        subject: payload.subject,
-        html: emailTemplate(payload),
-      }),
     });
 
-    const resendData = await resendRes.json();
+    const info = await transporter.sendMail({
+      from: fromAddress,
+      to: payload.to,
+      subject: payload.subject,
+      html: emailTemplate(payload),
+    });
 
-    if (!resendRes.ok) {
-      console.error('Resend error:', resendData);
-      return json({ error: 'resend_send_failed', detail: resendData }, 502);
-    }
-
-    return json({ ok: true, id: resendData.id }, 200);
+    return json({ ok: true, id: info.messageId }, 200);
   } catch (err: any) {
     console.error('Function error:', err);
     return json({ error: 'internal_error', detail: err.message }, 500);

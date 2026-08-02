@@ -1,0 +1,21 @@
+{
+  "steps": [
+    {
+      "name": "login",
+      "errors": []
+    },
+    {
+      "name": "new-order-upvotes",
+      "errors": []
+    },
+    {
+      "name": "fill-order-and-submit",
+      "errors": []
+    }
+  ],
+  "orderFormUrl": "/reddit/new-order",
+  "orderFormSample": "Straight Ltd\nBETA\n$0.00\nChoose different service\nUpvotes\n\nReddit $0.75 · other forums $0.25 per upvote · High retention guarantee\n\nAVAILABLE CREDIT\n\n$0.00\n\nTop up\n\nReddit upvotes are paused right now. This service is temporarily unavailable — please check back soon.\n\n1\nPage URL\n(Reddit or any forum)\n2\nNumber of upvotes\n25\n50\n100\n250\n500\n\n$0.75 per upvote · 1 to 10,000 per order\n\n3\nDelivery notes\n(optional)\nUpvotes\n50\nPrice per upvote\n$0.75\nTotal\n$37.50\n\nInsufficient credit\n\nYou need $37.50 more. Top up now.\n\nCredits deduct on confirmation, not delivery.\n\nCancelled orders are refunded automatically.\n\nUpvotes paused",
+  "formInputs": 3,
+  "afterOrderSubmit": "Straight Ltd\nBETA\n$0.00\nChoose different service\nUpvotes\n\nReddit $0.75 · other forums $0.25 per upvote · High retention guarantee\n\nAVAILABLE CREDIT\n\n$0.00\n\nTop up\n\nReddit upvotes are paused right now. This service is temporarily unavailable — please check back soon.\n\n1\nPage URL\n(Reddit or any forum)\n\nTarget: r/indonesia ·\nReddit rate $0.75/upvote\n\n2\nNumber of upvotes\n25\n50\n100\n250\n500\n\n$0.75 per upvote · 1 to 10,000 per order\n\n3\nDelivery notes\n(optional)\nUpvotes\n5\nPrice per upvote\n$0.75\nTotal\n$3",
+  "orderSubmitUrl": "/reddit/new-order"
+}

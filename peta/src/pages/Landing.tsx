@@ -264,7 +264,7 @@ export function Landing() {
               </div>
               <h3 className="font-extrabold text-lg mb-1">Akun kamu aman</h3>
               <p className="text-sm text-muted">
-                Kami nggak login, nggak post atas nama kamu, nggak mintain password Reddit-mu.
+                Kami nggak login, nggak post atas nama kamu, nggak mintain password akun-mu.
                 Tiap komen = kamu yang nulis & kirim sendiri.
               </p>
             </div>
@@ -308,7 +308,7 @@ export function Landing() {
             {[
               ['Beneran dibayar?', 'Ya. Min payout Rp150.000, transfer dalam 24 jam kerja ke rekening / e-wallet kamu. Bukti bayar PeTa Army sebelumnya bisa kamu lihat di grup WhatsApp setelah daftar.'],
               ['Butuh skill khusus?', 'Tidak. Kalau bisa baca & nulis komentar sopan dalam Bahasa Indonesia, kamu udah cukup. Reward kecil dulu (Rp5K), naik seiring level.'],
-              ['Aman buat akun saya?', 'Aman. Kami tidak login ke akun Reddit kamu, tidak post atas namamu, tidak minta password. Tiap komen kamu ketik & kirim sendiri.'],
+              ['Aman buat akun saya?', 'Aman. Kami tidak login ke akun kamu, tidak post atas namamu, tidak minta password. Tiap komen kamu ketik & kirim sendiri.'],
               ['Berapa cuan realistis?', 'Tergantung level + jumlah task yang kamu ambil. Reward per komen Rp5.000 (level 0) – Rp20.000 (level 5). Tanpa janji muluk angka mingguan — yang jelas, tiap task selesai = saldo kamu langsung naik.'],
               ['Kenapa cuma 100 founding?', 'Komunitas kecil = payout cepat, support 1-on-1, kontrol kualitas. Slot 101 dst akan dibuka di gelombang berikutnya tanpa bonus founding.'],
               ['Bonus referral berapa?', 'Rp20.000 untuk kamu DAN Rp25.000 untuk teman yang kamu ajak. Tanpa batas selama slot founding masih ada.'],

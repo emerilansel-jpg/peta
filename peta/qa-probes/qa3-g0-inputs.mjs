@@ -1,0 +1,17 @@
+import { chromium } from 'playwright';
+import { readFileSync } from 'fs';
+const members = JSON.parse(readFileSync('qa-probes/qa3-members.json', 'utf8'));
+const browser = await chromium.launch();
+const page = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage();
+await page.goto('https://www.penghasilantambahan.com/login', { waitUntil: 'networkidle' });
+await page.getByPlaceholder(/kamu@email\.com|0812xxxx/).fill(members.m1.email);
+await page.getByPlaceholder('••••••••').fill(members.m1.password);
+await page.getByRole('button', { name: /masuk|login/i }).first().click();
+await page.waitForTimeout(4000);
+await page.goto('https://www.penghasilantambahan.com/task/07e806d6-c79a-452a-9b38-dabb5a3b44fe', { waitUntil: 'networkidle' });
+await page.waitForTimeout(2000);
+const inputs = await page.locator('input').evaluateAll(els => els.map(e => ({ type: e.type, ph: e.placeholder, name: e.name, disabled: e.disabled })));
+console.log(JSON.stringify(inputs, null, 1));
+const btns = await page.locator('button').evaluateAll(els => els.map(e => ({ text: e.innerText.trim().slice(0, 40), disabled: e.disabled, cls: e.className.slice(0, 60) })));
+console.log(JSON.stringify(btns, null, 1));
+await browser.close();

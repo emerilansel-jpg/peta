@@ -1,0 +1,732 @@
+[
+  {
+    "route": "/",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/",
+    "h1": "Cuma komen.Dibayar tiap hari.",
+    "textLen": 3122,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/",
+    "viewport": 1440,
+    "httpOk": true,
+    "finalUrl": "/",
+    "h1": "Cuma komen.Dibayar tiap hari.",
+    "textLen": 3103,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/login",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/login",
+    "h1": "",
+    "textLen": 206,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/login",
+    "viewport": 1440,
+    "httpOk": true,
+    "finalUrl": "/login",
+    "h1": "",
+    "textLen": 206,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/register",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/register",
+    "h1": "Gabung PeTa Army, gratis",
+    "textLen": 342,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/register",
+    "viewport": 1440,
+    "httpOk": true,
+    "finalUrl": "/register",
+    "h1": "Gabung PeTa Army, gratis",
+    "textLen": 342,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/forgot-password",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/forgot-password",
+    "h1": "",
+    "textLen": 163,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/forgot-password",
+    "viewport": 1440,
+    "httpOk": true,
+    "finalUrl": "/forgot-password",
+    "h1": "",
+    "textLen": 163,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reset-password",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reset-password",
+    "h1": "",
+    "textLen": 230,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reset-password",
+    "viewport": 1440,
+    "httpOk": true,
+    "finalUrl": "/reset-password",
+    "h1": "",
+    "textLen": 230,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/update-password",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/update-password",
+    "h1": "",
+    "textLen": 113,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/update-password",
+    "viewport": 1440,
+    "httpOk": true,
+    "finalUrl": "/update-password",
+    "h1": "",
+    "textLen": 113,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reset-whatsapp",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reset-whatsapp",
+    "h1": "",
+    "textLen": 243,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reset-whatsapp",
+    "viewport": 1440,
+    "httpOk": true,
+    "finalUrl": "/reset-whatsapp",
+    "h1": "",
+    "textLen": 243,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/privacy",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/privacy",
+    "h1": "Kebijakan Privasi",
+    "textLen": 916,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/privacy",
+    "viewport": 1440,
+    "httpOk": true,
+    "finalUrl": "/privacy",
+    "h1": "Kebijakan Privasi",
+    "textLen": 916,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/terms",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/terms",
+    "h1": "Syarat & Ketentuan",
+    "textLen": 1033,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/terms",
+    "viewport": 1440,
+    "httpOk": true,
+    "finalUrl": "/terms",
+    "h1": "Syarat & Ketentuan",
+    "textLen": 1033,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/help",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/help",
+    "h1": "📖 Panduan PeTa",
+    "textLen": 656,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/help",
+    "viewport": 1440,
+    "httpOk": true,
+    "finalUrl": "/help",
+    "h1": "📖 Panduan PeTa",
+    "textLen": 656,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit",
+    "h1": "The Reddit growth engine for serious operators",
+    "textLen": 4129,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit",
+    "viewport": 1440,
+    "httpOk": true,
+    "finalUrl": "/reddit",
+    "h1": "The Reddit growth engine for serious operators",
+    "textLen": 4150,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/waitlist",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/waitlist",
+    "h1": "Get mentioned where Google and AI actually look",
+    "textLen": 1442,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/waitlist",
+    "viewport": 1440,
+    "httpOk": true,
+    "finalUrl": "/reddit/waitlist",
+    "h1": "Get mentioned where Google and AI actually look",
+    "textLen": 1442,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/signup",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/signup",
+    "h1": "Create your account",
+    "textLen": 626,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/signup",
+    "viewport": 1440,
+    "httpOk": true,
+    "finalUrl": "/reddit/signup",
+    "h1": "Create your account",
+    "textLen": 626,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/login",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 181,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/login",
+    "viewport": 1440,
+    "httpOk": true,
+    "finalUrl": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 181,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/terms",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/terms",
+    "h1": "Terms of Service",
+    "textLen": 2691,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/terms",
+    "viewport": 1440,
+    "httpOk": true,
+    "finalUrl": "/reddit/terms",
+    "h1": "Terms of Service",
+    "textLen": 2691,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/privacy",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/privacy",
+    "h1": "Privacy Policy",
+    "textLen": 2400,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/privacy",
+    "viewport": 1440,
+    "httpOk": true,
+    "finalUrl": "/reddit/privacy",
+    "h1": "Privacy Policy",
+    "textLen": 2400,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/refunds",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/refunds",
+    "h1": "Refund Policy",
+    "textLen": 1684,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/refunds",
+    "viewport": 1440,
+    "httpOk": true,
+    "finalUrl": "/reddit/refunds",
+    "h1": "Refund Policy",
+    "textLen": 1684,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/contact",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/contact",
+    "h1": "Contact Us",
+    "textLen": 970,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/contact",
+    "viewport": 1440,
+    "httpOk": true,
+    "finalUrl": "/reddit/contact",
+    "h1": "Contact Us",
+    "textLen": 970,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/forgot-password",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/forgot-password",
+    "h1": "Reset your password",
+    "textLen": 190,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/forgot-password",
+    "viewport": 1440,
+    "httpOk": true,
+    "finalUrl": "/reddit/forgot-password",
+    "h1": "Reset your password",
+    "textLen": 190,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/reset-password",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/reset-password",
+    "h1": "Create new password",
+    "textLen": 215,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/reset-password",
+    "viewport": 1440,
+    "httpOk": true,
+    "finalUrl": "/reddit/reset-password",
+    "h1": "Create new password",
+    "textLen": 215,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/tasks",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/login",
+    "h1": "",
+    "textLen": 206,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/task-history",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/login",
+    "h1": "",
+    "textLen": 206,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit-army",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 181,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/account",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/login",
+    "h1": "",
+    "textLen": 206,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/earnings",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/login",
+    "h1": "",
+    "textLen": 206,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/dashboard",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 181,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/new-order",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 181,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/orders",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 181,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/topup",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 181,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/reviews",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 181,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/feature-requests",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 181,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/ranking-forum",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 181,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/ai-visibility",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 181,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/admin",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/login",
+    "h1": "",
+    "textLen": 232,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/admin/accounts",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/login",
+    "h1": "",
+    "textLen": 232,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/admin/tasks",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/login",
+    "h1": "",
+    "textLen": 232,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/admin/approval",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/login",
+    "h1": "",
+    "textLen": 232,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/admin/team",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/login",
+    "h1": "",
+    "textLen": 232,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/admin/payroll",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/login",
+    "h1": "",
+    "textLen": 232,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/admin/reddit-army",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/login",
+    "h1": "",
+    "textLen": 232,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/admin/broadcast",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/login",
+    "h1": "",
+    "textLen": 232,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/admin/inbox",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/login",
+    "h1": "",
+    "textLen": 232,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/admin/secrets",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/login",
+    "h1": "",
+    "textLen": 232,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/admin/wa-bot",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/login",
+    "h1": "",
+    "textLen": 232,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/admin",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 209,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/admin/orders",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 209,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/admin/tickets",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 209,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/admin/clients",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 209,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/admin/reviews",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 209,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/admin/feature-requests",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 209,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/admin/finance",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 209,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/admin/settings",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 209,
+    "consoleErrors": [],
+    "failed": []
+  },
+  {
+    "route": "/reddit/admin/waitlist",
+    "viewport": 390,
+    "httpOk": true,
+    "finalUrl": "/reddit/login",
+    "h1": "Welcome back",
+    "textLen": 209,
+    "consoleErrors": [],
+    "failed": []
+  }
+]

@@ -1,0 +1,19 @@
+[
+  {
+    "name": "after-submit",
+    "url": "/forgot-password",
+    "text": "Link reset password dikirim ke email kamu!\nKembali ke login\nCek email kamu!\n\nLink reset password sudah dikirim ke info@jetdigitalpro.com. Klik link untuk buat password baru.\n\nGa masuk? Cek folder spam/promosi. Atau kirim ulang.\n\n← Kembali login\n\n🔒 Data aman • Encrypted login",
+    "toasts": [
+      "Link reset password dikirim ke email kamu!"
+    ]
+  },
+  {
+    "name": "edge-responses",
+    "edgeResponses": [
+      {
+        "status": 200,
+        "body": "{\"ok\":true,\"message\":\"Link reset password dikirim ke email kamu!\",\"messageId\":\"<d5e9fc36-3190-f565-01af-e2ad021fd326@straight.ltd>\"}"
+      }
+    ]
+  }
+]

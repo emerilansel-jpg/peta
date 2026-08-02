@@ -12,7 +12,7 @@ const FAQS = [
   },
   {
     q: '📋 Cara ambil & kerjain task?',
-    a: 'Buka halaman Tugas, klik task yang mau dikerjain. Nanti ada panduan step-by-step: buka link Reddit → komen sesuai instruksi → screenshot → submit. Udah, tinggal tunggu admin approve.',
+    a: 'Buka halaman Tugas, klik task yang mau dikerjain. Nanti ada panduan step-by-step: buka link target → komen sesuai instruksi → screenshot → submit. Udah, tinggal tunggu admin approve.',
   },
   {
     q: '⏳ Kok task aku masih "Menunggu Approve"?',
@@ -35,24 +35,24 @@ const FAQS = [
     a: 'Di halaman login, klik "Lupa password?" nanti dikirim link reset ke email kamu.',
   },
   {
-    q: '🏆 Apa itu Reddit Army Program?',
-    a: 'Program khusus buat army yang pengen dapet penghasilan pasif. Kamu aktivasi undangan, kerjain 5 level challenge (min 30 hari warmup), selesai dapet Rp100.000. Setelah itu tiap hari aktif di Reddit dapet Rp2.500.',
+    q: '🏆 Apa itu Program Army?',
+    a: 'Program khusus buat army yang pengen dapet penghasilan pasif. Kamu aktivasi undangan, kerjain 5 level challenge (min 30 hari warmup), selesai dapet Rp100.000. Setelah itu tiap hari aktif di platform dapet Rp2.500.',
   },
   {
-    q: '🎖️ Cara mulai Reddit Army gimana?',
+    q: '🎖️ Cara mulai Program Army gimana?',
     a: 'Kamu harus dapat undangan dari admin dulu (ga bisa daftar sendiri). Admin invite → kamu buka /reddit-army → aktivasi undangan → mulai kerjain challenge level 1-5.',
   },
   {
     q: '🛑 Kok level challenge saya masih terkunci?',
-    a: 'Wajar! Tiap level ada masa warmup minimal (3-30 hari). Biar akun Reddit keliatan natural dan ga kena shadowban. Kamu tetap bisa kerjain task, tapi baru bisa naik level setelah warmup selesai.',
+    a: 'Wajar! Tiap level ada masa warmup minimal (3-30 hari). Biar akun platform keliatan natural dan ga kena shadowban. Kamu tetap bisa kerjain task, tapi baru bisa naik level setelah warmup selesai.',
   },
   {
     q: '🔥 Fase 2 (bonus harian) mulai kapan?',
-    a: 'Setelah kamu selesaiin semua 5 level challenge. Nanti dapet Rp2.500/hari kalau kamu aktif comment/post di Reddit. 50% cair tiap 2 minggu, 50% ditahan sampe kamu berhenti.',
+    a: 'Setelah kamu selesaiin semua 5 level challenge. Nanti dapet Rp2.500/hari kalau kamu aktif comment/post di platform. 50% cair tiap 2 minggu, 50% ditahan sampe kamu berhenti.',
   },
   {
     q: '🚪 Cara berhenti dari program gimana?',
-    a: 'Klik "Mau Berhenti" di halaman Reddit Army. Kamu masuk masa tunggu 30 hari dan harus tetap aktif minimal 20 hari. Setelah itu, semua tabungan retensi cair ke saldo. Jangan ghosting nanti hold hangus.',
+    a: 'Klik "Mau Berhenti" di halaman Program Army. Kamu masuk masa tunggu 30 hari dan harus tetap aktif minimal 20 hari. Setelah itu, semua tabungan retensi cair ke saldo. Jangan ghosting nanti hold hangus.',
   },
   {
     q: '💬 Cara hubungi admin?',
@@ -102,7 +102,7 @@ export function Help() {
         <p className="text-[10px] font-bold uppercase tracking-wide text-muted mb-2">Link Cepat</p>
         <div className="flex flex-wrap gap-2">
           <Button size="sm" variant="ghost" onClick={() => navigate('/tasks')}>📋 Ke Tugas</Button>
-          <Button size="sm" variant="ghost" onClick={() => navigate('/reddit-army')}>🎖️ Reddit Army</Button>
+          <Button size="sm" variant="ghost" onClick={() => navigate('/reddit-army')}>🎖️ Program Army</Button>
           <Button size="sm" variant="ghost" onClick={() => navigate('/earnings')}>💰 Cek Saldo</Button>
           <Button size="sm" variant="ghost" onClick={() => navigate('/privacy')}>🔒 Privasi</Button>
           <Button size="sm" variant="ghost" onClick={() => navigate('/terms')}>📜 Syarat</Button>
