@@ -1486,6 +1486,7 @@ function buildStandardBriefTemplate(platform: string, targetUrl: string) {
       'Platform-specific Facebook Groups:',
       '- Join group dulu jika belum member dan jawab pertanyaan onboarding secara normal.',
       '- Baca rules group, terutama aturan promo/link.',
+      '- PENTING: Matikan/hapus lokasi profil SEBELUM posting. Lokasi Indonesia di forum luar negeri = mencurigakan.',
       '- Jangan posting link kecuali rules memperbolehkan.',
       '- Komentar harus seperti member asli: singkat, relevan, dan tidak hard-selling.',
       '- Screenshot harus menunjukkan group/post, komentar, dan nama profil jika memungkinkan.',
