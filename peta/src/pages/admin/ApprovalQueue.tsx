@@ -20,6 +20,7 @@ const REJECT_PRESETS = [
   'Komentar kena auto-remove sama Reddit. Coba di subreddit lain atau pakai akun karma lebih tinggi.',
   'Bukan thread yang diminta. Cek URL target di brief task.',
   'Lokasi profil Facebook terlihat/aktif — matikan lokasi sebelum posting. Ini mencurigakan untuk forum luar negeri.',
+  'Foto profil tidak cocok dengan target audience (misal: foto Indonesia di forum North America). Ganti foto yang sesuai.',
 ];
 
 // Format like "Sen, 13 Mei 2026 · 17:42" (Bahasa Indonesia day + 24h time).

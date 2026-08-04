@@ -1546,6 +1546,7 @@ function buildStandardBriefTemplate(platform: string, targetUrl: string) {
       '- Join group dulu jika belum member dan jawab pertanyaan onboarding secara normal.',
       '- Baca rules group, terutama aturan promo/link.',
       '- PENTING: Matikan/hapus lokasi profil SEBELUM posting. Lokasi Indonesia di forum luar negeri = mencurigakan.',
+      '- Foto profil harus terlihat sesuai target audience (misal: Western untuk forum North America). Foto tidak matching = mencurigakan.',
       '- Jangan posting link kecuali rules memperbolehkan.',
       '- Komentar harus seperti member asli: singkat, relevan, dan tidak hard-selling.',
       '- Screenshot harus menunjukkan group/post, komentar, dan nama profil jika memungkinkan.',
