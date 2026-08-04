@@ -2,8 +2,8 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import {
-  ArrowLeft, ExternalLink, Check, Camera, Link as LinkIcon, X, Upload,
-  ArrowRight, MessageCircle, Target, Sparkles, Copy,
+  ArrowLeft, ExternalLink, Check, Camera, Link as LinkIcon, X,
+  ArrowRight, MessageCircle, Target, Sparkles, Copy, Image as ImageIcon,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
@@ -637,32 +637,44 @@ export function TaskDetail() {
               </span>
             </div>
           ) : (
-            <label className="block mb-3 cursor-pointer">
-              <input
-                type="file"
-                accept="image/*"
-                capture="environment"
-                onChange={(e) => handleProofFile(e.target.files?.[0])}
-                disabled={uploadingProof}
-                className="sr-only"
-              />
-              <div className={`flex flex-col items-center justify-center gap-2 px-4 py-7 rounded-xl border-2 border-dashed transition ${
-                uploadingProof ? 'border-primary/50 bg-primary/5' : 'border-border bg-light hover:border-primary/40 hover:bg-primary/5'
-              }`}>
-                {uploadingProof ? (
-                  <>
-                    <Upload size={28} className="text-primary animate-pulse" />
-                    <p className="text-sm font-bold text-primary">Uploading...</p>
-                  </>
-                ) : (
-                  <>
-                    <Camera size={32} className="text-primary" />
-                    <p className="text-sm font-bold text-dark">Tap untuk foto / pilih dari galeri</p>
-                    <p className="text-[11px] text-muted">JPG, PNG, WEBP - max 5 MB</p>
-                  </>
-                )}
-              </div>
-            </label>
+            <>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <label className="cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={(e) => handleProofFile(e.target.files?.[0])}
+                  disabled={uploadingProof}
+                  className="sr-only"
+                />
+                <div className={`flex flex-col items-center gap-1 px-3 py-5 rounded-xl border-2 border-dashed transition ${
+                  uploadingProof ? 'border-primary/50 bg-primary/5' : 'border-primary/40 bg-primary/5 hover:bg-primary/10'
+                }`}>
+                  <Camera size={24} className="text-primary" />
+                  <span className="text-xs font-bold text-dark">Ambil Foto</span>
+                  <span className="text-[10px] text-muted">Kamera belakang</span>
+                </div>
+              </label>
+              <label className="cursor-pointer">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleProofFile(e.target.files?.[0])}
+                  disabled={uploadingProof}
+                  className="sr-only"
+                />
+                <div className={`flex flex-col items-center gap-1 px-3 py-5 rounded-xl border-2 border-dashed transition ${
+                  uploadingProof ? 'border-secondary/50 bg-secondary/5' : 'border-secondary/40 bg-secondary/5 hover:bg-secondary/10'
+                }`}>
+                  <ImageIcon size={24} className="text-secondary" />
+                  <span className="text-xs font-bold text-dark">Pilih dari Galeri</span>
+                  <span className="text-[10px] text-muted">Screenshot / foto</span>
+                </div>
+              </label>
+            </div>
+            <p className="text-[10px] text-muted text-center mb-2">JPG, PNG, WEBP - max 5 MB</p>
+            </>
           )}
 
           {/* For comment tasks — submitted URL + platform username are required, screenshot is optional. */}
