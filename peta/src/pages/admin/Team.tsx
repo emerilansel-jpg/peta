@@ -1,6 +1,6 @@
 import React from 'react';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { Plus, X, Pencil, Trash2, MessageCircle, Mail, Power, Copy } from 'lucide-react';
+import { Plus, X, Pencil, Trash2, MessageCircle, Mail, Power, Copy, Search } from 'lucide-react';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
 import { Button } from '../../components/Button';
@@ -28,6 +28,7 @@ const formatDateTime = (iso: string) =>
 export function AdminTeam() {
   const [showSheet, setShowSheet] = React.useState(false);
   const [editingMember, setEditingMember] = React.useState<Member | null>(null);
+  const [searchQuery, setSearchQuery] = React.useState('');
 
   const { data: users = [], isLoading, refetch } = useQuery<Member[]>({
     queryKey: ['armyUsers'],
@@ -40,6 +41,16 @@ export function AdminTeam() {
       return (data as Member[]) || [];
     },
   });
+
+  const filtered = React.useMemo(() => {
+    if (!searchQuery.trim()) return users;
+    const q = searchQuery.toLowerCase();
+    return users.filter((u) =>
+      (u.full_name || '').toLowerCase().includes(q) ||
+      (u.email || '').toLowerCase().includes(q) ||
+      (u.whatsapp || '').includes(q)
+    );
+  }, [users, searchQuery]);
 
   return (
     <Layout userRole="admin">
@@ -54,6 +65,20 @@ export function AdminTeam() {
         </Button>
       </div>
 
+      {/* Search */}
+      {users.length > 0 && (
+        <div className="relative mb-4">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Cari nama, email, atau WhatsApp..."
+            className="w-full min-h-[44px] pl-10 pr-4 rounded-xl bg-light border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
+          />
+        </div>
+      )}
+
       {isLoading ? (
         <div className="space-y-3"><CardSkeleton /><CardSkeleton /></div>
       ) : users.length === 0 ? (
@@ -64,8 +89,10 @@ export function AdminTeam() {
       ) : (
         <>
           {/* Mobile cards */}
-          <div className="md:hidden space-y-2">
-            {users.map((u) => (
+          <p className="text-[10px] text-muted mb-3">{filtered.length} dari {users.length} member</p>
+          {filtered.length === 0 && <Card className="text-center py-8"><p className="text-muted">Tidak ada member yang cocok</p></Card>}
+          {filtered.length > 0 && <div className="md:hidden space-y-2">
+            {filtered.map((u) => (
               <MemberCard
                 key={u.id}
                 member={u}
@@ -73,7 +100,7 @@ export function AdminTeam() {
                 onRefetch={refetch}
               />
             ))}
-          </div>
+          </div>}
 
           {/* Desktop table */}
           <Card className="hidden md:block overflow-x-auto">
@@ -92,7 +119,7 @@ export function AdminTeam() {
                 </tr>
               </thead>
               <tbody>
-                {users.map((u) => {
+                {filtered.map((u) => {
                   const acc = u.reddit_accounts?.[0];
                   return (
                     <tr key={u.id} className="border-b border-border last:border-0 hover:bg-light">

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Users, ListChecks, ClipboardCheck, Link as LinkIcon, ArrowUpRight, Trophy } from 'lucide-react';
+import { Users, ListChecks, ClipboardCheck, Link as LinkIcon, ArrowUpRight, Trophy, CheckCircle2, XCircle, TrendingUp, DollarSign } from 'lucide-react';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
 import { supabase } from '../../lib/supabase';
@@ -10,15 +10,42 @@ export function AdminDashboard() {
   const { data: stats } = useQuery({
     queryKey: ['adminStats'],
     queryFn: async () => {
-      const [users, accounts, tasks, pending, payouts] = await Promise.all([
+      const [users, accounts, tasks, pending, payouts, approved, rejected, totalPayouts, recentSignups, platformStats] = await Promise.all([
         supabase.from('users').select('id', { count: 'exact', head: true }).eq('role', 'army'),
         supabase.from('reddit_accounts').select('id', { count: 'exact', head: true }),
         supabase.from('tasks').select('id', { count: 'exact', head: true }).eq('status', 'active'),
         supabase.from('task_assignments').select('id', { count: 'exact', head: true }).eq('status', 'submitted'),
         supabase.from('payouts').select('amount', { count: 'exact' }).eq('status', 'pending'),
+        supabase.from('task_assignments').select('id', { count: 'exact', head: true }).eq('status', 'approved'),
+        supabase.from('task_assignments').select('id', { count: 'exact', head: true }).eq('status', 'rejected'),
+        supabase.from('payouts').select('amount').eq('status', 'paid'),
+        supabase.from('users').select('id', { count: 'exact', head: true })
+          .gte('created_at', new Date(Date.now() - 7 * 86400000).toISOString())
+          .eq('role', 'army'),
+        supabase.from('task_assignments').select('id, tasks!inner(task_category, target_url)')
+          .not('tasks.task_category', 'is', null),
       ]);
 
       const pendingPayoutTotal = (payouts.data || []).reduce((s: number, p: any) => s + p.amount, 0);
+      const totalPaid = (totalPayouts.data || []).reduce((s: number, p: any) => s + p.amount, 0);
+      const approvedCount = approved.count || 0;
+      const rejectedCount = rejected.count || 0;
+      const totalDecided = approvedCount + rejectedCount;
+      const completionRate = totalDecided > 0 ? Math.round((approvedCount / totalDecided) * 100) : 0;
+
+      // Platform breakdown from assignments
+      const platforms: Record<string, number> = {};
+      for (const a of (platformStats.data || [])) {
+        const url = (a as any)?.tasks?.target_url || '';
+        const cat = (a as any)?.tasks?.task_category || '';
+        let platform = 'Lainnya';
+        if (/reddit\.com/i.test(url) || cat.startsWith('reddit')) platform = 'Reddit';
+        else if (/hubspot\.com/i.test(url)) platform = 'HubSpot';
+        else if (/quora\.com/i.test(url)) platform = 'Quora';
+        else if (/facebook\.com|fb\.com/i.test(url)) platform = 'Facebook';
+        else if (/youtube\.com|youtu\.be/i.test(url)) platform = 'YouTube';
+        platforms[platform] = (platforms[platform] || 0) + 1;
+      }
 
       return {
         users: users.count || 0,
@@ -27,6 +54,12 @@ export function AdminDashboard() {
         pending: pending.count || 0,
         pendingPayouts: payouts.count || 0,
         pendingPayoutTotal,
+        approvedCount,
+        rejectedCount,
+        completionRate,
+        totalPaid,
+        recentSignups: recentSignups.count || 0,
+        platforms,
       };
     },
   });
@@ -42,6 +75,13 @@ export function AdminDashboard() {
     { label: 'Akun Reddit',  value: stats?.accounts ?? '–', icon: LinkIcon,        color: 'text-emerald-600',bg: 'bg-emerald-50' },
     { label: 'Task Aktif',   value: stats?.tasks ?? '–',    icon: ListChecks,      color: 'text-violet-600', bg: 'bg-violet-50' },
     { label: 'Approval',     value: stats?.pending ?? '–',  icon: ClipboardCheck,  color: 'text-orange-600', bg: 'bg-orange-50' },
+  ];
+
+  const analyticsCards = [
+    { label: 'Approved',       value: stats?.approvedCount ?? 0, icon: CheckCircle2, color: 'text-success', bg: 'bg-success/10' },
+    { label: 'Rejected',       value: stats?.rejectedCount ?? 0, icon: XCircle,      color: 'text-danger',  bg: 'bg-danger/10' },
+    { label: 'Completion Rate', value: `${stats?.completionRate ?? 0}%`, icon: TrendingUp, color: 'text-blue-600', bg: 'bg-blue-50' },
+    { label: 'Total Paid',     value: `Rp${(stats?.totalPaid ?? 0).toLocaleString('id-ID')}`, icon: DollarSign, color: 'text-success', bg: 'bg-success/10' },
   ];
 
   const actions = [
@@ -94,6 +134,49 @@ export function AdminDashboard() {
           </Link>
         ))}
       </div>
+
+      {/* Analytics metrics */}
+      <h2 className="text-sm font-extrabold uppercase tracking-wide text-muted mb-3 mt-6">Analytics</h2>
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+        {analyticsCards.map(({ label, value, icon: Icon, color, bg }) => (
+          <Card key={label} padding="sm">
+            <div className={`w-8 h-8 rounded-lg ${bg} ${color} grid place-items-center mb-1.5`}>
+              <Icon size={16} />
+            </div>
+            <p className="text-[10px] text-muted">{label}</p>
+            <p className="text-lg font-extrabold">{value}</p>
+          </Card>
+        ))}
+      </div>
+
+      {/* Platform breakdown */}
+      {stats?.platforms && Object.keys(stats.platforms).length > 0 && (
+        <Card padding="sm" className="mb-6">
+          <p className="text-[10px] uppercase font-bold text-muted mb-2">Platform breakdown</p>
+          <div className="flex flex-wrap gap-3">
+            {Object.entries(stats.platforms)
+              .sort((a, b) => b[1] - a[1])
+              .map(([name, count]) => (
+                <div key={name} className="text-center">
+                  <p className="text-lg font-extrabold">{count}</p>
+                  <p className="text-[10px] text-muted">{name}</p>
+                </div>
+              ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Recent signups */}
+      {(stats?.recentSignups ?? 0) > 0 && (
+        <Card padding="sm" className="mb-6 bg-blue-50 ring-1 ring-blue-200">
+          <div className="flex items-center gap-2">
+            <Users size={16} className="text-blue-600" />
+            <p className="text-sm font-bold text-blue-900">
+              {stats?.recentSignups} member baru dalam 7 hari terakhir
+            </p>
+          </div>
+        </Card>
+      )}
 
       {/* Referral leaderboard — top 10 by signups */}
       <div className="flex items-center justify-between mt-8 mb-3">
