@@ -566,7 +566,10 @@ export function AdminApprovalQueue() {
                           </a>
                         )}
                       </td>
-                      <td className="px-2 py-3 align-top text-xs">{a.reddit_accounts?.username || '-'}</td>
+                      <td className="px-2 py-3 align-top text-xs">
+                        <span className="font-semibold text-slate-900">{a.army_name || '-'}</span>
+                        <span className="block text-[10px] text-muted mt-0.5">{a.reddit_accounts?.username || ''}</span>
+                      </td>
                       <td className="px-2 py-3 align-top">
                         {hasProof ? (
                           <button
@@ -673,7 +676,10 @@ export function AdminApprovalQueue() {
                     <div className="min-w-0 flex-1">
                       <p className="font-bold text-sm leading-snug truncate">{a.tasks?.title}</p>
                       <div className="flex items-center gap-2 text-[11px] text-muted mt-0.5 flex-wrap">
-                        <span>{a.reddit_accounts?.username || '-'}</span>
+                        <span className="font-semibold text-slate-900">{a.army_name || '-'}</span>
+                        {a.reddit_accounts?.username && a.reddit_accounts.username !== a.army_name && (
+                          <span className="text-[10px] text-muted">({a.reddit_accounts.username})</span>
+                        )}
                       </div>
                       <p className="text-[11px] text-muted flex items-center gap-1 mt-0.5">
                         <Clock size={10} /> {formatSubmittedAt(a.submitted_at || a.updated_at || a.created_at)}
