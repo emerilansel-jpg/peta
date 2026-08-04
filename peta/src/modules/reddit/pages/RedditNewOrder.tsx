@@ -753,6 +753,8 @@ function ForumCommentOrderForm({
   const [bulkSubmitting, setBulkSubmitting] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [commentDrafts, setCommentDrafts] = useState<{ comment_text: string; targetUrl?: string }[]>([]);
+  const [isReply, setIsReply] = useState(false);
+  const [replyToComment, setReplyToComment] = useState('');
 
   const isBulk = bulkQueue.length > 0;
   const detectedPlatform = useMemo(() => detectForumPlatform(targetUrl), [targetUrl]);
@@ -968,6 +970,8 @@ function ForumCommentOrderForm({
         commentDrafts: wantsSuggestion
           ? (commentDrafts.length === effectiveQuantity ? commentDrafts : undefined)
           : Array.from({ length: effectiveQuantity }, () => ({ comment_text: commentText.trim() })),
+        isReply,
+        replyToComment: isReply ? replyToComment.trim() || null : null,
       },
       {
         onSuccess: (order: { id?: number } | null) => {
@@ -1325,6 +1329,32 @@ function ForumCommentOrderForm({
             rows={3}
             className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-none text-slate-900"
           />
+        </div>
+
+        <div>
+          <label className="flex items-center gap-3 cursor-pointer mb-3">
+            <input
+              type="checkbox"
+              checked={isReply}
+              onChange={(e) => { setIsReply(e.target.checked); if (!e.target.checked) setReplyToComment(''); }}
+              className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+            />
+            <span className="text-sm font-semibold text-slate-900">Reply to an existing comment</span>
+          </label>
+          {isReply && (
+            <div>
+              <label className="block text-sm font-semibold text-slate-900 mb-2">
+                URL or description of the comment to reply <span className="text-slate-400 font-normal">(required)</span>
+              </label>
+              <textarea
+                value={replyToComment}
+                onChange={(e) => setReplyToComment(e.target.value)}
+                placeholder="Paste the comment URL, or describe which comment to reply to (e.g. 'the top comment about pricing tools')"
+                rows={3}
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 resize-none text-slate-900"
+              />
+            </div>
+          )}
         </div>
 
         {!commentEnabled && (

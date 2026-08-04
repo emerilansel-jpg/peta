@@ -121,6 +121,8 @@ export interface ForumCommentOrderInput {
   notes?: string | null;
   quantity?: number;
   commentDrafts?: { comment_text: string }[];
+  isReply?: boolean;
+  replyToComment?: string | null;
 }
 
 export type ForumCommentOrderResult = { id: number } & Record<string, unknown>;
@@ -400,6 +402,8 @@ export async function createForumCommentOrder(input: ForumCommentOrderInput) {
     p_notes: input.notes ?? null,
     p_quantity: input.quantity ?? 1,
     p_comment_drafts: input.commentDrafts?.length ? input.commentDrafts : [],
+    p_is_reply: input.isReply ?? false,
+    p_reply_to: input.replyToComment ?? null,
   });
   if (error) {
     if (error.message.includes('insufficient_credits')) throw new Error('Insufficient credits. Please top up your account.');
@@ -424,6 +428,8 @@ export async function createForumCommentOrdersBulk(inputs: ForumCommentOrderInpu
       notes: input.notes ?? null,
       quantity: input.quantity ?? 1,
       comment_drafts: input.commentDrafts?.length ? input.commentDrafts : [],
+      is_reply: input.isReply ?? false,
+      reply_to: input.replyToComment ?? null,
     })),
   });
   if (error) {
