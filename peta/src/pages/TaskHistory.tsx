@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, CheckCircle2, XCircle, RotateCcw } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, RotateCcw, Search } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
@@ -14,6 +14,24 @@ import {
 import { toast } from '../components/Toast';
 
 type Tab = 'approved' | 'rejected';
+type PlatformFilter = 'all' | 'reddit' | 'forum' | 'youtube';
+
+const PLATFORM_LABELS: Record<PlatformFilter, string> = {
+  all: 'Semua',
+  reddit: 'Reddit',
+  forum: 'Forum',
+  youtube: 'YouTube',
+};
+
+function matchPlatform(a: TaskHistoryRow, f: PlatformFilter): boolean {
+  if (f === 'all') return true;
+  const cat = a.task_category || '';
+  const title = (a.task_title || '').toLowerCase();
+  if (f === 'youtube') return cat === 'youtube_upload' || title.includes('youtube');
+  if (f === 'reddit') return cat.startsWith('reddit') || title.includes('reddit') || title.includes('r/');
+  if (f === 'forum') return cat === 'forum_comment' || (!cat.startsWith('reddit') && !title.includes('reddit') && !title.includes('youtube'));
+  return true;
+}
 
 export function TaskHistory() {
   const navigate = useNavigate();
@@ -25,6 +43,8 @@ export function TaskHistory() {
     if (t === 'rejected') return 'rejected';
     return 'approved';
   });
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [platformFilter, setPlatformFilter] = React.useState<PlatformFilter>('all');
 
   React.useEffect(() => {
     (async () => {
@@ -34,14 +54,12 @@ export function TaskHistory() {
     })();
   }, [navigate]);
 
-  // Live assignments still actionable (rejected rows awaiting retry).
   const { data: myAssignments = [], isLoading: assignLoading } = useQuery<MyAssignmentRow[]>({
     queryKey: ['myAssignments', user?.id],
     queryFn: () => getMyPendingAssignments(),
     enabled: !!user?.id,
   });
 
-  // Immutable history of every approved/rejected assignment.
   const { data: taskHistory = [], isLoading: historyLoading } = useQuery<TaskHistoryRow[]>({
     queryKey: ['taskHistory', user?.id],
     queryFn: () => getMyTaskHistory(),
@@ -50,16 +68,10 @@ export function TaskHistory() {
 
   const loading = assignLoading || historyLoading;
 
-  // Live rejected assignments that still allow retry (not yet in immutable
-  // history-only state — these still mutate when the user retries).
   const liveRejected = myAssignments.filter((a) => a.status === 'rejected');
   const liveRejectedIds = new Set(liveRejected.map((a) => a.id));
-
-  // Approved rows come purely from immutable history.
   const approvedHistory = taskHistory.filter((a) => a.status === 'approved');
 
-  // Rejected rows: live (retry-eligible) first, then historical only.
-  // Live rows are the source of truth for the retry button + admin notes.
   const rejectedHistory = [
     ...liveRejected.map((a): TaskHistoryRow => ({
       id: `live-${a.id}`,
@@ -100,7 +112,17 @@ export function TaskHistory() {
     );
   }
 
-  const list = tab === 'approved' ? approvedHistory : rejectedHistory;
+  const rawList = tab === 'approved' ? approvedHistory : rejectedHistory;
+  const list = rawList.filter((a) => matchPlatform(a, platformFilter))
+    .filter((a) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (a.task_title || '').toLowerCase().includes(q);
+    });
+
+  // Stats
+  const totalApproved = approvedHistory.length;
+  const totalEarned = approvedHistory.reduce((sum, a) => sum + a.task_reward, 0);
 
   return (
     <Layout userRole="army">
@@ -116,12 +138,14 @@ export function TaskHistory() {
           </button>
           <div>
             <h1 className="text-xl sm:text-2xl font-extrabold">Riwayat Task</h1>
-            <p className="text-xs text-muted">Semua task yang sudah kamu kerjakan</p>
+            <p className="text-xs text-muted">
+              {totalApproved} task approved · Total earned Rp{totalEarned.toLocaleString('id-ID')}
+            </p>
           </div>
         </div>
 
         {/* Tab switcher */}
-        <div className="grid grid-cols-2 gap-2 mb-5">
+        <div className="grid grid-cols-2 gap-2 mb-4">
           <button
             onClick={() => setTab('approved')}
             className={`tap-shrink min-h-[48px] rounded-xl font-bold text-sm flex items-center justify-center gap-2 ${
@@ -146,32 +170,86 @@ export function TaskHistory() {
           </button>
         </div>
 
+        {/* Search */}
+        <div className="relative mb-3">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Cari task..."
+            className="w-full min-h-[44px] pl-10 pr-4 rounded-xl bg-light border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
+          />
+        </div>
+
+        {/* Platform filter chips */}
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+          {(Object.keys(PLATFORM_LABELS) as PlatformFilter[]).map((f) => (
+            <button
+              key={f}
+              onClick={() => setPlatformFilter(f)}
+              className={`tap-shrink px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition ${
+                platformFilter === f
+                  ? 'bg-primary text-white shadow-sm'
+                  : 'bg-light text-muted ring-1 ring-border hover:ring-primary/40'
+              }`}
+            >
+              {PLATFORM_LABELS[f]}
+            </button>
+          ))}
+        </div>
+
+        {/* Results count */}
+        {list.length !== rawList.length && (
+          <p className="text-[10px] text-muted mb-3">
+            {list.length} dari {rawList.length} task ditampilkan
+          </p>
+        )}
+
         {/* List */}
         {list.length === 0 ? (
           <Card className="text-center py-12">
             <div className="text-5xl mb-3">{tab === 'approved' ? '🎯' : '📭'}</div>
             <p className="font-bold">
-              {tab === 'approved' ? 'Belum ada task approved' : 'Belum ada task ditolak'}
+              {rawList.length === 0
+                ? tab === 'approved' ? 'Belum ada task approved' : 'Belum ada task ditolak'
+                : 'Tidak ada yang cocok'
+              }
             </p>
             <p className="text-sm text-muted mt-1">
-              {tab === 'approved'
-                ? 'Kerjain task pertama kamu, approved masuk sini otomatis.'
-                : 'Task yang ditolak admin bakal muncul di sini beserta alasannya.'}
+              {rawList.length === 0
+                ? tab === 'approved'
+                  ? 'Kerjain task pertama kamu, approved masuk sini otomatis.'
+                  : 'Task yang ditolak admin bakal muncul di sini beserta alasannya.'
+                : 'Coba kata kunci atau filter lain.'
+              }
             </p>
-            <Button onClick={() => navigate('/tasks')} variant="primary" size="md" className="mt-4">
-              Lihat task aktif
-            </Button>
+            {rawList.length > 0 && (
+              <Button onClick={() => { setSearchQuery(''); setPlatformFilter('all'); }} variant="primary" size="sm" className="mt-4">
+                Reset filter
+              </Button>
+            )}
+            {rawList.length === 0 && (
+              <Button onClick={() => navigate('/tasks')} variant="primary" size="md" className="mt-4">
+                Lihat task aktif
+              </Button>
+            )}
           </Card>
         ) : (
           <div className="space-y-2">
-            {tab === 'approved' && approvedHistory.map((a) => (
+            {tab === 'approved' && list.map((a) => (
               <Card key={a.id} padding="sm" className="ring-1 ring-success/25 bg-success/5">
                 <div className="flex items-center justify-between gap-3">
                   <div className="min-w-0 flex-1">
                     <p className="font-bold text-sm leading-snug truncate">{a.task_title}</p>
-                    <p className="text-[10px] text-muted mt-0.5">
-                      Selesai {new Date(a.event_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </p>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[10px] text-muted">
+                        {new Date(a.event_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      </span>
+                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-success/15 text-success uppercase">
+                        {a.task_category === 'youtube_upload' ? 'YouTube' : a.task_category?.startsWith('reddit') ? 'Reddit' : 'Forum'}
+                      </span>
+                    </div>
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-sm font-extrabold text-success money">+Rp{a.task_reward.toLocaleString('id-ID')}</p>
@@ -181,7 +259,7 @@ export function TaskHistory() {
               </Card>
             ))}
 
-            {tab === 'rejected' && rejectedHistory.map((a) => {
+            {tab === 'rejected' && list.map((a) => {
               const isLive = a.id.startsWith('live-');
               const isFinal = !a.can_retry;
               return (
@@ -200,9 +278,14 @@ export function TaskHistory() {
                           </span>
                         )}
                       </div>
-                      <p className="text-[10px] text-muted">
-                        Ditolak {new Date(a.event_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-[10px] text-muted">
+                          Ditolak {new Date(a.event_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </p>
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-danger/10 text-danger uppercase">
+                          {a.task_category === 'youtube_upload' ? 'YouTube' : a.task_category?.startsWith('reddit') ? 'Reddit' : 'Forum'}
+                        </span>
+                      </div>
                     </div>
                     <p className="text-sm font-extrabold text-muted money shrink-0 line-through">
                       Rp{a.task_reward.toLocaleString('id-ID')}

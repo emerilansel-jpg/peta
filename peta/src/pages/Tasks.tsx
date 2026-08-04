@@ -5,7 +5,7 @@ import {
   Lock, Flame, Bell, Users, MessageCircle,
   Sparkles, TrendingUp, Trophy, Clock, Gift,
   Target, ArrowRight, Copy, ChevronDown, ChevronUp, X,
-  HelpCircle, Lightbulb, Award, Zap,
+  HelpCircle, Lightbulb, Award, Zap, Search,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
@@ -94,6 +94,8 @@ export function Tasks() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [user, setUser] = React.useState<any>(null);
+  const [taskSearch, setTaskSearch] = React.useState('');
+  const [taskPlatformFilter, setTaskPlatformFilter] = React.useState<'all' | 'reddit' | 'forum' | 'youtube'>('all');
 
   React.useEffect(() => {
     (async () => {
@@ -423,8 +425,59 @@ export function Tasks() {
                 {eligibleTasks.length} tersedia
               </span>
             </div>
+
+            {/* Search + platform filter */}
+            <div className="mb-3">
+              <div className="relative mb-2">
+                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                <input
+                  type="text"
+                  value={taskSearch}
+                  onChange={(e) => setTaskSearch(e.target.value)}
+                  placeholder="Cari task..."
+                  className="w-full min-h-[44px] pl-10 pr-4 rounded-xl bg-light border border-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
+                />
+              </div>
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {(['all', 'reddit', 'forum', 'youtube'] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setTaskPlatformFilter(f)}
+                    className={`tap-shrink px-3 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition ${
+                      taskPlatformFilter === f
+                        ? 'bg-primary text-white shadow-sm'
+                        : 'bg-light text-muted ring-1 ring-border hover:ring-primary/40'
+                    }`}
+                  >
+                    {f === 'all' ? 'Semua' : f === 'reddit' ? 'Reddit' : f === 'forum' ? 'Forum' : 'YouTube'}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Filtered eligible tasks */}
+            {(() => {
+              const filtered = eligibleTasks.filter((t) => {
+                const matchSearch = !taskSearch.trim() || `${t.title || ''} ${t.description || ''}`.toLowerCase().includes(taskSearch.toLowerCase());
+                const cat = t.task_category || '';
+                const matchPlatform = taskPlatformFilter === 'all' ||
+                  (taskPlatformFilter === 'reddit' && cat.startsWith('reddit')) ||
+                  (taskPlatformFilter === 'forum' && cat === 'forum_comment') ||
+                  (taskPlatformFilter === 'youtube' && cat === 'youtube_upload');
+                return matchSearch && matchPlatform;
+              });
+
+              if (filtered.length === 0 && eligibleTasks.length > 0) {
+                return (
+                  <div className="text-center py-6 text-sm text-muted">
+                    Tidak ada task yang cocok dengan filter ini
+                  </div>
+                );
+              }
+
+              return (
             <div className="space-y-2">
-              {eligibleTasks.map((t) => {
+              {filtered.map((t) => {
                 const categoryLabel =
                   t.task_category === 'reddit_upvote' ? 'Reddit Upvote' :
                   t.task_category === 'reddit_post_thread' ? 'Reddit Post' :
@@ -448,6 +501,11 @@ export function Tasks() {
                             <span className="text-[10px] font-bold uppercase tracking-wide bg-success/10 text-success px-1.5 py-0.5 rounded-full">
                               {slotsLeft} slot
                             </span>
+                            {new Date(t.created_at).getTime() > Date.now() - 86400000 && (
+                              <span className="text-[10px] font-bold uppercase tracking-wide bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                                New
+                              </span>
+                            )}
                           </div>
                           <p className="font-bold text-sm sm:text-base leading-snug">
                             {t.title}
@@ -468,6 +526,8 @@ export function Tasks() {
                 );
               })}
             </div>
+              );
+            })()}
           </div>
         )}
 

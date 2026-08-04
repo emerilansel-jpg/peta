@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { LogOut, Home, Wallet, User as UserIcon, Menu, X, BarChart3, Users, ListChecks, ClipboardCheck, Coins, Link as LinkIcon, ShieldCheck, Megaphone, Inbox, Key, Radio, Trophy } from 'lucide-react';
+import { LogOut, Home, Wallet, User as UserIcon, Menu, X, BarChart3, Users, ListChecks, ClipboardCheck, Coins, Link as LinkIcon, ShieldCheck, Megaphone, Inbox, Key, Radio, Trophy, Bell } from 'lucide-react';
 import { getMyPendingAssignments } from '../lib/api';
 import { supabase } from '../lib/supabase';
 
@@ -330,7 +330,7 @@ export function Layout({ children, userRole = 'army' }: LayoutProps) {
 
       {/* Bottom tab nav — mobile only */}
       <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white border-t border-border safe-bottom">
-        <div className="grid grid-cols-4 h-16">
+        <div className="grid grid-cols-5 h-16">
           {armyTabs.map((t) => {
             const Icon = t.icon;
             const active = isActive(t.href);
@@ -359,6 +359,23 @@ export function Layout({ children, userRole = 'army' }: LayoutProps) {
               </Link>
             );
           })}
+          {/* Notification bell — shows rejected count (most actionable) */}
+          <Link
+            to="/task-history?tab=rejected"
+            className={`relative flex flex-col items-center justify-center gap-1 tap-shrink ${
+              isActive('/task-history') ? 'text-primary' : 'text-muted'
+            }`}
+          >
+            <div className="relative">
+              <Bell size={22} strokeWidth={2} />
+              {rejectedCount > 0 && (
+                <span className="absolute -top-1 -right-2 min-w-[16px] h-[16px] grid place-items-center text-[9px] font-extrabold text-white rounded-full px-1 bg-danger">
+                  {rejectedCount > 9 ? '9+' : rejectedCount}
+                </span>
+              )}
+            </div>
+            <span className="text-[11px] font-medium">Notif</span>
+          </Link>
         </div>
       </nav>
     </div>
