@@ -1210,6 +1210,12 @@ export async function adminUpdateTaskStatus(taskId: string, status: 'draft' | 'a
   if (error) throw error;
 }
 
+export async function adminDeleteTask(taskId: string): Promise<{ ok: boolean; error?: string; message?: string }> {
+  const { data, error } = await supabase.rpc('admin_delete_task', { p_task_id: taskId });
+  if (error) throw error;
+  return data;
+}
+
 // Army-side: list tasks this user can actually do right now (filtered server-side).
 export type EligibleTask = {
   id: string;

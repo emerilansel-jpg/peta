@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Plus, X, Download, ExternalLink, Zap, Pencil, Calendar, ClipboardList, ShieldCheck, Clock3, Users, GripVertical, Eye, EyeOff } from 'lucide-react';
+import { Plus, X, Download, ExternalLink, Zap, Pencil, Calendar, ClipboardList, ShieldCheck, Clock3, Users, GripVertical, Eye, EyeOff, Trash2 } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -12,7 +12,7 @@ import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
 import { toast } from '../../components/Toast';
-import { listPendingRedditOrders, importRedditOrder, adminUpdateTask, adminCreateTask, adminUpdateTaskStatus } from '../../lib/api';
+import { listPendingRedditOrders, importRedditOrder, adminUpdateTask, adminCreateTask, adminUpdateTaskStatus, adminDeleteTask } from '../../lib/api';
 import { cleanInternalText } from '../../lib/internalText';
 
 // Convert ISO timestamp to local-datetime input format (YYYY-MM-DDTHH:mm).
@@ -85,11 +85,13 @@ function SortableTaskItem({
   onEdit,
   onToggleStatus,
   onToggleHidden,
+  onDelete,
 }: {
   task: TaskRow;
   onEdit: (t: TaskRow) => void;
   onToggleStatus: (t: TaskRow) => void;
   onToggleHidden: (t: TaskRow) => void;
+  onDelete: (t: TaskRow) => void;
 }) {
   const {
     attributes,
@@ -222,6 +224,13 @@ function SortableTaskItem({
                 >
                   {task.is_hidden ? <><Eye size={12} /> Tampilkan</> : <><EyeOff size={12} /> Sembunyikan</>}
                 </button>
+                <button
+                  onClick={() => onDelete(task)}
+                  className="text-danger font-bold hover:underline flex items-center gap-1"
+                  title="Hapus task permanen"
+                >
+                  <Trash2 size={12} /> Hapus
+                </button>
               </div>
             </div>
           </div>
@@ -350,6 +359,22 @@ export function AdminTaskQueue() {
       refetch();
     },
     onError: () => toast.error('Gagal update visibilitas'),
+  });
+
+  // Delete task with confirmation modal
+  const [deleteTarget, setDeleteTarget] = React.useState<TaskRow | null>(null);
+  const deleteMutation = useMutation({
+    mutationFn: async (taskId: string) => adminDeleteTask(taskId),
+    onSuccess: (data) => {
+      if (data?.ok) {
+        toast.success('Task berhasil dihapus');
+        setDeleteTarget(null);
+        refetch();
+      } else {
+        toast.error(data?.message || 'Gagal menghapus task');
+      }
+    },
+    onError: (e: any) => toast.error(e?.message || 'Gagal menghapus task'),
   });
 
   // Drag-and-drop sensors: pointer + touch so it works on desktop and mobile.
@@ -657,6 +682,7 @@ export function AdminTaskQueue() {
                     }
                   }}
                   onToggleHidden={(task) => toggleHidden.mutate({ id: task.id, hidden: !task.is_hidden })}
+                  onDelete={(task) => setDeleteTarget(task)}
                 />
               ))}
             </div>
@@ -1357,6 +1383,39 @@ export function AdminTaskQueue() {
                   : blastMode === 'test'
                   ? 'Kirim Test'
                   : 'Kirim & Aktifkan'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation modal */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+            <h3 className="mb-2 text-lg font-bold text-gray-900">
+              🗑️ Hapus Task?
+            </h3>
+            <p className="mb-4 text-sm text-gray-600">
+              Yakin hapus task <span className="font-semibold">"{deleteTarget.title}"</span>?
+              Semua data task dan assignment terkait akan dihapus permanen.
+              Tindakan ini tidak bisa dibatalkan.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setDeleteTarget(null)}
+                className="flex-1 rounded-lg border px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => {
+                  if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+                }}
+                disabled={deleteMutation.isPending}
+                className="flex-1 rounded-lg bg-danger px-4 py-2 text-sm font-medium text-white hover:bg-danger/90 disabled:opacity-50"
+              >
+                {deleteMutation.isPending ? 'Menghapus...' : 'Ya, Hapus'}
               </button>
             </div>
           </div>
