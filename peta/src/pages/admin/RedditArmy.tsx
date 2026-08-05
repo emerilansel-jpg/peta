@@ -20,6 +20,7 @@ import {
   adminInviteRedditArmy,
   adminRevokeRedditArmyInvitation,
   adminTriggerDailySync,
+  listAvailableWarmedAccounts,
   type RedditArmyAdminStats,
   type RedditArmyProfile,
   type ChallengeLevel,
@@ -144,6 +145,10 @@ function InvitationsTab() {
   const queryClient = useQueryClient();
   const [userId, setUserId] = useState('');
   const [cohort, setCohort] = useState<'new_self_register' | 'warmed_purchased'>('warmed_purchased');
+  const [warmedAccountId, setWarmedAccountId] = useState('');
+  const [editTarget, setEditTarget] = useState<RedditArmyProfile | null>(null);
+  const [editCohort, setEditCohort] = useState<'new_self_register' | 'warmed_purchased'>('new_self_register');
+  const [editWarmedAccountId, setEditWarmedAccountId] = useState('');
 
   const { data: members = [], isLoading } = useQuery({
     queryKey: ['ra-admin-members'],
@@ -151,11 +156,18 @@ function InvitationsTab() {
     staleTime: 30_000,
   });
 
+  const { data: availableAccounts = [] } = useQuery({
+    queryKey: ['availableWarmedAccounts'],
+    queryFn: listAvailableWarmedAccounts,
+    enabled: cohort === 'warmed_purchased',
+  });
+
   const inviteMut = useMutation({
-    mutationFn: () => adminInviteRedditArmy(userId.trim(), cohort),
+    mutationFn: () => adminInviteRedditArmy(userId.trim(), cohort, cohort === 'warmed_purchased' ? warmedAccountId || null : null),
     onSuccess: () => {
       toast.success(`User ${userId.trim().slice(0, 8)} diundang (${cohort === 'warmed_purchased' ? 'Warmed' : 'New'})`);
       setUserId('');
+      setWarmedAccountId('');
       queryClient.invalidateQueries({ queryKey: ['ra-admin-members'] });
       queryClient.invalidateQueries({ queryKey: ['ra-admin-stats'] });
     },
@@ -166,10 +178,28 @@ function InvitationsTab() {
     mutationFn: (uid: string) => adminRevokeRedditArmyInvitation(uid),
     onSuccess: () => {
       toast.success('Undangan dicabut');
+      setEditTarget(null);
       queryClient.invalidateQueries({ queryKey: ['ra-admin-members'] });
       queryClient.invalidateQueries({ queryKey: ['ra-admin-stats'] });
     },
     onError: (err: Error) => toast.error(`Gagal revoke: ${err.message}`),
+  });
+
+  const editMut = useMutation({
+    mutationFn: () => {
+      if (!editTarget) return Promise.resolve({ ok: true, error: 'no target' });
+      // Re-invite with new cohort + warmed account (admin_invite_reddit_army handles update if status='not_started')
+      return adminInviteRedditArmy(editTarget.user_id, editCohort, editCohort === 'warmed_purchased' ? editWarmedAccountId || null : null);
+    },
+    onSuccess: (res) => {
+      if (res?.ok) {
+        toast.success('Undangan diupdate');
+        setEditTarget(null);
+        queryClient.invalidateQueries({ queryKey: ['ra-admin-members'] });
+        queryClient.invalidateQueries({ queryKey: ['ra-admin-stats'] });
+      }
+    },
+    onError: (err: Error) => toast.error(`Gagal update: ${err.message}`),
   });
 
   // Pending invitations = profile exists but program_status='not_started'
@@ -216,10 +246,30 @@ function InvitationsTab() {
               </button>
             </div>
           </div>
+          {cohort === 'warmed_purchased' && (
+            <div>
+              <span className="text-xs font-medium text-gray-600 mb-1 block">Pilih Akun Reddit Warmed:</span>
+              <select
+                value={warmedAccountId}
+                onChange={(e) => setWarmedAccountId(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300"
+              >
+                <option value="">— Pilih akun —</option>
+                {availableAccounts.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    u/{a.username} · {a.karma.toLocaleString('id-ID')} karma · {a.account_age_days}d
+                  </option>
+                ))}
+              </select>
+              {availableAccounts.length === 0 && (
+                <p className="text-[10px] text-warning mt-1">Tidak ada akun warmed tersedia. Tambah akun Reddit dulu di /admin/accounts.</p>
+              )}
+            </div>
+          )}
           <Button
             fullWidth
             loading={inviteMut.isPending}
-            disabled={!userId.trim()}
+            disabled={!userId.trim() || (cohort === 'warmed_purchased' && !warmedAccountId)}
             onClick={() => inviteMut.mutate()}
           >
             Kirim Undangan
@@ -253,17 +303,54 @@ function InvitationsTab() {
                       </span>
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    loading={revokeMut.isPending}
-                    onClick={() => {
-                      if (confirm('Cabut undangan ini?')) revokeMut.mutate(m.user_id);
-                    }}
-                  >
-                    Revoke
-                  </Button>
+                  <div className="flex gap-1 shrink-0">
+                    <Button size="sm" variant="ghost" onClick={() => {
+                      setEditTarget(m);
+                      setEditCohort(m.cohort as any || 'new_self_register');
+                      setEditWarmedAccountId(m.warmed_account_id || '');
+                    }}>
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      loading={revokeMut.isPending}
+                      onClick={() => {
+                        if (confirm('Cabut undangan ini?')) revokeMut.mutate(m.user_id);
+                      }}
+                    >
+                      Revoke
+                    </Button>
+                  </div>
                 </div>
+                {/* Inline edit form */}
+                {editTarget?.user_id === m.user_id && (
+                  <div className="mt-3 p-3 bg-gray-50 rounded-lg space-y-2 border border-gray-200">
+                    <p className="text-xs font-bold text-gray-700">Edit Undangan</p>
+                    <div className="flex gap-2">
+                      <button onClick={() => setEditCohort('warmed_purchased')} className={`px-2 py-1 rounded text-xs font-medium border ${editCohort === 'warmed_purchased' ? 'border-success bg-success/10 text-success' : 'border-gray-200'}`}>
+                        ✅ Warmed
+                      </button>
+                      <button onClick={() => setEditCohort('new_self_register')} className={`px-2 py-1 rounded text-xs font-medium border ${editCohort === 'new_self_register' ? 'border-blue-500 bg-blue-50 text-blue-600' : 'border-gray-200'}`}>
+                        🆕 New
+                      </button>
+                    </div>
+                    {editCohort === 'warmed_purchased' && (
+                      <select value={editWarmedAccountId} onChange={(e) => setEditWarmedAccountId(e.target.value)} className="w-full px-2 py-1 text-xs rounded border border-gray-300">
+                        <option value="">— Pilih akun —</option>
+                        {availableAccounts.map((a) => (
+                          <option key={a.id} value={a.id}>u/{a.username} · {a.karma} karma</option>
+                        ))}
+                      </select>
+                    )}
+                    <div className="flex gap-2">
+                      <Button size="sm" onClick={() => editMut.mutate()} loading={editMut.isPending} disabled={editCohort === 'warmed_purchased' && !editWarmedAccountId}>
+                        Simpan
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditTarget(null)}>Batal</Button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>

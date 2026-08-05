@@ -1840,14 +1840,23 @@ export async function getRedditArmyAdminStats(): Promise<RedditArmyAdminStats | 
 /** Admin invite a user into Reddit Army with a specific cohort. */
 export async function adminInviteRedditArmy(
   userId: string,
-  cohort: RedditArmyCohort
+  cohort: RedditArmyCohort,
+  warmedAccountId?: string | null
 ): Promise<{ ok: boolean; error?: string }> {
   const { error } = await supabase.rpc('admin_invite_reddit_army', {
     p_user_id: userId,
     p_cohort: cohort,
+    p_warmed_account_id: warmedAccountId || null,
   });
   if (error) return { ok: false, error: error.message };
   return { ok: true };
+}
+
+/** List Reddit accounts available as warmed accounts (not yet linked to active army profiles). */
+export async function listAvailableWarmedAccounts(): Promise<{ id: string; username: string; karma: number; account_age_days: number; level: number }[]> {
+  const { data, error } = await supabase.rpc('list_available_warmed_accounts');
+  if (error) throw error;
+  return (data || []) as { id: string; username: string; karma: number; account_age_days: number; level: number }[];
 }
 
 /** Admin revoke a pending invitation (status must be 'not_started'). */
