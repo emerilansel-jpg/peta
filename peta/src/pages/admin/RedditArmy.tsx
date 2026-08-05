@@ -159,7 +159,7 @@ function InvitationsTab() {
   const { data: availableAccounts = [] } = useQuery({
     queryKey: ['availableWarmedAccounts'],
     queryFn: listAvailableWarmedAccounts,
-    enabled: cohort === 'warmed_purchased',
+    enabled: cohort === 'warmed_purchased' || (editTarget !== null && editCohort === 'warmed_purchased'),
   });
 
   const inviteMut = useMutation({
@@ -338,7 +338,9 @@ function InvitationsTab() {
                     {editCohort === 'warmed_purchased' && (
                       <select value={editWarmedAccountId} onChange={(e) => setEditWarmedAccountId(e.target.value)} className="w-full px-2 py-1 text-xs rounded border border-gray-300">
                         <option value="">— Pilih akun —</option>
-                        {availableAccounts.map((a) => (
+                        {availableAccounts
+                          .filter((a) => a.id !== m.warmed_account_id) // exclude current assignment
+                          .map((a) => (
                           <option key={a.id} value={a.id}>u/{a.username} · {a.karma} karma</option>
                         ))}
                       </select>
