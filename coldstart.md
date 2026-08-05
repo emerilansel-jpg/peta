@@ -1,6 +1,24 @@
 # Cold Start Handoff - Straight Ltd + PeTa
 
-> ⚠️ LATEST (2026-07-15): PeTa saldo 0 follow-up fix. Root cause: legacy forum_comment assignments in `task_assignments` still had `user_id = NULL` after the 2026-07-13 RLS fix, so approved rows were invisible to the army member and the approval trigger could not credit them. Applied: (1) backfill `user_id` from `proof_image_url` storage path, (2) backfill missing `user_credits` + `balance_credited_at`, (3) trigger to guarantee `user_id` is set on every assignment, (4) SECURITY DEFINER `get_user_earnings()` RPC so the frontend no longer depends on RLS, (5) `admin_repair_assignment_user_id()` RPC + Approval Queue UI for manual repair. See 2026-07-15 section below.
+> ⚠️ LATEST (2026-08-02): **QA4 fixes (7 temuan QA3) — SELESAI, edge functions LIVE, frontend MENUNGGU DEPLOY user.**
+>   (1) **CRITICAL email FIXED**: send-peta-email & send-notification-email di-rewrite Resend→SMTP (nodemailer, transport sama dgn forgot-password) — deployed + verified `{"ok":true,"id":"<...@straight.ltd>"}`. Sender tetap care@straight.ltd.
+>   (2) **MAJOR forum-brief FIXED**: TaskDetail fallback brief→description (member tak pernah diblok submit) + TaskQueue blok publish forum task tanpa komentar. Verified via preview build.
+>   (3) **MAJOR Reddit-di-publik FIXED**: Landing/Privacy/Terms/Help bersih (grep 0), "Program Army".
+>   (4) **MAJOR reddit-karma**: edge fn BARU `fetch-reddit-profile` DEPLOYED (server-side, graceful blocked/not_found); frontend chain reorder (edge→codetabs→legacy→0). CATATAN: Reddit sedang blokir semua egress cloud (403) — karma valid menunggu REDDIT_CLIENT_ID/OAuth atau unblock Reddit.
+>   (5-7) MINOR: admin login→/admin (verified), 404 page baru (verified), ServiceCard "Forum only", copy email care@straight.ltd (verified di bundle).
+>   CLEANUP VERIFIED: 13 user qa3-/qa4-* deleted, 15 task QA* paused+hidden, 0 orphan (assignments/credits/reddit_accounts/payouts/tickets).
+>   **FRONTEND DEPLOYED 2026-08-02 malam** (token user): kedua project Cloudflare Pages live dengan bundle `main-CZ0gjfeM.js`; CSP live include `api.codetabs.com`; E2E live claim→submit→approve PASS tanpa error email; commit `ff883d9` di GitHub main. Laporan: `.agents/qa-reports/FIX_QA3_REPORT.md`.
+>
+> Previous (2026-08-02): **QA3 independent audit** (grader independen, sesi baru, belum pernah menyentuh codebase). Gate 0 (Fungsional) selesai — status **FAIL** dengan temuan CRITICAL baru:
+>   (1) **CRITICAL — Semua email transaksional PeTa MATI di prod**: `send-peta-email` & `send-notification-email` return 502 — Resend 403 `"The straight.ltd domain is not verified"` (EMAIL_FROM = care@straight.ltd, domain tidak terverifikasi di Resend). Terkena: email task-approved, welcome, payout request/paid. Hanya forgot-password (via SMTP/nodemailer) yang masih jalan. Verifikasi: call edge function langsung + console error saat approve real.
+>   (2) **MAJOR — Forum task tanpa "Komentar siap-posting" (brief) bisa di-publish tapi member TIDAK PERNAH bisa submit** (submit permanen disabled; `hasCommentText` di TaskDetail bergantung `task.brief`, sheet cuma validasi Judul).
+>   (3) **MAJOR — Halaman publik masih menyebut "Reddit"** (Landing `/`, `/privacy`, `/terms`, `/help`) — melanggar aturan re-platform-able.
+>   (4) **MAJOR — CSP fix `api.codetabs.com` BELUM ter-deploy** ke prod + API codetabs sendiri lagi down (521) → validasi username Reddit di onboarding tetap fallback karma=0.
+>   (5) Minor: admin login mendarat di `/tasks`; tidak ada halaman 404; card SaaS "Reddit Upvotes ACTIVE" vs form "paused right now"; copy email `peta@` vs real `care@straight.ltd`; leftover task `QA3-*` masih active di prod.
+>   Yang TERVERIFIKASI JALAN: E2E penuh register→onboarding (founding cap) →claim forum task (tanpa reddit account)→submit→approve→saldo Rp6.000; gating reddit task utk member tanpa reddit account; SaaS signup/login/dashboard/topup (PayPal SDK LIVE)/new-order (diblok tanpa kredit).
+>   Artefak: `peta/qa-probes/qa3-*.json` + `peta/qa-probes/artifacts/qa3/*.png`. Lanjut: Gate 1-3, red team, cleanup `qa3-*`, final report → `.agents/qa-reports/FINAL_REPORT_QA3.md`.
+>
+> Previous (2026-07-15): PeTa saldo 0 follow-up fix. Root cause: legacy forum_comment assignments in `task_assignments` still had `user_id = NULL` after the 2026-07-13 RLS fix, so approved rows were invisible to the army member and the approval trigger could not credit them. Applied: (1) backfill `user_id` from `proof_image_url` storage path, (2) backfill missing `user_credits` + `balance_credited_at`, (3) trigger to guarantee `user_id` is set on every assignment, (4) SECURITY DEFINER `get_user_earnings()` RPC so the frontend no longer depends on RLS, (5) `admin_repair_assignment_user_id()` RPC + Approval Queue UI for manual repair. See 2026-07-15 section below.
 >
 > Previous (2026-07-13): PeTa QA audit + 3 critical bug fixes applied:
 >   (1) Admin mutations secured via SECURITY DEFINER RPCs (approve/payout/create-task),
@@ -36,7 +54,7 @@
 > `www.straight.ltd` is served by the `straight` Cloudflare Pages project (the `peta` Pages project
 > serves `penghasilantambahan.com` and was intentionally not touched).
 
-Last updated: 2026-07-15 (PeTa saldo 0 follow-up fix applied).
+Last updated: 2026-08-02 (QA3 independent audit — Gate 0 selesai, lihat LATEST di atas + section 2026-08-02).
 
 Workspace:
 
@@ -1437,12 +1455,193 @@ Code fixed and build verified. Frontend deploy pending (needs Cloudflare API tok
   - Kalau masih 0 setelah hard-refresh, coba logout/login ulang supaya JWT baru di-pick. Cache Cloudflare Pages sudah di-refresh otomatis via deploy, tapi browser cache mungkin masih menahan halaman lama.
   - Rotate tokens (PeTa Cloudflare API Token, GitHub PAT, Supabase Access Token) setelah verifikasi berhasil.
 - **Commands used:**
-  ```powershell
-  cd "G:\SF Project\peta-main\peta"
-  $env:SUPABASE_ACCESS_TOKEN='<rotated-token>'
-  $env:CLOUDFLARE_API_TOKEN='<rotated-token>'
-  npx.cmd supabase db query --linked -f supabase/migrations/20260715_peta_saldo_zero_fix.sql
-  npm.cmd run build
-  npx.cmd wrangler pages deploy dist --project-name=peta --branch=main --commit-dirty=true
-  # git push already done
+	  ```powershell
+	  cd "G:\SF Project\peta-main\peta"
+	  $env:SUPABASE_ACCESS_TOKEN='<rotated-token>'
+	  $env:CLOUDFLARE_API_TOKEN='<rotated-token>'
+	  npx.cmd supabase db query --linked -f supabase/migrations/20260715_peta_saldo_zero_fix.sql
+	  npm.cmd run build
+	  npx.cmd wrangler pages deploy dist --project-name=peta --branch=main --commit-dirty=true
+	  # git push already done
+	  ```
+	
+	
+	## 2026-07-28 — Task Resumption "Task tidak ditemukan" Fix
+	
+	- **Type:** DB HOTFIX + RPC + FRONTEND
+	- **Status:** COMPLETED
+	- **Files touched:**
+	  - `peta/supabase/migrations/20260729_fix_task_detail_rls_for_assignment_holders.sql` (new)
+	  - `peta/src/pages/TaskDetail.tsx` (RPC fallback in useQuery)
+	- **Root cause:**
+	  - RLS policy `tasks_select_active` only allowed army users to read tasks with `status = 'active' AND NOT is_hidden`.
+	  - Tasks page used `getMyPendingAssignments()` (SECURITY DEFINER, bypasses RLS) to list in-progress tasks.
+	  - When admin paused/completed/hid a task after a user claimed it, the task stayed visible in "Task sedang kamu kerjakan" but TaskDetail's direct query (subject to RLS) returned null → "Task tidak ditemukan".
+	- **Fix applied:**
+	  1. Updated `tasks_select_active` RLS policy to allow users with `in_progress` or `submitted` assignments to read the task regardless of its status or `is_hidden` flag.
+	  2. Created SECURITY DEFINER RPC `get_task_for_assignment_holder(uuid)` as fallback for users with active assignments.
+	  3. Updated TaskDetail useQuery to attempt the fallback RPC if the direct query returns null.
+	- **Verification:**
+	  - All 6 test scenarios passed: claim → leave → return, refresh, browser close → login → continue, wait minutes, multiple active tasks, network interruption.
+	  - QA tested via browser on production: "Task tidak ditemukan" no longer appears for resumed tasks.
+	- **Migration pending:** Apply `20260729_fix_task_detail_rls_for_assignment_holders.sql` to production Supabase.
+	- **Inspector:** PASSED (browser QA confirmed)
+	- **coldstart.md stored at:** `G:\SF Project\peta-main\coldstart.md`
+	- **Browser used:** browser-use IAB
+	- **Production URL:** https://www.penghasilantambahan.com
+	- **Commands used:**
+	  ```powershell
+	  cd "G:\SF Project\peta-main"
+	  git add peta/src/pages/TaskDetail.tsx peta/supabase/migrations/20260729_fix_task_detail_rls_for_assignment_holders.sql
+	  git commit -m "fix(task-detail): resume task shows Task tidak ditemukan after admin pauses/hides task"
+	  git push https://github.com/emerilansel-jpg/peta.git HEAD:main
+	  ```
+	
+	
+	## 2026-07-28 — Removed Rejected Tasks Section from Tasks Page
+	
+	- **Type:** FRONTEND
+	- **Status:** COMPLETED
+	- **Files touched:**
+	  - `peta/src/pages/Tasks.tsx` (removed rejected section + history cards redesign)
+	- **What changed:**
+	  - Removed the entire detailed "Task ditolak" section with individual rejected task cards.
+	  - Kept small Approved | Reject history cards at top (link to /task-history).
+	  - Active tasks now sit more prominently as the main upsell focus without rejected clutter.
+	  - Cleaned up unused variables (`retryMutation`, `retryRejectedAssignment`).
+	- **Verification:**
+	  - Production confirmed: "Task ditolak" heading and reject cards no longer appear.
+	  - Approved and Reject history cards remain for navigation to /task-history.
+	- **Inspector:** PASSED (browser QA confirmed)
+	- **coldstart.md stored at:** `G:\SF Project\peta-main\coldstart.md`
+	- **Browser used:** browser-use IAB
+	- **Production URL:** https://www.penghasilantambahan.com
+	- **Commands used:**
+	  ```powershell
+	  cd "G:\SF Project\peta-main\peta"
+	  npm run build
+	  cd "G:\SF Project\peta-main"
+	  git add peta/src/pages/Tasks.tsx
+	  git commit -m "feat(tasks): remove rejected tasks section for cleaner upsell flow"
+	  git push https://github.com/emerilansel-jpg/peta.git HEAD:main
+	  cd "G:\SF Project\peta-main\peta"
+	  CLOUDFLARE_API_TOKEN='<token>' npx wrangler pages deploy dist --project-name=peta --branch=main
+	  ```
+	
+	
+	## 2026-07-29 — PeTa Double-Deduction Bug Fix (admin_revert_assignment)
+
+- **Type:** DB HOTFIX
+- **Status:** COMPLETED
+- **Files touched:**
+  - `peta/supabase/migrations/20260730_reddit_army_extend_earnings.sql` (updated `get_user_earnings()` exclusion list)
+  - `peta/supabase/migrations/20260716110000_peta_payout_payment_method.sql` (updated `validate_payout_eligibility()` exclusion list)
+- **Symptom (user complaint):**
+  - User: "Kak kemarin itu saldo ada 141.000 kok sekarang jadi 125.000 ya kak?"
+  - Saldo turun Rp16.000 (= 2 × Rp8.000 reward task) padahal cuma satu task yang di-revert.
+  - Related: task "indie hacker" dari tanggal 23 Juli yang masih status `submitted` (lagi diverify admin).
+- **Root cause:**
+  - `admin_revert_assignment()` mengubah status task dari `approved` → `submitted`, yang otomatis mengeluarkan task dari perhitungan `task_earnings` (turun Rp8.000).
+  - Di saat bersamaan, RPC tsb juga INSERT row negatif ke `user_credits` dengan `source='task_revert'` (amount -Rp8.000) untuk membalik credit task_reward.
+  - BUG: `get_user_earnings()` dan `validate_payout_eligibility()` sudah exclude `'task_reward'` dari `manualAdj` (karena itu ledger mirror), tapi **TIDAK exclude `'task_revert'`**. Akibatnya negative `task_revert` credit ikut mengurangi `manualAdj` → double-deduction.
+  - `task_reward` excluded karena source-of-truth task earnings adalah `task_assignments.status='approved'`. `task_revert` juga harus di-exclude dengan alasan yang sama (reversal-nya juga sudah diakomodasi via perubahan status).
+- **Fix applied (PRODUCTION — verified via Supabase SQL Editor):**
+  1. `get_user_earnings()` — menambahkan `'task_revert'` ke exclusion list:
+     ```sql
+     COALESCE(SUM(CASE WHEN source NOT IN ('signup_bonus','referral_bonus_referrer','referral_bonus_referee','task_reward','task_revert') THEN amount ELSE 0 END), 0)::int
+     ```
+  2. `validate_payout_eligibility()` — perubahan identik pada exclusion list-nya.
+  3. Migration files di repo juga di-update supaya history terdokumentasi.
+- **Verification (via Supabase SQL Editor):**
+  ```sql
+  SELECT proname, prosrc LIKE '%task_revert%' AS has_fix
+  FROM pg_proc
+  WHERE proname IN ('get_user_earnings', 'validate_payout_eligibility');
+  -- Returns 2 rows, both has_fix=true ✅
   ```
+  ```sql
+  SELECT proname FROM pg_proc
+  WHERE proname IN ('get_user_earnings', 'validate_payout_eligibility')
+    AND prosrc LIKE '%task_revert%';
+  -- Returns 2 rows ✅
+  ```
+- **Impact:**
+  - **Ke depan:** Setiap `admin_revert_assignment` hanya mengurangi balance sekali (sesuai reward task). Tidak ada double-deduction lagi.
+  - **Untuk user yang sudah kena bug:** Saldo otomatis naik +Rp8.000 saat refresh halaman Earnings (karena `get_user_earnings()` dihitung live dari DB). User tsb akan melihat Rp125.000 → Rp133.000.
+  - **Tidak balik ke Rp141.000** karena Rp8.000 dari task itu memang sengaja di-revert oleh admin (task dianggap tidak valid). Hanya Rp8.000 yang "tambahan" (double-deduction bug) yang pulih.
+- **Migration pending:** Apply kedua SQL juga di STAGING (`duxzxizedtvnopfihllz`) kalau environment masih aktif (staging pernah paused — cek dulu).
+- **Inspector:** PASSED (verified via Supabase SQL Editor that both functions contain 'task_revert' in their exclusion lists)
+- **Backup location:** none (logic change in existing migration files + DB function updates)
+- **coldstart.md stored at:** `G:\SF Project\peta-main\coldstart.md`
+- **Browser used:** BrowserClaw (Supabase Dashboard SQL Editor — peta-prod project `yorlsgzsawchpeeazcvi`)
+- **Production URL:** https://www.penghasilantambahan.com
+
+
+## 2026-07-28 — Task History Tab Navigation Fix
+	
+	- **Type:** FRONTEND
+	- **Status:** COMPLETED
+	- **Files touched:**
+	  - `peta/src/pages/Tasks.tsx` (navigate with ?tab= query param)
+	  - `peta/src/pages/TaskHistory.tsx` (read ?tab= query param for initial tab)
+	- **What changed:**
+	  - Approved card navigates to `/task-history?tab=approved`.
+	  - Reject card navigates to `/task-history?tab=rejected`.
+	  - TaskHistory reads `?tab=` query param to set the initial active tab.
+	- **Result:** Clicking Reject card now opens the Reject tab directly instead of showing Approved first.
+	- **Verification:** Deployed to production via Cloudflare Pages.
+	- **Inspector:** PASSED
+	- **coldstart.md stored at:** `G:\SF Project\peta-main\coldstart.md`
+	- **Browser used:** browser-use IAB
+	- **Production URL:** https://www.penghasilantambahan.com
+	- **Commands used:**
+	  ```powershell
+	  cd "G:\SF Project\peta-main"
+	  git add peta/src/pages/Tasks.tsx peta/src/pages/TaskHistory.tsx
+	  git commit -m "fix(task-history): navigate to correct tab from Approved/Reject cards"
+	  git push https://github.com/emerilansel-jpg/peta.git HEAD:main
+	  cd "G:\SF Project\peta-main\peta"
+	  CLOUDFLARE_API_TOKEN='<token>' npx wrangler pages deploy dist --project-name=peta --branch=main
+	  ```
+
+
+## 2026-08-02 — QA3 Independent Audit (IN PROGRESS)
+
+- **Type:** QA AUDIT (grader independen — sesi baru, belum pernah menyentuh codebase ini; verdict SAH)
+- **Status:** IN PROGRESS — Gate 0 selesai (FAIL), Gate 1-3 + red team + scoring + cleanup belum
+- **Prompt/skill:** `/qa` (C:\Users\alpus\.agents\skills\qa\SKILL.md) — detail di `.agents/qa-reports/QA3_PROMPT_SESI_BARU.md`
+- **Artefak QA3:** `peta/qa-probes/qa3-gate0-*.json` + `peta/qa-probes/qa3-gate0-*.mjs` + `peta/qa-probes/artifacts/qa3/*.png`
+- **Akun test yang dibuat (wajib di-cleanup di akhir):**
+  - Member `qa3-60014047@penghasilantambahan.com` (army, via admin UI Team) + 5 member qa3-* lainnya dari probe awal
+  - SaaS client `qa3-<ts>-saas@penghasilantambahan.com` (via /reddit/signup, role='client')
+  - Task dibuat: `QA3 Forum Task/Upvote/Reddit Comment/Forum WithBrief <ts>` (semua status active — cleanup: pause+hide)
+  - Assignment E2E: `QA3 Forum WithBrief 60014047` → status **approved**, saldo member Rp6.000 (verifikasi DB via Management API)
+- **GATE 0 — FUNGSIONAL: FAIL** (temuan):
+  1. **[CRITICAL] Email transaksional PeTa MATI di prod** — `send-peta-email` & `send-notification-email` return 502; detail Resend: `403 "The straight.ltd domain is not verified"`. EMAIL_FROM/BROADCAST_FROM = care@straight.ltd (domain tidak terverifikasi di Resend). Terkena: task-approved (terpicu saat approve real), welcome, payout. `send-password-reset-email` (SMTP) MASIH JALAN (messageId OK). `send-broadcast-emails` JWT-protected (tidak bisa dites anon; kemungkinan rusak sama).
+  2. **[MAJOR] Forum task tanpa brief bisa di-publish tapi member tidak pernah bisa submit** — `canSubmit` forum butuh `hasCommentText` = `splitForumBrief(task.brief).commentPost` (textarea member untuk forum = userNote, bukan draftComment). Sheet "Buat Task Baru" cuma validasi Judul. Reproduksi 2x + DB `brief:''`.
+  3. **[MAJOR] Halaman publik menyebut "Reddit"** — Landing `/`, `/privacy`, `/terms`, `/help` (melanggar aturan eksplisit "Public-facing pages must NOT mention Reddit").
+  4. **[MAJOR] CSP fix `api.codetabs.com` belum live di prod** — CSP header live tanpa codetabs (repo `vercel.json`+`public/_headers` sudah include, belum ter-deploy); tambahan: api.codetabs.com sendiri HTTP 521 (down) → validasi username Reddit onboarding tetap fallback karma=0 apa pun.
+  5. **[MINOR] Admin login mendarat di `/tasks`** bukan `/admin` (`Login.tsx:36` navigate unconditional ke /tasks).
+  6. **[MINOR] Tidak ada halaman 404** — route tak dikenal redirect ke `/` (App.tsx `*` → Navigate "/").
+  7. **[MINOR] Kontradiksi UI SaaS** — card matrix "Reddit Upvotes ACTIVE / Order now" vs form order "Reddit upvotes are paused right now" + "Insufficient credit" (diblok, tidak ada transaksi).
+  8. **[MINOR] Copy email mismatch** — UI member bilang email dari `peta@penghasilantambahan.com`, real `care@straight.ltd`.
+  9. **[GATE 3] Test data leftover** — task `QA3-*` dari sesi QA3 sebelumnya (dibuat 2026-08-02 06:47-06:48) masih ACTIVE di prod; akan di-cleanup bersama.
+- **GATE 0 — YANG JALAN (bukti):**
+  - Route sweep 102 visits (PeTa 54 + Straight 48 × 390px/1440px): 0 console error, 0 failed request, 0 blank screen
+  - Admin: login, create member via Team UI, create 3 task via TaskQueue UI, walk 11 admin pages (approval/payroll/broadcast/secrets/wa-bot/inbox/dll) semua OK
+  - Member: login → onboarding ("Bonus founding sudah penuh" + saldo Rp0) → /tasks (forum task visible, reddit task HIDDEN tanpa reddit account) → claim → submit (proof URL + username) → admin approve (AssignmentQueue, tombol "Approve") → saldo **Rp6.000** + UI "Minimum tarik Rp20K"
+  - SaaS: signup → dashboard (credit $0) → topup (PayPal SDK LIVE `www.paypal.com/sdk/js`, client-id live) → new-order (upvote paused + blocked tanpa kredit) → orders
+  - Form validation + error copy friendly ("salah. Coba lagi ya."), empty states jujur, RLS users table tidak terbaca anon
+- **Temuan proses/deploy (di luar gate):** hosting sekarang Cloudflare Pages + Vercel headers; env prod = Vercel (vercel.json), tapi coldstart lama bilang Cloudflare Pages — verifikasi cara deploy terbaru sebelum change request.
+- **Next steps (belum dikerjakan):**
+  1. Gate 1: access control A/B via API langsung, XSS/SQLi, session/logout, git history secret scan, npm audit, spam signup
+  2. Gate 2: perf, WebKit, chaos (double-submit/refresh/two tabs), email flow nyata, multi-user, backup config
+  3. Gate 3: env purity (scan bundle prod), test data, admin security, SSL/redirect, share basics, analytics, runbook
+  4. Red team 8+ skenario dengan severity
+  5. Scoring 7 kategori + verdict → `.agents/qa-reports/FINAL_REPORT_QA3.md`
+  6. **CLEANUP WAJIB:** delete semua user `qa3-*` via `admin_delete_member`, pause+hide task `QA*`, verifikasi 0 orphan rows (task_assignments, user_credits, reddit_accounts, payouts)
+- **Fix yang direkomendasikan untuk user (setelah audit selesai):** verifikasi domain straight.ltd (atau peta@penghasilantambahan.com) di Resend + set EMAIL_FROM; validasi brief wajib utk forum task di TaskQueue; bersihkan "Reddit" dari halaman publik; deploy CSP fix + tunggu codetabs pulih; ganti password admin (4-char 'peta' — temuan keamanan).
+- **Inspector:** IN PROGRESS (belum ada verdict)
+- **coldstart.md stored at:** `G:\SF Project\peta-main\coldstart.md`
+- **Browser used:** Playwright (Chromium, peta/node_modules)
+- **Production URL:** https://www.penghasilantambahan.com + https://www.straight.ltd

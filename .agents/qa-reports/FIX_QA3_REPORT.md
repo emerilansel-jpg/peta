@@ -144,4 +144,8 @@ peta/src/pages/Earnings.tsx, admin/Secrets.tsx            (FIX 7)
 peta/DEPLOYMENT.md                                        (runbook update)
 ```
 
-**Verdict sementara:** semua 7 fix ter-verify di build lokal + backend prod; 2 edge function live di prod. Satu langkah tersisa milik user: **deploy frontend via wrangler** (token Cloudflare), lalu verifikasi hash bundle + CSP header.
+**VERDICT FINAL (2026-08-02 malam):** ✅ **SEMUA FIX LIVE DI PROD** — frontend sudah di-deploy ke kedua Cloudflare Pages project (`peta` + `straight`) dengan token user; bundle `main-CZ0gjfeM.js` live di kedua domain; CSP live sudah include `api.codetabs.com`; commit `ff883d9` ter-push ke GitHub main.
+
+**Verifikasi LIVE (Playwright di prod):** 404 page ✅ · Landing tanpa Reddit ✅ · admin login → /admin ✅ · publish forum kosong → block toast ✅ · **E2E penuh claim→submit→approve: submit ENABLED, "Approved", 0 console error (email task-approved tidak lagi 502)** ✅.
+
+**Cleanup final:** member `qa4-86223838` dihapus, task `QA4 Live E2E` paused+hidden → 0 user test, 0 orphan rows.
