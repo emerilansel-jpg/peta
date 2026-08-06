@@ -1,6 +1,32 @@
 # Cold Start Handoff - Straight Ltd + PeTa
 
-> ⚠️ LATEST (2026-08-02): **QA4 fixes (7 temuan QA3) — SELESAI, edge functions LIVE, frontend MENUNGGU DEPLOY user.**
+> ⚠️ LATEST (2026-08-05): **Fitur baru + bug fix — semua LIVE di prod.**
+> **Fitur baru yang di-deploy:**
+>   - Reply to existing comment (client order form) — toggle + textarea + SQL migration
+>   - Delete task (admin) — confirmation modal + admin_delete_task RPC + CASCADE FK
+>   - Facebook location OFF + profile photo authenticity brief + rejection presets
+>   - Upvote pricing → $0.10 (DB update, zero-code)
+>   - Auto-delivery proof (army submission → client order page, via trigger update)
+>   - Mobile photo upload fix (split into "Ambil Foto" + "Pilih dari Galeri")
+>   - Notification bell di army bottom nav (rejectedCount badge)
+>   - "New" badge di task cards (< 24 jam)
+>   - Admin analytics dashboard (completion rate, platform breakdown, recent signups)
+>   - Member management search (Team.tsx)
+>   - Approval queue: nama member PeTa tampil di side social media username
+>   - **Reddit Army invite pipeline**: dropdown warmed account + edit pending invitations + list_available_warmed_accounts RPC
+> **Bug fix:**
+>   - admin_invite_reddit_army overload (2-param + 3-param) → drop 2-param, fix PostgREST ambiguity
+>   - list_eligible_tasks_for_user: gate Reddit tasks behind reddit_army_profiles.invited_at
+> **Edge functions (via Management API):**
+>   - send-peta-email, send-notification-email: Resend→SMTP (deployed)
+>   - fetch-reddit-profile: server-side Reddit fetch (deployed, Reddit blocks cloud IPs → graceful blocked)
+>   - admin_delete_task: RPC with active-assignment safety check
+>   - tg_on_assignment_approved: auto-populate delivery proof text/url
+>   - release_phase1_completion_hold: KEMUNGKINAN ADA BUG (ambiguous column, perlu fix)
+> **Challenge tasks:** 2 exist tapi paused + min_level salah (0 seharusnya 1/2). Missing level 3-5.
+> **Last commit:** `3707388` (main). **Bundle:** `main-BQqlzCpk.js` (peta) + (straight).
+>
+> Previous (2026-08-02): **QA4 fixes (7 temuan QA3) — SELESAI, edge functions LIVE, frontend DEPLOYED.**
 >   (1) **CRITICAL email FIXED**: send-peta-email & send-notification-email di-rewrite Resend→SMTP (nodemailer, transport sama dgn forgot-password) — deployed + verified `{"ok":true,"id":"<...@straight.ltd>"}`. Sender tetap care@straight.ltd.
 >   (2) **MAJOR forum-brief FIXED**: TaskDetail fallback brief→description (member tak pernah diblok submit) + TaskQueue blok publish forum task tanpa komentar. Verified via preview build.
 >   (3) **MAJOR Reddit-di-publik FIXED**: Landing/Privacy/Terms/Help bersih (grep 0), "Program Army".
@@ -54,7 +80,7 @@
 > `www.straight.ltd` is served by the `straight` Cloudflare Pages project (the `peta` Pages project
 > serves `penghasilantambahan.com` and was intentionally not touched).
 
-Last updated: 2026-08-02 (QA3 independent audit — Gate 0 selesai, lihat LATEST di atas + section 2026-08-02).
+Last updated: 2026-08-05 (Fitur baru + bug fix — semua LIVE, last commit 3707388).
 
 Workspace:
 
@@ -1616,6 +1642,86 @@ Code fixed and build verified. Frontend deploy pending (needs Cloudflare API tok
   - SaaS client `qa3-<ts>-saas@penghasilantambahan.com` (via /reddit/signup, role='client')
   - Task dibuat: `QA3 Forum Task/Upvote/Reddit Comment/Forum WithBrief <ts>` (semua status active — cleanup: pause+hide)
   - Assignment E2E: `QA3 Forum WithBrief 60014047` → status **approved**, saldo member Rp6.000 (verifikasi DB via Management API)
+
+## 2026-08-05 — Feature Session (New Features + Bug Fixes)
+
+- **Type:** FEATURE + BUGFIX + DEPLOY
+- **Status:** COMPLETED — semua LIVE di prod
+- **Artefak:** `peta/qa-probes/qa4-*.json` + `peta/qa-probes/artifacts/qa4/*.png`
+- **Git commits:** `64e7d6f` → `665fa51` → `8533f77` → `d835612` → `4855568` → `de2ea34` → `e1754ae` → `5253b29` → `922ba27` → `d957a47` → `3707388` (main)
+
+### Fitur Baru (12 item)
+
+1. **Reply to Existing Comment** (client order form)
+   - Toggle "Reply to an existing comment?" + textarea URL/deskripsi parent
+   - Order storage: `is_reply` + `reply_to_comment` di notes JSONB
+   - Brief generator: "↩️ INI ADALAH REPLY" section + target info
+   - Auto-import trigger reads reply info from notes
+   - Migration: `20260804_add_reply_to_comment.sql`
+
+2. **Delete Task** (admin) — confirmation modal + safety check
+   - RPC: `admin_delete_task(p_task_id)` — blocks if active assignments exist
+   - FK CASCADE: `task_assignments.task_id` → `tasks.id`
+   - UI: trash icon + "Yakin hapus?" modal (red/danger)
+   - Migration: `20260803_add_delete_task.sql`
+
+3. **Facebook Location OFF** (brief + rejection preset)
+   - Frontend: `buildStandardBriefTemplate` Facebook section
+   - SQL: `forum_standard_brief()` + `forum_comment_task_brief()`
+   - Rejection preset: "Lokasi profil Facebook terlihat/aktif"
+   - Migration: `20260803_add_location_brief_to_sql.sql`
+
+4. **Facebook Profile Photo Authenticity** (brief + rejection preset)
+   - "Foto profil harus terlihat sesuai target audience"
+   - Rejection preset: "Foto profil tidak cocok dengan target audience"
+   - Migration: `20260804_add_profile_photo_brief.sql`
+
+5. **Upvote Pricing → $0.10**
+   - DB update: `straight_pricing` key `reddit_upvote` + `forum_upvote` → 10 cents
+   - Zero-code change — UI reads from matrix dynamically
+
+6. **Auto-Delivery Proof** (army → client order)
+   - Trigger `tg_on_assignment_approved` auto-populates `delivery_proof_text` + `delivery_proof_url`
+   - First approval: sets fields; subsequent: appends with separator
+   - Migration: `20260804_auto_delivery_proof.sql`
+
+7. **Mobile Photo Upload Fix** — split into "Ambil Foto" + "Pilih dari Galeri"
+   - Tombol kamera: `capture="environment"` → buka kamera belakang
+   - Tombol galeri: tanpa capture → buka file picker penuh
+
+8. **Notification Bell** (army bottom nav)
+   - 5th nav item: Bell icon → navigasi ke Riwayat Reject
+   - Badge merah = rejectedCount
+
+9. **"New" Badge** di task cards (< 24 jam)
+
+10. **Admin Analytics Dashboard** (enhanced)
+   - Completion rate, platform breakdown (Reddit/HubSpot/Quora/Facebook/YouTube), recent signups, total paid
+
+11. **Member Management Search** (Team.tsx)
+   - Search by name, email, atau WhatsApp
+
+12. **Approval Queue: Nama Member** — `army_name` tampil di side social media username
+
+### Bug Fix (2 item)
+
+1. **admin_invite_reddit_army overload** — drop 2-param, keep 3-param
+2. **Reddit task gate** — `list_eligible_tasks_for_user` + `reddit_army_profiles.invited_at IS NOT NULL`
+
+### Reddit Army Pipeline Fix
+
+- **Masalah:** Admin invite `warmed_purchased` tanpa assign akun → member gagal aktivasi
+- **Fix:** Dropdown available warmed accounts + edit pending invitation
+- **RPC baru:** `list_available_warmed_accounts()` — akun Reddit belum dipakai
+- **Member Nell VH:** assigned `david` (karma 24.094) via SQL → bisa aktivasi sekarang
+- **Known issue:** `release_phase1_completion_hold` cron punya SQL error (ambiguous column) — perlu fix
+- **Known issue:** Challenge tasks paused + min_level salah (0) + missing level 3-5
+
+### Deploy
+- Frontend: Cloudflare Pages (peta + straight) — `npm run build` → `wrangler pages deploy`
+- Edge functions: Management API SQL endpoint (create functions) + `supabase functions deploy`
+- DB: Management API SQL endpoint (migrations + RPCs + triggers)
+- Token: `CLOUDFLARE_API_TOKEN` + `SUPABASE_ACCESS_TOKEN` (sbp_7bfa...) — tidak di-commit
 - **GATE 0 — FUNGSIONAL: FAIL** (temuan):
   1. **[CRITICAL] Email transaksional PeTa MATI di prod** — `send-peta-email` & `send-notification-email` return 502; detail Resend: `403 "The straight.ltd domain is not verified"`. EMAIL_FROM/BROADCAST_FROM = care@straight.ltd (domain tidak terverifikasi di Resend). Terkena: task-approved (terpicu saat approve real), welcome, payout. `send-password-reset-email` (SMTP) MASIH JALAN (messageId OK). `send-broadcast-emails` JWT-protected (tidak bisa dites anon; kemungkinan rusak sama).
   2. **[MAJOR] Forum task tanpa brief bisa di-publish tapi member tidak pernah bisa submit** — `canSubmit` forum butuh `hasCommentText` = `splitForumBrief(task.brief).commentPost` (textarea member untuk forum = userNote, bukan draftComment). Sheet "Buat Task Baru" cuma validasi Judul. Reproduksi 2x + DB `brief:''`.
