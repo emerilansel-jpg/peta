@@ -16,6 +16,8 @@ import {
   claimChallengeTask,
   requestRedditArmyResignation,
   cancelRedditArmyResignation,
+  getRedditAccounts,
+  updateRedditAccountKarma
 } from '../lib/api';
 import { toast } from '../components/Toast';
 
@@ -24,6 +26,98 @@ const MIN_ACTIVE_DAYS_FOR_RESIGN = 20;
 
 function formatRupiah(n: number): string {
   return 'Rp' + (n || 0).toLocaleString('id-ID');
+}
+
+
+function RedditAccountManager({ userId }: { userId: string }) {
+  const queryClient = useQueryClient();
+  const { data: accounts = [], isLoading } = useQuery({
+    queryKey: ['redditAccounts', userId],
+    queryFn: () => getRedditAccounts(userId),
+    enabled: !!userId,
+  });
+
+  const [syncFailedFor, setSyncFailedFor] = useState<string | null>(null);
+
+  const syncMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const account = accounts.find((a: any) => a.id === id);
+      const beforeKarma = account?.karma ?? 0;
+      const result = await updateRedditAccountKarma(id, account?.username);
+      return { id, beforeKarma, ...result };
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ['redditAccounts'] });
+      const newKarma = data.account?.karma ?? data.karma ?? data.beforeKarma;
+      if (data.fallback) {
+        setSyncFailedFor(data.id);
+        if (data.statusFlag === 'not_found' || data.statusFlag === 'suspended') {
+          toast.error('❌ Akun Reddit kamu bermasalah. Hubungi admin.');
+        } else {
+          toast.error('🌐 Reddit memblokir auto-sync. Hubungi admin buat update manual.');
+        }
+      } else if (newKarma > data.beforeKarma) {
+        setSyncFailedFor(null);
+        toast.success(`Karma +${newKarma - data.beforeKarma} 🎉`);
+      } else {
+        setSyncFailedFor(null);
+        toast.success('Sync OK — karma disync 📊');
+      }
+    },
+    onError: (_e, id) => {
+      setSyncFailedFor(id);
+      toast.error('Gagal sync — Reddit memblokir.');
+    },
+  });
+
+  if (isLoading || accounts.length === 0) return null;
+  const account = accounts[0];
+
+  return (
+    <Card className="mb-4">
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div className="min-w-0">
+          <p className="text-xs text-muted font-semibold uppercase tracking-wide">Akun Terhubung</p>
+          <p className="font-extrabold text-lg truncate">u/{account.username}</p>
+        </div>
+        <div className="text-right shrink-0">
+          <p className="text-2xl font-extrabold money">{account.karma}</p>
+          <p className="text-[10px] text-muted">karma</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 mb-4 text-xs">
+        <div className="bg-light rounded-lg p-2.5">
+          <p className="text-muted">Umur akun</p>
+          <p className="font-bold text-base">{account.account_age_days} hari</p>
+        </div>
+      </div>
+
+      {(syncFailedFor === account.id || account.karma === 0 || account.status_flag === 'not_found' || account.status_flag === 'suspended') && (
+        <div className="mb-3 rounded-xl p-3 ring-1 bg-warning/10 ring-warning/40">
+          <div className="flex items-start gap-2">
+            <AlertTriangle size={16} className="shrink-0 mt-0.5 text-warning" />
+            <div className="text-xs">
+              <p className="font-extrabold text-warning">Perhatian Akun</p>
+              <p className="text-warning/80 mt-0.5">
+                Ada kemungkinan Reddit memblokir auto-sync atau akun error. Hubungi admin buat update karma manual jika perlu.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Button
+        onClick={() => syncMutation.mutate(account.id)}
+        variant="outline"
+        size="md"
+        loading={syncMutation.isPending}
+        fullWidth
+      >
+        <RefreshCw size={16} /> Sync Karma (Poin Extra)
+      </Button>
+    </Card>
+  );
 }
 
 function formatDaysRemaining(effectiveAt: string | null): number {
@@ -397,7 +491,7 @@ function ProofUploadSheet({
 
   const handleSubmit = async () => {
     if (!proofImage) {
-      toast.error('Screenshot profile Reddit wajib diupload!');
+      toast.error('Screenshot mode Incognito wajib diupload!');
       return;
     }
     setSubmitting(true);
@@ -573,6 +667,7 @@ function Phase1ActiveState({
             <h2 className="text-lg font-bold">Level {currentLevel}</h2>
           </div>
         </div>
+        <RedditAccountManager userId={profile.user_id} />
 
         {/* Reddit account badge — always visible */}
         {tasks[0]?.reddit_username && (
@@ -700,7 +795,7 @@ function Phase1ActiveState({
                           ))}
                         </div>
                         <p className="text-[10px] text-gray-500 mt-2">
-                          💡 Kerjain &amp; comment di Reddit, sistem otomatis deteksi tiap jam. Ga perlu sync manual.
+                          💡 Kerjakan misi di Reddit, lalu cek di browser mode <b>Incognito / Private</b>. Pastikan komentarmu live (tidak shadowban), lalu screenshot sebagai bukti.
                         </p>
                       </div>
                     )}
@@ -727,7 +822,7 @@ function Phase1ActiveState({
                             </Button>
                           ) : (
                             <span className="text-[11px] text-gray-400">
-                              Kerjain dulu di Reddit, sistem cek otomatis tiap jam.
+                              Upload screenshot incognito sebagai bukti (Anti-shadowban).
                             </span>
                           )}
                         </div>
@@ -814,6 +909,7 @@ function Phase2ActiveState({
           </div>
           <Flame size={32} className="opacity-90" />
         </div>
+        <RedditAccountManager userId={profile.user_id} />
         {redditUsername && (
           <div className="mb-3 inline-flex items-center gap-2 bg-white/20 rounded-full px-3 py-1.5">
             <span className="text-xs opacity-90">Akun Reddit:</span>

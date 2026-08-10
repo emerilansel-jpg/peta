@@ -73,6 +73,21 @@ export function Account() {
     refetchInterval: 180_000,
   });
 
+  // Check if user is a Hero Army (has active reddit_army_profiles)
+  const { data: heroArmyProfile } = useQuery({
+    queryKey: ['heroArmyCheck', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('reddit_army_profiles')
+        .select('program_status, current_challenge_level')
+        .eq('user_id', user!.id)
+        .in('program_status', ['phase1_active', 'phase1_complete', 'phase2_active'])
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
   React.useEffect(() => {
     if (profile?.whatsapp) setWaValue(profile.whatsapp);
   }, [profile?.whatsapp]);
@@ -529,6 +544,37 @@ export function Account() {
             );
           })}
         </div>
+      )}
+
+      {/* Hero Army Banner — only shown for active hero army members */}
+      {heroArmyProfile && (
+        <Card className="mb-4 bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-purple-100 text-purple-600 rounded-xl grid place-items-center shrink-0">
+                <Target size={20} />
+              </div>
+              <div>
+                <p className="text-xs text-purple-600 font-bold uppercase tracking-wide">Hero Army</p>
+                <p className="font-bold text-sm">
+                  Level {heroArmyProfile.current_challenge_level} • {
+                    heroArmyProfile.program_status === 'phase1_active' ? 'Fase 1 — Warmup' :
+                    heroArmyProfile.program_status === 'phase1_complete' ? 'Fase 1 Selesai' :
+                    'Fase 2 — Active Income'
+                  }
+                </p>
+              </div>
+            </div>
+            <Button
+              onClick={() => navigate('/reddit-army')}
+              variant="primary"
+              size="sm"
+              className="!bg-purple-600 hover:!brightness-110"
+            >
+              Cek Reddit Army →
+            </Button>
+          </div>
+        </Card>
       )}
 
       {/* Help */}
