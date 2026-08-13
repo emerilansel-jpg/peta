@@ -42,8 +42,6 @@ export function AdminApprovalQueue() {
   const [view, setView] = useState<'pending' | 'approved' | 'rejected' | 'reverted'>('pending');
   // Category filter: 'all' | 'regular' (exclude reddit_challenge) | 'challenge'.
   const [categoryFilter, setCategoryFilter] = useState<'all' | 'regular' | 'challenge'>('all');
-  // Firecrawl filter: 'all' | 'verified' (auto-approved by Firecrawl) | 'manual_review' (needs admin check).
-  const [firecrawlFilter, setFirecrawlFilter] = useState<'all' | 'verified' | 'manual_review'>('all');
   // Date range filter — scoped to the history tabs. Format YYYY-MM-DD.
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
@@ -118,12 +116,6 @@ export function AdminApprovalQueue() {
       const isChallenge = a.tasks?.task_category === 'reddit_challenge';
       if (categoryFilter === 'challenge' && !isChallenge) return false;
       if (categoryFilter === 'regular' && isChallenge) return false;
-    }
-    // Firecrawl filter
-    if (firecrawlFilter !== 'all') {
-      const isVerified = a.is_verified_firecrawl === true;
-      if (firecrawlFilter === 'verified' && !isVerified) return false;
-      if (firecrawlFilter === 'manual_review' && isVerified) return false;
     }
     return true;
   });
@@ -311,39 +303,6 @@ export function AdminApprovalQueue() {
             </button>
           ))}
           {categoryFilter !== 'all' && (
-            <span className="text-xs text-muted self-center ml-auto">
-              {filteredAssignments.length} dari {assignments.length}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Firecrawl filter (only for pending view) — separate auto-verified from manual review. */}
-      {view === 'pending' && assignments.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          <span className="text-xs text-muted self-center mr-1">Verifikasi:</span>
-          {([
-            ['all', 'Semua'],
-            ['verified', '✅ Firecrawl OK'],
-            ['manual_review', '👁️ Manual Review'],
-          ] as const).map(([k, label]) => (
-            <button
-              key={k}
-              onClick={() => setFirecrawlFilter(k)}
-              className={`tap-shrink px-2.5 py-1 rounded-full text-xs font-semibold ${
-                firecrawlFilter === k
-                  ? k === 'verified'
-                    ? 'bg-success text-white'
-                    : k === 'manual_review'
-                      ? 'bg-warning text-white'
-                      : 'bg-primary text-white'
-                  : 'bg-white ring-1 ring-border text-muted'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-          {firecrawlFilter !== 'all' && (
             <span className="text-xs text-muted self-center ml-auto">
               {filteredAssignments.length} dari {assignments.length}
             </span>
@@ -592,11 +551,6 @@ export function AdminApprovalQueue() {
                         <span className="text-xs text-muted flex items-center gap-1">
                           <Clock size={11} /> {formatSubmittedAt(a.submitted_at || a.updated_at || a.created_at)}
                         </span>
-                        {a.is_verified_firecrawl && (
-                          <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-success bg-success/10 px-2 py-0.5 rounded-full">
-                            🤖 Firecrawl OK
-                          </span>
-                        )}
                         {broken && (
                           <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-danger bg-danger/10 px-2 py-0.5 rounded-full">
                             ⚠️ Missing owner
@@ -734,11 +688,6 @@ export function AdminApprovalQueue() {
                       <p className="text-[11px] text-muted flex items-center gap-1 mt-0.5">
                         <Clock size={10} /> {formatSubmittedAt(a.submitted_at || a.updated_at || a.created_at)}
                       </p>
-                      {a.is_verified_firecrawl && (
-                        <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-success bg-success/10 px-2 py-0.5 rounded-full">
-                          🤖 Firecrawl OK
-                        </span>
-                      )}
                       {broken && (
                         <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-danger bg-danger/10 px-2 py-0.5 rounded-full">
                           ⚠️ Missing owner

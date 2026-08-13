@@ -245,6 +245,9 @@ export function AdminTaskQueue() {
   const navigate = useNavigate();
   const [showSheet, setShowSheet] = React.useState(false);
   const [filter, setFilter] = React.useState<FilterKey>('all');
+  // Scope separates Regular tasks from Reddit Army challenge tasks
+  // (task_category='reddit_challenge') so they don't mix in one list.
+  const [scope, setScope] = React.useState<'all' | 'regular' | 'army'>('all');
   const [bulkImporting, setBulkImporting] = React.useState(false);
   // Edit-sheet state, pre-populated when admin clicks "Edit" on a task row.
   const [editingTask, setEditingTask] = React.useState<TaskRow | null>(null);
@@ -530,16 +533,23 @@ export function AdminTaskQueue() {
     toast.success(`Import selesai: ${ok} sukses · ${fail} gagal`);
   };
 
-  const filtered = tasks.filter((t) => {
+  // Reddit Army challenge tasks live in their own program (/reddit-army) and
+  // are managed separately — keep them out of the Regular task list by default.
+  const isArmyTask = (t: TaskRow) => (t.task_category as string) === 'reddit_challenge';
+  const scoped = tasks.filter((t) =>
+    scope === 'all' ? true : scope === 'army' ? isArmyTask(t) : !isArmyTask(t)
+  );
+
+  const filtered = scoped.filter((t) => {
     if (filter === 'all') return true;
     if (filter === 'hidden') return t.is_hidden;
     return t.status === filter && !t.is_hidden;
   });
-  const activeCount = tasks.filter((t) => t.status === 'active' && !t.is_hidden).length;
-  const draftCount = tasks.filter((t) => t.status === 'draft' && !t.is_hidden).length;
-  const pausedCount = tasks.filter((t) => t.status === 'paused' && !t.is_hidden).length;
-  const hiddenCount = tasks.filter((t) => t.is_hidden).length;
-  const openSlots = tasks.reduce((sum, t) => sum + Math.max(0, Number(t.max_assignments || 0) - Number(t.current_assignments || 0)), 0);
+  const activeCount = scoped.filter((t) => t.status === 'active' && !t.is_hidden).length;
+  const draftCount = scoped.filter((t) => t.status === 'draft' && !t.is_hidden).length;
+  const pausedCount = scoped.filter((t) => t.status === 'paused' && !t.is_hidden).length;
+  const hiddenCount = scoped.filter((t) => t.is_hidden).length;
+  const openSlots = scoped.reduce((sum, t) => sum + Math.max(0, Number(t.max_assignments || 0) - Number(t.current_assignments || 0)), 0);
 
   return (
     <Layout userRole="admin">
@@ -633,6 +643,33 @@ export function AdminTaskQueue() {
         </Card>
       )}
 
+      {/* Scope: separate Regular tasks from Reddit Army challenge tasks. */}
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <span className="text-[11px] uppercase tracking-wide font-bold text-muted mr-1">Tipe:</span>
+        {([
+          ['all', 'Semua'],
+          ['regular', 'Reguler'],
+          ['army', 'Reddit Army'],
+        ] as const).map(([k, label]) => {
+          const count = k === 'all'
+            ? tasks.length
+            : k === 'army'
+              ? tasks.filter(isArmyTask).length
+              : tasks.filter((t) => !isArmyTask(t)).length;
+          return (
+            <button
+              key={k}
+              onClick={() => setScope(k)}
+              className={`tap-shrink shrink-0 px-3 py-1.5 rounded-full text-xs font-bold ${
+                scope === k ? 'bg-dark text-white' : 'bg-white ring-1 ring-border text-muted'
+              }`}
+            >
+              {label} ({count})
+            </button>
+          );
+        })}
+      </div>
+
       {/* Filter */}
       <div className="flex gap-2 overflow-x-auto no-scrollbar mb-4">
         {FILTERS.map(([k, l, getCount]) => (
@@ -643,7 +680,7 @@ export function AdminTaskQueue() {
               filter === k ? 'bg-primary text-white' : 'bg-white ring-1 ring-border text-muted'
             }`}
           >
-            {l} ({getCount(tasks, { draft: draftCount, active: activeCount, paused: pausedCount, hidden: hiddenCount })})
+            {l} ({getCount(scoped, { draft: draftCount, active: activeCount, paused: pausedCount, hidden: hiddenCount })})
           </button>
         ))}
       </div>

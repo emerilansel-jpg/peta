@@ -879,6 +879,7 @@ function Phase1ActiveState({
 // STATE 3: phase2_active — Active Income Dashboard
 // ---------------------------------------------------------------
 function Phase2ActiveState({
+  profile,
   summary,
   redditUsername,
   onResign,
