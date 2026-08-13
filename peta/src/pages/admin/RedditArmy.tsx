@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Trophy, Users, Target, RefreshCw, Lock, AlertTriangle,
-  CheckCircle2, XCircle, Clock, Mail,
+  CheckCircle2, XCircle, Clock, Mail, ChevronDown, MessageCircle,
 } from 'lucide-react';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
@@ -12,6 +12,9 @@ import { toast } from '../../components/Toast';
 import {
   getRedditArmyAdminStats,
   adminListRedditArmyMembers,
+  adminListRedditArmyContacts,
+  adminListRedditArmyTaskProgress,
+  type ArmyTaskProgress,
   adminListBonusHolds,
   adminForfeitRedditArmyHolds,
   adminListChallengeLevels,
@@ -368,18 +371,42 @@ function InvitationsTab() {
 function MembersTab() {
   const [statusFilter, setStatusFilter] = useState<string>('');
   const [search, setSearch] = useState('');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ['ra-admin-members'],
     queryFn: adminListRedditArmyMembers,
     staleTime: 60_000,
   });
+  const members = data ?? [];
+
+  // Contact info (name/email/WA) + task progress — fetched in parallel, merged per member.
+  const { data: contacts = {} } = useQuery({
+    queryKey: ['ra-admin-contacts', members.map((m) => m.user_id)],
+    queryFn: () => adminListRedditArmyContacts(members.map((m) => m.user_id)),
+    enabled: members.length > 0,
+    staleTime: 60_000,
+  });
+  const { data: progress = [] } = useQuery({
+    queryKey: ['ra-admin-task-progress'],
+    queryFn: adminListRedditArmyTaskProgress,
+    staleTime: 30_000,
+  });
+  // Index progress by user_id for O(1) lookup per row.
+  const progressByUser: Record<string, ArmyTaskProgress[]> = {};
+  for (const p of progress) {
+    (progressByUser[p.user_id] ||= []).push(p);
+  }
 
   if (isLoading) return <CardSkeleton />;
 
-  const members = (data ?? []).filter((m) => {
+  const filtered = members.filter((m) => {
     if (statusFilter && m.program_status !== statusFilter) return false;
-    if (search && !m.user_id.includes(search)) return false;
+    const c = contacts[m.user_id];
+    const q = search.toLowerCase();
+    if (q && !m.user_id.includes(q)
+      && !(c?.full_name || '').toLowerCase().includes(q)
+      && !(c?.email || '').toLowerCase().includes(q)) return false;
     return true;
   });
 
@@ -389,7 +416,7 @@ function MembersTab() {
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Cari user ID..."
+          placeholder="Cari nama / email / user ID..."
           className="flex-1 min-w-[200px] px-3 py-2 text-sm rounded-lg border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20"
         />
         <select
@@ -404,45 +431,114 @@ function MembersTab() {
         </select>
       </div>
 
-      {members.length === 0 ? (
+      {filtered.length === 0 ? (
         <p className="text-sm text-gray-400 text-center py-8">Belum ada member.</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs text-gray-500 uppercase border-b">
-                <th className="py-2 pr-3">User</th>
-                <th className="py-2 pr-3">Status</th>
-                <th className="py-2 pr-3">Joined</th>
-                <th className="py-2 pr-3">Last Active</th>
-                <th className="py-2 pr-3">Notes</th>
-              </tr>
-            </thead>
-            <tbody>
-              {members.map((m: RedditArmyProfile) => {
-                const badge = STATUS_BADGE[m.program_status] ?? STATUS_BADGE.not_started;
-                const Icon = badge.icon;
-                return (
-                  <tr key={m.id} className="border-b last:border-b-0 hover:bg-gray-50">
-                    <td className="py-2 pr-3 font-mono text-xs">
-                      {m.user_id.slice(0, 8)}…
-                    </td>
-                    <td className="py-2 pr-3">
-                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs ${badge.cls}`}>
-                        <Icon size={11} />
-                        {badge.label}
+        <div className="space-y-2">
+          {filtered.map((m: RedditArmyProfile) => {
+            const badge = STATUS_BADGE[m.program_status] ?? STATUS_BADGE.not_started;
+            const Icon = badge.icon;
+            const c = contacts[m.user_id];
+            const tasks = progressByUser[m.user_id] ?? [];
+            const submitted = tasks.filter((t) => t.status === 'submitted').length;
+            const inProgress = tasks.filter((t) => t.status === 'in_progress').length;
+            const approved = tasks.filter((t) => t.status === 'approved').length;
+            const isOpen = expandedId === m.id;
+            return (
+              <div key={m.id} className="border border-gray-200 rounded-xl overflow-hidden">
+                <button
+                  onClick={() => setExpandedId(isOpen ? null : m.id)}
+                  className="w-full flex items-center gap-3 p-3 text-left hover:bg-gray-50"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                      <span className="font-bold text-sm truncate">
+                        {c?.full_name || <span className="font-mono text-gray-500">{m.user_id.slice(0, 8)}…</span>}
                       </span>
-                    </td>
-                    <td className="py-2 pr-3 text-xs text-gray-600">{formatDate(m.phase1_started_at ?? m.created_at ?? null)}</td>
-                    <td className="py-2 pr-3 text-xs text-gray-600">{formatDate(m.last_active_date)}</td>
-                    <td className="py-2 pr-3 text-xs text-gray-500 max-w-[200px] truncate" title={m.notes ?? ''}>
-                      {m.notes ?? '-'}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold ${badge.cls}`}>
+                        <Icon size={10} /> Lv{m.current_challenge_level} · {badge.label}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-3 text-[11px] text-gray-500 flex-wrap">
+                      {c?.email && <span className="truncate max-w-[180px]">{c.email}</span>}
+                      {submitted > 0 && (
+                        <span className="text-warning font-bold">⏳ {submitted} menunggu review</span>
+                      )}
+                      {inProgress > 0 && <span className="text-blue-600">{inProgress} on-going</span>}
+                      {approved > 0 && <span className="text-success">{approved} selesai</span>}
+                      {tasks.length === 0 && <span>belum ada task</span>}
+                    </div>
+                  </div>
+                  <ChevronDown
+                    size={18}
+                    className={`text-gray-400 transition-transform shrink-0 ${isOpen ? 'rotate-180' : ''}`}
+                  />
+                </button>
+
+                {isOpen && (
+                  <div className="border-t border-gray-100 p-3 bg-gray-50/50 space-y-3">
+                    {/* Follow-up contact */}
+                    <div className="flex flex-wrap gap-2">
+                      {c?.email && (
+                        <a
+                          href={`mailto:${c.email}`}
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full hover:bg-primary/20"
+                        >
+                          <Mail size={12} /> {c.email}
+                        </a>
+                      )}
+                      {c?.whatsapp && (
+                        <a
+                          href={`https://wa.me/${c.whatsapp.replace(/[^0-9]/g, '').replace(/^0/, '62')}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 text-xs font-semibold text-success bg-success/10 px-2.5 py-1 rounded-full hover:bg-success/20"
+                        >
+                          <MessageCircle size={12} /> WA {c.whatsapp}
+                        </a>
+                      )}
+                      <span className="text-[11px] text-gray-400 self-center">
+                        Bergabung {formatDate(m.phase1_started_at ?? m.created_at ?? null)}
+                        {m.last_active_date && ` · Aktif terakhir ${formatDate(m.last_active_date)}`}
+                      </span>
+                    </div>
+
+                    {/* Task progress detail */}
+                    {tasks.length === 0 ? (
+                      <p className="text-xs text-gray-400">Member belum klaim task challenge apa pun.</p>
+                    ) : (
+                      <div className="space-y-1.5">
+                        <p className="text-[11px] uppercase tracking-wide font-bold text-gray-500">Progress task challenge</p>
+                        {tasks.map((t, i) => {
+                          const stCls =
+                            t.status === 'approved' ? 'bg-success/15 text-success' :
+                            t.status === 'submitted' ? 'bg-warning/15 text-warning' :
+                            t.status === 'rejected' ? 'bg-danger/15 text-danger' :
+                            t.status === 'in_progress' ? 'bg-blue-100 text-blue-700' :
+                            'bg-gray-100 text-gray-600';
+                          const ageLabel = t.updated_at ? `${formatDate(t.updated_at)}` : '-';
+                          return (
+                            <div key={i} className="flex items-center gap-2 text-xs bg-white rounded-lg px-2.5 py-1.5 ring-1 ring-gray-100">
+                              <span className={`shrink-0 px-1.5 py-0.5 rounded font-bold text-[10px] ${stCls}`}>
+                                {t.status === 'in_progress' ? 'ON-GOING' : t.status.toUpperCase()}
+                              </span>
+                              <span className="text-gray-500 shrink-0">Lv{t.level_number}</span>
+                              <span className="flex-1 truncate text-gray-700">{t.task_title}</span>
+                              <span className="text-[10px] text-gray-400 shrink-0">{ageLabel}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {m.notes && (
+                      <p className="text-[11px] text-gray-500 bg-yellow-50 rounded-lg px-2.5 py-1.5">📝 {m.notes}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </Card>

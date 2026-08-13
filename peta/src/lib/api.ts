@@ -1883,6 +1883,73 @@ export async function adminListRedditArmyMembers(): Promise<RedditArmyProfile[]>
   return (data ?? []) as RedditArmyProfile[];
 }
 
+/** Member contact info (for admin follow-up): name, email, whatsapp by user_id. */
+export async function adminListRedditArmyContacts(
+  userIds: string[]
+): Promise<Record<string, { full_name: string | null; email: string | null; whatsapp: string | null }>> {
+  if (userIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, full_name, email, whatsapp')
+    .in('id', userIds);
+  if (error || !data) return {};
+  const map: Record<string, { full_name: string | null; email: string | null; whatsapp: string | null }> = {};
+  for (const u of data) {
+    map[u.id] = { full_name: u.full_name, email: u.email, whatsapp: u.whatsapp };
+  }
+  return map;
+}
+
+export type ArmyTaskProgress = {
+  user_id: string;
+  task_id: string;
+  task_title: string | null;
+  level_number: number;
+  level_name: string | null;
+  status: string;
+  can_retry: boolean | null;
+  updated_at: string | null;
+};
+
+/**
+ * Fetch all reddit_challenge task assignments across members, so admin can see
+ * per-member task progress (claimed/in_progress/submitted/approved/rejected +
+ * how long each has been sitting) for follow-up. Joined to levels for context.
+ */
+export async function adminListRedditArmyTaskProgress(): Promise<ArmyTaskProgress[]> {
+  const { data, error } = await supabase
+    .from('task_assignments')
+    .select(`
+      user_id,
+      status,
+      can_retry,
+      updated_at,
+      tasks!inner (
+        id,
+        title,
+        task_category,
+        challenge_level_id,
+        reddit_challenge_levels ( level_number, level_name )
+      )
+    `)
+    .eq('tasks.task_category', 'reddit_challenge')
+    .order('updated_at', { ascending: false, nullsFirst: false });
+  if (error || !data) return [];
+  return (data as any[]).map((r) => {
+    const lvl = (r.tasks?.reddit_challenge_levels as any) ?? {};
+    return {
+      user_id: r.user_id,
+      task_id: r.tasks?.id,
+      task_title: r.tasks?.title ?? null,
+      level_number: lvl.level_number ?? 0,
+      level_name: lvl.level_name ?? null,
+      status: r.status,
+      can_retry: r.can_retry,
+      updated_at: r.updated_at,
+    } as ArmyTaskProgress;
+  });
+}
+
 /** Admin list bonus holds, optionally filtered by status. */
 export async function adminListBonusHolds(status?: 'held' | 'vesting' | 'released' | 'forfeited') {
   let q = supabase.from('bonus_holds').select('*, users(email,full_name)').order('created_at', { ascending: false });
