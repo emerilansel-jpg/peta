@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   ShoppingCart,
   ChevronRight,
+  ChevronLeft,
   Shield,
   Edit,
   Trash2,
@@ -215,6 +216,26 @@ function ClientDetail({ userId }: { userId: string }) {
     .filter((t: any) => t.payment_status === 'completed')
     .reduce((sum: number, t: any) => sum + t.amount_cents, 0);
 
+  // Pagination for the Orders list (was hard-capped to 10 — rest were hidden).
+  const ORDERS_PAGE_SIZE = 10;
+  const [ordersPage, setOrdersPage] = useState(0);
+  const ordersPageCount = Math.max(1, Math.ceil(orders.length / ORDERS_PAGE_SIZE));
+  const safeOrdersPage = Math.min(ordersPage, ordersPageCount - 1);
+  const pagedOrders = orders.slice(
+    safeOrdersPage * ORDERS_PAGE_SIZE,
+    safeOrdersPage * ORDERS_PAGE_SIZE + ORDERS_PAGE_SIZE
+  );
+
+  // Same for Top-ups.
+  const TOPUPS_PAGE_SIZE = 10;
+  const [topupsPage, setTopupsPage] = useState(0);
+  const topupsPageCount = Math.max(1, Math.ceil(topups.length / TOPUPS_PAGE_SIZE));
+  const safeTopupsPage = Math.min(topupsPage, topupsPageCount - 1);
+  const pagedTopups = topups.slice(
+    safeTopupsPage * TOPUPS_PAGE_SIZE,
+    safeTopupsPage * TOPUPS_PAGE_SIZE + TOPUPS_PAGE_SIZE
+  );
+
   return (
     <AdminLayout>
       <div className="p-6 md:p-10 max-w-6xl mx-auto">
@@ -300,26 +321,37 @@ function ClientDetail({ userId }: { userId: string }) {
           {orders.length === 0 ? (
             <p className="p-6 text-sm text-slate-500 text-center">No orders yet</p>
           ) : (
-            <div className="divide-y divide-slate-100">
-              {orders.slice(0, 10).map((o: any) => (
-                <Link
-                  key={o.id}
-                  to={`/reddit/admin/orders?focus=${o.id}`}
-                  className="block px-6 py-3 hover:bg-slate-50 flex items-center justify-between gap-4"
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-slate-900">#{o.id}</p>
-                    <p className="text-xs text-slate-500 truncate">{o.thread_url}</p>
-                  </div>
-                  <div className="text-right text-sm">
-                    <p className="font-semibold">{o.requested_upvotes} upvotes</p>
-                    <p className="text-xs text-slate-500">{formatUSD(o.cost_credits)}</p>
-                  </div>
-                  <StatusPill status={o.status} />
-                  <ChevronRight size={14} className="text-slate-400" />
-                </Link>
-              ))}
-            </div>
+            <>
+              <div className="divide-y divide-slate-100">
+                {pagedOrders.map((o: any) => (
+                  <Link
+                    key={o.id}
+                    to={`/reddit/admin/orders?focus=${o.id}`}
+                    className="block px-6 py-3 hover:bg-slate-50 flex items-center justify-between gap-4"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="font-semibold text-slate-900">#{o.id}</p>
+                      <p className="text-xs text-slate-500 truncate">{o.thread_url}</p>
+                    </div>
+                    <div className="text-right text-sm">
+                      <p className="font-semibold">{o.requested_upvotes} upvotes</p>
+                      <p className="text-xs text-slate-500">{formatUSD(o.cost_credits)}</p>
+                    </div>
+                    <StatusPill status={o.status} />
+                    <ChevronRight size={14} className="text-slate-400" />
+                  </Link>
+                ))}
+              </div>
+              {ordersPageCount > 1 && (
+                <Pagination
+                  page={safeOrdersPage}
+                  pageCount={ordersPageCount}
+                  total={orders.length}
+                  pageSize={ORDERS_PAGE_SIZE}
+                  onChange={setOrdersPage}
+                />
+              )}
+            </>
           )}
         </section>
 
@@ -331,25 +363,36 @@ function ClientDetail({ userId }: { userId: string }) {
           {topups.length === 0 ? (
             <p className="p-6 text-sm text-slate-500 text-center">No top-ups yet</p>
           ) : (
-            <div className="divide-y divide-slate-100">
-              {topups.slice(0, 10).map((t: any) => (
-                <div key={t.id} className="px-6 py-3 flex items-center justify-between gap-4">
-                  <div>
-                    <p className="font-semibold text-slate-900">{formatUSD(t.amount_cents)}</p>
-                    <p className="text-xs text-slate-500">
-                      {t.payment_method.toUpperCase()} · {new Date(t.created_at).toLocaleDateString('en-US')}
-                    </p>
+            <>
+              <div className="divide-y divide-slate-100">
+                {pagedTopups.map((t: any) => (
+                  <div key={t.id} className="px-6 py-3 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="font-semibold text-slate-900">{formatUSD(t.amount_cents)}</p>
+                      <p className="text-xs text-slate-500">
+                        {t.payment_method.toUpperCase()} · {new Date(t.created_at).toLocaleDateString('en-US')}
+                      </p>
+                    </div>
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                      t.payment_status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
+                      t.payment_status === 'failed' ? 'bg-rose-100 text-rose-700' :
+                      'bg-amber-100 text-amber-700'
+                    }`}>
+                      {t.payment_status}
+                    </span>
                   </div>
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                    t.payment_status === 'completed' ? 'bg-emerald-100 text-emerald-700' :
-                    t.payment_status === 'failed' ? 'bg-rose-100 text-rose-700' :
-                    'bg-amber-100 text-amber-700'
-                  }`}>
-                    {t.payment_status}
-                  </span>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+              {topupsPageCount > 1 && (
+                <Pagination
+                  page={safeTopupsPage}
+                  pageCount={topupsPageCount}
+                  total={topups.length}
+                  pageSize={TOPUPS_PAGE_SIZE}
+                  onChange={setTopupsPage}
+                />
+              )}
+            </>
           )}
         </section>
 
@@ -743,5 +786,48 @@ function StatusPill({ status }: { status: string }) {
     <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ring-1 ${colors[status] || colors.pending}`}>
       {status}
     </span>
+  );
+}
+
+function Pagination({
+  page,
+  pageCount,
+  total,
+  pageSize,
+  onChange,
+}: {
+  page: number;
+  pageCount: number;
+  total: number;
+  pageSize: number;
+  onChange: (p: number) => void;
+}) {
+  const from = page * pageSize + 1;
+  const to = Math.min((page + 1) * pageSize, total);
+  return (
+    <div className="px-6 py-3 border-t border-slate-100 flex items-center justify-between gap-3">
+      <p className="text-xs text-slate-500">
+        Showing {from}–{to} of {total}
+      </p>
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={() => onChange(Math.max(0, page - 1))}
+          disabled={page === 0}
+          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold ring-1 ring-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <ChevronLeft size={13} /> Prev
+        </button>
+        <span className="text-xs font-semibold text-slate-600 px-1">
+          {page + 1} / {pageCount}
+        </span>
+        <button
+          onClick={() => onChange(Math.min(pageCount - 1, page + 1))}
+          disabled={page >= pageCount - 1}
+          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold ring-1 ring-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          Next <ChevronRight size={13} />
+        </button>
+      </div>
+    </div>
   );
 }
