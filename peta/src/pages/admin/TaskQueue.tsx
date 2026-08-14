@@ -69,6 +69,7 @@ type TaskRow = {
   display_order: number;
   is_hidden: boolean;
   source_order_id?: number | null;
+  task_assignments?: Array<{ status: string }>;
 };
 
 const FILTERS: Array<[FilterKey, string, (tasks: TaskRow[], stats: { draft: number; active: number; paused: number; hidden: number }) => number]> = [
@@ -101,6 +102,9 @@ function SortableTaskItem({
     transition,
     isDragging,
   } = useSortable({ id: task.id });
+
+  const approvedCount = (task as any).task_assignments?.filter((a: any) => a.status === 'approved').length || 0;
+  const approvedPct = Math.min(100, Math.round((approvedCount / Math.max(1, Number(task.max_assignments || 1))) * 100));
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -180,13 +184,18 @@ function SortableTaskItem({
               <div className="h-1.5 rounded-full bg-light overflow-hidden">
                 <div
                   className="h-full bg-primary"
-                  style={{ width: `${Math.min(100, Math.round((Number(task.current_assignments || 0) / Math.max(1, Number(task.max_assignments || 1))) * 100))}%` }}
+                  style={{ width: approvedPct + '%' }}
                 />
               </div>
             </div>
             <div className="flex items-center justify-between text-xs gap-2 flex-wrap">
               <div className="flex items-center gap-2 text-muted flex-wrap">
-                <span>{task.current_assignments}/{task.max_assignments} slots filled</span>
+                <span className="font-bold text-dark">
+                  {approvedCount}/{task.max_assignments} selesai
+                </span>
+                <span className="text-[10px]">
+                  ({task.current_assignments}/{task.max_assignments} slots diisi)
+                </span>
                 <span>-</span>
                 <span>{formatGate(task)}</span>
                 {(task.start_at || task.end_at) && (
@@ -198,8 +207,12 @@ function SortableTaskItem({
                   </span>
                 )}
                 {task.source_order_id && (
-                  <span className="text-[10px] bg-warning/10 text-warning px-1.5 py-0.5 rounded-full font-bold">
-                    #B2B-{task.source_order_id}
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                    task.status === 'completed' ? 'bg-success/15 text-success' :
+                    task.status === 'paused' ? 'bg-danger/10 text-danger' :
+                    'bg-warning/10 text-warning'
+                  }`}>
+                    #{task.source_order_id} B2B {task.status === 'completed' ? '✓ Complete' : task.status === 'paused' ? '✕ Cancelled' : '⏳ Processing'}
                   </span>
                 )}
               </div>
@@ -302,7 +315,7 @@ export function AdminTaskQueue() {
   const { data: tasks = [], isLoading, refetch } = useQuery({
     queryKey: ['adminTasks'],
     queryFn: async () => {
-      const { data } = await supabase.from('tasks').select('*').order('display_order', { ascending: true }).order('created_at', { ascending: false });
+      const { data } = await supabase.from('tasks').select('*, task_assignments(status)').order('display_order', { ascending: true }).order('created_at', { ascending: false });
       return (data || []) as TaskRow[];
     },
   });
