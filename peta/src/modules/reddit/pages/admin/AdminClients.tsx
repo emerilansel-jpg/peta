@@ -185,6 +185,9 @@ function ClientDetail({ userId }: { userId: string }) {
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  // Pagination state must stay ABOVE the loading early-return (React hooks rules).
+  const [ordersPage, setOrdersPage] = useState(0);
+  const [topupsPage, setTopupsPage] = useState(0);
 
   const load = async () => {
     try {
@@ -197,6 +200,8 @@ function ClientDetail({ userId }: { userId: string }) {
   };
 
   useEffect(() => {
+    setOrdersPage(0);
+    setTopupsPage(0);
     load();
   }, [userId]);
 
@@ -218,7 +223,6 @@ function ClientDetail({ userId }: { userId: string }) {
 
   // Pagination for the Orders list (was hard-capped to 10 — rest were hidden).
   const ORDERS_PAGE_SIZE = 10;
-  const [ordersPage, setOrdersPage] = useState(0);
   const ordersPageCount = Math.max(1, Math.ceil(orders.length / ORDERS_PAGE_SIZE));
   const safeOrdersPage = Math.min(ordersPage, ordersPageCount - 1);
   const pagedOrders = orders.slice(
@@ -228,7 +232,6 @@ function ClientDetail({ userId }: { userId: string }) {
 
   // Same for Top-ups.
   const TOPUPS_PAGE_SIZE = 10;
-  const [topupsPage, setTopupsPage] = useState(0);
   const topupsPageCount = Math.max(1, Math.ceil(topups.length / TOPUPS_PAGE_SIZE));
   const safeTopupsPage = Math.min(topupsPage, topupsPageCount - 1);
   const pagedTopups = topups.slice(
