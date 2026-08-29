@@ -36,10 +36,10 @@ interface BrandConfig {
 }
 
 const STRAIGHT_BRAND: BrandConfig = {
-  title: 'Straight Ltd — The Reddit Growth Engine for Serious Operators',
-  description: 'High-retention Reddit upvotes from aged accounts. Built for digital agencies and growth teams who need results that hold. Pay-as-you-go credits, PayPal secured.',
-  ogTitle: 'Straight Ltd — The Reddit growth engine',
-  ogDescription: 'Reddit upvotes from real, aged accounts. 98%+ retention. No subscription. PayPal checkout.',
+  title: 'Straight Ltd — Reddit Upvotes, Forum Comments & YouTube Uploads',
+  description: 'Grow on Reddit and big forums the easy way. Real upvotes, helpful brand comments, and YouTube uploads from one dashboard. Pay-as-you-go credits, PayPal checkout.',
+  ogTitle: 'Straight Ltd — Grow on Reddit and big forums',
+  ogDescription: 'Real upvotes, helpful comments about your brand, and YouTube uploads — one simple dashboard. Pay with PayPal. Watch every order live.',
   ogImage: 'https://straight.ltd/straight/og.png',
   themeColor: '#F97316',
   manifestHref: '/manifest-straight.json',
