@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Trophy, Users, Target, RefreshCw, Lock, AlertTriangle,
   CheckCircle2, XCircle, Clock, Mail, ChevronDown, MessageCircle,
+  ShieldCheck, Unlock,
 } from 'lucide-react';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
@@ -17,24 +18,29 @@ import {
   type ArmyTaskProgress,
   adminListBonusHolds,
   adminForfeitRedditArmyHolds,
+  adminReleaseHold,
   adminListChallengeLevels,
   adminUpdateChallengeLevel,
   adminCreateChallengeTask,
   adminInviteRedditArmy,
   adminRevokeRedditArmyInvitation,
   adminTriggerDailySync,
+  adminListDailyActivityLog,
+  adminVerifyDailyActivity,
   listAvailableWarmedAccounts,
   type RedditArmyAdminStats,
   type RedditArmyProfile,
   type ChallengeLevel,
+  type DailyActivityLogRow,
 } from '../../lib/api';
 
-type TabKey = 'invitations' | 'members' | 'challenges' | 'sync' | 'holds' | 'exit';
+type TabKey = 'invitations' | 'members' | 'challenges' | 'sync' | 'dailylog' | 'holds' | 'exit';
 
 const TABS: { key: TabKey; label: string; icon: typeof Users }[] = [
   { key: 'invitations', label: 'Invitations', icon: Mail },
   { key: 'members', label: 'Members', icon: Users },
   { key: 'challenges', label: 'Challenges', icon: Target },
+  { key: 'dailylog', label: 'Daily Log', icon: ShieldCheck },
   { key: 'sync', label: 'Daily Sync', icon: RefreshCw },
   { key: 'holds', label: 'Holds', icon: Lock },
   { key: 'exit', label: 'Exit', icon: AlertTriangle },
@@ -95,6 +101,7 @@ export function AdminRedditArmy() {
         {tab === 'invitations' && <InvitationsTab />}
         {tab === 'members' && <MembersTab />}
         {tab === 'challenges' && <ChallengesTab />}
+        {tab === 'dailylog' && <DailyLogTab />}
         {tab === 'sync' && <SyncTab />}
         {tab === 'holds' && <HoldsTab />}
         {tab === 'exit' && <ExitTab />}
@@ -764,6 +771,136 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 }
 
 // ---------------------------------------------------------------
+// DAILY LOG TAB — Phase 2 check-ins + spot-check verification.
+// Check-ins are self-reported (honor system): admin reviews the
+// optional screenshots here and marks them verified/suspicious.
+// ---------------------------------------------------------------
+function DailyLogTab() {
+  const queryClient = useQueryClient();
+  const [days, setDays] = useState(14);
+
+  const { data: rows = [], isLoading } = useQuery({
+    queryKey: ['ra-daily-log', days],
+    queryFn: () => adminListDailyActivityLog(days),
+    staleTime: 30_000,
+  });
+
+  const verifyMut = useMutation({
+    mutationFn: ({ id, ok }: { id: string; ok: boolean }) => adminVerifyDailyActivity(id, ok),
+    onSuccess: () => {
+      toast.success('Spot-check tersimpan');
+      queryClient.invalidateQueries({ queryKey: ['ra-daily-log'] });
+    },
+    onError: (err: Error) => toast.error(`Gagal: ${err.message}`),
+  });
+
+  const selfReported = rows.filter((r) => r.sync_source === 'self_report');
+
+  return (
+    <Card>
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <div>
+          <h3 className="font-bold">🛡️ Daily Check-in Log</h3>
+          <p className="text-xs text-gray-500 mt-0.5">
+            {selfReported.length} check-in self-report dari {rows.length} baris ({days} hari terakhir).
+            Spot-check screenshot acak — yang mencurigakan tandai merah lalu follow-up via WA.
+          </p>
+        </div>
+        <select
+          value={days}
+          onChange={(e) => setDays(Number(e.target.value))}
+          className="px-2 py-1.5 text-xs rounded-lg border border-gray-300"
+        >
+          <option value={7}>7 hari</option>
+          <option value={14}>14 hari</option>
+          <option value={30}>30 hari</option>
+        </select>
+      </div>
+
+      {isLoading ? (
+        <CardSkeleton />
+      ) : rows.length === 0 ? (
+        <p className="text-sm text-gray-400 text-center py-8">
+          Belum ada aktivitas tercatat (baru ada setelah ada member Fase 2 yang check-in).
+        </p>
+      ) : (
+        <div className="space-y-2">
+          {rows.map((r: DailyActivityLogRow) => {
+            const images = (r.proof_media ?? []).filter((p) => p.type === 'image');
+            const isSelf = r.sync_source === 'self_report';
+            return (
+              <div key={r.id} className="border border-gray-200 rounded-lg p-3">
+                <div className="flex items-start justify-between gap-2 flex-wrap">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-sm">{r.users?.full_name || r.user_id.slice(0, 8) + '…'}</span>
+                      {isSelf && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 font-bold">SELF-REPORT</span>
+                      )}
+                      {r.verified_by_admin === true && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-success/20 text-success font-bold">✓ VERIFIED</span>
+                      )}
+                      {r.verified_by_admin === false && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-danger/20 text-danger font-bold">⚠ SUSPICIOUS</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-gray-500 mt-0.5">
+                      {r.activity_date} · {r.comments_today} komentar · {r.posts_today} post
+                      {r.bonus_credited ? ` · +Rp${(r.credited_amount || 0).toLocaleString('id-ID')}` : ''}
+                    </p>
+                    {r.note && <p className="text-xs text-gray-600 mt-1">📝 {r.note}</p>}
+                  </div>
+                  {isSelf && (
+                    <div className="flex gap-1 shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        loading={verifyMut.isPending && verifyMut.variables?.id === r.id && verifyMut.variables?.ok}
+                        onClick={() => verifyMut.mutate({ id: r.id, ok: true })}
+                        className="!border-success !text-success hover:!bg-success hover:!text-white"
+                        title="Tandai OK"
+                      >
+                        <CheckCircle2 size={13} /> OK
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        loading={verifyMut.isPending && verifyMut.variables?.id === r.id && !verifyMut.variables?.ok}
+                        onClick={() => verifyMut.mutate({ id: r.id, ok: false })}
+                        className="!border-danger !text-danger hover:!bg-danger hover:!text-white"
+                        title="Tandai mencurigakan"
+                      >
+                        <XCircle size={13} /> Suspicious
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                {images.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {images.map((p, i) => (
+                      <a
+                        key={i}
+                        href={p.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="w-16 h-16 rounded-lg overflow-hidden ring-1 ring-border hover:ring-primary transition"
+                        title={p.name || `Bukti ${i + 1}`}
+                      >
+                        <img src={p.url} alt={`Bukti ${i + 1}`} className="w-full h-full object-cover" />
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
+
+// ---------------------------------------------------------------
 // SYNC TAB
 // ---------------------------------------------------------------
 function SyncTab() {
@@ -820,11 +957,27 @@ function SyncTab() {
 // ---------------------------------------------------------------
 function HoldsTab() {
   const [status, setStatus] = useState<'held' | 'released' | 'forfeited' | ''>('held');
+  const [releaseTarget, setReleaseTarget] = useState<{ id: string; userId: string; amount: number; source: string } | null>(null);
+  const [releaseReason, setReleaseReason] = useState('');
+  const queryClient = useQueryClient();
 
   const { data, isLoading } = useQuery({
     queryKey: ['ra-holds', status],
     queryFn: () => adminListBonusHolds(status || undefined),
     staleTime: 30_000,
+  });
+
+  const releaseMut = useMutation({
+    mutationFn: () =>
+      adminReleaseHold(releaseTarget!.id, releaseReason),
+    onSuccess: () => {
+      toast.success(`Hold ${releaseTarget && formatRupiah(releaseTarget.amount)} dilepas & masuk saldo user.`);
+      setReleaseTarget(null);
+      setReleaseReason('');
+      queryClient.invalidateQueries({ queryKey: ['ra-holds'] });
+      queryClient.invalidateQueries({ queryKey: ['ra-admin-stats'] });
+    },
+    onError: (err: Error) => toast.error(`Gagal release: ${err.message}`),
   });
 
   const holds = data ?? [];
@@ -865,6 +1018,7 @@ function HoldsTab() {
                 <th className="py-2 pr-3">Amount</th>
                 <th className="py-2 pr-3">Status</th>
                 <th className="py-2 pr-3">Created</th>
+                <th className="py-2 pr-3 text-right">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -881,10 +1035,59 @@ function HoldsTab() {
                     }`}>{h.status}</span>
                   </td>
                   <td className="py-2 pr-3 text-xs text-gray-500">{formatDate(h.created_at)}</td>
+                  <td className="py-2 pr-3 text-right">
+                    {(h.status === 'held' || h.status === 'vesting') && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setReleaseReason('');
+                          setReleaseTarget({ id: h.id, userId: h.user_id, amount: h.amount, source: h.source });
+                        }}
+                        title="Lepas hold manual — uang masuk saldo user"
+                      >
+                        <Unlock size={12} /> Release
+                      </Button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {/* Release modal — the manual repair valve for stuck money. */}
+      {releaseTarget && (
+        <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md">
+            <h3 className="font-bold mb-1">🔓 Release Hold Manual</h3>
+            <p className="text-sm text-gray-600 mb-3">
+              Lepas <strong>{formatRupiah(releaseTarget.amount)}</strong> (source: <code>{releaseTarget.source}</code>)
+              untuk user <code className="text-xs">{releaseTarget.userId.slice(0, 8)}…</code>. Uang langsung masuk saldo user dan
+              hold berstatus released. Dipakai buat perbaikan kalau cron meleset / kasus khusus.
+            </p>
+            <p className="text-xs font-semibold text-gray-600 mb-1.5">Alasan (wajib, min 10 huruf):</p>
+            <textarea
+              value={releaseReason}
+              onChange={(e) => setReleaseReason(e.target.value)}
+              rows={3}
+              placeholder="Contoh: member tamat resign tapi cron gagal jalan; sudah diverifikasi via WA."
+              className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20 mb-3"
+            />
+            <div className="flex gap-2">
+              <Button variant="ghost" fullWidth onClick={() => setReleaseTarget(null)}>Batal</Button>
+              <Button
+                variant="primary"
+                fullWidth
+                loading={releaseMut.isPending}
+                disabled={releaseReason.trim().length < 10 || releaseMut.isPending}
+                onClick={() => releaseMut.mutate()}
+              >
+                🔓 Release Sekarang
+              </Button>
+            </div>
+          </Card>
         </div>
       )}
     </Card>

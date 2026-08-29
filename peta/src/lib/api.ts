@@ -2102,3 +2102,156 @@ export async function syncMyRedditDailyActivity(opts: {
     return { ok: false, error: e?.message || 'edge_function_error' };
   }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Reddit Army — Phase 2 check-in (honor system) + multi-proof media
+// See migration 20260829_reddit_army_phase2_checkin_multiproof.sql
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** One proof item: an uploaded screenshot or an external (Reddit) URL. */
+export type ProofMediaEntry = {
+  type: 'image' | 'url';
+  url: string;
+  name?: string;
+};
+
+const MAX_PROOF_FILES = 10;
+const MAX_PROOF_FILE_BYTES = 10 * 1024 * 1024; // 10MB per image
+
+/**
+ * Upload multiple proof screenshots to the task-proofs bucket and return
+ * ProofMediaEntry[] ready to store in a `proof_media` jsonb column.
+ * folder e.g. "challenge-proofs/<assignmentId>" or "daily-checkins/<uid>".
+ */
+export async function uploadProofImages(opts: {
+  userId: string;
+  folder: string;
+  files: File[];
+}): Promise<ProofMediaEntry[]> {
+  if (!opts.userId || !UUID_REGEX.test(opts.userId)) {
+    throw new Error('Sesi user tidak valid. Coba refresh halaman dan login ulang.');
+  }
+  const files = opts.files.slice(0, MAX_PROOF_FILES);
+  const entries: ProofMediaEntry[] = [];
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    if (file.size > MAX_PROOF_FILE_BYTES) {
+      throw new Error(`Screenshot #${i + 1} kebesaran (max 10MB). Compress dulu ya.`);
+    }
+    let ext = (file.name.split('.').pop() || '').toLowerCase();
+    if (!ext || !['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'heif'].includes(ext)) {
+      ext = extFromMimeType(file.type || '');
+    }
+    const path = `${opts.userId}/${opts.folder}-${Date.now()}-${i}.${ext}`;
+    const { error } = await supabase.storage.from('task-proofs').upload(path, file, {
+      cacheControl: '3600',
+      upsert: false,
+      contentType: file.type || mimeTypeFromExt(ext),
+    });
+    if (error) throw error;
+    const { data: pub } = supabase.storage.from('task-proofs').getPublicUrl(path);
+    entries.push({ type: 'image', url: pub.publicUrl, name: file.name });
+  }
+  return entries;
+}
+
+/**
+ * Submit a challenge task with multi-proof: writes status='submitted',
+ * the legacy single-proof columns (first image / first URL) for backward
+ * compatibility, and the full proof_media array.
+ */
+export async function submitChallengeAssignmentProof(opts: {
+  assignmentId: string;
+  proofMedia: ProofMediaEntry[];
+}): Promise<void> {
+  const firstImage = opts.proofMedia.find((p) => p.type === 'image')?.url ?? null;
+  const firstUrl = opts.proofMedia.find((p) => p.type === 'url')?.url ?? null;
+  if (!firstImage && !firstUrl) {
+    throw new Error('Minimal 1 bukti (screenshot atau link) sebelum submit.');
+  }
+  const { error } = await supabase
+    .from('task_assignments')
+    .update({
+      status: 'submitted',
+      proof_image_url: firstImage,
+      proof_url: firstUrl,
+      submitted_url: firstUrl,
+      proof_media: opts.proofMedia,
+      submitted_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', opts.assignmentId);
+  if (error) throw error;
+}
+
+/** Army self-reports today's Reddit activity (Phase 2 check-in, honor system). */
+export async function selfReportDailyActivity(opts: {
+  commentsToday: number;
+  postsToday: number;
+  proofs: ProofMediaEntry[];
+  note?: string;
+}): Promise<{ ok: boolean; error?: string }> {
+  const { error } = await supabase.rpc('self_report_daily_activity', {
+    p_comments_today: opts.commentsToday,
+    p_posts_today: opts.postsToday,
+    p_proofs: opts.proofs,
+    p_note: opts.note?.trim() || null,
+  });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+export type DailyActivityLogRow = {
+  id: string;
+  user_id: string;
+  activity_date: string;
+  comments_today: number;
+  posts_today: number;
+  is_active_day: boolean;
+  bonus_credited: boolean;
+  credited_amount: number;
+  sync_source: string | null;
+  note: string | null;
+  proof_media: ProofMediaEntry[] | null;
+  verified_by_admin: boolean | null;
+  verified_at: string | null;
+  users?: { full_name: string | null; email: string | null } | null;
+};
+
+/** Admin: recent Phase-2 check-ins (for spot-checking self-reports). */
+export async function adminListDailyActivityLog(days = 14): Promise<DailyActivityLogRow[]> {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  const { data, error } = await supabase
+    .from('reddit_daily_activity')
+    .select('*, users(full_name, email)')
+    .gte('activity_date', cutoff.toISOString().split('T')[0])
+    .order('activity_date', { ascending: false })
+    .limit(200);
+  if (error) {
+    console.error('[adminListDailyActivityLog]', error);
+    throw error;
+  }
+  return (data ?? []) as unknown as DailyActivityLogRow[];
+}
+
+/** Admin: mark a self-reported check-in as verified (spot check) or suspicious. */
+export async function adminVerifyDailyActivity(id: string, ok: boolean): Promise<void> {
+  const { error } = await supabase
+    .from('reddit_daily_activity')
+    .update({
+      verified_by_admin: ok,
+      verified_at: ok ? new Date().toISOString() : null,
+    })
+    .eq('id', id);
+  if (error) throw error;
+}
+
+/** Admin: manually release one stuck hold (repair valve, logged). */
+export async function adminReleaseHold(holdId: string, reason: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_release_hold', {
+    p_hold_id: holdId,
+    p_reason: reason,
+  });
+  if (error) throw error;
+}

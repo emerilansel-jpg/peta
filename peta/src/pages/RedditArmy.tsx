@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Trophy, Flame, Lock, Sparkles, Clock,
   CheckCircle2, XCircle, AlertTriangle, Wallet, RefreshCw, Hourglass,
-  Camera,
+  Camera, Plus, Trash2, ImagePlus, X,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
@@ -17,7 +17,11 @@ import {
   requestRedditArmyResignation,
   cancelRedditArmyResignation,
   getRedditAccounts,
-  updateRedditAccountKarma
+  updateRedditAccountKarma,
+  uploadProofImages,
+  submitChallengeAssignmentProof,
+  selfReportDailyActivity,
+  type ProofMediaEntry,
 } from '../lib/api';
 import { toast } from '../components/Toast';
 
@@ -29,7 +33,11 @@ function formatRupiah(n: number): string {
 }
 
 
-function RedditAccountManager({ userId }: { userId: string }) {
+function RedditAccountManager({ userId, warmedAccountId, warmedUsername }: {
+  userId: string;
+  warmedAccountId: string | null;
+  warmedUsername: string | null;
+}) {
   const queryClient = useQueryClient();
   const { data: accounts = [], isLoading } = useQuery({
     queryKey: ['redditAccounts', userId],
@@ -70,8 +78,27 @@ function RedditAccountManager({ userId }: { userId: string }) {
     },
   });
 
-  if (isLoading || accounts.length === 0) return null;
-  const account = accounts[0];
+  if (isLoading) return null;
+
+  // Prefer the program's warmed account; fall back to the member's own.
+  const account = accounts.find((a: any) => a.id === warmedAccountId) ?? accounts[0];
+
+  if (!account) {
+    // Warmed account managed by admin — not owned by this user, so we can't
+    // read karma client-side. Show identity only, no sync button.
+    if (!warmedUsername) return null;
+    return (
+      <Card className="mb-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-xs text-muted font-semibold uppercase tracking-wide">Akun Terhubung</p>
+            <p className="font-extrabold text-lg truncate">u/{warmedUsername}</p>
+            <p className="text-[11px] text-gray-500 mt-0.5">Akun warmed dikelola admin — karma disync dari sisi admin.</p>
+          </div>
+        </div>
+      </Card>
+    );
+  }
 
   return (
     <Card className="mb-4">
@@ -162,12 +189,11 @@ export function RedditArmy() {
   const claimMut = useMutation({
     mutationFn: ({ taskId, accountId }: { taskId: string; accountId: string }) =>
       claimChallengeTask(taskId, accountId),
-    onSuccess: (data, vars) => {
-      toast.success('Misi dimulai! Gas kerjakan, terus submit buktinya.');
+    onSuccess: () => {
+      toast.success('Misi dimulai! Kerjain di Reddit, balik lagi ke sini, terus submit bukti screenshotnya. 📸');
       queryClient.invalidateQueries({ queryKey: ['reddit-army-challenge-tasks'] });
-      if (data.assignmentId) {
-        navigate(`/task/${vars.taskId}`);
-      }
+      // Challenge tasks are off-platform — stay on this page (the generic
+      // /task/:id wizard with draft-comment flow doesn't fit screenshot proof).
     },
     onError: (err: Error) => {
       toast.error(`Gagal mulai misi: ${err.message}`);
@@ -476,48 +502,52 @@ function ProofUploadSheet({
   onClose: () => void;
   onSubmitted: () => void;
 }) {
-  const [proofImage, setProofImage] = useState<File | null>(null);
-  const [proofUrl, setProofUrl] = useState('');
-  const [preview, setPreview] = useState<string>('');
+  const [files, setFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+  const [urls, setUrls] = useState<string[]>(['']);
   const [submitting, setSubmitting] = useState(false);
   const targetCount = task.target_count || 1;
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    setProofImage(f);
-    setPreview(URL.createObjectURL(f));
+  const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const incoming = Array.from(e.target.files ?? []);
+    const next = [...files, ...incoming].slice(0, 10);
+    setFiles(next);
+    setPreviews(next.map((f) => URL.createObjectURL(f)));
+    e.target.value = '';
+  };
+
+  const removeFile = (idx: number) => {
+    const next = files.filter((_, i) => i !== idx);
+    setFiles(next);
+    setPreviews(next.map((f) => URL.createObjectURL(f)));
   };
 
   const handleSubmit = async () => {
-    if (!proofImage) {
-      toast.error('Screenshot mode Incognito wajib diupload!');
+    const urlEntries: ProofMediaEntry[] = urls
+      .map((u) => u.trim())
+      .filter(Boolean)
+      .map((u) => ({ type: 'url', url: u }));
+
+    if (files.length === 0 && urlEntries.length === 0) {
+      toast.error('Minimal 1 bukti — screenshot Incognito atau link. Boleh lebih dari satu!');
       return;
     }
+
     setSubmitting(true);
     try {
-      // Upload image to storage
       const { supabase } = await import('../lib/supabase');
-      const ext = proofImage.name.split('.').pop() || 'png';
-      const path = `challenge-proofs/${task.assignment_id}.${ext}`;
-      const { error: uploadErr } = await supabase.storage
-        .from('task-proofs')
-        .upload(path, proofImage, { upsert: true });
-      if (uploadErr) throw uploadErr;
-      const { data: pub } = supabase.storage.from('task-proofs').getPublicUrl(path);
+      const { data: auth } = await supabase.auth.getUser();
+      const uid = auth.user?.id;
+      if (!uid) throw new Error('Sesi habis — login ulang dulu ya.');
 
-      // Update assignment: status submitted + proof
-      const { error: updErr } = await supabase
-        .from('task_assignments')
-        .update({
-          status: 'submitted',
-          proof_image_url: pub.publicUrl,
-          proof_url: proofUrl.trim() || null,
-          submitted_url: proofUrl.trim() || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', task.assignment_id);
-      if (updErr) throw updErr;
+      const imageEntries = files.length
+        ? await uploadProofImages({ userId: uid, folder: `challenge-proofs/${task.assignment_id}`, files })
+        : [];
+
+      await submitChallengeAssignmentProof({
+        assignmentId: task.assignment_id,
+        proofMedia: [...imageEntries, ...urlEntries],
+      });
 
       toast.success('Misi dikirim! Tunggu admin review ya 🙏');
       onSubmitted();
@@ -540,52 +570,96 @@ function ProofUploadSheet({
 
         <div className="mb-4 p-3 bg-blue-50 rounded-lg text-xs text-blue-700">
           <p className="font-semibold mb-1">📋 Yang harus dilakuin:</p>
-          <p>Kerjakan <strong>{targetCount}x aktivitas</strong> sesuai misi, terus upload screenshot profile Reddit kamu yang nunjukin:</p>
+          <p>Kerjakan <strong>{targetCount}x aktivitas</strong> sesuai misi, terus upload bukti (bisa lebih dari satu):</p>
           <ul className="list-disc pl-4 mt-1 space-y-0.5">
-            <li>Username Reddit kamu</li>
-            <li>Karma terkini</li>
-            <li>Aktivitas terbaru (komentar/post)</li>
+            <li>Screenshot via browser <b>Incognito/Private</b> (anti-shadowban)</li>
+            <li>Username Reddit kamu + karma + aktivitas terbaru harus keliatan</li>
+            <li>Link komentar/post kamu (opsional, boleh beberapa)</li>
           </ul>
         </div>
 
-        {/* Proof Image Upload */}
+        {/* Multi-proof image upload */}
         <label className="block mb-3">
           <span className="text-xs font-semibold text-gray-700 mb-1.5 block">
-            📸 Screenshot Profile Reddit (WAJIB)
+            📸 Screenshot bukti (WAJIB min. 1 — boleh banyak)
           </span>
           <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center cursor-pointer hover:border-primary tap-shrink">
             <input
               type="file"
               accept="image/*"
-              onChange={handleFile}
+              multiple
+              onChange={handleFiles}
               className="hidden"
               id="proof-upload"
             />
             <label htmlFor="proof-upload" className="cursor-pointer block">
-              {preview ? (
-                <img src={preview} alt="Preview" className="max-h-40 mx-auto rounded-lg" />
+              {previews.length > 0 ? (
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {previews.map((src, i) => (
+                    <div key={i} className="relative">
+                      <img src={src} alt={`Preview ${i + 1}`} className="w-20 h-20 object-cover rounded-lg" />
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); removeFile(i); }}
+                        className="absolute -top-1.5 -right-1.5 bg-danger text-white rounded-full p-0.5"
+                        aria-label={`Hapus screenshot ${i + 1}`}
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                  <div className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 grid place-items-center text-gray-400">
+                    <div className="text-center">
+                      <ImagePlus size={18} className="mx-auto" />
+                      <span className="text-[10px]">Tambah</span>
+                    </div>
+                  </div>
+                </div>
               ) : (
                 <>
                   <Camera size={32} className="mx-auto text-gray-400 mb-2" />
-                  <p className="text-xs text-gray-500">Klik untuk upload screenshot</p>
+                  <p className="text-xs text-gray-500">Klik untuk pilih screenshot (bisa pilih banyak sekaligus)</p>
                 </>
               )}
             </label>
           </div>
         </label>
 
-        {/* Optional URL */}
-        <label className="block mb-4">
+        {/* Multi URL rows */}
+        <div className="mb-4">
           <span className="text-xs font-semibold text-gray-700 mb-1.5 block">
-            🔗 Link salah satu komentar/post kamu (opsional)
+            🔗 Link komentar/post kamu (opsional — boleh beberapa)
           </span>
-          <input
-            value={proofUrl}
-            onChange={(e) => setProofUrl(e.target.value)}
-            placeholder="https://reddit.com/r/indonesia/comments/..."
-            className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20"
-          />
-        </label>
+          <div className="space-y-2">
+            {urls.map((u, i) => (
+              <div key={i} className="flex gap-2">
+                <input
+                  value={u}
+                  onChange={(e) => setUrls(urls.map((x, j) => (j === i ? e.target.value : x)))}
+                  placeholder="https://reddit.com/r/indonesia/comments/..."
+                  className="flex-1 px-3 py-2 text-sm rounded-lg border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                />
+                {urls.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setUrls(urls.filter((_, j) => j !== i))}
+                    className="p-2 text-gray-400 hover:text-danger tap-shrink"
+                    aria-label="Hapus link"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
+              </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setUrls([...urls, ''])}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-primary tap-shrink"
+            >
+              <Plus size={13} /> Tambah link lain
+            </button>
+          </div>
+        </div>
 
         <div className="flex gap-2">
           <button
@@ -597,7 +671,7 @@ function ProofUploadSheet({
           </button>
           <button
             onClick={handleSubmit}
-            disabled={!proofImage || submitting}
+            disabled={submitting || (files.length === 0 && urls.every((u) => !u.trim()))}
             className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white bg-primary disabled:opacity-50 tap-shrink"
           >
             {submitting ? 'Mengirim...' : 'Kirim Misi ✅'}
@@ -609,25 +683,13 @@ function ProofUploadSheet({
 }
 
 // ---------------------------------------------------------------
-// Progress status — auto-detected by system cron (no manual sync).
-// Admin-issued accounts are verified server-side; army just sees
-// progress and waits for detection.
+// Proof hint — verification is 100% manual (admin reviews the
+// incognito screenshots). No fake auto-detection copy.
 // ---------------------------------------------------------------
-function ProgressStatus({ task }: { task: any }) {
-  const tc = task.target_count ?? 1;
-  const pc = task.progress_count ?? 0;
-  const complete = pc >= tc;
-
-  if (complete) {
-    return (
-      <span className="text-[11px] text-success font-semibold">
-        ✅ Aktivitas terdeteksi ({pc}/{tc}) — kamu bisa selesaikan misi!
-      </span>
-    );
-  }
+function ProofHint() {
   return (
     <span className="text-[11px] text-gray-500">
-      🔄 Sistem otomatis cek aktivitas tiap jam. {pc}/{tc} terdeteksi — {tc - pc} lagi biar bisa submit.
+      🔄 Kerjain di Reddit → cek di browser <b>Incognito/Private</b> biar yakin komentarmu live → kembali ke sini & submit bukti. Admin bakal review manual.
     </span>
   );
 }
@@ -667,9 +729,11 @@ function Phase1ActiveState({
             <h2 className="text-lg font-bold">Level {currentLevel}</h2>
           </div>
         </div>
-        <RedditAccountManager userId={profile.user_id} />
-
-        {/* Reddit account badge — always visible */}
+        <RedditAccountManager
+          userId={profile.user_id}
+          warmedAccountId={profile.warmed_account_id ?? null}
+          warmedUsername={tasks[0]?.reddit_username ?? null}
+        />
         {tasks[0]?.reddit_username && (
           <div className="mb-3 inline-flex items-center gap-2 bg-white/80 rounded-full px-3 py-1.5">
             <span className="text-xs text-gray-500">Akun Reddit:</span>
@@ -740,9 +804,6 @@ function Phase1ActiveState({
           {tasks.map((task) => {
             const status = task.assignment_status;
             const canApproveVisually = !isLevelLocked;
-            const pc = task.progress_count ?? 0;
-            const tc = task.target_count ?? 1;
-            const progressPct = Math.min(Math.round((pc / tc) * 100), 100);
             return (
               <Card key={task.task_id} padding="md">
                 <div className="flex items-start gap-3">
@@ -767,36 +828,16 @@ function Phase1ActiveState({
                       <span>Reward level: {formatRupiah(task.reward_amount)} (locked)</span>
                     </div>
 
-                    {/* Progress checklist — shown when claimed */}
+                    {/* Proof instructions — shown when claimed.
+                        Verification is manual, so no live activity checklist. */}
                     {status === 'in_progress' && (
                       <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                        <div className="flex justify-between text-xs mb-1">
-                          <span className="font-semibold text-gray-700">Checklist aktivitas</span>
-                          <span className="text-primary font-bold">{pc}/{tc}</span>
-                        </div>
-                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden mb-2">
-                          <div
-                            className="h-full bg-gradient-to-r from-secondary to-primary transition-all"
-                            style={{ width: `${progressPct}%` }}
-                          />
-                        </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          {Array.from({ length: tc }).map((_, i) => (
-                            <span
-                              key={i}
-                              className={`text-[10px] px-2 py-1 rounded-full font-semibold ${
-                                i < pc
-                                  ? 'bg-success/15 text-success'
-                                  : 'bg-gray-200 text-gray-500'
-                              }`}
-                            >
-                              {i < pc ? '✅' : '⬜'} #{i + 1}
-                            </span>
-                          ))}
-                        </div>
-                        <p className="text-[10px] text-gray-500 mt-2">
-                          💡 Kerjakan misi di Reddit, lalu cek di browser mode <b>Incognito / Private</b>. Pastikan komentarmu live (tidak shadowban), lalu screenshot sebagai bukti.
-                        </p>
+                        <p className="text-xs font-semibold text-gray-700 mb-1">Cara nyelesain misi:</p>
+                        <ol className="text-[11px] text-gray-500 list-decimal pl-4 space-y-0.5">
+                          <li>Kerjain aktivitas misi di Reddit (komen/post sesuai judul).</li>
+                          <li>Cek di browser <b>Incognito/Private</b> — pastikan live, bukan kena shadowban.</li>
+                          <li>Screenshot buktinya (bisa lebih dari 1), terus klik "Selesaikan Misi".</li>
+                        </ol>
                       </div>
                     )}
 
@@ -811,20 +852,14 @@ function Phase1ActiveState({
                         </span>
                       ) : status === 'in_progress' ? (
                         <div className="flex flex-col gap-2">
-                          <ProgressStatus task={task} />
-                          {task.progress_complete ? (
-                            <Button
-                              size="sm"
-                              variant="success"
-                              onClick={() => setSubmitTask(task)}
-                            >
-                              Selesaikan Misi 📸
-                            </Button>
-                          ) : (
-                            <span className="text-[11px] text-gray-400">
-                              Upload screenshot incognito sebagai bukti (Anti-shadowban).
-                            </span>
-                          )}
+                          <ProofHint />
+                          <Button
+                            size="sm"
+                            variant="success"
+                            onClick={() => setSubmitTask(task)}
+                          >
+                            Selesaikan Misi 📸
+                          </Button>
                         </div>
                       ) : status === 'rejected' && task.can_retry ? (
                         <Button
@@ -889,12 +924,25 @@ function Phase2ActiveState({
   redditUsername: string | null;
   onResign: () => void;
 }) {
+  const [showCheckin, setShowCheckin] = useState(false);
+  const queryClient = useQueryClient();
+
+  const checkinMut = useMutation({
+    mutationFn: selfReportDailyActivity,
+    onSuccess: () => {
+      toast.success('Check-in tercatat! Bonus Rp2.500 masuk antrian (½ cair Sabtu dua mingguan, ½ tabungan). 🔥');
+      setShowCheckin(false);
+      queryClient.invalidateQueries({ queryKey: ['reddit-army-profile'] });
+    },
+    onError: (err: Error) => toast.error(`Gagal check-in: ${err.message}`),
+  });
+
   const todayActive = summary.todayActivity?.is_active_day;
   const todayCredited = summary.todayActivity?.bonus_credited;
   const recent = (summary.recentActivities ?? []).slice(0, 7);
   const streak = recent.filter((a: any) => a.active).length;
 
-  // Total bonus bulan ini (dummy estimation: dari recent 30 hari)
+  // Total bonus bulan ini (dari riwayat 30 hari — data asli, bukan estimasi palsu)
   const monthBonus = (summary.recentActivities ?? [])
     .filter((a: any) => a.credited)
     .reduce((sum: number, a: any) => sum + a.amount, 0);
@@ -910,7 +958,11 @@ function Phase2ActiveState({
           </div>
           <Flame size={32} className="opacity-90" />
         </div>
-        <RedditAccountManager userId={profile.user_id} />
+        <RedditAccountManager
+          userId={profile.user_id}
+          warmedAccountId={profile.warmed_account_id ?? null}
+          warmedUsername={redditUsername}
+        />
         {redditUsername && (
           <div className="mb-3 inline-flex items-center gap-2 bg-white/20 rounded-full px-3 py-1.5">
             <span className="text-xs opacity-90">Akun Reddit:</span>
@@ -940,16 +992,16 @@ function Phase2ActiveState({
         </div>
       </Card>
 
-      {/* Mission today */}
+      {/* Mission today — self-report check-in (verification is manual; admin spot-checks) */}
       <Card className="mb-4">
         <h3 className="font-bold mb-2 text-sm uppercase tracking-wide text-gray-600">Mission Hari Ini</h3>
         {todayActive ? (
           <div className="flex items-center gap-3 p-3 bg-success/10 rounded-lg">
             <CheckCircle2 size={24} className="text-success shrink-0" />
             <div className="text-sm">
-              <div className="font-semibold text-success">Misi kelar!</div>
+              <div className="font-semibold text-success">Check-in kelar!</div>
               <div className="text-xs text-gray-600">
-                {todayCredited ? '+Rp2.500 udah masuk (cair 2 minggu lagi)' : 'Aktif terdeteksi, tunggu credit'}
+                {todayCredited ? '+Rp2.500 tercatat (½ cair Sabtu dua mingguan, ½ tabungan)' : 'Aktif hari ini, bonus menyusul'}
               </div>
             </div>
           </div>
@@ -957,16 +1009,16 @@ function Phase2ActiveState({
           <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
             <div className="w-6 h-6 rounded-full border-2 border-gray-300 shrink-0" />
             <div className="text-sm flex-1">
-              <div className="font-semibold">Belum aktif hari ini</div>
-              <div className="text-xs text-gray-600">Bikin minimal 1 comment/post di Reddit buat dapet bonus</div>
+              <div className="font-semibold">Belum check-in hari ini</div>
+              <div className="text-xs text-gray-600">Bikin minimal 1 comment/post di Reddit, terus catat di sini</div>
             </div>
-            <a href={REDDIT_URL} target="_blank" rel="noreferrer">
-              <Button size="sm" variant="primary">Buka Reddit</Button>
-            </a>
+            <Button size="sm" variant="primary" onClick={() => setShowCheckin(true)}>
+              Check-in 📝
+            </Button>
           </div>
         )}
         <p className="text-xs text-gray-400 mt-2">
-          Sistem ngecek aktivitas tiap jam. Kadang butuh 1–2 jam setelah kamu comment biar ke-detect.
+          Check-in itu catatan jujur dari kamu. Admin bisa minta screenshot buat spot-check, jadi tetap simpen bukti aktivitasmu ya.
         </p>
       </Card>
 
@@ -1017,6 +1069,16 @@ function Phase2ActiveState({
           </div>
         )}
       </Card>
+
+      {showCheckin && (
+        <CheckinSheet
+          submitting={checkinMut.isPending}
+          onSubmit={(comments, posts, proofs, note) =>
+            checkinMut.mutate({ commentsToday: comments, postsToday: posts, proofs, note })
+          }
+          onClose={() => setShowCheckin(false)}
+        />
+      )}
 
       <Button variant="ghost" fullWidth onClick={onResign}>
         Mau Berhenti? Lihat Syarat →
@@ -1133,5 +1195,190 @@ function ResigningState({
         Batal Berhenti (Saya Mau Lanjut)
       </Button>
     </>
+  );
+}
+
+// ---------------------------------------------------------------
+// Check-in sheet — Phase 2 daily self-report (honor system).
+// Optional screenshots go to task-proofs bucket; admin spot-checks
+// them from the admin Daily Log tab.
+// ---------------------------------------------------------------
+function CheckinSheet({
+  onSubmit,
+  onClose,
+  submitting,
+}: {
+  onSubmit: (comments: number, posts: number, proofs: ProofMediaEntry[], note?: string) => void;
+  onClose: () => void;
+  submitting: boolean;
+}) {
+  const [comments, setComments] = useState(1);
+  const [posts, setPosts] = useState(0);
+  const [files, setFiles] = useState<File[]>([]);
+  const [previews, setPreviews] = useState<string[]>([]);
+  const [note, setNote] = useState('');
+  const [uploading, setUploading] = useState(false);
+
+  const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const incoming = Array.from(e.target.files ?? []);
+    const next = [...files, ...incoming].slice(0, 10);
+    setFiles(next);
+    setPreviews(next.map((f) => URL.createObjectURL(f)));
+    e.target.value = '';
+  };
+
+  const removeFile = (idx: number) => {
+    const next = files.filter((_, i) => i !== idx);
+    setFiles(next);
+    setPreviews(next.map((f) => URL.createObjectURL(f)));
+  };
+
+  const handleSubmit = async () => {
+    if (comments + posts < 1) {
+      toast.error('Minimal 1 aktivitas (komentar atau post) buat check-in ya.');
+      return;
+    }
+    let proofs: ProofMediaEntry[] = [];
+    if (files.length > 0) {
+      setUploading(true);
+      try {
+        const { supabase } = await import('../lib/supabase');
+        const { data: auth } = await supabase.auth.getUser();
+        const uid = auth.user?.id;
+        if (!uid) throw new Error('Sesi habis — login ulang dulu ya.');
+        proofs = await uploadProofImages({ userId: uid, folder: `daily-checkins/${new Date().toISOString().slice(0, 10)}`, files });
+      } catch (e: any) {
+        toast.error(`Gagal upload screenshot: ${e.message || e}`);
+        setUploading(false);
+        return;
+      }
+      setUploading(false);
+    }
+    onSubmit(comments, posts, proofs, note.trim() || undefined);
+  };
+
+  const busy = submitting || uploading;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto p-5">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="font-bold text-lg">Check-in Hari Ini</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <XCircle size={22} />
+          </button>
+        </div>
+        <p className="text-xs text-gray-500 mb-4">
+          Catat aktivitas Reddit kamu hari ini. <b>Jujur ya</b> — admin bisa minta bukti sewaktu-waktu.
+        </p>
+
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="p-3 bg-gray-50 rounded-xl text-center">
+            <p className="text-xs text-gray-500 mb-1.5">💬 Komentar hari ini</p>
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={() => setComments(Math.max(0, comments - 1))}
+                className="w-9 h-9 rounded-full bg-white ring-1 ring-gray-200 font-bold tap-shrink"
+                aria-label="Kurangi komentar"
+              >−</button>
+              <span className="text-xl font-extrabold w-8">{comments}</span>
+              <button
+                onClick={() => setComments(Math.min(50, comments + 1))}
+                className="w-9 h-9 rounded-full bg-primary text-white font-bold tap-shrink"
+                aria-label="Tambah komentar"
+              >+</button>
+            </div>
+          </div>
+          <div className="p-3 bg-gray-50 rounded-xl text-center">
+            <p className="text-xs text-gray-500 mb-1.5">📝 Post hari ini</p>
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={() => setPosts(Math.max(0, posts - 1))}
+                className="w-9 h-9 rounded-full bg-white ring-1 ring-gray-200 font-bold tap-shrink"
+                aria-label="Kurangi post"
+              >−</button>
+              <span className="text-xl font-extrabold w-8">{posts}</span>
+              <button
+                onClick={() => setPosts(Math.min(50, posts + 1))}
+                className="w-9 h-9 rounded-full bg-primary text-white font-bold tap-shrink"
+                aria-label="Tambah post"
+              >+</button>
+            </div>
+          </div>
+        </div>
+
+        <a href={REDDIT_URL} target="_blank" rel="noreferrer" className="block mb-4 text-center">
+          <Button variant="outline" size="sm" type="button">Buka Reddit dulu ↗</Button>
+        </a>
+
+        {/* Optional screenshots */}
+        <label className="block mb-3">
+          <span className="text-xs font-semibold text-gray-700 mb-1.5 block">
+            📸 Screenshot aktivitas (opsional — simpan buat spot-check)
+          </span>
+          <div className="border-2 border-dashed border-gray-300 rounded-xl p-4 text-center cursor-pointer hover:border-primary tap-shrink">
+            <input type="file" accept="image/*" multiple onChange={handleFiles} className="hidden" id="checkin-upload" />
+            <label htmlFor="checkin-upload" className="cursor-pointer block">
+              {previews.length > 0 ? (
+                <div className="flex flex-wrap gap-2 justify-center">
+                  {previews.map((src, i) => (
+                    <div key={i} className="relative">
+                      <img src={src} alt={`Preview ${i + 1}`} className="w-20 h-20 object-cover rounded-lg" />
+                      <button
+                        type="button"
+                        onClick={(e) => { e.preventDefault(); removeFile(i); }}
+                        className="absolute -top-1.5 -right-1.5 bg-danger text-white rounded-full p-0.5"
+                        aria-label={`Hapus screenshot ${i + 1}`}
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                  ))}
+                  <div className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 grid place-items-center text-gray-400">
+                    <div className="text-center">
+                      <ImagePlus size={18} className="mx-auto" />
+                      <span className="text-[10px]">Tambah</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <Camera size={28} className="mx-auto text-gray-400 mb-1.5" />
+                  <p className="text-xs text-gray-500">Pilih screenshot (boleh banyak)</p>
+                </>
+              )}
+            </label>
+          </div>
+        </label>
+
+        <label className="block mb-4">
+          <span className="text-xs font-semibold text-gray-700 mb-1.5 block">💬 Catatan (opsional)</span>
+          <textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={2}
+            placeholder="Contoh: komen di thread r/indonesia soal film bioskop"
+            className="w-full px-3 py-2 text-sm rounded-lg border border-gray-300 focus:border-primary focus:ring-2 focus:ring-primary/20"
+          />
+        </label>
+
+        <div className="flex gap-2">
+          <button
+            onClick={onClose}
+            disabled={busy}
+            className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-gray-600 bg-gray-100 tap-shrink"
+          >
+            Nanti Dulu
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={busy || comments + posts < 1}
+            className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white bg-primary disabled:opacity-50 tap-shrink"
+          >
+            {busy ? 'Mengirim…' : 'Kirim Check-in'}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }

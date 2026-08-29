@@ -7,8 +7,64 @@ import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { supabase } from '../../lib/supabase';
-import { adminApproveAssignment, adminRejectAssignment, adminRevertAssignment, adminRepairAssignmentUserId, sendTaskApprovedEmail } from '../../lib/api';
+import { adminApproveAssignment, adminRejectAssignment, adminRevertAssignment, adminRepairAssignmentUserId, sendTaskApprovedEmail, sendPetaEmail } from '../../lib/api';
 import { toast } from '../../components/Toast';
+
+// ─── Multi-proof helpers (proof_media jsonb, additive to legacy cols) ───
+export function proofImages(a: any): string[] {
+  const fromMedia: string[] = (a?.proof_media ?? [])
+    .filter((p: any) => p?.type === 'image' && p?.url)
+    .map((p: any) => p.url);
+  const legacy = a?.proof_image_url ? [a.proof_image_url] : [];
+  return Array.from(new Set([...fromMedia, ...legacy]));
+}
+
+export function proofLinks(a: any): string[] {
+  const fromMedia: string[] = (a?.proof_media ?? [])
+    .filter((p: any) => p?.type === 'url' && p?.url)
+    .map((p: any) => p.url);
+  const legacy = [a?.submitted_url, a?.proof_url].filter(Boolean) as string[];
+  return Array.from(new Set([...fromMedia, ...legacy]));
+}
+
+function ProofThumbs({ a, onOpen, size = 'sm' }: { a: any; onOpen: (src: string) => void; size?: 'sm' | 'lg' }) {
+  const images = proofImages(a);
+  if (images.length === 0) return null;
+  const box = size === 'lg' ? 'w-20 h-20' : 'w-14 h-14';
+  return (
+    <div className="flex gap-1.5 flex-wrap">
+      {images.slice(0, 4).map((src, i) => (
+        <button
+          key={i}
+          onClick={() => onOpen(src)}
+          className={`block ${box} rounded-lg overflow-hidden ring-1 ring-border hover:ring-primary transition group shrink-0 relative`}
+          title={`Bukti ${i + 1}${images.length > 1 ? ` dari ${images.length}` : ''}`}
+        >
+          <img src={src} alt={`Bukti ${i + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition" />
+          {i === 3 && images.length > 4 && (
+            <span className="absolute inset-0 bg-black/60 text-white text-[10px] font-bold grid place-items-center">
+              +{images.length - 4}
+            </span>
+          )}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function ProofUrlChips({ a }: { a: any }) {
+  const links = proofLinks(a);
+  if (links.length === 0) return null;
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {links.map((url, i) => (
+        <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-primary font-semibold hover:underline max-w-[220px] truncate">
+          Link bukti {links.length > 1 ? i + 1 : ''} <ExternalLink size={10} />
+        </a>
+      ))}
+    </div>
+  );
+}
 
 // Pre-baked rejection reasons for fast admin triage — covers ~90% of why
 // upvote/comment proofs get rejected. Admin can override with custom text.
@@ -85,6 +141,7 @@ export function AdminApprovalQueue() {
         status: r.status,
         proof_url: r.proof_url,
         proof_image_url: r.proof_image_url,
+        proof_media: r.proof_media ?? [],
         submitted_url: r.submitted_url,
         submitted_username: r.submitted_username,
         draft_comment: r.draft_comment,
@@ -143,6 +200,7 @@ export function AdminApprovalQueue() {
     status: r.status,
     proof_url: r.proof_url,
     proof_image_url: r.proof_image_url,
+    proof_media: r.proof_media ?? [],
     submitted_url: r.submitted_url,
     submitted_username: r.submitted_username,
     draft_comment: r.draft_comment,
@@ -177,12 +235,25 @@ export function AdminApprovalQueue() {
     onSuccess: (a: any) => {
       toast.success('Approved ✅');
       if (a?.army_email && a?.army_name) {
-        sendTaskApprovedEmail(
-          a.army_email,
-          a.army_name,
-          a.tasks?.title || 'Task',
-          a.tasks?.reward_amount || 0
-        ).catch(() => {});
+        if (a.tasks?.task_category === 'reddit_challenge') {
+          // Challenge rewards are HELD (tabungan retensi), not cash — say it
+          // honestly instead of quoting the display-only reward_amount.
+          sendPetaEmail({
+            to: a.army_email,
+            subject: 'Misi challenge kamu di-approve! 🎖️',
+            type: 'general',
+            body: `Halo <b>${a.army_name}</b>,<br><br>Misi challenge <b>${a.tasks?.title || 'task'}</b> udah di-approve ✅ Bonus level kamu masuk <b>tabungan retensi (locked)</b> sesuai program Reddit Army dan bakal cair sesuai ketentuan. Lanjut ke misi berikutnya di halaman Reddit Army!`,
+            link: 'https://penghasilantambahan.com/reddit-army',
+            previewText: 'Misi challenge di-approve — bonus masuk tabungan retensi.',
+          }).catch(() => {});
+        } else {
+          sendTaskApprovedEmail(
+            a.army_email,
+            a.army_name,
+            a.tasks?.title || 'Task',
+            a.tasks?.reward_amount || 0
+          ).catch(() => {});
+        }
       }
       refetch();
     },
@@ -410,8 +481,6 @@ export function AdminApprovalQueue() {
         ) : (
           <div className="space-y-2">
             {visibleHistory.map((a: any) => {
-              const proofImage = a.proof_image_url || (/\.(png|jpe?g|gif|webp)(\?|$)/i.test(a.proof_url || '') ? a.proof_url : '');
-              const submittedUrl = a.submitted_url || a.proof_url;
               const isApproved = a.status === 'approved';
               const isReverted = a.status === 'reverted';
               return (
@@ -449,21 +518,10 @@ export function AdminApprovalQueue() {
                     </p>
                   </div>
 
-                  {/* Evidence row — screenshot thumbnail + URL + comment, same as pending view */}
+                  {/* Evidence row — multi-proof gallery + URLs + comment, same as pending view */}
                   <div className="flex items-start gap-3 flex-wrap">
-                    {proofImage && (
-                      <button
-                        onClick={() => setLightbox({ src: proofImage, caption: `${a.tasks?.title} - u/${a.reddit_accounts?.username}` })}
-                        className="block w-14 h-14 rounded-lg overflow-hidden ring-1 ring-border hover:ring-primary transition group shrink-0"
-                      >
-                        <img src={proofImage} alt="Bukti" className="w-full h-full object-cover group-hover:scale-105 transition" />
-                      </button>
-                    )}
-                    {submittedUrl && (
-                      <a href={submittedUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-primary font-semibold hover:underline shrink-0">
-                        Submitted URL <ExternalLink size={10} />
-                      </a>
-                    )}
+                    <ProofThumbs a={a} onOpen={(src) => setLightbox({ src, caption: `${a.tasks?.title} - u/${a.reddit_accounts?.username}` })} />
+                    <ProofUrlChips a={a} />
                     {a.tasks?.target_url && (
                       <a href={a.tasks.target_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-[11px] text-muted font-semibold hover:underline shrink-0">
                         Thread asli <ExternalLink size={10} />
@@ -538,12 +596,12 @@ export function AdminApprovalQueue() {
               </thead>
               <tbody>
                 {filteredAssignments.map((a: any) => {
-                  const proofImage = a.proof_image_url || (/\.(png|jpe?g|gif|webp)(\?|$)/i.test(a.proof_url || '') ? a.proof_url : '');
-                  const submittedUrl = a.submitted_url || a.proof_url;
-                  const hasProof = !!proofImage;
+                  const images = proofImages(a);
+                  const links = proofLinks(a);
+                  const hasProof = images.length > 0;
                   const hasComment = !!a.draft_comment?.trim();
                   const hasUserNote = !!a.user_note?.trim();
-                  const noEvidence = !hasProof && !submittedUrl && !hasComment;
+                  const noEvidence = !hasProof && links.length === 0 && !hasComment;
                   const broken = !a.army_user_id;
                   return (
                     <tr key={a.id} className={`border-b border-border last:border-0 hover:bg-light/60 ${noEvidence ? 'bg-warning/5' : ''} ${broken ? 'bg-danger/5' : ''}`}>
@@ -576,29 +634,14 @@ export function AdminApprovalQueue() {
                       </td>
                       <td className="px-2 py-3 align-top">
                         {hasProof ? (
-                          <button
-                            onClick={() => setLightbox({ src: proofImage, caption: `${a.tasks?.title} - ${a.reddit_accounts?.username}` })}
-                            className="block w-16 h-16 rounded-lg overflow-hidden ring-1 ring-border hover:ring-primary transition group"
-                            title="Klik untuk lihat besar"
-                          >
-                            <img
-                              src={proofImage}
-                              alt="Screenshot bukti"
-                              className="w-full h-full object-cover group-hover:scale-105 transition"
-                            />
-                          </button>
+                          <ProofThumbs a={a} onOpen={(src) => setLightbox({ src, caption: `${a.tasks?.title} - ${a.reddit_accounts?.username}` })} />
                         ) : (
                           <span className="inline-flex items-center gap-1 text-[10px] text-muted font-bold">optional</span>
                         )}
-                        {submittedUrl && (
-                          <a
-                            href={submittedUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="mt-1 inline-flex items-center gap-1 text-[11px] text-primary font-semibold hover:underline"
-                          >
-                            Submitted URL <ExternalLink size={10} />
-                          </a>
+                        {links.length > 0 && (
+                          <div className="mt-1">
+                            <ProofUrlChips a={a} />
+                          </div>
                         )}
                       </td>
                       <td className="px-2 py-3 align-top max-w-xs">
@@ -668,9 +711,9 @@ export function AdminApprovalQueue() {
           {/* Mobile cards — compact, action-first */}
           <div className="md:hidden space-y-2">
             {filteredAssignments.map((a: any) => {
-              const proofImage = a.proof_image_url || (/\.(png|jpe?g|gif|webp)(\?|$)/i.test(a.proof_url || '') ? a.proof_url : '');
-              const submittedUrl = a.submitted_url || a.proof_url;
-                  const hasProof = !!proofImage;
+              const images = proofImages(a);
+              const links = proofLinks(a);
+                  const hasProof = images.length > 0;
                   const hasComment = !!a.draft_comment?.trim();
                   const hasUserNote = !!a.user_note?.trim();
                   const broken = !a.army_user_id;
@@ -701,12 +744,7 @@ export function AdminApprovalQueue() {
 
                   <div className="flex gap-2 items-stretch">
                     {hasProof ? (
-                      <button
-                        onClick={() => setLightbox({ src: proofImage, caption: `${a.tasks?.title} - ${a.reddit_accounts?.username}` })}
-                        className="w-20 h-20 rounded-lg overflow-hidden ring-1 ring-border shrink-0"
-                      >
-                        <img src={proofImage} alt="Bukti" className="w-full h-full object-cover" />
-                      </button>
+                      <ProofThumbs a={a} onOpen={(src) => setLightbox({ src, caption: `${a.tasks?.title} - ${a.reddit_accounts?.username}` })} size="lg" />
                     ) : (
                       <div className="w-20 h-20 rounded-lg bg-warning/10 ring-1 ring-warning/30 grid place-items-center shrink-0">
                         <ImageIcon size={20} className="text-warning/60" />
@@ -722,7 +760,7 @@ export function AdminApprovalQueue() {
                             {a.draft_comment}
                           </p>
                         </details>
-                      ) : !hasProof && !submittedUrl ? (
+                      ) : !hasProof && links.length === 0 ? (
                         <p className="text-[11px] text-warning">No screenshot or URL</p>
                       ) : (
                         <p className="text-[11px] text-muted">No comment</p>
@@ -732,26 +770,19 @@ export function AdminApprovalQueue() {
                           📝 {a.user_note}
                         </p>
                       )}
-                      {a.tasks?.target_url && (
-                        <a
-                          href={a.tasks.target_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] text-primary font-semibold mt-1 hover:underline"
-                        >
-                          Buka thread <ExternalLink size={10} />
-                        </a>
-                      )}
-                      {submittedUrl && (
-                        <a
-                          href={submittedUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 text-[11px] text-primary font-semibold mt-1 hover:underline"
-                        >
-                          Submitted URL <ExternalLink size={10} />
-                        </a>
-                      )}
+                      <div className="mt-1 space-y-1">
+                        {a.tasks?.target_url && (
+                          <a
+                            href={a.tasks.target_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] text-primary font-semibold hover:underline"
+                          >
+                            Buka thread <ExternalLink size={10} />
+                          </a>
+                        )}
+                        <ProofUrlChips a={a} />
+                      </div>
                     </div>
                   </div>
 
