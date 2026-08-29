@@ -203,6 +203,7 @@ export type StraightRegistrationMode = 'signup' | 'waitlist';
 
 export type StraightSettings = {
   registration_mode: StraightRegistrationMode;
+  auto_activate_tasks?: boolean;
   updated_at: string;
 };
 
@@ -214,10 +215,15 @@ export async function getStraightSettings(): Promise<StraightSettings> {
 
 export async function updateStraightSettings(input: {
   registrationMode: StraightRegistrationMode;
+  autoActivateTasks?: boolean;
 }) {
-  const { data, error } = await supabase.rpc('admin_update_straight_settings', {
+  const params: Record<string, unknown> = {
     p_registration_mode: input.registrationMode,
-  });
+  };
+  if (input.autoActivateTasks !== undefined) {
+    params.p_auto_activate_tasks = input.autoActivateTasks;
+  }
+  const { data, error } = await supabase.rpc('admin_update_straight_settings', params);
   if (error) throw error;
   return data;
 }
@@ -293,6 +299,69 @@ export function straightEnabled(rows: StraightPricingRow[], key: string, fallbac
 // Platform bucket for the pricing matrix: reddit URLs vs every other forum.
 export function straightPlatformKey(url: string | null | undefined): 'reddit' | 'forum' {
   return /reddit\.com/i.test(url || '') ? 'reddit' : 'forum';
+}
+
+// ============ Public stats for the landing page (REAL data) ============
+
+export type StraightPublicStats = {
+  completed_orders: number;
+  delivered_units: number;
+  avg_delivery_hours: number | null;
+  total_clients: number;
+};
+
+// Reads real aggregate counters. Returns null when the RPC is missing
+// (migration not applied yet) so the landing can hide the section.
+export async function getStraightPublicStats(): Promise<StraightPublicStats | null> {
+  try {
+    const { data, error } = await supabase.rpc('get_straight_public_stats');
+    if (error || !data) return null;
+    return data as StraightPublicStats;
+  } catch {
+    return null;
+  }
+}
+
+// ============ Admin: client retention health (churn prevention) ============
+
+export type ClientHealthSegment = 'new' | 'never_activated' | 'active' | 'cooling' | 'at_risk' | 'dormant';
+
+export type ClientHealth = {
+  user_id: string;
+  email: string;
+  full_name: string | null;
+  credit_balance: number;
+  total_orders: number;
+  completed_orders: number;
+  lifetime_spent_cents: number;
+  last_order_at: string | null;
+  days_since_last_order: number | null;
+  last_sign_in_at: string | null;
+  segment: ClientHealthSegment;
+};
+
+export async function getAdminClientHealth(): Promise<ClientHealth[]> {
+  const { data, error } = await supabase.rpc('admin_get_client_health');
+  if (error) throw error;
+  return (data || []) as ClientHealth[];
+}
+
+// Manually run the churn sweep (normally a daily cron job).
+export async function runChurnSweep(): Promise<{ first_order_nudges: number; reengagements: number; balance_reminders: number }> {
+  const { data, error } = await supabase.rpc('admin_run_churn_sweep');
+  if (error) throw error;
+  return (data as { first_order_nudges: number; reengagements: number; balance_reminders: number }) || {
+    first_order_nudges: 0,
+    reengagements: 0,
+    balance_reminders: 0,
+  };
+}
+
+// Create missing PeTa tasks for Straight orders that missed the auto-import trigger.
+export async function adminResyncOrderTasks(): Promise<number> {
+  const { data, error } = await supabase.rpc('admin_resync_straight_order_tasks');
+  if (error) throw error;
+  return (data as number) || 0;
 }
 
 // ============ Front door mode (admin-controllable signup vs waitlist) ============

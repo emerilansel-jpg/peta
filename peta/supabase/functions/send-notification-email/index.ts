@@ -23,7 +23,15 @@ interface EmailRequest {
   to: string;
   subject: string;
   body: string;
-  type?: 'message' | 'order_status' | 'review' | 'credit' | 'general';
+  type?:
+    | 'message'
+    | 'order_status'
+    | 'review'
+    | 'credit'
+    | 'general'
+    | 'first_order_nudge'
+    | 'reengagement'
+    | 'balance_reminder';
   link?: string;
 }
 
@@ -46,6 +54,12 @@ function emailTemplate(payload: EmailRequest, link?: string): string {
         return 'See review';
       case 'credit':
         return 'View dashboard';
+      case 'first_order_nudge':
+        return 'Create your first order';
+      case 'reengagement':
+        return 'Open your dashboard';
+      case 'balance_reminder':
+        return 'Use your credits';
       default:
         return 'Open Straight Ltd';
     }

@@ -4,7 +4,6 @@ import {
   ArrowRight,
   Shield,
   Zap,
-  TrendingUp,
   Globe,
   Users,
   Check,
@@ -13,16 +12,31 @@ import {
   Clock,
   BarChart3,
   Headphones,
-  Sparkles,
+  RefreshCcw,
+  ArrowUpCircle,
   MessagesSquare,
+  PlayCircle,
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
-import { getStraightRegistrationMode } from '../lib/api';
+import {
+  getStraightRegistrationMode,
+  getStraightPublicStats,
+  straightPrice,
+  type StraightPublicStats,
+} from '../lib/api';
+import { useStraightPricing } from '../hooks/useStraightPricing';
+
+// Only show real usage numbers once there are enough completed orders to be
+// meaningful. Below that, the hero falls back to policy-based trust chips —
+// we never invent numbers.
+const MIN_ORDERS_FOR_STATS = 20;
 
 export function RedditLanding() {
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [regMode, setRegMode] = useState<'signup' | 'waitlist'>('signup');
+  const [stats, setStats] = useState<StraightPublicStats | null>(null);
+  const pricing = useStraightPricing();
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -31,7 +45,18 @@ export function RedditLanding() {
     getStraightRegistrationMode()
       .then((mode) => setRegMode(mode))
       .catch(() => setRegMode('signup'));
+    getStraightPublicStats()
+      .then(setStats)
+      .catch(() => setStats(null));
   }, []);
+
+  const showStats = !!stats && stats.completed_orders >= MIN_ORDERS_FOR_STATS;
+
+  // Live price-list values with safe fallbacks (all in USD cents).
+  const upvotePrice = straightPrice(pricing, 'reddit_upvote', 50);
+  const commentPrice = straightPrice(pricing, 'reddit_comment_plain', 500);
+  const youtubePrice = straightPrice(pricing, 'youtube_upload', 500);
+  const usd = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 
   const handleCTA = () => {
     if (isLoggedIn) {
@@ -51,10 +76,9 @@ export function RedditLanding() {
           <div className="flex items-center gap-2">
             <img src="/straight/icon-192.png" alt="Straight Ltd" className="w-8 h-8 rounded-lg object-cover" />
             <span className="font-bold text-lg">Straight Ltd</span>
-            <span className="text-xs text-slate-500 ml-1">Pro</span>
           </div>
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
-            <a href="#features" className="hover:text-slate-900">Features</a>
+            <a href="#how" className="hover:text-slate-900">How it works</a>
             <a href="#pricing" className="hover:text-slate-900">Pricing</a>
             <a href="#faq" className="hover:text-slate-900">FAQ</a>
           </div>
@@ -75,10 +99,10 @@ export function RedditLanding() {
                   Sign in
                 </button>
                 <button
-                  onClick={() => navigate('/reddit/signup')}
+                  onClick={() => navigate(regMode === 'waitlist' ? '/reddit/waitlist' : '/reddit/signup')}
                   className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600"
                 >
-                  {regMode === 'waitlist' ? 'Join waitlist' : 'Start free'}
+                  {regMode === 'waitlist' ? 'Join waitlist' : 'Start now'}
                 </button>
               </>
             )}
@@ -92,23 +116,16 @@ export function RedditLanding() {
         <div className="absolute top-20 -right-20 w-96 h-96 bg-orange-200/30 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative max-w-7xl mx-auto px-6 pt-20 pb-24">
-          {/* Trust badge */}
-          <div className="flex justify-center mb-8">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-100 border border-orange-200 text-sm text-orange-900 font-medium">
-              <Star size={14} className="fill-orange-500 text-orange-500" />
-              Trusted by 1,200+ agencies and operators
-            </div>
-          </div>
-
           <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-center max-w-5xl mx-auto leading-[1.05]">
-            The Reddit growth engine for{' '}
+            Grow on Reddit and big forums —{' '}
             <span className="bg-gradient-to-r from-orange-500 to-red-500 bg-clip-text text-transparent">
-              serious operators
+              the easy way
             </span>
           </h1>
 
           <p className="mt-6 text-xl text-slate-600 text-center max-w-2xl mx-auto leading-relaxed">
-            Scale visibility on Reddit with high-retention upvotes from real, aged accounts. Built for digital agencies and growth teams who need results that hold.
+            Get real upvotes, helpful comments about your brand, and YouTube uploads — all from one
+            simple dashboard. Pay with PayPal. Watch every order live.
           </p>
 
           <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -116,47 +133,57 @@ export function RedditLanding() {
               onClick={handleCTA}
               className="group flex items-center gap-2 px-8 py-4 rounded-xl bg-orange-500 text-white text-base font-semibold hover:bg-orange-600 shadow-lg shadow-orange-500/20 transition-all"
             >
-              {isLoggedIn ? 'Go to dashboard' : regMode === 'waitlist' ? 'Join the waitlist' : 'Get started — free to sign up'}
+              {isLoggedIn ? 'Go to dashboard' : regMode === 'waitlist' ? 'Join the waitlist' : 'Start your first order'}
               <ArrowRight size={18} className="group-hover:translate-x-0.5 transition-transform" />
             </button>
             <button
               onClick={() => document.getElementById('how')?.scrollIntoView({ behavior: 'smooth' })}
               className="px-6 py-4 rounded-xl text-slate-700 text-base font-semibold hover:bg-slate-100"
             >
-              See how it works →
+              See how it works
             </button>
           </div>
 
           <p className="mt-6 text-sm text-slate-500 text-center">
-            No subscription. Pay only for what you use. PayPal secure checkout.
+            Free to sign up &middot; Top up from $25 with PayPal &middot; No subscription &middot; Credits never expire
           </p>
 
-          {/* Hero metrics */}
-          <div className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-8 max-w-4xl mx-auto">
-            {[
-              { label: 'Upvotes delivered', value: '12.4M+' },
-              { label: 'Active accounts', value: '47K+' },
-              { label: 'Avg. delivery time', value: '< 6 hrs' },
-              { label: 'Retention rate', value: '98.2%' },
-            ].map((stat) => (
-              <div key={stat.label} className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-slate-900">{stat.value}</div>
-                <div className="text-sm text-slate-600 mt-1">{stat.label}</div>
+          {/* Real usage stats (hidden until there are enough real orders) */}
+          {showStats ? (
+            <div className="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+              <div className="text-center">
+                <div className="text-3xl md:text-4xl font-bold text-slate-900">{stats!.completed_orders.toLocaleString('en-US')}</div>
+                <div className="text-sm text-slate-600 mt-1">Orders delivered</div>
               </div>
-            ))}
-          </div>
+              <div className="text-center">
+                <div className="text-3xl md:text-4xl font-bold text-slate-900">{stats!.delivered_units.toLocaleString('en-US')}</div>
+                <div className="text-sm text-slate-600 mt-1">Upvotes &amp; comments placed</div>
+              </div>
+              <div className="text-center">
+                <div className="text-3xl md:text-4xl font-bold text-slate-900">{stats!.total_clients.toLocaleString('en-US')}</div>
+                <div className="text-sm text-slate-600 mt-1">Businesses served</div>
+              </div>
+            </div>
+          ) : (
+            <div className="mt-16 flex flex-wrap items-center justify-center gap-x-8 gap-y-4 text-sm text-slate-700 max-w-3xl mx-auto">
+              <span className="inline-flex items-center gap-2"><Users size={16} className="text-orange-500" /> Real people, real accounts</span>
+              <span className="inline-flex items-center gap-2"><Lock size={16} className="text-orange-500" /> We never ask for your passwords</span>
+              <span className="inline-flex items-center gap-2"><Shield size={16} className="text-orange-500" /> 30-day refund on unused credits</span>
+              <span className="inline-flex items-center gap-2"><BarChart3 size={16} className="text-orange-500" /> Proof with every order</span>
+            </div>
+          )}
         </div>
       </section>
 
-      {/* Trust bar */}
+      {/* Who it's for */}
       <section className="py-12 border-y border-slate-100 bg-slate-50/50">
         <div className="max-w-7xl mx-auto px-6">
           <p className="text-center text-xs uppercase tracking-widest text-slate-500 font-semibold mb-8">
-            Built for the workflows of high-output teams
+            Who uses Straight
           </p>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-8 items-center justify-items-center opacity-60">
-            {['Agencies', 'SaaS Founders', 'Affiliate Pros', 'eCom Brands', 'Crypto Teams'].map((label) => (
-              <div key={label} className="text-slate-700 font-bold text-sm md:text-base tracking-tight">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-8 items-center justify-items-center opacity-70">
+            {['Agencies', 'SaaS founders', 'E-commerce brands', 'Affiliate marketers', 'Local businesses'].map((label) => (
+              <div key={label} className="text-slate-700 font-bold text-sm md:text-base tracking-tight text-center">
                 {label}
               </div>
             ))}
@@ -169,9 +196,9 @@ export function RedditLanding() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center max-w-2xl mx-auto mb-16">
             <p className="text-sm font-semibold text-orange-500 uppercase tracking-widest mb-3">How it works</p>
-            <h2 className="text-4xl md:text-5xl font-bold tracking-tight">Three steps. Hours, not days.</h2>
+            <h2 className="text-4xl md:text-5xl font-bold tracking-tight">Three steps. Minutes, not days.</h2>
             <p className="mt-4 text-lg text-slate-600">
-              Top up via PayPal, paste your Reddit URL, hit confirm. We handle the rest with full delivery transparency.
+              No calls, no contracts, no learning curve. If you can paste a link, you can do this.
             </p>
           </div>
 
@@ -179,20 +206,20 @@ export function RedditLanding() {
             {[
               {
                 step: '01',
-                title: 'Top up with PayPal',
-                desc: 'Buy credits securely. No subscription, no auto-renewal. Credits never expire.',
+                title: 'Top up your credits',
+                desc: 'Add credits with PayPal, from $25. No subscription and credits never expire.',
                 icon: Lock,
               },
               {
                 step: '02',
-                title: 'Submit your Reddit URL',
-                desc: 'Paste the thread or comment URL. Set how many upvotes. Hit confirm to deduct credits instantly.',
-                icon: TrendingUp,
+                title: 'Pick a service, paste your link',
+                desc: 'Upvotes, comments, or a YouTube upload. Point us at your post or page — that\'s it.',
+                icon: ArrowUpCircle,
               },
               {
                 step: '03',
-                title: 'Watch delivery in dashboard',
-                desc: 'Real-time status. Average delivery starts under 6 hours. Track every order with full audit trail.',
+                title: 'Watch it happen',
+                desc: 'Your order enters the queue immediately. Follow every step and see the proof right in your dashboard.',
                 icon: BarChart3,
               },
             ].map((item) => {
@@ -214,47 +241,171 @@ export function RedditLanding() {
         </div>
       </section>
 
-      {/* Features */}
-      <section id="features" className="py-24 bg-slate-50">
+      {/* Services & pricing */}
+      <section id="pricing" className="py-24 bg-slate-50">
         <div className="max-w-7xl mx-auto px-6">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <p className="text-sm font-semibold text-orange-500 uppercase tracking-widest mb-3">Built for pros</p>
+            <p className="text-sm font-semibold text-orange-500 uppercase tracking-widest mb-3">Services &amp; pricing</p>
+            <h2 className="text-4xl md:text-5xl font-bold tracking-tight">Pay only for what you order</h2>
+            <p className="mt-4 text-lg text-slate-600">
+              One clear price per item. Top up once, order as much or as little as you want.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Upvotes */}
+            <div className="relative p-8 rounded-2xl bg-slate-900 text-white shadow-xl shadow-slate-900/20 md:-translate-y-4">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-orange-500 text-white text-xs font-bold uppercase tracking-wide">
+                Most popular
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-orange-500/20 flex items-center justify-center">
+                  <ArrowUpCircle size={22} className="text-orange-400" />
+                </div>
+                <p className="text-sm font-semibold text-orange-400 uppercase tracking-wide">Reddit Upvotes</p>
+              </div>
+              <div className="mt-5 flex items-baseline gap-1">
+                <span className="text-5xl font-bold">{usd(upvotePrice)}</span>
+                <span className="text-slate-400">per upvote</span>
+              </div>
+              <ul className="mt-8 space-y-3 text-sm">
+                {[
+                  'Real, aged accounts with karma',
+                  'Natural, paced delivery',
+                  'Free replacement if upvotes drop below 95% in 7 days',
+                ].map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-slate-100">
+                    <Check size={16} className="text-orange-400 shrink-0 mt-0.5" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={handleCTA}
+                className="mt-8 w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-semibold transition-all"
+              >
+                Boost my post
+                <ArrowRight size={17} />
+              </button>
+            </div>
+
+            {/* Comments */}
+            <div className="p-8 rounded-2xl bg-white ring-1 ring-slate-200">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-blue-100 flex items-center justify-center">
+                  <MessagesSquare size={22} className="text-blue-600" />
+                </div>
+                <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide">Forum &amp; Reddit Comments</p>
+              </div>
+              <div className="mt-5 flex items-baseline gap-1">
+                <span className="text-5xl font-bold">from {usd(commentPrice)}</span>
+                <span className="text-slate-500">per comment</span>
+              </div>
+              <ul className="mt-8 space-y-3 text-sm">
+                {[
+                  'Helpful comments that mention your brand',
+                  'Reddit, Quora, HubSpot, and niche forums',
+                  'You can write it — or our AI drafts it for you',
+                ].map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-slate-700">
+                    <Check size={16} className="text-orange-500 shrink-0 mt-0.5" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={handleCTA}
+                className="mt-8 w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold transition-all"
+              >
+                Get mentioned
+                <ArrowRight size={17} />
+              </button>
+            </div>
+
+            {/* YouTube */}
+            <div className="p-8 rounded-2xl bg-white ring-1 ring-slate-200">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-xl bg-red-100 flex items-center justify-center">
+                  <PlayCircle size={22} className="text-red-600" />
+                </div>
+                <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide">YouTube Upload</p>
+              </div>
+              <div className="mt-5 flex items-baseline gap-1">
+                <span className="text-5xl font-bold">{usd(youtubePrice)}</span>
+                <span className="text-slate-500">per video</span>
+              </div>
+              <ul className="mt-8 space-y-3 text-sm">
+                {[
+                  'Your video on a real YouTube channel',
+                  'Your title, description, and tags',
+                  'Link delivered as proof when it\'s live',
+                ].map((f) => (
+                  <li key={f} className="flex items-start gap-2 text-slate-700">
+                    <Check size={16} className="text-orange-500 shrink-0 mt-0.5" />
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={handleCTA}
+                className="mt-8 w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold transition-all"
+              >
+                Upload my video
+                <ArrowRight size={17} />
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-10 p-6 rounded-2xl bg-white ring-1 ring-slate-200 text-center">
+            <p className="text-slate-700">
+              <span className="font-bold text-slate-900">No subscription, no lock-in.</span> Top up from $25 with
+              PayPal. Unused credits are refundable within 30 days.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Why Straight */}
+      <section className="py-24">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <p className="text-sm font-semibold text-orange-500 uppercase tracking-widest mb-3">Why Straight</p>
             <h2 className="text-4xl md:text-5xl font-bold tracking-tight">
-              Everything operators need.<br />Nothing they don't.
+              Simple to use.<br />Honest about what you get.
             </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[
               {
-                icon: Shield,
-                title: 'High-retention accounts',
-                desc: 'Aged accounts with karma history. 98%+ retention after 7 days. We replace any drops, free.',
+                icon: Users,
+                title: 'Real people, real accounts',
+                desc: 'Every upvote and comment comes from a real, aged account with karma and posting history. No bots.',
               },
               {
                 icon: Zap,
-                title: 'Fast, paced delivery',
-                desc: 'Natural pacing that mimics organic discovery. No suspicious spikes that trip Reddit\'s automod.',
+                title: 'Delivery that looks natural',
+                desc: 'Upvotes and comments arrive spread out over time, not in one suspicious spike. You watch live progress the whole way.',
               },
               {
-                icon: Lock,
-                title: 'PayPal-secured payments',
-                desc: 'Top up via PayPal. We never store card data. Refunds processed within 24 hours when warranted.',
+                icon: BarChart3,
+                title: 'Proof with every order',
+                desc: 'Track status live. When the work is done, you see it: the comment text, the link, and a screenshot.',
               },
               {
-                icon: Globe,
-                title: 'Global subreddit coverage',
-                desc: 'Works across NSFW, regional, niche, and major subreddits. No restrictions on topic.',
+                icon: RefreshCcw,
+                title: 'Free replacements',
+                desc: 'For upvote orders, if more than 5% drop within 7 days, we replace them at no cost. Just send us your order ID.',
               },
               {
-                icon: Clock,
-                title: 'No subscriptions',
-                desc: 'Pay-as-you-go credits. Top up $25 or $2,500. Credits never expire. Use them when you need them.',
+                icon: Shield,
+                title: 'Safe payments, easy refunds',
+                desc: 'Checkout is through PayPal — we never see or store your card. Unused credits are refundable within 30 days.',
               },
               {
                 icon: Headphones,
-                title: 'Direct operator support',
-                desc: 'Real humans on email + chat. Average first response under 90 minutes. No bots, no tier 1 scripts.',
+                title: 'Support from real humans',
+                desc: 'Message us in your dashboard or email care@straight.ltd. A real person reads and replies — no bots, no scripts.',
               },
             ].map((feature) => {
               const Icon = feature.icon;
@@ -278,25 +429,24 @@ export function RedditLanding() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
             <div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/20 border border-orange-500/30 text-xs font-bold uppercase tracking-wider text-orange-300 mb-5">
-                <Sparkles size={12} />
-                New — Private beta
+                <Star size={12} className="fill-orange-400 text-orange-400" />
+                New
               </div>
               <h2 className="text-3xl md:text-4xl font-bold tracking-tight leading-tight">
-                Beyond Reddit.<br />
                 Get mentioned where{' '}
                 <span className="text-orange-400">Google and AI look.</span>
               </h2>
               <p className="mt-4 text-slate-300 leading-relaxed">
-                Quora, HubSpot Community, and niche forums still rank in Google's top 10 — and
-                they're what AI assistants read when answering your customers' questions.
-                We find those pages and place helpful, on-context mentions of your brand.
+                Sites like Quora and niche forums still rank high in Google — and AI assistants read them
+                when answering your customers. Give us one keyword about your business. We find the pages
+                that already rank, and place helpful comments that mention your brand.
               </p>
               <ul className="mt-5 space-y-2.5">
                 {[
                   'You give one keyword — we build the full keyword list',
-                  "We surface forum pages already in Google's top 10",
-                  'You write the comment or we do — you approve first',
-                  'Live proof + check if AI assistants mention you',
+                  'We find forum pages already in Google\'s top 10',
+                  'You write the comment, or our AI drafts it for you to approve',
+                  'You see live proof for every placed comment',
                 ].map((line) => (
                   <li key={line} className="flex items-start gap-2.5 text-slate-300 text-sm">
                     <Check size={16} className="text-orange-400 shrink-0 mt-0.5" />
@@ -308,18 +458,17 @@ export function RedditLanding() {
             <div className="lg:pl-6">
               <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
                 <div className="w-14 h-14 mx-auto rounded-xl bg-orange-500/20 flex items-center justify-center mb-5">
-                  <MessagesSquare size={26} className="text-orange-400" />
+                  <Globe size={26} className="text-orange-400" />
                 </div>
-                <h3 className="text-xl font-bold text-white">Join the waitlist</h3>
+                <h3 className="text-xl font-bold text-white">Want in early?</h3>
                 <p className="mt-2 text-slate-400 text-sm leading-relaxed">
-                  Tell us your topic. We'll prepare your first keyword list
-                  before your spot opens up — free.
+                  Tell us your topic. We'll prepare your first keyword list before your spot opens up — free.
                 </p>
                 <button
                   onClick={() => navigate('/reddit/waitlist')}
                   className="mt-6 w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-orange-500 hover:bg-orange-400 text-white font-semibold shadow-lg shadow-orange-500/20 transition-all"
                 >
-                  Get early access
+                  Join the waitlist
                   <ArrowRight size={17} />
                 </button>
                 <p className="mt-3 text-xs text-slate-500">No spam. Early access only.</p>
@@ -329,166 +478,39 @@ export function RedditLanding() {
         </div>
       </section>
 
-      {/* Pricing */}
-      <section id="pricing" className="py-24">
-        <div className="max-w-5xl mx-auto px-6">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <p className="text-sm font-semibold text-orange-500 uppercase tracking-widest mb-3">Pricing</p>
-            <h2 className="text-4xl md:text-5xl font-bold tracking-tight">Simple, usage-based pricing</h2>
-            <p className="mt-4 text-lg text-slate-600">
-              One price per upvote. No tiers, no contracts, no surprises.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="p-8 rounded-2xl bg-white ring-1 ring-slate-200">
-              <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide">Starter</p>
-              <div className="mt-3 flex items-baseline gap-1">
-                <span className="text-5xl font-bold">$25</span>
-                <span className="text-slate-500">credit</span>
-              </div>
-              <p className="text-sm text-slate-600 mt-1">≈ 50 upvotes</p>
-              <ul className="mt-8 space-y-3 text-sm">
-                {['Same-day delivery start', 'Email support', 'No subscription'].map((f) => (
-                  <li key={f} className="flex items-center gap-2 text-slate-700">
-                    <Check size={16} className="text-orange-500" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="relative p-8 rounded-2xl bg-slate-900 text-white shadow-xl shadow-slate-900/20 -translate-y-4">
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-orange-500 text-white text-xs font-bold uppercase tracking-wide">
-                Most popular
-              </div>
-              <p className="text-sm font-semibold text-orange-400 uppercase tracking-wide">Operator</p>
-              <div className="mt-3 flex items-baseline gap-1">
-                <span className="text-5xl font-bold">$100</span>
-                <span className="text-slate-400">credit</span>
-              </div>
-              <p className="text-sm text-slate-300 mt-1">≈ 200 upvotes</p>
-              <ul className="mt-8 space-y-3 text-sm">
-                {[
-                  'Priority delivery queue',
-                  'Live chat support',
-                  'Free drop replacements',
-                  'Order history exports',
-                ].map((f) => (
-                  <li key={f} className="flex items-center gap-2 text-slate-100">
-                    <Check size={16} className="text-orange-400" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="p-8 rounded-2xl bg-white ring-1 ring-slate-200">
-              <p className="text-sm font-semibold text-slate-500 uppercase tracking-wide">Agency</p>
-              <div className="mt-3 flex items-baseline gap-1">
-                <span className="text-5xl font-bold">$500+</span>
-              </div>
-              <p className="text-sm text-slate-600 mt-1">≈ 1,000+ upvotes</p>
-              <ul className="mt-8 space-y-3 text-sm">
-                {[
-                  '10% bonus credit',
-                  'Dedicated account manager',
-                  'White-label invoices',
-                  'API access (early Q3)',
-                ].map((f) => (
-                  <li key={f} className="flex items-center gap-2 text-slate-700">
-                    <Check size={16} className="text-orange-500" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-
-          <div className="mt-10 p-6 rounded-2xl bg-slate-50 ring-1 ring-slate-200 text-center">
-            <p className="text-slate-700">
-              <span className="font-bold text-slate-900">$0.50 per upvote</span> across all packages. Credits roll over. No expiry. No subscription lock-in.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials */}
-      <section className="py-24 bg-slate-50">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <p className="text-sm font-semibold text-orange-500 uppercase tracking-widest mb-3">Customer stories</p>
-            <h2 className="text-4xl md:text-5xl font-bold tracking-tight">Loved by teams who ship</h2>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[
-              {
-                quote: "Cut our Reddit campaign turnaround from 4 days to under 24 hours. Retention is real — we tracked a 96% hold rate over 30 days.",
-                name: 'Marcus K.',
-                role: 'Growth Lead, B2B SaaS Agency',
-              },
-              {
-                quote: "We tested 6 competitors. Straight Ltd was the only one where my client's post actually stayed up. Now it's our default tool.",
-                name: 'Sasha P.',
-                role: 'Founder, Affiliate Marketing Studio',
-              },
-              {
-                quote: "Top-up with PayPal, paste URL, done. No vague packages or hidden fees. Refreshing to find a tool built like a real product.",
-                name: 'Daniel L.',
-                role: 'Director of Growth, eCommerce Brand',
-              },
-            ].map((t) => (
-              <div key={t.name} className="p-8 rounded-2xl bg-white ring-1 ring-slate-200">
-                <div className="flex gap-1 mb-4">
-                  {[1, 2, 3, 4, 5].map((i) => (
-                    <Star key={i} size={16} className="fill-orange-400 text-orange-400" />
-                  ))}
-                </div>
-                <p className="text-slate-700 leading-relaxed">"{t.quote}"</p>
-                <div className="mt-6 pt-6 border-t border-slate-200">
-                  <p className="font-bold text-sm text-slate-900">{t.name}</p>
-                  <p className="text-xs text-slate-500">{t.role}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* FAQ */}
       <section id="faq" className="py-24">
         <div className="max-w-3xl mx-auto px-6">
           <div className="text-center mb-16">
             <p className="text-sm font-semibold text-orange-500 uppercase tracking-widest mb-3">FAQ</p>
-            <h2 className="text-4xl md:text-5xl font-bold tracking-tight">Questions we get a lot</h2>
+            <h2 className="text-4xl md:text-5xl font-bold tracking-tight">Straight answers</h2>
           </div>
 
           <div className="space-y-4">
             {[
               {
-                q: 'Are the upvotes from real accounts?',
-                a: 'Yes. We use aged Reddit accounts with karma history and posting activity. No throwaways, no bots, no recently-created accounts. Each account has subreddit history that matches their voting behavior.',
+                q: 'Are the upvotes and comments from real accounts?',
+                a: 'Yes. Every action comes from a real, aged Reddit account with karma and posting history. No bots, no recently created accounts.',
               },
               {
-                q: 'Will Reddit penalize my post or account?',
-                a: 'We use natural pacing patterns to avoid the vote manipulation triggers in Reddit\'s anti-spam system. We\'ve delivered 12M+ upvotes with no account suspensions reported by our customers. That said, no service can guarantee Reddit\'s policies won\'t change.',
+                q: 'Do you need my Reddit password?',
+                a: 'Never. You only paste a public link to the post or page you want. Your own accounts stay 100% in your control.',
               },
               {
-                q: 'What happens if upvotes drop?',
-                a: 'If retention falls below our 95% guarantee in the first 7 days, we replace the drops for free. Just open a ticket with the order ID — no questions, no haggling.',
+                q: 'What happens if upvotes drop later?',
+                a: 'For upvote orders, if more than 5% drop within 7 days, we replace the drops for free. Message us with your order ID — no questions asked.',
               },
               {
                 q: 'Can I get a refund?',
-                a: 'Yes. Unused credits are refundable within 30 days of purchase. Completed orders are non-refundable unless we fail to deliver. Refunds process to your original PayPal within 24 business hours.',
+                a: 'Yes. Unused credits are refundable within 30 days of purchase. You can also cancel an order for a full refund any time before work starts. Refunds go back to your PayPal.',
               },
               {
-                q: 'Do you offer an API?',
-                a: 'API access is rolling out in early Q3 for Agency-tier customers. Reach out if you want early access.',
+                q: 'How do I know the work was actually done?',
+                a: 'Every completed order shows proof in your dashboard: what was posted, where, and a screenshot or link. Nothing is hidden.',
               },
               {
-                q: 'Is my account safe?',
-                a: 'Our service never asks for your Reddit credentials. You just submit the public URL of the thread you want upvoted. Your Reddit account is never touched.',
+                q: 'How fast does delivery start?',
+                a: 'Your order enters the queue the moment you place it, and delivery is spread out naturally over the following days — a sudden spike of 100 upvotes in one minute helps no one. You can watch live progress in your dashboard at any time.',
               },
             ].map((item) => (
               <details
@@ -510,34 +532,35 @@ export function RedditLanding() {
       <section className="py-24 bg-slate-900 text-white">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-4xl md:text-5xl font-bold tracking-tight">
-            Ready to scale Reddit?
+            Ready to get seen?
           </h2>
           <p className="mt-4 text-lg text-slate-300 max-w-2xl mx-auto">
-            Top up $25 and submit your first order in under 5 minutes. No credit card. PayPal checkout.
+            Create your free account, top up with PayPal, and place your first order in minutes.
+            Cancel any time before work starts.
           </p>
           <button
             onClick={handleCTA}
             className="mt-10 group inline-flex items-center gap-2 px-8 py-4 rounded-xl bg-orange-500 text-white text-base font-semibold hover:bg-orange-400 shadow-xl shadow-orange-500/30 transition-all"
           >
-            {isLoggedIn ? 'Go to dashboard' : regMode === 'waitlist' ? 'Join the waitlist' : 'Get started — free to sign up'}
+            {isLoggedIn ? 'Go to dashboard' : regMode === 'waitlist' ? 'Join the waitlist' : 'Start now — free to sign up'}
             <ArrowRight size={18} className="group-hover:translate-x-0.5 transition-transform" />
           </button>
           <div className="mt-12 flex flex-wrap items-center justify-center gap-8 text-sm text-slate-400">
             <div className="flex items-center gap-2">
-              <Shield size={16} />
-              SSL secured
-            </div>
-            <div className="flex items-center gap-2">
               <Lock size={16} />
-              PayPal verified
+              Secure PayPal checkout
             </div>
             <div className="flex items-center gap-2">
-              <Users size={16} />
-              1,200+ active operators
+              <Shield size={16} />
+              30-day refund on unused credits
             </div>
             <div className="flex items-center gap-2">
               <Clock size={16} />
-              24/7 support
+              Live tracking on every order
+            </div>
+            <div className="flex items-center gap-2">
+              <Headphones size={16} />
+              Human support
             </div>
           </div>
         </div>
@@ -548,7 +571,7 @@ export function RedditLanding() {
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2 text-slate-600 text-sm">
             <img src="/straight/icon-192.png" alt="Straight Ltd" className="w-6 h-6 rounded object-cover" />
-            <span>Straight Ltd Pro · © {new Date().getFullYear()}</span>
+            <span>Straight Ltd &middot; &copy; {new Date().getFullYear()}</span>
           </div>
           <div className="flex gap-6 text-sm text-slate-500">
             <Link to="/reddit/terms" className="hover:text-slate-900">Terms</Link>

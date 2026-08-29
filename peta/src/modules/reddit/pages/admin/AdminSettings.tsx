@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Bot, CheckCircle2, ExternalLink, KeyRound, Loader2, RefreshCw, Save, ShieldCheck, Users } from 'lucide-react';
+import { AlertTriangle, Bot, CheckCircle2, ExternalLink, KeyRound, Loader2, RefreshCw, Save, ShieldCheck, Users, Zap } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { AdminBreadcrumb, AdminLayout } from '../../components/AdminLayout';
 import {
@@ -8,6 +8,7 @@ import {
   updateStraightAiSettings,
   getStraightSettings,
   updateStraightSettings,
+  adminResyncOrderTasks,
   type ProviderHealthStatus,
   type StraightProviderHealth,
   type StraightDraftProvider,
@@ -44,8 +45,10 @@ export function AdminSettings() {
   const [health, setHealth] = useState<StraightProviderHealth | null>(null);
   const [checkingHealth, setCheckingHealth] = useState(false);
   const [regMode, setRegMode] = useState<StraightRegistrationMode>('signup');
+  const [autoActivate, setAutoActivate] = useState(true);
   const [regModeUpdatedAt, setRegModeUpdatedAt] = useState('');
   const [savingRegMode, setSavingRegMode] = useState(false);
+  const [resyncing, setResyncing] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -59,6 +62,7 @@ export function AdminSettings() {
         setDeepseekModel(aiSettings.deepseek_model);
         setUpdatedAt(aiSettings.updated_at);
         setRegMode(straightSettings.registration_mode);
+        setAutoActivate(straightSettings.auto_activate_tasks ?? true);
         setRegModeUpdatedAt(straightSettings.updated_at);
         checkHealth();
       } catch (error) {
@@ -101,14 +105,26 @@ export function AdminSettings() {
   const saveRegMode = async () => {
     setSavingRegMode(true);
     try {
-      await updateStraightSettings({ registrationMode: regMode });
-      toast.success('Registration mode updated');
+      await updateStraightSettings({ registrationMode: regMode, autoActivateTasks: autoActivate });
+      toast.success('Settings updated');
       const next = await getStraightSettings();
       setRegModeUpdatedAt(next.updated_at);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to save registration mode');
     } finally {
       setSavingRegMode(false);
+    }
+  };
+
+  const runResync = async () => {
+    setResyncing(true);
+    try {
+      const created = await adminResyncOrderTasks();
+      toast.success(created > 0 ? `Synced ${created} missing order task${created === 1 ? '' : 's'}` : 'All orders already synced');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Resync failed');
+    } finally {
+      setResyncing(false);
     }
   };
 
@@ -209,6 +225,83 @@ export function AdminSettings() {
                 {regModeUpdatedAt ? `Last updated ${new Date(regModeUpdatedAt).toLocaleString()}.` : ''}
                 Changes take effect immediately across the landing page, nav, and signup page.
               </p>
+            </div>
+
+            {/* Order pipeline */}
+            <div className="bg-white rounded-2xl ring-1 ring-slate-200 p-6">
+              <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <Zap size={18} className="text-orange-600" />
+                    <h2 className="text-lg font-bold text-slate-900">Order Pipeline</h2>
+                  </div>
+                  <p className="text-sm text-slate-500 mt-1">
+                    How new Straight orders become PeTa tasks that army workers can claim.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={saveRegMode}
+                  disabled={savingRegMode}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 disabled:bg-slate-200 disabled:text-slate-500 text-white text-sm font-semibold"
+                >
+                  {savingRegMode ? <Loader2 size={15} className="animate-spin" /> : <Save size={15} />}
+                  Save pipeline
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setAutoActivate(true)}
+                  className={`text-left rounded-2xl border-2 p-5 transition ${
+                    autoActivate ? 'border-orange-500 bg-orange-50' : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-bold text-slate-900">Fully automatic</p>
+                      <p className="text-sm text-slate-600 mt-1 leading-relaxed">
+                        Every paid order creates a live PeTa task instantly. Workers can claim it right away — no admin step.
+                      </p>
+                    </div>
+                    {autoActivate && <CheckCircle2 size={22} className="text-orange-600 shrink-0" />}
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setAutoActivate(false)}
+                  className={`text-left rounded-2xl border-2 p-5 transition ${
+                    !autoActivate ? 'border-orange-500 bg-orange-50' : 'border-slate-200 bg-white hover:border-slate-300'
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-lg font-bold text-slate-900">Review first</p>
+                      <p className="text-sm text-slate-600 mt-1 leading-relaxed">
+                        Orders create a draft task. An admin reviews and activates it in the PeTa Task Queue.
+                      </p>
+                    </div>
+                    {!autoActivate && <CheckCircle2 size={22} className="text-orange-600 shrink-0" />}
+                  </div>
+                </button>
+              </div>
+
+              <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <p className="text-xs text-slate-500">
+                  &ldquo;Fully automatic&rdquo; also marks paid orders as processing so clients see live progress.
+                </p>
+                <button
+                  type="button"
+                  onClick={runResync}
+                  disabled={resyncing}
+                  className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg ring-1 ring-slate-300 hover:bg-slate-50 disabled:opacity-60 text-slate-700 text-sm font-semibold shrink-0"
+                >
+                  {resyncing ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+                  Check &amp; backfill order tasks
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
