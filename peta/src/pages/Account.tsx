@@ -88,6 +88,23 @@ export function Account() {
     enabled: !!user?.id,
   });
 
+  // Karma level/progress/reward ladder = REDDIT ARMY status. Only render
+  // it for registered members (any reddit_army_profiles row); regular
+  // army sees plain account info (username, karma, age, sync).
+  const { data: raMembership } = useQuery({
+    queryKey: ['redditArmyMembership', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('reddit_army_profiles')
+        .select('program_status')
+        .eq('user_id', user!.id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+  const isRedditArmy = !!raMembership;
+
   React.useEffect(() => {
     if (profile?.whatsapp) setWaValue(profile.whatsapp);
   }, [profile?.whatsapp]);
@@ -429,9 +446,11 @@ export function Account() {
                 <div className="flex items-start justify-between gap-3 mb-3">
                   <div className="min-w-0">
                     <p className="font-extrabold text-lg truncate">u/{account.username}</p>
-                    <p className="text-sm text-primary font-semibold">
-                      {lvl.emoji} {lvl.name}
-                    </p>
+                    {isRedditArmy && (
+                      <p className="text-sm text-primary font-semibold">
+                        {lvl.emoji} {lvl.name}
+                      </p>
+                    )}
                   </div>
                   <div className="text-right shrink-0">
                     <p className="text-2xl font-extrabold money">{account.karma}</p>
@@ -439,30 +458,34 @@ export function Account() {
                   </div>
                 </div>
 
-                <div className="mb-3">
-                  <div className="flex items-center justify-between text-xs mb-1.5">
-                    <span className="text-muted">Progress ke {next.emoji} {next.name}</span>
-                    <span className="font-bold text-dark">{Math.round(progress)}%</span>
+                {isRedditArmy && (
+                  <div className="mb-3">
+                    <div className="flex items-center justify-between text-xs mb-1.5">
+                      <span className="text-muted">Progress ke {next.emoji} {next.name}</span>
+                      <span className="font-bold text-dark">{Math.round(progress)}%</span>
+                    </div>
+                    <div className="w-full h-2 bg-light rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-primary to-secondary rounded-full transition-all"
+                        style={{ width: `${progress}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="w-full h-2 bg-light rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-primary to-secondary rounded-full transition-all"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
-                </div>
+                )}
 
-                <div className="grid grid-cols-2 gap-2 mb-4 text-xs">
+                <div className={`grid gap-2 mb-4 text-xs ${isRedditArmy ? 'grid-cols-2' : 'grid-cols-1'}`}>
                   <div className="bg-light rounded-lg p-2.5">
                     <p className="text-muted">Umur akun</p>
                     <p className="font-bold text-base">{account.account_age_days} hari</p>
                   </div>
-                  <div className="bg-light rounded-lg p-2.5">
-                    <p className="text-muted">Reward/task</p>
-                    <p className="font-bold text-base text-primary money">
-                      Rp{lvl.reward.toLocaleString('id-ID')}
-                    </p>
-                  </div>
+                  {isRedditArmy && (
+                    <div className="bg-light rounded-lg p-2.5">
+                      <p className="text-muted">Reward/task</p>
+                      <p className="font-bold text-base text-primary money">
+                        Rp{lvl.reward.toLocaleString('id-ID')}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Sync-failed / karma=0 banner — message depends on the

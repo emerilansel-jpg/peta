@@ -141,6 +141,24 @@ export function Tasks() {
   });
   const isAdmin = userProfile?.role === 'admin';
 
+  // Reddit Army membership gate. Karma level, streak harian, and the
+  // program banner are REDDIT ARMY status — they only render when the
+  // user has a reddit_army_profiles row (i.e. invited/unlocked). Regular
+  // army (forum/YouTube only) sees none of it.
+  const { data: raMembership } = useQuery({
+    queryKey: ['redditArmyMembership', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('reddit_army_profiles')
+        .select('program_status')
+        .eq('user_id', user!.id)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+  const isRedditArmy = !!raMembership;
+
   // Real active tasks the user can claim right now — server-side filtered
   // by karma/age/category/per-account-limit/window. Empty when admin has
   // nothing active or user doesn't meet gates.
@@ -219,29 +237,30 @@ export function Tasks() {
     <Layout userRole="army">
       <div className="max-w-2xl mx-auto pb-8">
         {/* ============================================================
-            REDDIT ARMY PROGRAM — prominent upsell card at top.
-            Drives users to /reddit-army for the gamified 2-phase program
-            (Rp100K bonus + daily passive income). Always shown (the page
-            itself handles "joined vs not joined" states).
+            REDDIT ARMY PROGRAM — status card. REDDIT ARMY MEMBERS ONLY:
+            the program is invite-only, so regular army must not see it
+            (the /reddit-army page itself shows the locked state anyway).
         ============================================================= */}
-        <Card
-          className="mb-3 bg-gradient-to-br from-primary/10 via-secondary/10 to-yellow-50 ring-1 ring-primary/20 cursor-pointer tap-shrink"
-          onClick={() => navigate('/reddit-army')}
-          padding="sm"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-11 h-11 bg-gradient-to-br from-primary to-secondary text-white rounded-xl grid place-items-center shrink-0 text-xl">
-              🎖️
+        {isRedditArmy && (
+          <Card
+            className="mb-3 bg-gradient-to-br from-primary/10 via-secondary/10 to-yellow-50 ring-1 ring-primary/20 cursor-pointer tap-shrink"
+            onClick={() => navigate('/reddit-army')}
+            padding="sm"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 bg-gradient-to-br from-primary to-secondary text-white rounded-xl grid place-items-center shrink-0 text-xl">
+                🎖️
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-extrabold text-sm leading-tight">Reddit Army Program</p>
+                <p className="text-[11px] text-muted leading-snug mt-0.5">
+                  Passive income Rp2.500/hari cuma modal aktif di Reddit. + Bonus Rp100K setelah challenge.
+                </p>
+              </div>
+              <span className="text-primary text-xs font-bold shrink-0">Lihat →</span>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-extrabold text-sm leading-tight">Reddit Army Program</p>
-              <p className="text-[11px] text-muted leading-snug mt-0.5">
-                Passive income Rp2.500/hari cuma modal aktif di Reddit. + Bonus Rp100K setelah challenge.
-              </p>
-            </div>
-            <span className="text-primary text-xs font-bold shrink-0">Lihat →</span>
-          </div>
-        </Card>
+          </Card>
+        )}
 
         {/* ============================================================
             REDDIT SETUP GATE — shown only when user has no Reddit account
@@ -559,29 +578,33 @@ export function Tasks() {
         />
 
         {/* ============================================================
-            PRIORITY #2 — KARMA 101
+            PRIORITY #2 — KARMA 101 (Reddit Army members only)
             Newbies don't know what Reddit/karma is. Educate first
             (Apa ➡️ Why ➡️ Gimana), then show progress to next level.
             Collapsible so power users skip it.
         ============================================================= */}
-        <KarmaSection
-          karma={karmaInfo?.karma ?? 0}
-          level={karmaInfo?.level ?? 0}
-          accountAgeDays={karmaInfo?.accountAgeDays ?? 0}
-          onCta={() => navigate('/reddit-army')}
-        />
+        {isRedditArmy && (
+          <KarmaSection
+            karma={karmaInfo?.karma ?? 0}
+            level={karmaInfo?.level ?? 0}
+            accountAgeDays={karmaInfo?.accountAgeDays ?? 0}
+            onCta={() => navigate('/reddit-army')}
+          />
+        )}
 
         {/* ============================================================
-            PRIORITY #3 — STREAK + WHATSAPP
+            PRIORITY #3 — STREAK + WHATSAPP (streak = Reddit Army status)
             Habit nudge + notification opt-in. WhatsApp dismissable
             so users who already joined aren't nagged forever.
         ============================================================= */}
-        <StreakSection
-          streak={streak}
-          nextMilestone={nextMilestone}
-          milestoneProgress={milestoneProgress}
-          daysToGo={daysToGo}
-        />
+        {isRedditArmy && (
+          <StreakSection
+            streak={streak}
+            nextMilestone={nextMilestone}
+            milestoneProgress={milestoneProgress}
+            daysToGo={daysToGo}
+          />
+        )}
 
         {!waDismissed && (
           <WhatsAppSection
@@ -656,17 +679,21 @@ export function Tasks() {
           </p>
           <ul className="space-y-2 text-sm">
             <li className="flex items-start gap-2">
-              <Trophy size={16} className="text-primary shrink-0 mt-0.5" />
-              <span><b>Streak harian.</b> PeTa Army dengan streak 7+ otomatis dapat prioritas slot.</span>
-            </li>
-            <li className="flex items-start gap-2">
               <Bell size={16} className="text-success shrink-0 mt-0.5" />
               <span><b>Notif WA aktif.</b> Tau task baru dalam hitungan detik, bukan jam.</span>
             </li>
-            <li className="flex items-start gap-2">
-              <TrendingUp size={16} className="text-warning shrink-0 mt-0.5" />
-              <span><b>Kualitas akun naik.</b> Level naik ➡️ reward per task naik (Rp5K ➡️ Rp20K).</span>
-            </li>
+            {isRedditArmy && (
+              <>
+                <li className="flex items-start gap-2">
+                  <Trophy size={16} className="text-primary shrink-0 mt-0.5" />
+                  <span><b>Streak harian.</b> PeTa Army dengan streak 7+ otomatis dapat prioritas slot.</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <TrendingUp size={16} className="text-warning shrink-0 mt-0.5" />
+                  <span><b>Kualitas akun naik.</b> Level naik ➡️ reward per task naik (Rp5K ➡️ Rp20K).</span>
+                </li>
+              </>
+            )}
           </ul>
         </Card>
       </div>
