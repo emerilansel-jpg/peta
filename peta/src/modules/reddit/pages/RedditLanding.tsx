@@ -590,10 +590,6 @@ export function RedditLanding() {
           <p className="text-lg text-slate-600 leading-relaxed">
             Just submit the task, track the work, and review the proof.
           </p>
-          <p className="mt-4 text-slate-600 leading-relaxed">
-            <span className="font-semibold text-slate-900">Unused credits are refundable within 30 days.</span>{' '}
-            Orders can be cancelled before work starts.
-          </p>
         </div>
       </section>
 
@@ -682,7 +678,7 @@ export function RedditLanding() {
             </div>
             <div className="flex items-center gap-2">
               <Shield size={16} />
-              30-day refund on unused credits
+              Credits never expire
             </div>
             <div className="flex items-center gap-2">
               <BarChart3 size={16} />
