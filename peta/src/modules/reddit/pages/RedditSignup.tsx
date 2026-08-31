@@ -1,3 +1,4 @@
+import { spath } from '../lib/path';
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft, Check, Loader2, Shield, Lock } from 'lucide-react';
@@ -39,7 +40,7 @@ export function RedditSignup() {
         if (mode === 'waitlist') {
           setBlocked(true);
           toast('Sign up is currently closed. Join the waitlist instead.', { icon: '🔒' });
-          setTimeout(() => navigate('/reddit/waitlist'), 1500);
+          setTimeout(() => navigate(spath('/waitlist')), 1500);
         } else {
           setBlocked(false);
         }
@@ -96,7 +97,7 @@ export function RedditSignup() {
       toast.success('Account created! Welcome aboard.');
 
       if (data.session) {
-        navigate('/reddit/dashboard');
+        navigate(spath('/dashboard'));
       } else {
         // Fall back to login if no session was created
         const { error: signInError } = await supabase.auth.signInWithPassword({
@@ -104,9 +105,9 @@ export function RedditSignup() {
           password,
         });
         if (signInError) {
-          navigate('/reddit/login');
+          navigate(spath('/login'));
         } else {
-          navigate('/reddit/dashboard');
+          navigate(spath('/dashboard'));
         }
       }
     } catch (err: any) {
@@ -121,7 +122,7 @@ export function RedditSignup() {
       <div className="w-full max-w-md">
         {/* Back to landing */}
         <Link
-          to="/reddit"
+          to={spath('/')}
           className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 mb-6"
         >
           <ArrowLeft size={14} />
@@ -242,9 +243,9 @@ export function RedditSignup() {
               />
               <span>
                 I agree to the{' '}
-                <Link to="/reddit/terms" className="text-orange-600 hover:underline">Terms of Service</Link>
+                <Link to={spath('/terms')} className="text-orange-600 hover:underline">Terms of Service</Link>
                 {' '}and{' '}
-                <Link to="/reddit/privacy" className="text-orange-600 hover:underline">Privacy Policy</Link>
+                <Link to={spath('/privacy')} className="text-orange-600 hover:underline">Privacy Policy</Link>
               </span>
             </label>
 
@@ -272,7 +273,7 @@ export function RedditSignup() {
           <div className="mt-6 pt-6 border-t border-slate-200 text-center">
             <p className="text-sm text-slate-600">
               Already have an account?{' '}
-              <Link to="/reddit/login" className="text-orange-600 font-semibold hover:underline">
+              <Link to={spath('/login')} className="text-orange-600 font-semibold hover:underline">
                 Sign in
               </Link>
             </p>

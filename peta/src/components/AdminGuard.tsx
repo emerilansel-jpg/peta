@@ -2,20 +2,24 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { toast } from './Toast';
+import { isStraightHost, spath } from '../modules/reddit/lib/path';
 
 export function AdminGuard({ children }: { children: React.ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [state, setState] = React.useState<'checking' | 'allowed' | 'denied'>('checking');
 
-  // '/reddit-army' is a PeTa page — only '/reddit' + '/reddit/*' are Straight.
-  const isRedditPath = location.pathname === '/reddit' || location.pathname.startsWith('/reddit/');
-  const loginPath = isRedditPath ? '/reddit/login' : '/login';
-  const fallbackPath = isRedditPath ? '/reddit/dashboard' : '/tasks';
-  const accessDeniedMsg = isRedditPath
+  // Straight surface = straight.ltd hosts, or the legacy /reddit/* paths on
+  // any host. ('/reddit-army' is a PeTa page and must NOT match.)
+  const isStraight = isStraightHost()
+    || location.pathname === '/reddit'
+    || location.pathname.startsWith('/reddit/');
+  const loginPath = isStraight ? spath('/login') : '/login';
+  const fallbackPath = isStraight ? spath('/dashboard') : '/tasks';
+  const accessDeniedMsg = isStraight
     ? 'Admin access required.'
     : 'Halaman ini khusus admin.';
-  const loginRequiredMsg = isRedditPath
+  const loginRequiredMsg = isStraight
     ? 'Please sign in as an admin.'
     : 'Login dulu sebagai admin.';
 

@@ -1,3 +1,4 @@
+import { spath } from '../lib/path';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -69,7 +70,7 @@ export function RedditDashboard() {
           </div>
           <div className="flex gap-3">
             <button
-              onClick={() => navigate('/reddit/new-order')}
+              onClick={() => navigate(spath('/new-order'))}
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold shadow-md shadow-orange-500/20"
             >
               <Plus size={16} />
@@ -104,7 +105,7 @@ export function RedditDashboard() {
                 See how it works
               </button>
               <button
-                onClick={() => navigate('/reddit/ranking-forum')}
+                onClick={() => navigate(spath('/ranking-forum'))}
                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-white text-orange-600 hover:bg-orange-50 text-sm font-bold"
               >
                 Start now
@@ -119,7 +120,7 @@ export function RedditDashboard() {
             onClose={() => setShowGuide(false)}
             onStart={() => {
               setShowGuide(false);
-              navigate('/reddit/ranking-forum');
+              navigate(spath('/ranking-forum'));
             }}
           />
         )}
@@ -138,7 +139,7 @@ export function RedditDashboard() {
                 ≈ {upvotesAvailable.toLocaleString()} upvotes available
               </p>
               <button
-                onClick={() => navigate('/reddit/topup')}
+                onClick={() => navigate(spath('/topup'))}
                 className="mt-6 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white text-sm font-semibold backdrop-blur-sm border border-white/20"
               >
                 <Wallet size={14} />
@@ -186,7 +187,7 @@ export function RedditDashboard() {
               <p className="text-sm text-slate-500">Your latest 5 campaigns</p>
             </div>
             <button
-              onClick={() => navigate('/reddit/orders')}
+              onClick={() => navigate(spath('/orders'))}
               className="text-sm font-semibold text-orange-600 hover:text-orange-700"
             >
               View all →
@@ -201,7 +202,7 @@ export function RedditDashboard() {
               <p className="text-slate-900 font-semibold mb-1">No orders yet</p>
               <p className="text-sm text-slate-500 mb-6">Create your first Reddit upvote order</p>
               <button
-                onClick={() => navigate('/reddit/new-order')}
+                onClick={() => navigate(spath('/new-order'))}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold"
               >
                 <Plus size={16} />

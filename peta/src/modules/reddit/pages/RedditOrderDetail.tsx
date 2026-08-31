@@ -1,3 +1,4 @@
+import { spath } from '../lib/path';
 import { type ElementType, useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
@@ -253,7 +254,7 @@ export function RedditOrderDetail() {
 
       if (!o) {
         toast.error('Order not found');
-        navigate('/reddit/orders');
+        navigate(spath('/orders'));
         return;
       }
       setOrder(o);
@@ -346,7 +347,7 @@ export function RedditOrderDetail() {
     <RedditLayout>
       <div className="p-6 md:p-10 max-w-5xl mx-auto">
         <button
-          onClick={() => navigate('/reddit/orders')}
+          onClick={() => navigate(spath('/orders'))}
           className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 mb-4"
         >
           <ArrowLeft size={14} /> All orders
@@ -409,7 +410,7 @@ export function RedditOrderDetail() {
             <div className="flex-1">
               <p className="font-semibold text-emerald-900">Review submitted · awaiting approval</p>
               <p className="text-sm text-emerald-700">
-                Want $10 more? <Link to="/reddit/reviews?tab=trustpilot" className="font-semibold underline">Submit a Trustpilot review</Link>
+                Want $10 more? <Link to={spath('/reviews?tab=trustpilot')} className="font-semibold underline">Submit a Trustpilot review</Link>
               </p>
             </div>
           </div>
@@ -632,7 +633,7 @@ export function RedditOrderDetail() {
                 Use the conversation panel to message our team. We respond fast — typically within 90 minutes.
               </p>
               <Link
-                to="/reddit/new-order"
+                to={spath('/new-order')}
                 className="mt-3 inline-block text-sm font-semibold text-orange-600 hover:text-orange-700"
               >
                 Place another order →

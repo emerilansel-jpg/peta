@@ -1,3 +1,4 @@
+import { spath } from '../lib/path';
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Eye, EyeOff, ArrowLeft, Loader2, Lock, Shield } from 'lucide-react';
@@ -61,9 +62,9 @@ export function RedditLogin() {
 
       toast.success('Welcome back!');
       if (profile?.role === 'admin') {
-        navigate('/reddit/admin');
+        navigate(spath('/admin'));
       } else {
-        navigate('/reddit/dashboard');
+        navigate(spath('/dashboard'));
       }
     } catch (err: any) {
       toast.error(err.message || 'Invalid credentials');
@@ -76,7 +77,7 @@ export function RedditLogin() {
     <div className="min-h-dvh bg-gradient-to-br from-orange-50 via-white to-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <Link
-          to="/reddit"
+          to={spath('/')}
           className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 mb-6"
         >
           <ArrowLeft size={14} />
@@ -126,7 +127,7 @@ export function RedditLogin() {
             <div>
               <div className="flex items-center justify-between mb-1.5">
                 <label className="block text-sm font-semibold text-slate-700">Password</label>
-                <Link to="/reddit/forgot-password" className="text-xs text-orange-600 hover:underline">Forgot?</Link>
+                <Link to={spath('/forgot-password')} className="text-xs text-orange-600 hover:underline">Forgot?</Link>
               </div>
               <div className="relative">
                 <input
@@ -170,7 +171,7 @@ export function RedditLogin() {
               <p className="text-sm text-slate-600">
                 Don't have an account?{' '}
                 <Link
-                  to={regMode === 'waitlist' ? '/reddit/waitlist' : '/reddit/signup'}
+                  to={regMode === 'waitlist' ? spath('/waitlist') : spath('/signup')}
                   className="text-orange-600 font-semibold hover:underline"
                 >
                   {regMode === 'waitlist' ? 'Join the waitlist' : 'Sign up free'}

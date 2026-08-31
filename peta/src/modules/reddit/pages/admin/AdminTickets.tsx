@@ -1,3 +1,4 @@
+import { spath } from '../../lib/path';
 import { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
@@ -84,7 +85,7 @@ function AdminTicketsList() {
   return (
     <AdminLayout>
       <div className="p-6 md:p-10 max-w-6xl mx-auto">
-        <AdminBreadcrumb items={[{ label: 'Admin', href: '/reddit/admin' }, { label: 'Messages' }]} />
+        <AdminBreadcrumb items={[{ label: 'Admin', href: spath('/admin') }, { label: 'Messages' }]} />
 
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
           <div>
@@ -281,14 +282,14 @@ function AdminTicketDetail({ ticketId }: { ticketId: number }) {
       <div className="p-6 md:p-10 max-w-5xl mx-auto">
         <AdminBreadcrumb
           items={[
-            { label: 'Admin', href: '/reddit/admin' },
-            { label: 'Messages', href: '/reddit/admin/tickets' },
+            { label: 'Admin', href: spath('/admin') },
+            { label: 'Messages', href: spath('/admin/tickets') },
             { label: `#${ticket.id}` },
           ]}
         />
 
         <button
-          onClick={() => navigate('/reddit/admin/tickets')}
+          onClick={() => navigate(spath('/admin/tickets'))}
           className="md:hidden inline-flex items-center gap-1 text-sm text-slate-600 mb-4"
         >
           <ArrowLeft size={14} /> Back to inbox

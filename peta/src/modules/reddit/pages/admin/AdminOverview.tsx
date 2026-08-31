@@ -1,3 +1,4 @@
+import { spath } from '../../lib/path';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -114,7 +115,7 @@ export function AdminOverview() {
             icon={Clock}
             color="amber"
             hrefLabel="View all"
-            href="/reddit/admin/orders"
+            href={spath('/admin/orders')}
           />
           <MetricCard
             label="Total clients"
@@ -122,7 +123,7 @@ export function AdminOverview() {
             icon={Users}
             color="purple"
             hrefLabel="View all"
-            href="/reddit/admin/clients"
+            href={spath('/admin/clients')}
           />
         </div>
 
@@ -162,7 +163,7 @@ export function AdminOverview() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
             {pendingReviewCount > 0 && (
               <Link
-                to="/reddit/admin/reviews"
+                to={spath('/admin/reviews')}
                 className="p-4 rounded-2xl bg-amber-50 ring-1 ring-amber-200 hover:ring-amber-300 hover:shadow-sm transition flex items-center gap-3"
               >
                 <div className="w-10 h-10 rounded-lg bg-amber-200 flex items-center justify-center">
@@ -177,7 +178,7 @@ export function AdminOverview() {
             )}
             {openFRCount > 0 && (
               <Link
-                to="/reddit/admin/feature-requests"
+                to={spath('/admin/feature-requests')}
                 className="p-4 rounded-2xl bg-blue-50 ring-1 ring-blue-200 hover:ring-blue-300 hover:shadow-sm transition flex items-center gap-3"
               >
                 <div className="w-10 h-10 rounded-lg bg-blue-200 flex items-center justify-center">
@@ -198,7 +199,7 @@ export function AdminOverview() {
           <section className="bg-white rounded-2xl ring-1 ring-slate-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
               <h2 className="font-bold text-slate-900">Recent orders</h2>
-              <Link to="/reddit/admin/orders" className="text-sm font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1">
+              <Link to={spath('/admin/orders')} className="text-sm font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1">
                 View all <ArrowRight size={12} />
               </Link>
             </div>
@@ -232,7 +233,7 @@ export function AdminOverview() {
           <section className="bg-white rounded-2xl ring-1 ring-slate-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
               <h2 className="font-bold text-slate-900">Unread messages</h2>
-              <Link to="/reddit/admin/tickets" className="text-sm font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1">
+              <Link to={spath('/admin/tickets')} className="text-sm font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1">
                 Inbox <ArrowRight size={12} />
               </Link>
             </div>{/* */}
@@ -277,7 +278,7 @@ export function AdminOverview() {
                 <Star size={14} className="text-amber-500 fill-amber-500" />
                 Recent reviews
               </h2>
-              <Link to="/reddit/admin/reviews" className="text-sm font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1">
+              <Link to={spath('/admin/reviews')} className="text-sm font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1">
                 View all <ArrowRight size={12} />
               </Link>
             </div>
@@ -288,7 +289,7 @@ export function AdminOverview() {
                 recentReviews.map((r: any) => (
                   <Link
                     key={r.id}
-                    to="/reddit/admin/reviews"
+                    to={spath('/admin/reviews')}
                     className="block px-6 py-3 hover:bg-slate-50"
                   >
                     <div className="flex items-center gap-2 mb-1">
@@ -319,7 +320,7 @@ export function AdminOverview() {
                 <Lightbulb size={14} className="text-amber-500" />
                 Latest feature requests
               </h2>
-              <Link to="/reddit/admin/feature-requests" className="text-sm font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1">
+              <Link to={spath('/admin/feature-requests')} className="text-sm font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1">
                 View all <ArrowRight size={12} />
               </Link>
             </div>
@@ -330,7 +331,7 @@ export function AdminOverview() {
                 recentFRs.map((fr: any) => (
                   <Link
                     key={fr.id}
-                    to="/reddit/admin/feature-requests"
+                    to={spath('/admin/feature-requests')}
                     className="block px-6 py-3 hover:bg-slate-50"
                   >
                     <p className="font-semibold text-slate-900 truncate">

@@ -1,3 +1,4 @@
+import { spath } from '../lib/path';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
@@ -62,7 +63,7 @@ export function RedditTopup() {
       });
 
       toast.success(`${formatUSD(totalCreditsCents)} credit added`);
-      setTimeout(() => navigate('/reddit/dashboard'), 1500);
+      setTimeout(() => navigate(spath('/dashboard')), 1500);
     } catch (err: any) {
       toast.error(err.message || 'Failed to process payment');
     } finally {

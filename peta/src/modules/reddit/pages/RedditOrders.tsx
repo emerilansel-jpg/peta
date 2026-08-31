@@ -1,3 +1,4 @@
+import { spath } from '../lib/path';
 import { useNavigate, Link } from 'react-router-dom';
 import { Plus, Search, ShoppingCart, MessageSquare, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
@@ -82,7 +83,7 @@ export function RedditOrders() {
             <p className="text-slate-600 mt-1">Track upvotes, comments, and forum growth campaigns</p>
           </div>
           <button
-            onClick={() => navigate('/reddit/new-order')}
+            onClick={() => navigate(spath('/new-order'))}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold shadow-md shadow-orange-500/20"
           >
             <Plus size={16} />
@@ -145,7 +146,7 @@ export function RedditOrders() {
             </p>
             {orders.length === 0 && (
               <button
-                onClick={() => navigate('/reddit/new-order')}
+                onClick={() => navigate(spath('/new-order'))}
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold"
               >
                 <Plus size={16} />

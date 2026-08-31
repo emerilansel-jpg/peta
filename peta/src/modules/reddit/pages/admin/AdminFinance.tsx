@@ -1,3 +1,4 @@
+import { spath } from '../../lib/path';
 import { useEffect, useState } from 'react';
 import { DollarSign, TrendingUp, CreditCard, ArrowDownCircle, ArrowUpCircle, RefreshCw, ShoppingCart } from 'lucide-react';
 import { AdminLayout, AdminBreadcrumb } from '../../components/AdminLayout';
@@ -116,7 +117,7 @@ export function AdminFinance() {
   return (
     <AdminLayout>
       <div className="p-6 md:p-10 max-w-7xl mx-auto">
-        <AdminBreadcrumb items={[{ label: 'Admin', href: '/reddit/admin' }, { label: 'Finance' }]} />
+        <AdminBreadcrumb items={[{ label: 'Admin', href: spath('/admin') }, { label: 'Finance' }]} />
 
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-8 gap-4">
           <div>

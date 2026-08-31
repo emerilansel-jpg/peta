@@ -1,3 +1,4 @@
+import { spath } from '../../lib/path';
 import { useEffect, useState } from 'react';
 import {
   Lightbulb,
@@ -110,7 +111,7 @@ export function AdminFeatureRequests() {
   return (
     <AdminLayout>
       <div className="p-6 md:p-10 max-w-7xl mx-auto">
-        <AdminBreadcrumb items={[{ label: 'Admin', href: '/reddit/admin' }, { label: 'Feature Requests' }]} />
+        <AdminBreadcrumb items={[{ label: 'Admin', href: spath('/admin') }, { label: 'Feature Requests' }]} />
 
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
           <div>

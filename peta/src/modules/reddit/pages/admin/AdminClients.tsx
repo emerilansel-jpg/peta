@@ -1,3 +1,4 @@
+import { spath } from '../../lib/path';
 import { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import {
@@ -71,7 +72,7 @@ function ClientsList() {
   return (
     <AdminLayout>
       <div className="p-6 md:p-10 max-w-7xl mx-auto">
-        <AdminBreadcrumb items={[{ label: 'Admin', href: '/reddit/admin' }, { label: 'Clients' }]} />
+        <AdminBreadcrumb items={[{ label: 'Admin', href: spath('/admin') }, { label: 'Clients' }]} />
 
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
           <div>
@@ -244,14 +245,14 @@ function ClientDetail({ userId }: { userId: string }) {
       <div className="p-6 md:p-10 max-w-6xl mx-auto">
         <AdminBreadcrumb
           items={[
-            { label: 'Admin', href: '/reddit/admin' },
-            { label: 'Clients', href: '/reddit/admin/clients' },
+            { label: 'Admin', href: spath('/admin') },
+            { label: 'Clients', href: spath('/admin/clients') },
             { label: user.full_name || user.email },
           ]}
         />
 
         <button
-          onClick={() => navigate('/reddit/admin/clients')}
+          onClick={() => navigate(spath('/admin/clients'))}
           className="inline-flex items-center gap-1 text-sm text-slate-600 mb-4"
         >
           <ArrowLeft size={14} /> Back to clients
@@ -453,7 +454,7 @@ function ClientDetail({ userId }: { userId: string }) {
           user={user}
           orderCount={orders.length}
           onClose={() => setShowDeleteModal(false)}
-          onDeleted={() => navigate('/reddit/admin/clients')}
+          onDeleted={() => navigate(spath('/admin/clients'))}
         />
       )}
     </AdminLayout>

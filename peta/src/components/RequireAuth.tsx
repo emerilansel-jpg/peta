@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
+import { isStraightHost, spath } from '../modules/reddit/lib/path';
 
 // Client-side auth gate for protected (non-admin) routes: /tasks, /account,
 // /earnings, /task/:id, /reddit/* client area, etc. Before this wrapper each
@@ -25,14 +26,15 @@ export function RequireAuth({ children, loginPath }: RequireAuthProps) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Resolve the right login path for the tenant/host. /reddit/* uses the
-  // Straight Ltd login; everything else uses the PeTa login. Default to the
-  // peer of the current path so the user lands back where they came from.
-  // NOTE: use '/reddit/' (with trailing slash) — '/reddit-army' is a PeTa
-  // army page and must NOT match the Straight /reddit prefix.
-  const isRedditArea = location.pathname === '/reddit' || location.pathname.startsWith('/reddit/');
+  // Resolve the right login path for the tenant/host. The Straight surface is
+  // straight.ltd hosts or the legacy /reddit/* paths on any host; everything
+  // else is PeTa. Default to the peer of the current surface so the user
+  // lands back where they came from.
+  const isStraightArea = isStraightHost()
+    || location.pathname === '/reddit'
+    || location.pathname.startsWith('/reddit/');
   const resolvedLogin = loginPath
-    ?? (isRedditArea ? '/reddit/login' : '/login');
+    ?? (isStraightArea ? spath('/login') : '/login');
 
   const [state, setState] = React.useState<'checking' | 'ok' | 'denied'>('checking');
 

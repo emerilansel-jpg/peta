@@ -1,3 +1,4 @@
+import { spath } from '../lib/path';
 import React from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Eye, EyeOff, Lock, CheckCircle, Loader2 } from 'lucide-react';
@@ -106,7 +107,7 @@ export function RedditResetPassword() {
     <div className="min-h-dvh bg-gradient-to-br from-orange-50 via-white to-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <Link
-          to="/reddit/login"
+          to={spath('/login')}
           className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 mb-6"
         >
           <ArrowLeft size={14} /> Back to sign in
@@ -129,7 +130,7 @@ export function RedditResetPassword() {
                 Your new password is active. Sign in with it now.
               </p>
               <Link
-                to="/reddit/login"
+                to={spath('/login')}
                 className="block w-full px-4 py-3 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold text-center"
               >
                 Sign in →
@@ -141,7 +142,7 @@ export function RedditResetPassword() {
               <h2 className="text-xl font-bold text-slate-900 mb-2">Link not valid</h2>
               <p className="text-sm text-slate-600 mb-6">{error}</p>
               <Link
-                to="/reddit/forgot-password"
+                to={spath('/forgot-password')}
                 className="block w-full px-4 py-3 rounded-lg bg-orange-500 hover:bg-orange-600 text-white font-semibold text-center"
               >
                 Request a new link

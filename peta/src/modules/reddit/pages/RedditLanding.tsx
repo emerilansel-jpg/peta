@@ -1,3 +1,4 @@
+import { spath } from '../lib/path';
 import { useNavigate, Link } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import {
@@ -46,16 +47,16 @@ export function RedditLanding() {
 
   const handleCTA = () => {
     if (isLoggedIn) {
-      navigate('/reddit/dashboard');
+      navigate(spath('/dashboard'));
     } else if (regMode === 'waitlist') {
-      navigate('/reddit/waitlist');
+      navigate(spath('/waitlist'));
     } else {
-      navigate('/reddit/signup');
+      navigate(spath('/signup'));
     }
   };
 
   const handleCustomTaskCTA = () => {
-    navigate(isLoggedIn ? '/reddit/new-order' : '/reddit/signup');
+    navigate(isLoggedIn ? spath('/new-order') : spath('/signup'));
   };
 
   return (
@@ -76,7 +77,7 @@ export function RedditLanding() {
           <div className="flex items-center gap-3">
             {isLoggedIn ? (
               <button
-                onClick={() => navigate('/reddit/dashboard')}
+                onClick={() => navigate(spath('/dashboard'))}
                 className="px-4 py-2 rounded-lg bg-slate-900 text-white text-sm font-semibold hover:bg-slate-800"
               >
                 Dashboard
@@ -84,13 +85,13 @@ export function RedditLanding() {
             ) : (
               <>
                 <button
-                  onClick={() => navigate('/reddit/login')}
+                  onClick={() => navigate(spath('/login'))}
                   className="text-sm font-semibold text-slate-700 hover:text-slate-900"
                 >
                   Sign in
                 </button>
                 <button
-                  onClick={() => navigate(regMode === 'waitlist' ? '/reddit/waitlist' : '/reddit/signup')}
+                  onClick={() => navigate(regMode === 'waitlist' ? spath('/waitlist') : spath('/signup'))}
                   className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600"
                 >
                   {regMode === 'waitlist' ? 'Join waitlist' : 'Start now'}
@@ -456,7 +457,7 @@ export function RedditLanding() {
               This works especially well when combined with comments, mentions, posting, and engagement tasks.
             </p>
             <button
-              onClick={() => navigate('/reddit/contact')}
+              onClick={() => navigate(spath('/contact'))}
               className="mt-8 inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-lg shadow-orange-500/20 transition-all"
             >
               Ask about Google Preferred Source targeting
@@ -700,10 +701,10 @@ export function RedditLanding() {
             <span>Straight Ltd &middot; &copy; {new Date().getFullYear()}</span>
           </div>
           <div className="flex gap-6 text-sm text-slate-500">
-            <Link to="/reddit/terms" className="hover:text-slate-900">Terms</Link>
-            <Link to="/reddit/privacy" className="hover:text-slate-900">Privacy</Link>
-            <Link to="/reddit/refunds" className="hover:text-slate-900">Refunds</Link>
-            <Link to="/reddit/contact" className="hover:text-slate-900">Contact</Link>
+            <Link to={spath('/terms')} className="hover:text-slate-900">Terms</Link>
+            <Link to={spath('/privacy')} className="hover:text-slate-900">Privacy</Link>
+            <Link to={spath('/refunds')} className="hover:text-slate-900">Refunds</Link>
+            <Link to={spath('/contact')} className="hover:text-slate-900">Contact</Link>
           </div>
         </div>
       </footer>

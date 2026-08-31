@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { isStraightHost } from './modules/reddit/lib/path';
 import { ToastProvider } from './components/Toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
@@ -107,6 +109,22 @@ function HomePage() {
   return <Landing />;
 }
 
+// Renders children only on straight.ltd hosts; elsewhere bounces to that
+// host's home. Used for clean Straight paths with no PeTa equivalent
+// (/signup, /dashboard, /admin/orders, ...).
+function StraightOnly({ children }: { children: ReactNode }) {
+  if (isStraightHost()) return <>{children}</>;
+  return <Navigate to="/" replace />;
+}
+
+// Host-switching route element for paths that exist on BOTH products
+// (/login, /admin, ...): straight.ltd renders the Straight page, other hosts
+// render the PeTa page — or redirect home when PeTa has no such page.
+function HostRoute({ straight, peta }: { straight: ReactNode; peta?: ReactNode }) {
+  if (isStraightHost()) return <>{straight}</>;
+  return peta ? <>{peta}</> : <Navigate to="/" replace />;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -116,13 +134,46 @@ function App() {
         <Routes>
           {/* Public Routes */}
           <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<Login />} />
+          <Route path="/login" element={<HostRoute straight={<RedditLogin />} peta={<Login />} />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/forgot-password" element={<HostRoute straight={<RedditForgotPassword />} peta={<ForgotPassword />} />} />
           <Route path="/update-password" element={<UpdatePassword />} />
           <Route path="/reset-whatsapp" element={<ResetWhatsApp />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/reset-password" element={<HostRoute straight={<RedditResetPassword />} peta={<ResetPassword />} />} />
           <Route path="/onboarding" element={<Onboarding />} />
+
+          {/* Straight clean routes (straight.ltd only).
+              Same pages as the legacy /reddit/* tree below — that tree stays
+              mounted so old links (emails, DB notification links, bookmarks)
+              keep working on every host. */}
+          <Route path="/reddit" element={<Navigate to="/" replace />} />
+          <Route path="/signup" element={<StraightOnly><RedditSignup /></StraightOnly>} />
+          <Route path="/waitlist" element={<StraightOnly><WaitlistPage /></StraightOnly>} />
+          <Route path="/dashboard" element={<StraightOnly><RequireAuth loginPath="/login"><RedditDashboard /></RequireAuth></StraightOnly>} />
+          <Route path="/new-order" element={<StraightOnly><RequireAuth loginPath="/login"><RedditNewOrder /></RequireAuth></StraightOnly>} />
+          <Route path="/orders" element={<StraightOnly><RequireAuth loginPath="/login"><RedditOrders /></RequireAuth></StraightOnly>} />
+          <Route path="/orders/:orderId" element={<StraightOnly><RequireAuth loginPath="/login"><RedditOrderDetail /></RequireAuth></StraightOnly>} />
+          <Route path="/topup" element={<StraightOnly><RequireAuth loginPath="/login"><RedditTopup /></RequireAuth></StraightOnly>} />
+          <Route path="/reviews" element={<StraightOnly><RequireAuth loginPath="/login"><RedditReviews /></RequireAuth></StraightOnly>} />
+          <Route path="/feature-requests" element={<StraightOnly><RequireAuth loginPath="/login"><RedditFeatureRequests /></RequireAuth></StraightOnly>} />
+          <Route path="/ranking-forum" element={<StraightOnly><RequireAuth loginPath="/login"><RankingForumPage /></RequireAuth></StraightOnly>} />
+          <Route path="/ai-visibility" element={<StraightOnly><RequireAuth loginPath="/login"><AiVisibilityPage /></RequireAuth></StraightOnly>} />
+          <Route path="/terms" element={<HostRoute straight={<TermsPage />} peta={<Terms />} />} />
+          <Route path="/privacy" element={<HostRoute straight={<PrivacyPage />} peta={<Privacy />} />} />
+          <Route path="/refunds" element={<StraightOnly><RefundsPage /></StraightOnly>} />
+          <Route path="/contact" element={<StraightOnly><ContactPage /></StraightOnly>} />
+          <Route path="/admin" element={<HostRoute straight={<AdminGuard><AdminOverview /></AdminGuard>} peta={<AdminRouteWrapper><AdminGuard><AdminDashboard /></AdminGuard></AdminRouteWrapper>} />} />
+          <Route path="/admin/orders" element={<StraightOnly><AdminGuard><RedditAdminOrders /></AdminGuard></StraightOnly>} />
+          <Route path="/admin/tickets" element={<StraightOnly><AdminGuard><RedditAdminTickets /></AdminGuard></StraightOnly>} />
+          <Route path="/admin/tickets/:ticketId" element={<StraightOnly><AdminGuard><RedditAdminTickets /></AdminGuard></StraightOnly>} />
+          <Route path="/admin/clients" element={<StraightOnly><AdminGuard><RedditAdminClients /></AdminGuard></StraightOnly>} />
+          <Route path="/admin/clients/:userId" element={<StraightOnly><AdminGuard><RedditAdminClients /></AdminGuard></StraightOnly>} />
+          <Route path="/admin/reviews" element={<StraightOnly><AdminGuard><RedditAdminReviews /></AdminGuard></StraightOnly>} />
+          <Route path="/admin/feature-requests" element={<StraightOnly><AdminGuard><RedditAdminFeatureRequests /></AdminGuard></StraightOnly>} />
+          <Route path="/admin/finance" element={<StraightOnly><AdminGuard><RedditAdminFinance /></AdminGuard></StraightOnly>} />
+          <Route path="/admin/settings" element={<StraightOnly><AdminGuard><RedditAdminSettings /></AdminGuard></StraightOnly>} />
+          <Route path="/admin/retention" element={<StraightOnly><AdminGuard><RedditAdminRetention /></AdminGuard></StraightOnly>} />
+          <Route path="/admin/waitlist" element={<StraightOnly><AdminGuard><AdminWaitlist /></AdminGuard></StraightOnly>} />
 
           {/* Army Routes */}
           <Route path="/tasks" element={<RequireAuth><Tasks /></RequireAuth>} />
@@ -133,8 +184,7 @@ function App() {
           <Route path="/account" element={<RequireAuth><Account /></RequireAuth>} />
           <Route path="/earnings" element={<RequireAuth><Earnings /></RequireAuth>} />
 
-          {/* Reddit Upvotes Routes */}
-          <Route path="/reddit" element={<RedditLanding />} />
+          {/* Reddit Upvotes Routes — LEGACY /reddit/* tree, kept for old links */}
           <Route path="/reddit/waitlist" element={<WaitlistPage />} />
           <Route path="/reddit/signup" element={<RedditSignup />} />
           <Route path="/reddit/login" element={<RedditLogin />} />
@@ -176,9 +226,7 @@ function App() {
           <Route path="/admin/payroll" element={<AdminRouteWrapper><AdminGuard><AdminPayroll /></AdminGuard></AdminRouteWrapper>} />
           <Route path="/admin/reddit-army" element={<AdminRouteWrapper><AdminGuard><AdminRedditArmy /></AdminGuard></AdminRouteWrapper>} />
 
-          {/* Privacy & Terms & Help */}
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/terms" element={<Terms />} />
+          {/* Privacy & Terms & Help (clean paths defined above via HostRoute) */}
           <Route path="/help" element={<Help />} />
           <Route path="/admin/broadcast" element={<AdminRouteWrapper><AdminGuard><AdminBroadcast /></AdminGuard></AdminRouteWrapper>} />
           <Route path="/admin/inbox" element={<AdminRouteWrapper><AdminGuard><AdminInbox /></AdminGuard></AdminRouteWrapper>} />

@@ -1,3 +1,4 @@
+import { spath } from '../lib/path';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
@@ -396,7 +397,7 @@ export function RankingForumPage() {
           headline={placedCount > 1 ? 'Comment orders placed' : 'Comment order placed'}
           context={`${placedCount} order${placedCount === 1 ? '' : 's'} created`}
           primaryLabel="Got it — show me my orders"
-          onDismiss={() => { setShowSuccess(false); navigate('/reddit/orders'); }}
+          onDismiss={() => { setShowSuccess(false); navigate(spath('/orders')); }}
         />
       )}
       <div className="p-6 md:p-10 max-w-7xl mx-auto">
@@ -838,7 +839,7 @@ export function RankingForumPage() {
                   ← Finish the comments first
                 </button>
               )}
-              <button onClick={() => navigate('/reddit/topup')} className="mt-2 w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-white ring-1 ring-slate-200 hover:ring-orange-300 text-slate-700 text-sm font-semibold">
+              <button onClick={() => navigate(spath('/topup'))} className="mt-2 w-full inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-white ring-1 ring-slate-200 hover:ring-orange-300 text-slate-700 text-sm font-semibold">
                 <Wallet size={15} />
                 Top up credit
               </button>

@@ -1,3 +1,4 @@
+import { spath } from '../lib/path';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
@@ -46,7 +47,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        navigate('/reddit/login');
+        navigate(spath('/login'));
         return;
       }
       setUserEmail(user.email || '');
@@ -60,20 +61,20 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate('/reddit/login');
+    navigate(spath('/login'));
   };
 
   const navItems = [
-    { href: '/reddit/admin', label: 'Overview', icon: LayoutDashboard, exact: true },
-    { href: '/reddit/admin/orders', label: 'Orders', icon: ShoppingCart },
-    { href: '/reddit/admin/tickets', label: 'Messages', icon: MessageSquare, badge: unreadCount },
-    { href: '/reddit/admin/clients', label: 'Clients', icon: Users },
-    { href: '/reddit/admin/retention', label: 'Retention', icon: HeartPulse },
-    { href: '/reddit/admin/reviews', label: 'Reviews', icon: Star },
-    { href: '/reddit/admin/feature-requests', label: 'Feature Requests', icon: Lightbulb },
-    { href: '/reddit/admin/waitlist', label: 'Waitlist', icon: Clock },
-    { href: '/reddit/admin/finance', label: 'Finance', icon: DollarSign },
-    { href: '/reddit/admin/settings', label: 'Settings', icon: Settings },
+    { href: spath('/admin'), label: 'Overview', icon: LayoutDashboard, exact: true },
+    { href: spath('/admin/orders'), label: 'Orders', icon: ShoppingCart },
+    { href: spath('/admin/tickets'), label: 'Messages', icon: MessageSquare, badge: unreadCount },
+    { href: spath('/admin/clients'), label: 'Clients', icon: Users },
+    { href: spath('/admin/retention'), label: 'Retention', icon: HeartPulse },
+    { href: spath('/admin/reviews'), label: 'Reviews', icon: Star },
+    { href: spath('/admin/feature-requests'), label: 'Feature Requests', icon: Lightbulb },
+    { href: spath('/admin/waitlist'), label: 'Waitlist', icon: Clock },
+    { href: spath('/admin/finance'), label: 'Finance', icon: DollarSign },
+    { href: spath('/admin/settings'), label: 'Settings', icon: Settings },
   ];
 
   const isActive = (href: string, exact?: boolean) => {
@@ -86,7 +87,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:flex-col md:w-64 bg-slate-900 text-white sticky top-0 h-dvh">
         <div className="p-6 border-b border-slate-800">
-          <Link to="/reddit/admin" className="flex items-center gap-2">
+          <Link to={spath('/admin')} className="flex items-center gap-2">
             <img src="/straight/icon-192.png" alt="Straight Ltd" className="w-9 h-9 rounded-lg object-cover" />
             <div>
               <div className="font-bold">Straight Ltd</div>
@@ -125,7 +126,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
 
         <div className="p-3 border-t border-slate-800">
           <Link
-            to="/reddit/dashboard"
+            to={spath('/dashboard')}
             className="block px-3 py-2 rounded-lg text-sm text-slate-400 hover:bg-slate-800 hover:text-white"
           >
             ← View as client
@@ -150,7 +151,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       {/* Mobile top bar */}
       <header className="md:hidden fixed top-0 inset-x-0 z-40 bg-slate-900 text-white">
         <div className="h-14 px-4 flex items-center justify-between">
-          <Link to="/reddit/admin" className="flex items-center gap-2">
+          <Link to={spath('/admin')} className="flex items-center gap-2">
             <img src="/straight/icon-192.png" alt="Straight Ltd" className="w-8 h-8 rounded-lg object-cover" />
             <span className="font-bold">Admin</span>
           </Link>
@@ -206,7 +207,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               })}
             </nav>
             <div className="space-y-2 pt-4 border-t border-slate-800">
-              <Link to="/reddit/dashboard" className="block px-3 py-2 text-sm text-slate-400 hover:bg-slate-800 rounded-lg">
+              <Link to={spath('/dashboard')} className="block px-3 py-2 text-sm text-slate-400 hover:bg-slate-800 rounded-lg">
                 ← View as client
               </Link>
               <button

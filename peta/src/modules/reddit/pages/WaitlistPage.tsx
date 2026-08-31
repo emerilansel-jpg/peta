@@ -1,3 +1,4 @@
+import { spath } from '../lib/path';
 import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import {
@@ -77,12 +78,12 @@ export function WaitlistPage() {
       {/* Nav */}
       <nav className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <button onClick={() => navigate('/reddit')} className="flex items-center gap-2">
+          <button onClick={() => navigate(spath('/'))} className="flex items-center gap-2">
             <img src="/straight/icon-192.png" alt="Straight Ltd" className="w-8 h-8 rounded-lg object-cover" />
             <span className="font-bold text-lg">Straight Ltd</span>
           </button>
           <button
-            onClick={() => navigate('/reddit/login')}
+            onClick={() => navigate(spath('/login'))}
             className="text-sm font-semibold text-slate-700 hover:text-slate-900"
           >
             Sign in
@@ -152,7 +153,7 @@ export function WaitlistPage() {
                       : 'Thanks for joining. We’ll email you the moment early access opens.'}
                   </p>
                   <button
-                    onClick={() => navigate('/reddit')}
+                    onClick={() => navigate(spath('/'))}
                     className="mt-8 inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-semibold"
                   >
                     Back to home
@@ -301,7 +302,7 @@ export function WaitlistPage() {
             <img src="/straight/icon-192.png" alt="Straight Ltd" className="w-6 h-6 rounded object-cover" />
             <span>Straight Ltd · © {new Date().getFullYear()}</span>
           </div>
-          <button onClick={() => navigate('/reddit')} className="text-sm text-slate-500 hover:text-slate-900">
+          <button onClick={() => navigate(spath('/'))} className="text-sm text-slate-500 hover:text-slate-900">
             Back to home
           </button>
         </div>

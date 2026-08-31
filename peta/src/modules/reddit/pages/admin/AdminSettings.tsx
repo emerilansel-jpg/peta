@@ -1,3 +1,4 @@
+import { spath } from '../../lib/path';
 import { useEffect, useState } from 'react';
 import { AlertTriangle, Bot, CheckCircle2, ExternalLink, KeyRound, Loader2, RefreshCw, Save, ShieldCheck, Users, Zap } from 'lucide-react';
 import { toast } from 'react-hot-toast';
@@ -131,7 +132,7 @@ export function AdminSettings() {
   return (
     <AdminLayout>
       <div className="p-6 md:p-10 max-w-5xl mx-auto">
-        <AdminBreadcrumb items={[{ label: 'Admin', href: '/reddit/admin' }, { label: 'Settings' }]} />
+        <AdminBreadcrumb items={[{ label: 'Admin', href: spath('/admin') }, { label: 'Settings' }]} />
 
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
           <div>

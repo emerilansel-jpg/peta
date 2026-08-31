@@ -1,3 +1,4 @@
+import { spath } from '../lib/path';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 
@@ -16,13 +17,13 @@ export function RedditLegalLayout({ children, title, lastUpdated = 'July 2026' }
       <header className="sticky top-0 z-40 bg-white/80 backdrop-blur-md border-b border-slate-200">
         <div className="max-w-5xl mx-auto px-6 h-16 flex items-center justify-between">
           <button
-            onClick={() => navigate('/reddit')}
+            onClick={() => navigate(spath('/'))}
             className="inline-flex items-center gap-1 text-sm font-semibold text-slate-600 hover:text-slate-900"
           >
             <ArrowLeft size={16} />
             Back to Straight Ltd
           </button>
-          <Link to="/reddit" className="flex items-center gap-2">
+          <Link to={spath('/')} className="flex items-center gap-2">
             <img src="/straight/icon-192.png" alt="Straight Ltd" className="w-7 h-7 rounded-lg object-cover" />
             <span className="font-bold text-slate-900">Straight Ltd</span>
           </Link>
@@ -49,10 +50,10 @@ export function RedditLegalLayout({ children, title, lastUpdated = 'July 2026' }
             <span>Straight Ltd Pro · © {new Date().getFullYear()}</span>
           </div>
           <div className="flex gap-6">
-            <Link to="/reddit/terms" className="hover:text-slate-900">Terms</Link>
-            <Link to="/reddit/privacy" className="hover:text-slate-900">Privacy</Link>
-            <Link to="/reddit/refunds" className="hover:text-slate-900">Refunds</Link>
-            <Link to="/reddit/contact" className="hover:text-slate-900">Contact</Link>
+            <Link to={spath('/terms')} className="hover:text-slate-900">Terms</Link>
+            <Link to={spath('/privacy')} className="hover:text-slate-900">Privacy</Link>
+            <Link to={spath('/refunds')} className="hover:text-slate-900">Refunds</Link>
+            <Link to={spath('/contact')} className="hover:text-slate-900">Contact</Link>
           </div>
         </div>
       </footer>

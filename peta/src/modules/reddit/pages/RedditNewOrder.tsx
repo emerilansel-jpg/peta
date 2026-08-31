@@ -1,3 +1,4 @@
+import { spath } from '../lib/path';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { ElementType } from 'react';
 import { useMemo, useState } from 'react';
@@ -463,7 +464,7 @@ function RedditUpvoteOrderForm({ onBack }: { onBack: () => void }) {
           primaryLabel="Got it — show me my orders"
           onDismiss={() => {
             setShowSuccessModal(false);
-            navigate(newOrderInfo?.id ? `/reddit/orders/${newOrderInfo.id}` : '/reddit/orders');
+            navigate(newOrderInfo?.id ? `/reddit/orders/${newOrderInfo.id}` : spath('/orders'));
           }}
         />
       )}
@@ -497,7 +498,7 @@ function RedditUpvoteOrderForm({ onBack }: { onBack: () => void }) {
           <p className="text-2xl font-bold mt-0.5">{formatUSD(balance)}</p>
         </div>
         <button
-          onClick={() => navigate('/reddit/topup')}
+          onClick={() => navigate(spath('/topup'))}
           className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-semibold flex items-center gap-2"
         >
           <Wallet size={14} />
@@ -619,7 +620,7 @@ function RedditUpvoteOrderForm({ onBack }: { onBack: () => void }) {
               <AlertCircle size={16} className="shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold">Insufficient credit</p>
-                <p>You need {formatUSD(cost - balance)} more. <button type="button" onClick={() => navigate('/reddit/topup')} className="underline font-semibold">Top up now</button>.</p>
+                <p>You need {formatUSD(cost - balance)} more. <button type="button" onClick={() => navigate(spath('/topup'))} className="underline font-semibold">Top up now</button>.</p>
               </div>
             </div>
           )}
@@ -994,7 +995,7 @@ function ForumCommentOrderForm({
           primaryLabel="Got it - show me my orders"
           onDismiss={() => {
             setShowSuccessModal(false);
-            navigate(!isBulk && newOrderId ? `/reddit/orders/${newOrderId}` : '/reddit/orders');
+            navigate(!isBulk && newOrderId ? `/reddit/orders/${newOrderId}` : spath('/orders'));
           }}
         />
       )}
@@ -1020,7 +1021,7 @@ function ForumCommentOrderForm({
             </div>
           </div>
           <button
-            onClick={() => navigate('/reddit/ranking-forum')}
+            onClick={() => navigate(spath('/ranking-forum'))}
             className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-sm font-semibold"
           >
             <Search size={15} />
@@ -1035,7 +1036,7 @@ function ForumCommentOrderForm({
           <p className="text-2xl font-bold mt-0.5">{formatUSD(balance)}</p>
         </div>
         <button
-          onClick={() => navigate('/reddit/topup')}
+          onClick={() => navigate(spath('/topup'))}
           className="px-4 py-3 rounded-xl bg-white ring-1 ring-slate-200 hover:ring-orange-300 text-sm font-semibold flex items-center justify-center gap-2"
         >
           <Wallet size={15} />
@@ -1059,7 +1060,7 @@ function ForumCommentOrderForm({
               </div>
               <button
                 type="button"
-                onClick={() => navigate('/reddit/ranking-forum')}
+                onClick={() => navigate(spath('/ranking-forum'))}
                 className="inline-flex items-center gap-1 px-3 py-2 rounded-lg bg-white ring-1 ring-orange-200 text-sm font-semibold text-orange-700"
               >
                 <ArrowLeft size={14} />
@@ -1386,7 +1387,7 @@ function ForumCommentOrderForm({
           {!hasEnoughCredit && (
             <div className="mt-3 p-3 rounded-lg bg-rose-50 text-sm text-rose-700 flex items-start gap-2">
               <AlertCircle size={16} className="shrink-0 mt-0.5" />
-              <p>You need {formatUSD(cost - balance)} more. <button type="button" onClick={() => navigate('/reddit/topup')} className="underline font-semibold">Top up now</button>.</p>
+              <p>You need {formatUSD(cost - balance)} more. <button type="button" onClick={() => navigate(spath('/topup'))} className="underline font-semibold">Top up now</button>.</p>
             </div>
           )}
         </div>
@@ -1473,7 +1474,7 @@ function YouTubeUploadOrderForm({ onBack }: { onBack: () => void }) {
         onSuccess: (order: { id?: number } | null) => {
           toast.success(`YouTube Upload order placed. ${formatUSD(cost)} deducted from credit.`);
           setShowConfirm(false);
-          navigate(order?.id ? `/reddit/orders/${order.id}` : '/reddit/orders');
+          navigate(order?.id ? `/reddit/orders/${order.id}` : spath('/orders'));
         },
         onError: (err: Error) => {
           toast.error(err.message || 'Failed to create order');
@@ -1512,7 +1513,7 @@ function YouTubeUploadOrderForm({ onBack }: { onBack: () => void }) {
           <p className="text-2xl font-bold mt-0.5">{formatUSD(balance)}</p>
         </div>
         <button
-          onClick={() => navigate('/reddit/topup')}
+          onClick={() => navigate(spath('/topup'))}
           className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-semibold flex items-center gap-2"
         >
           <Wallet size={14} />
@@ -1634,7 +1635,7 @@ function YouTubeUploadOrderForm({ onBack }: { onBack: () => void }) {
               <AlertCircle size={16} className="shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold">Insufficient credit</p>
-                <p>You need {formatUSD(cost - balance)} more. <button type="button" onClick={() => navigate('/reddit/topup')} className="underline font-semibold">Top up now</button>.</p>
+                <p>You need {formatUSD(cost - balance)} more. <button type="button" onClick={() => navigate(spath('/topup'))} className="underline font-semibold">Top up now</button>.</p>
               </div>
             </div>
           )}

@@ -1,3 +1,4 @@
+import { spath } from '../lib/path';
 import { useEffect, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
@@ -45,7 +46,7 @@ export function RedditLayout({ children, showAdminLink = false }: RedditLayoutPr
     const initFromSession = async (session: any) => {
       if (cancelled) return;
       if (!session) {
-        navigate('/reddit/login');
+        navigate(spath('/login'));
         return;
       }
       setUserId(session.user.id);
@@ -94,7 +95,7 @@ export function RedditLayout({ children, showAdminLink = false }: RedditLayoutPr
         }, 4000);
         return;
       }
-      navigate('/reddit/login');
+      navigate(spath('/login'));
     })();
 
     return () => { cancelled = true; };
@@ -119,22 +120,22 @@ export function RedditLayout({ children, showAdminLink = false }: RedditLayoutPr
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    navigate('/reddit/login');
+    navigate(spath('/login'));
   };
 
   const navItems = [
-    { href: '/reddit/dashboard', label: 'Dashboard', icon: LayoutDashboard, badge: 0 },
-    { href: '/reddit/new-order', label: 'New order', icon: ShoppingCart, badge: 0 },
-    { href: '/reddit/ranking-forum', label: 'Ranking Forum', icon: Search, badge: 0 },
-    { href: '/reddit/ai-visibility', label: 'AI Visibility', icon: Eye, badge: 0 },
-    { href: '/reddit/orders', label: 'Orders', icon: Clock, badge: unreadOrders },
-    { href: '/reddit/topup', label: 'Top up', icon: Wallet, badge: 0 },
-    { href: '/reddit/reviews', label: 'Reviews · Earn $25', icon: Star, badge: reviewableOrders.length },
-    { href: '/reddit/feature-requests', label: 'Roadmap', icon: Lightbulb, badge: 0 },
+    { href: spath('/dashboard'), label: 'Dashboard', icon: LayoutDashboard, badge: 0 },
+    { href: spath('/new-order'), label: 'New order', icon: ShoppingCart, badge: 0 },
+    { href: spath('/ranking-forum'), label: 'Ranking Forum', icon: Search, badge: 0 },
+    { href: spath('/ai-visibility'), label: 'AI Visibility', icon: Eye, badge: 0 },
+    { href: spath('/orders'), label: 'Orders', icon: Clock, badge: unreadOrders },
+    { href: spath('/topup'), label: 'Top up', icon: Wallet, badge: 0 },
+    { href: spath('/reviews'), label: 'Reviews · Earn $25', icon: Star, badge: reviewableOrders.length },
+    { href: spath('/feature-requests'), label: 'Roadmap', icon: Lightbulb, badge: 0 },
   ];
 
   if (isAdmin && showAdminLink) {
-    navItems.push({ href: '/reddit/admin', label: 'Admin', icon: Shield, badge: 0 });
+    navItems.push({ href: spath('/admin'), label: 'Admin', icon: Shield, badge: 0 });
   }
 
   const isActive = (href: string) => location.pathname === href;
@@ -144,7 +145,7 @@ export function RedditLayout({ children, showAdminLink = false }: RedditLayoutPr
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:flex-col md:w-64 bg-white border-r border-slate-200 sticky top-0 h-dvh">
         <div className="p-6 border-b border-slate-200">
-          <Link to="/reddit" className="flex items-center gap-2">
+          <Link to={spath('/')} className="flex items-center gap-2">
             <img src="/straight/icon-192.png" alt="Straight Ltd" className="w-9 h-9 rounded-lg object-cover" />
             <div>
               <div className="font-bold text-slate-900 flex items-center gap-1.5">
@@ -161,7 +162,7 @@ export function RedditLayout({ children, showAdminLink = false }: RedditLayoutPr
           <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Available credit</p>
           <p className="text-3xl font-bold mt-1">{formatUSD(balance)}</p>
           <Link
-            to="/reddit/topup"
+            to={spath('/topup')}
             className="mt-3 block text-center text-xs font-semibold py-2 rounded-lg bg-orange-500 hover:bg-orange-400 text-white transition"
           >
             Top up via PayPal
@@ -196,7 +197,7 @@ export function RedditLayout({ children, showAdminLink = false }: RedditLayoutPr
           })}
           {isAdmin && !showAdminLink && (
             <Link
-              to="/reddit/admin"
+              to={spath('/admin')}
               className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900"
             >
               <Shield size={18} />
@@ -220,7 +221,7 @@ export function RedditLayout({ children, showAdminLink = false }: RedditLayoutPr
       {/* Mobile top bar */}
       <header className="md:hidden fixed top-0 inset-x-0 z-40 bg-white border-b border-slate-200">
         <div className="h-14 px-4 flex items-center justify-between">
-          <Link to="/reddit" className="flex items-center gap-2">
+          <Link to={spath('/')} className="flex items-center gap-2">
             <img src="/straight/icon-192.png" alt="Straight Ltd" className="w-8 h-8 rounded-lg object-cover" />
             <span className="font-bold text-slate-900 flex items-center gap-1.5">
               Straight Ltd
@@ -228,7 +229,7 @@ export function RedditLayout({ children, showAdminLink = false }: RedditLayoutPr
             </span>
           </Link>
           <div className="flex items-center gap-2">
-            <Link to="/reddit/topup" className="text-sm font-semibold text-orange-600">
+            <Link to={spath('/topup')} className="text-sm font-semibold text-orange-600">
               {formatUSD(balance)}
             </Link>
             <NotificationBell targetRole="user" variant="light" />
@@ -300,7 +301,7 @@ export function RedditLayout({ children, showAdminLink = false }: RedditLayoutPr
         </div>
 
         {/* CRO Review banner — shows on every page when there are reviewable orders */}
-        {!reviewBannerDismissed && reviewableOrders.length > 0 && location.pathname !== '/reddit/reviews' && (
+        {!reviewBannerDismissed && reviewableOrders.length > 0 && location.pathname !== spath('/reviews') && (
           <div className="sticky top-14 z-20 bg-gradient-to-r from-orange-500 to-amber-500 text-white px-4 md:px-6 py-3 shadow-md">
             <div className="max-w-6xl mx-auto flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
@@ -320,7 +321,7 @@ export function RedditLayout({ children, showAdminLink = false }: RedditLayoutPr
                 <RouterLink
                   to={reviewableOrders.length === 1
                     ? `/reddit/orders/${reviewableOrders[0].id}`
-                    : '/reddit/reviews'}
+                    : spath('/reviews')}
                   className="px-3 md:px-4 py-1.5 rounded-lg bg-white text-orange-600 hover:bg-orange-50 text-xs md:text-sm font-bold inline-flex items-center gap-1 whitespace-nowrap"
                 >
                   Leave review

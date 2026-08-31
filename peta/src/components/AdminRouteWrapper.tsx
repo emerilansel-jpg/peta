@@ -8,9 +8,10 @@ export function AdminRouteWrapper({ children }: { children: React.ReactNode }) {
     return /(^|\.)straight\.ltd$/i.test(window.location.hostname);
   }, []);
 
-  // On the Straight Ltd domain, /admin should always mean the Straight admin console.
+  // On the Straight Ltd domain, /admin means the Straight admin console —
+  // send stray PeTa admin paths there.
   if (isStraight) {
-    return <Navigate to="/reddit/admin" replace />;
+    return <Navigate to="/admin" replace />;
   }
 
   return <>{children}</>;

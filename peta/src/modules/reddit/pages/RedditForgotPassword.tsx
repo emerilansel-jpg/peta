@@ -1,3 +1,4 @@
+import { spath } from '../lib/path';
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Mail, CheckCircle, Loader2 } from 'lucide-react';
@@ -22,7 +23,7 @@ export function RedditForgotPassword() {
           email: email.trim(),
           base_url: window.location.origin,
           product: 'straight',
-          reset_path: '/reddit/reset-password',
+          reset_path: spath('/reset-password'),
         },
       });
       if (error) throw error;
@@ -49,7 +50,7 @@ export function RedditForgotPassword() {
     <div className="min-h-dvh bg-gradient-to-br from-orange-50 via-white to-white flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <Link
-          to="/reddit/login"
+          to={spath('/login')}
           className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 mb-6"
         >
           <ArrowLeft size={14} /> Back to sign in
@@ -124,7 +125,7 @@ export function RedditForgotPassword() {
 
           <p className="text-center text-sm text-slate-600 mt-6">
             Remember your password?{' '}
-            <Link to="/reddit/login" className="text-orange-600 font-semibold hover:underline">
+            <Link to={spath('/login')} className="text-orange-600 font-semibold hover:underline">
               Sign in →
             </Link>
           </p>
