@@ -1,5 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { useEffect } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ToastProvider } from './components/Toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -97,24 +96,13 @@ const queryClient = new QueryClient({
   },
 });
 
-// Hostname-based home redirect.
-// straight.ltd is the Straight Ltd product → / should go to /reddit.
-// penghasilantambahan.com (and localhost) → / stays at PeTa landing.
-function HostnameHomeRouter() {
-  const location = useLocation();
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const host = window.location.hostname;
-    if (location.pathname === '/' && /(^|\.)straight\.ltd$/i.test(host)) {
-      window.location.replace('/reddit');
-    }
-  }, [location.pathname]);
-  return null;
-}
-
+// Hostname-based home page.
+// straight.ltd is the Straight Ltd product → / renders the Straight landing
+// directly (no redirect). penghasilantambahan.com (and localhost) → / renders
+// the PeTa landing.
 function HomePage() {
   if (typeof window !== 'undefined' && /(^|\.)straight\.ltd$/i.test(window.location.hostname)) {
-    return <Navigate to="/reddit" replace />;
+    return <RedditLanding />;
   }
   return <Landing />;
 }
@@ -124,7 +112,6 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ToastProvider />
       <BrowserRouter>
-        <HostnameHomeRouter />
         <ErrorBoundary>
         <Routes>
           {/* Public Routes */}

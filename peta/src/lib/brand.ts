@@ -36,10 +36,10 @@ interface BrandConfig {
 }
 
 const STRAIGHT_BRAND: BrandConfig = {
-  title: 'Straight Ltd — Reddit Upvotes, Forum Comments & YouTube Uploads',
-  description: 'Grow on Reddit and big forums the easy way. Real upvotes, helpful brand comments, and YouTube uploads from one dashboard. Pay-as-you-go credits, PayPal checkout.',
-  ogTitle: 'Straight Ltd — Grow on Reddit and big forums',
-  ogDescription: 'Real upvotes, helpful comments about your brand, and YouTube uploads — one simple dashboard. Pay with PayPal. Watch every order live.',
+  title: 'Straight — Real People for Online Brand Visibility Tasks',
+  description: 'A human task network for brand visibility and GEO. Real people complete comments, mentions, upvotes, posting, research, and custom tasks for your brand. Pay-as-you-go, PayPal checkout.',
+  ogTitle: 'Straight — Real people for the online tasks that grow your brand',
+  ogDescription: 'A distributed workforce of real people for small online tasks: visibility, discovery, brand growth, and GEO. Pay with PayPal. Track every order live.',
   ogImage: 'https://straight.ltd/straight/og.png',
   themeColor: '#F97316',
   manifestHref: '/manifest-straight.json',
