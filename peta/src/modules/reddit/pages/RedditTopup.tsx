@@ -245,7 +245,7 @@ export function RedditTopup() {
                   </div>
                   <div className="flex items-center gap-2 text-xs text-slate-600">
                     <Shield size={12} className="text-emerald-600" />
-                    Buyer Protection · 30-day refund window
+                    PayPal Buyer Protection
                   </div>
                   <div className="flex items-center gap-2 text-xs text-slate-600">
                     <Zap size={12} className="text-emerald-600" />
