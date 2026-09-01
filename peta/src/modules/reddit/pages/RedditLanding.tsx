@@ -457,10 +457,10 @@ export function RedditLanding() {
               This works especially well when combined with comments, mentions, posting, and engagement tasks.
             </p>
             <button
-              onClick={() => navigate(spath('/contact'))}
+              onClick={handleCTA}
               className="mt-8 inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-lg shadow-orange-500/20 transition-all"
             >
-              Ask about Google Preferred Source targeting
+              Order Preferred Source selections
               <ArrowRight size={17} />
             </button>
           </div>

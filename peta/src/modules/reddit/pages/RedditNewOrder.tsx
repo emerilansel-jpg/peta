@@ -22,6 +22,7 @@ import {
   Edit3,
   Link as LinkIcon,
   PlayCircle,
+  Star,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { RedditLayout } from '../components/RedditLayout';
@@ -72,6 +73,17 @@ const SERVICES: Service[] = [
     badge: 'New',
     iconBg: 'bg-red-100',
     iconColor: 'text-red-600',
+  },
+  {
+    id: 'preferred-source',
+    platform: 'Google',
+    name: 'Preferred Source',
+    icon: Star,
+    description: 'Real people choose your site as their Preferred Source on Google',
+    status: 'active',
+    badge: 'New',
+    iconBg: 'bg-emerald-100',
+    iconColor: 'text-emerald-600',
   },
   {
     id: 'reddit-comment',
@@ -129,7 +141,7 @@ const SERVICES: Service[] = [
   },
 ];
 
-type ViewMode = 'select' | 'reddit-upvote' | 'reddit-comment' | 'youtube-upload' | 'coming-soon' | 'feature-request';
+type ViewMode = 'select' | 'reddit-upvote' | 'reddit-comment' | 'youtube-upload' | 'preferred-source' | 'coming-soon' | 'feature-request';
 
 type BulkForumTarget = {
   keyword: string;
@@ -181,6 +193,10 @@ export function RedditNewOrder() {
       const on = straightEnabled(pricing, 'youtube_upload', true);
       return { ...s, status: on ? s.status : 'paused' as const };
     }
+    if (s.id === 'preferred-source') {
+      const on = straightEnabled(pricing, 'preferred_source', true);
+      return { ...s, status: on ? s.status : 'paused' as const };
+    }
     return s;
   }), [pricing]);
 
@@ -209,6 +225,7 @@ export function RedditNewOrder() {
       {view === 'select' && <ServiceSelector services={services} onSelect={handleServiceClick} />}
       {view === 'reddit-upvote' && <RedditUpvoteOrderForm onBack={handleBack} />}
       {view === 'youtube-upload' && <YouTubeUploadOrderForm onBack={handleBack} />}
+      {view === 'preferred-source' && <PreferredSourceOrderForm onBack={handleBack} />}
       {view === 'reddit-comment' && (
         <ForumCommentOrderForm
           onBack={handleBack}
@@ -234,6 +251,7 @@ function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect
   const visible = services.filter((s) => s.status !== 'paused');
   const redditServices = visible.filter((s) => s.platform === 'Reddit');
   const youtubeServices = visible.filter((s) => s.platform === 'YouTube');
+  const googleServices = visible.filter((s) => s.platform === 'Google');
   const forumServices = visible.filter((s) => s.platform === 'Forums' || s.platform === 'Facebook');
   const customServices = visible.filter((s) => s.platform === 'Custom');
 
@@ -268,6 +286,21 @@ function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {youtubeServices.map((s) => (
+              <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Platform: Google */}
+      {googleServices.length > 0 && (
+        <div className="mb-10">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-7 h-7 rounded bg-emerald-600 flex items-center justify-center text-white text-sm font-bold">G</div>
+            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Google</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {googleServices.map((s) => (
               <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
             ))}
           </div>
@@ -1736,6 +1769,267 @@ function detectForumPlatform(url: string) {
   } catch {
     return '';
   }
+}
+
+// ============================================================
+// View 2d: Google Preferred Source Order Form
+// ============================================================
+function PreferredSourceOrderForm({ onBack }: { onBack: () => void }) {
+  const navigate = useNavigate();
+  const { balance } = useRedditCredits();
+  const pricing = useStraightPricing();
+  const { createPreferredSourceOrder, isCreatingPreferredSourceOrder } = useRedditOrders();
+
+  const [buttonUrl, setButtonUrl] = useState('');
+  const [quantity, setQuantity] = useState(25);
+  const [notes, setNotes] = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const unitCents = straightPrice(pricing, 'preferred_source', 100);
+  const enabled = straightEnabled(pricing, 'preferred_source', true);
+  const cost = unitCents * quantity;
+
+  const isValidUrl = /^https?:\/\/[^\s.]+\.[^\s]+/i.test(buttonUrl.trim());
+  const isValidQuantity = quantity >= 1 && quantity <= 100;
+  const hasEnoughCredit = balance >= cost;
+  const canSubmit = isValidUrl && isValidQuantity && hasEnoughCredit && enabled && !isCreatingPreferredSourceOrder;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!enabled) {
+      toast.error('Preferred Source is paused right now.');
+      return;
+    }
+    if (!isValidUrl) {
+      toast.error('Please enter the URL of your Preferred Source button');
+      return;
+    }
+    if (!isValidQuantity) {
+      toast.error('Quantity must be between 1 and 100');
+      return;
+    }
+    if (!hasEnoughCredit) {
+      toast.error('Insufficient credit. Top up to continue.');
+      return;
+    }
+    setShowConfirm(true);
+  };
+
+  const handleConfirm = () => {
+    createPreferredSourceOrder(
+      { buttonUrl: buttonUrl.trim(), quantity, notes: notes.trim() || null },
+      {
+        onSuccess: (order: { id?: number } | null) => {
+          toast.success(`Order placed — ${quantity} selection${quantity === 1 ? '' : 's'}. ${formatUSD(cost)} deducted.`);
+          setShowConfirm(false);
+          navigate(order?.id ? `/orders/${order.id}` : spath('/orders'));
+        },
+        onError: (err: Error) => {
+          toast.error(err.message || 'Failed to create order');
+          setShowConfirm(false);
+        },
+      }
+    );
+  };
+
+  return (
+    <div className="p-6 md:p-10 max-w-3xl mx-auto">
+      <button
+        onClick={onBack}
+        className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 mb-4"
+      >
+        <ArrowLeft size={14} /> Choose different service
+      </button>
+
+      <div className="mb-8">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+            <Star size={20} className="text-emerald-600" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Google Preferred Source</h1>
+            <p className="text-sm text-slate-500">
+              {formatUSD(unitCents)} per selection · by real people
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-6 p-4 rounded-xl bg-slate-900 text-white flex items-center justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-widest text-slate-400 font-semibold">Available credit</p>
+          <p className="text-2xl font-bold mt-0.5">{formatUSD(balance)}</p>
+        </div>
+        <button
+          onClick={() => navigate(spath('/topup'))}
+          className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-semibold flex items-center gap-2"
+        >
+          <Wallet size={14} />
+          Top up
+        </button>
+      </div>
+
+      {!enabled && (
+        <div className="mb-6 p-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 text-sm text-amber-900 flex items-start gap-2">
+          <AlertCircle size={16} className="shrink-0 mt-0.5 text-amber-500" />
+          <p><span className="font-semibold">Preferred Source is paused right now.</span> This service is temporarily unavailable — please check back soon.</p>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl ring-1 ring-slate-200 p-8 space-y-8">
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
+            <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+            Your Preferred Source button URL
+          </label>
+          <input
+            type="url"
+            value={buttonUrl}
+            onChange={(e) => setButtonUrl(e.target.value)}
+            placeholder="https://yoursite.com (page with your Prefer-us-in-Google button)"
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-slate-900"
+            required
+          />
+          <p className="mt-2 text-xs text-slate-500">
+            The page where your "Prefer us in Google" button lives. Our people open this link and select your site. Don't have the button yet? Add it first — any developer (or a WordPress plugin) can set it up in minutes.
+          </p>
+        </div>
+
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
+            <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">2</span>
+            How many selections?
+          </label>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setQuantity((q) => Math.max(1, q - 5))}
+              className="w-11 h-11 rounded-xl ring-1 ring-slate-300 text-slate-700 text-xl font-bold hover:bg-slate-50"
+            >
+              −
+            </button>
+            <input
+              type="number"
+              min={1}
+              max={100}
+              value={quantity}
+              onChange={(e) => setQuantity(Math.min(100, Math.max(1, parseInt(e.target.value) || 1)))}
+              className="w-24 text-center px-3 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-slate-900 font-bold"
+            />
+            <button
+              type="button"
+              onClick={() => setQuantity((q) => Math.min(100, q + 5))}
+              className="w-11 h-11 rounded-xl ring-1 ring-slate-300 text-slate-700 text-xl font-bold hover:bg-slate-50"
+            >
+              +
+            </button>
+            <span className="text-sm text-slate-500">selections (1–100 per order)</span>
+          </div>
+          <p className="mt-2 text-xs text-slate-500">
+            Each selection is performed by one real person with their own Google account, and you get proof for every one.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-slate-900 mb-2">
+            Extra instructions <span className="text-slate-400 font-normal">(optional)</span>
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Anything we should know about the button placement or your audience..."
+            rows={3}
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none text-slate-900"
+          />
+        </div>
+
+        <div className="p-5 rounded-xl bg-slate-50 ring-1 ring-slate-200">
+          <div className="flex justify-between text-sm mb-2">
+            <span className="text-slate-600">Preferred Source selections</span>
+            <span className="text-slate-900 font-semibold">{quantity} × {formatUSD(unitCents)}</span>
+          </div>
+          <div className="flex justify-between pt-3 mt-3 border-t border-slate-200">
+            <span className="text-slate-900 font-bold">Total</span>
+            <span className="text-2xl font-bold text-emerald-600">{formatUSD(cost)}</span>
+          </div>
+          {!hasEnoughCredit && (
+            <div className="mt-3 p-3 rounded-lg bg-rose-50 text-sm text-rose-700 flex items-start gap-2">
+              <AlertCircle size={16} className="shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">Insufficient credit</p>
+                <p>You need {formatUSD(cost - balance)} more. <button type="button" onClick={() => navigate(spath('/topup'))} className="underline font-semibold">Top up now</button>.</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-semibold transition shadow-lg shadow-emerald-600/20"
+        >
+          {enabled ? 'Review order' : 'Service paused'}
+          {enabled && <ArrowRight size={18} />}
+        </button>
+      </form>
+
+      {/* Confirmation modal */}
+      {showConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+            onClick={() => !isCreatingPreferredSourceOrder && setShowConfirm(false)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="px-6 pt-6 pb-2 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-900">Confirm order</h3>
+              <button
+                onClick={() => !isCreatingPreferredSourceOrder && setShowConfirm(false)}
+                className="p-1 rounded hover:bg-slate-100"
+                disabled={isCreatingPreferredSourceOrder}
+              >
+                <X size={18} className="text-slate-500" />
+              </button>
+            </div>
+            <div className="px-6 pb-6 space-y-4">
+              <p className="text-sm text-slate-600">
+                Review your order. <span className="font-semibold text-slate-900">{formatUSD(cost)}</span> will be deducted from your credit balance on confirmation.
+              </p>
+              <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 divide-y divide-slate-200">
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Service</p>
+                  <p className="text-sm text-slate-900 mt-1">Google Preferred Source — {quantity} selection{quantity === 1 ? '' : 's'}</p>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Button URL</p>
+                  <p className="text-sm text-slate-900 mt-1 break-all">{buttonUrl}</p>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Total</p>
+                  <p className="text-sm font-bold text-slate-900 mt-1">{formatUSD(cost)}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleConfirm}
+                disabled={isCreatingPreferredSourceOrder}
+                className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-semibold transition"
+              >
+                {isCreatingPreferredSourceOrder ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" /> Placing order...
+                  </>
+                ) : (
+                  <>
+                    Confirm & pay {formatUSD(cost)} <ArrowRight size={18} />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ============================================================

@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getRedditOrders, createRedditOrder, createForumCommentOrder, createForumCommentOrdersBulk, createYouTubeUploadOrder } from '../lib/api';
+import { getRedditOrders, createRedditOrder, createForumCommentOrder, createForumCommentOrdersBulk, createYouTubeUploadOrder, createPreferredSourceOrder } from '../lib/api';
 import type { ForumCommentOrderInput } from '../lib/api';
 
 export function useRedditOrders() {
@@ -53,6 +53,14 @@ export function useRedditOrders() {
       privacy: 'public' | 'unlisted' | 'private';
       notes: string | null;
     }) => createYouTubeUploadOrder(input.videoUrl, input.title, input.description, input.tags, input.privacy, input.notes),
+  });
+
+  const createPreferredSourceOrderMutation = useMutation({
+    mutationFn: (input: {
+      buttonUrl: string;
+      quantity: number;
+      notes: string | null;
+    }) => createPreferredSourceOrder(input.buttonUrl, input.quantity, input.notes),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reddit', 'orders'] });
       queryClient.invalidateQueries({ queryKey: ['reddit', 'credits'] });
@@ -75,6 +83,8 @@ export function useRedditOrders() {
     isCreatingForumCommentOrdersBulk: createForumCommentOrdersBulkMutation.isPending,
     createYouTubeUploadOrder: createYouTubeUploadOrderMutation.mutate,
     isCreatingYouTubeUploadOrder: createYouTubeUploadOrderMutation.isPending,
+    createPreferredSourceOrder: createPreferredSourceOrderMutation.mutate,
+    isCreatingPreferredSourceOrder: createPreferredSourceOrderMutation.isPending,
     error: createOrderMutation.error,
   };
 }

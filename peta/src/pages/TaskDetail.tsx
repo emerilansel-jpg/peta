@@ -98,6 +98,7 @@ export function TaskDetail() {
   const isUpvote = category === 'reddit_upvote' || task?.task_type === 'upvote';
   const isForumComment = category === 'forum_comment';
   const isYouTubeUpload = category === 'youtube_upload';
+  const isPreferredSource = category === 'preferred_source';
   const isComment = isForumComment || category === 'reddit_comment' || task?.task_type === 'comment';
   const platformLabel = task ? platformForTask(task) : 'Forum';
 
@@ -128,7 +129,7 @@ export function TaskDetail() {
     if (autoStartAttempted.current) return;
     if (
       stage === 'preview' &&
-      ((accounts.length === 1 && selectedAccountId) || ((isForumComment || isYouTubeUpload) && accounts.length === 0)) &&
+      ((accounts.length === 1 && selectedAccountId) || ((isForumComment || isYouTubeUpload || isPreferredSource) && accounts.length === 0)) &&
       !startMutation.isPending &&
       !checkingExistingAssignment &&
       !assignmentId
@@ -136,10 +137,11 @@ export function TaskDetail() {
       autoStartAttempted.current = true;
       startMutation.mutate();
     }
-    // isForumComment/isYouTubeUpload must be in deps so the effect fires when
-    // the task loads and reveals a task that doesn't need Reddit accounts.
+    // isForumComment/isYouTubeUpload/isPreferredSource must be in deps so the
+    // effect fires when the task loads and reveals a task that doesn't need
+    // Reddit accounts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accounts.length, selectedAccountId, stage, isForumComment, isYouTubeUpload, taskId, checkingExistingAssignment, assignmentId, startMutation.isPending]);
+  }, [accounts.length, selectedAccountId, stage, isForumComment, isYouTubeUpload, isPreferredSource, taskId, checkingExistingAssignment, assignmentId, startMutation.isPending]);
 
   const submitMutation = useMutation({
     mutationFn: () => {
@@ -225,7 +227,7 @@ export function TaskDetail() {
         ? !!(draftComment?.trim() || commentPost)
         : !!draftComment?.trim())
     : true;
-  const canSubmit = isUpvote
+  const canSubmit = (isUpvote || isPreferredSource)
     ? !!proofImageUrl && !!assignmentId
     : isYouTubeUpload
     ? !!proofUrl.trim() && !!assignmentId
@@ -339,13 +341,15 @@ export function TaskDetail() {
           <Card>
             <p className="text-xs uppercase font-bold tracking-wide text-muted mb-2">Pilih akun</p>
             <h2 className="text-lg font-extrabold mb-1">
-              {isForumComment ? 'Profil tracking untuk task ini' : isYouTubeUpload ? 'Task ini tanpa akun Reddit' : 'Akun Reddit untuk task ini'}
+              {isForumComment ? 'Profil tracking untuk task ini' : isYouTubeUpload || isPreferredSource ? 'Task ini tanpa akun Reddit' : 'Akun Reddit untuk task ini'}
             </h2>
             <p className="text-sm text-muted mb-4">
               {isForumComment
                 ? `Ini hanya untuk tracking PeTa. Username ${platformLabel} tetap kamu isi nanti saat submit bukti.`
                 : isYouTubeUpload
                 ? 'Upload video ke channel YouTube-mu sendiri. URL video hasil upload jadi bukti nanti.'
+                : isPreferredSource
+                ? 'Klik tombol Preferred Source pakai akun Google-mu sendiri. Screenshot hasilnya jadi bukti nanti.'
                 : 'Komentar / upvote akan tercatat atas nama akun ini.'}
             </p>
             <div className="space-y-2 mb-5">
@@ -392,8 +396,8 @@ export function TaskDetail() {
   }
 
   // ----- NO REDDIT ACCOUNT: only block Reddit-specific tasks. Forum / YouTube
-  // tasks can be completed without a Reddit account.
-  if (accounts.length === 0 && !isForumComment && !isYouTubeUpload) {
+  // / Preferred Source tasks can be completed without a Reddit account.
+  if (accounts.length === 0 && !isForumComment && !isYouTubeUpload && !isPreferredSource) {
     return (
       <Layout userRole="army">
         <div className="max-w-2xl mx-auto pb-8">
@@ -452,7 +456,7 @@ export function TaskDetail() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <span className="text-[10px] font-bold uppercase tracking-wide bg-primary/15 text-primary px-2 py-0.5 rounded-full">
-                  {isUpvote ? 'Upvote' : isComment ? `${platformLabel} Comment` : isYouTubeUpload ? 'YouTube Upload' : `${platformLabel} Task`}
+                  {isUpvote ? 'Upvote' : isPreferredSource ? 'Preferred Source' : isComment ? `${platformLabel} Comment` : isYouTubeUpload ? 'YouTube Upload' : `${platformLabel} Task`}
                 </span>
               </div>
               <h1 className="text-xl sm:text-2xl font-extrabold mb-2 leading-tight">{task.title}</h1>
@@ -506,9 +510,17 @@ export function TaskDetail() {
           num={2}
           done={false}
           active={threadOpened}
-          title={isUpvote ? 'Klik tombol upvote' : isYouTubeUpload ? 'Upload video ke YouTube' : `Post komentar di ${platformLabel}`}
+          title={isUpvote
+            ? 'Klik tombol upvote'
+            : isPreferredSource
+            ? 'Pilih Preferred Source di Google'
+            : isYouTubeUpload
+            ? 'Upload video ke YouTube'
+            : `Post komentar di ${platformLabel}`}
           subtitle={isUpvote
             ? 'Pastikan panah upvote berubah jadi warna terang. Itu tanda upvote sukses.'
+            : isPreferredSource
+            ? 'Klik tombol Preferred Source di halamannya, konfirmasi di Google, terus screenshot hasilnya.'
             : isYouTubeUpload
             ? 'Upload video ke channel YouTube-mu sendiri. Pastikan judul, deskripsi, dan tags sesuai brief.'
             : 'Copy komentar yang sudah disediakan. Brief biru hanya untuk cara posting yang aman.'
@@ -534,10 +546,11 @@ export function TaskDetail() {
               );
             }
 
-            // Upvote tasks never require a text comment. Show the raw guide
-            // (brief/description) as a neutral instruction card so users don't
-            // mistake it for a comment they must paste into a text box.
-            if (isUpvote) {
+            // Upvote / Preferred Source tasks never require a text comment.
+            // Show the raw guide (brief/description) as a neutral instruction
+            // card so users don't mistake it for a comment they must paste
+            // into a text box.
+            if (isUpvote || isPreferredSource) {
               const guide = (task.brief || task.description || '').trim();
               if (!guide) return null;
               return (
@@ -826,6 +839,7 @@ function StepCard({
 function platformForTask(task: any) {
   const category = task.task_category || task.task_type;
   if (category === 'youtube_upload' || task.task_category === 'youtube_upload') return 'YouTube';
+  if (category === 'preferred_source' || task.task_category === 'preferred_source') return 'Google';
   if (category === 'reddit_upvote' || category === 'reddit_comment' || task.task_type === 'upvote') return 'Reddit';
   const text = `${task.title || ''} ${task.description || ''} ${task.target_url || ''}`.toLowerCase();
   if (text.includes('hubspot')) return 'HubSpot';

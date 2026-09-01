@@ -109,6 +109,38 @@ export async function createYouTubeUploadOrder(
   return data;
 }
 
+// Create a Google Preferred Source selection order via RPC ($1 per selection).
+export async function createPreferredSourceOrder(
+  buttonUrl: string,
+  quantity: number,
+  notes: string | null
+) {
+  const { data, error } = await supabase.rpc('fn_create_preferred_source_order', {
+    p_button_url: buttonUrl,
+    p_quantity: quantity,
+    p_notes: notes,
+  });
+
+  if (error) {
+    console.error('[createPreferredSourceOrder] RPC error:', error);
+    if (error.message?.includes('insufficient_credits')) {
+      throw new Error('Insufficient credits. Please top up your account.');
+    }
+    if (error.message?.includes('service_disabled')) {
+      throw new Error('This service is paused right now. Please check back soon.');
+    }
+    if (error.message?.includes('quantity')) {
+      throw new Error('Quantity must be between 1 and 100.');
+    }
+    if (error.message?.includes('button_url')) {
+      throw new Error('Please enter a valid Preferred Source button URL.');
+    }
+    throw error;
+  }
+
+  return data;
+}
+
 export interface ForumCommentOrderInput {
   targetUrl: string;
   platform: string | null;

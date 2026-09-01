@@ -95,7 +95,7 @@ export function Tasks() {
   const queryClient = useQueryClient();
   const [user, setUser] = React.useState<any>(null);
   const [taskSearch, setTaskSearch] = React.useState('');
-  const [taskPlatformFilter, setTaskPlatformFilter] = React.useState<'all' | 'reddit' | 'forum' | 'youtube'>('all');
+  const [taskPlatformFilter, setTaskPlatformFilter] = React.useState<'all' | 'reddit' | 'forum' | 'youtube' | 'google'>('all');
 
   React.useEffect(() => {
     (async () => {
@@ -458,7 +458,7 @@ export function Tasks() {
                 />
               </div>
               <div className="flex gap-2 overflow-x-auto pb-1">
-                {(['all', 'reddit', 'forum', 'youtube'] as const).map((f) => (
+                {(['all', 'reddit', 'forum', 'youtube', 'google'] as const).map((f) => (
                   <button
                     key={f}
                     onClick={() => setTaskPlatformFilter(f)}
@@ -468,7 +468,7 @@ export function Tasks() {
                         : 'bg-light text-muted ring-1 ring-border hover:ring-primary/40'
                     }`}
                   >
-                    {f === 'all' ? 'Semua' : f === 'reddit' ? 'Reddit' : f === 'forum' ? 'Forum' : 'YouTube'}
+                    {f === 'all' ? 'Semua' : f === 'reddit' ? 'Reddit' : f === 'forum' ? 'Forum' : f === 'youtube' ? 'YouTube' : 'Google'}
                   </button>
                 ))}
               </div>
@@ -482,7 +482,8 @@ export function Tasks() {
                 const matchPlatform = taskPlatformFilter === 'all' ||
                   (taskPlatformFilter === 'reddit' && cat.startsWith('reddit')) ||
                   (taskPlatformFilter === 'forum' && cat === 'forum_comment') ||
-                  (taskPlatformFilter === 'youtube' && cat === 'youtube_upload');
+                  (taskPlatformFilter === 'youtube' && cat === 'youtube_upload') ||
+                  (taskPlatformFilter === 'google' && cat === 'preferred_source');
                 return matchSearch && matchPlatform;
               });
 
@@ -502,6 +503,7 @@ export function Tasks() {
                   t.task_category === 'reddit_post_thread' ? 'Reddit Post' :
                   t.task_category === 'forum_comment' ? `${platformForTask(t)} Comment` :
                   t.task_category === 'youtube_upload' ? 'YouTube Upload' :
+                  t.task_category === 'preferred_source' ? 'Google Preferred Source' :
                   'Reddit Comment';
                 const slotsLeft = Math.max(t.max_assignments - t.current_assignments, 0);
                 return (

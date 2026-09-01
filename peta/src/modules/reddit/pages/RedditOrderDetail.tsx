@@ -180,6 +180,20 @@ function serviceMeta(order: RedditOrderRecord) {
       } as Record<string, string>,
     };
   }
+  if ((order.target_type || 'upvote') === 'preferred_source') {
+    return {
+      name: 'Google Preferred Source',
+      targetLabel: 'Button URL',
+      quantityLabel: 'Selections',
+      progress: `${order.delivered_upvotes || 0} / ${order.requested_upvotes} selections`,
+      statusDesc: {
+        pending: 'We are reviewing your button URL and preparing the selection campaign.',
+        processing: 'Real people are selecting your site as their Preferred Source on Google.',
+        completed: 'All selections are done. Check the proof below for every selection.',
+        cancelled: 'Order was cancelled and unused credits were automatically refunded.',
+      } as Record<string, string>,
+    };
+  }
   return {
     name: 'Reddit upvotes',
     targetLabel: 'Target thread',
@@ -357,7 +371,7 @@ export function RedditOrderDetail() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Order #{order.id}</h1>
             <p className="text-slate-600 mt-1">
-              {service.name} · {order.subreddit && (order.target_type || 'upvote') !== 'comment' ? `r/${order.subreddit}` : order.subreddit || order.thread_url}
+              {service.name} · {order.subreddit && (order.target_type || 'upvote') !== 'comment' && order.target_type !== 'preferred_source' ? `r/${order.subreddit}` : order.subreddit || order.thread_url}
             </p>
           </div>
           <button
