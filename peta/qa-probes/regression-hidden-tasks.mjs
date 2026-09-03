@@ -72,5 +72,53 @@ if (token) {
   console.log('SKIP  claim RPC structure check (SUPABASE_ACCESS_TOKEN unset)');
 }
 
+// --- 3. E2E: preferred_source claim works WITHOUT a Reddit account ---
+// Regression for the 2026-09-03 bug (assignment trigger rejected
+// NULL-account inserts with 'Akun Reddit wajib untuk task ini.').
+// Creates a scratch task via service role, claims it via the admin
+// session, asserts success, then cleans up.
+if (token) {
+  const q = async (sql) => {
+    const res = await fetch(`${'https://api.supabase.com'}/v1/projects/yorlsgzsawchpeeazcvi/database/query`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: sql }),
+    });
+    if (!res.ok) throw new Error(`mgmt query failed ${res.status}: ${await res.text()}`);
+    return res.json();
+  };
+  try {
+    const scratch = await q(`
+      INSERT INTO tasks (title, description, target_url, task_type, task_category,
+                         reward_amount, max_assignments, per_account_limit, status)
+      VALUES ('[PROBE] preferred_source claim test', 'scratch', 'https://example.com',
+              'upvote', 'preferred_source', 2500, 1, 1, 'active')
+      RETURNING id`);
+    const scratchId = scratch[0].id;
+    try {
+      const { error: claimErr } = await sb.rpc('claim_task_assignment', {
+        p_task_id: scratchId,
+        p_reddit_account_id: null,
+      });
+      ok('preferred_source claim without reddit account', !claimErr, claimErr?.message || '');
+      if (!claimErr) {
+        // Double-claim must be rejected (per-member dedup).
+        const { error: againErr } = await sb.rpc('claim_task_assignment', {
+          p_task_id: scratchId,
+          p_reddit_account_id: null,
+        });
+        ok('double-claim rejected', !!againErr, againErr?.message || '');
+      }
+    } finally {
+      await q(`DELETE FROM task_assignments WHERE task_id='${scratchId}'`);
+      await q(`DELETE FROM tasks WHERE id='${scratchId}'`);
+    }
+  } catch (e) {
+    ok('preferred_source claim E2E (setup)', false, e.message);
+  }
+} else {
+  console.log('SKIP  preferred_source claim E2E (SUPABASE_ACCESS_TOKEN unset)');
+}
+
 console.log(failures.length ? `\n❌ ${failures.length} failure(s)` : '\n✅ invariant holds: hidden tasks never leak');
 process.exit(failures.length ? 1 : 0);

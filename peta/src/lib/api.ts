@@ -204,7 +204,7 @@ export async function getRedditAccounts(userId: string) {
     .select('*')
     .eq('user_id', userId);
 
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data;
 }
 
@@ -230,7 +230,7 @@ export async function addRedditAccount(userId: string, username: string) {
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data;
 }
 
@@ -272,7 +272,7 @@ export async function updateRedditAccountKarma(accountId: string, username: stri
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return { account: data, fallback: karmaData.fallback, statusFlag: karmaData.statusFlag, karma: (data?.karma as number) ?? 0 };
 }
 
@@ -280,7 +280,7 @@ export async function updateRedditAccountKarma(accountId: string, username: stri
 // Stored on `users.wa_group_dismissed` so it persists across devices.
 export async function dismissWaGroup() {
   const { error } = await supabase.rpc('dismiss_wa_group');
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
 }
 
 export async function getWaDismissed(userId: string): Promise<boolean> {
@@ -304,7 +304,7 @@ export async function adminSetKarma(
     p_karma: karma,
     p_account_age_days: accountAgeDays ?? null,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data;
 }
 
@@ -316,7 +316,7 @@ export async function submitKarmaClaim(accountId: string, claimedKarma: number) 
     p_account_id: accountId,
     p_claimed_karma: claimedKarma,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data;
 }
 
@@ -325,7 +325,7 @@ export async function adminRejectKarmaClaim(accountId: string) {
   const { data, error } = await supabase.rpc('admin_reject_karma_claim', {
     p_account_id: accountId,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data;
 }
 
@@ -337,7 +337,7 @@ export async function getActiveTasks() {
     .neq('task_category', 'reddit_challenge')
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data;
 }
 
@@ -350,7 +350,7 @@ export async function getTasksForLevel(level: number) {
     .lte('min_level', level)
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data;
 }
 
@@ -361,7 +361,7 @@ export async function createTaskAssignment(taskId: string, redditAccountId?: str
     p_reddit_account_id: redditAccountId || null,
   });
 
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data;
 }
 
@@ -384,7 +384,7 @@ export async function updateTaskAssignment(assignmentId: string, updates: TaskAs
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data;
 }
 
@@ -399,7 +399,7 @@ export async function getUserTaskAssignments(userId: string) {
     .in('reddit_account_id', accountIds)
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data;
 }
 
@@ -410,7 +410,7 @@ export async function getPayoutHistory(userId: string) {
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data;
 }
 
@@ -434,7 +434,7 @@ export async function requestPayout(
     p_account_number: accountNumber,
     p_account_holder_name: accountHolderName,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data;
 }
 
@@ -446,7 +446,7 @@ export async function checkPayoutEligibility(userId: string, amount: number) {
     p_user_id: userId,
     p_amount: amount,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data as {
     eligible: boolean;
     reason?: 'holding_period' | 'earnings_floor' | 'weekly_cap' | 'insufficient_balance' | 'minimum_payout';
@@ -595,7 +595,7 @@ export async function getTotalEarnings(_userId: string): Promise<{
   // The userId argument is kept for backwards-compat callers; the RPC reads
   // auth.uid() for authorization.
   const { data, error } = await supabase.rpc('get_user_earnings');
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data as {
     tasks: number;
     manualAdj: number;
@@ -623,7 +623,7 @@ export async function adminRepairAssignmentUserId(assignmentId: string, userId: 
     p_assignment_id: assignmentId,
     p_user_id: userId,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
 }
 
 // Mask a name for privacy: "Ahmad" -> "A****", "Ahmad Rifki" -> "A**** R."
@@ -663,7 +663,7 @@ export type OnboardingStep =
 // client can't tamper. Idempotent on the server side too.
 export async function claimOnboardingBonus(step: OnboardingStep) {
   const { error } = await supabase.rpc('claim_onboarding_bonus', { p_step: step });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
 }
 
 // Highest karma across all reddit accounts for a user. Used by Reddit Army
@@ -687,7 +687,7 @@ export async function getMaxRedditKarma(userId: string): Promise<{
     .select('id, username, karma, level, account_age_days, pending_karma, pending_karma_submitted_at, status_flag, flagged_at')
     .eq('user_id', userId)
     .order('karma', { ascending: false });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   const rows = (data || []) as Array<{
     id: string; username: string; karma: number; level: number; account_age_days: number;
     pending_karma: number | null; pending_karma_submitted_at: string | null;
@@ -760,7 +760,7 @@ export async function trackReferralClick(refCode: string) {
 
 export async function getReferralAnalytics(userId: string) {
   const { data, error } = await supabase.rpc('get_referral_analytics', { p_user_id: userId });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data as {
     totalClicks: number;
     uniqueClicks: number;
@@ -772,7 +772,7 @@ export async function getReferralAnalytics(userId: string) {
 
 export async function adminGetReferralLeaderboard(limit = 20) {
   const { data, error } = await supabase.rpc('admin_get_referral_leaderboard', { p_limit: limit });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return (data as Array<{
     user_id: string;
     email: string;
@@ -932,25 +932,25 @@ export async function createBroadcast(
     p_body: body,
     p_channels: channels,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data as string;
 }
 
 export async function listBroadcasts(limit = 50): Promise<BroadcastSummary[]> {
   const { data, error } = await supabase.rpc('admin_list_broadcasts', { p_limit: limit });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return (data || []) as BroadcastSummary[];
 }
 
 export async function getBroadcastRecipients(broadcastId: string): Promise<BroadcastRecipient[]> {
   const { data, error } = await supabase.rpc('admin_broadcast_recipients', { p_broadcast_id: broadcastId });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return (data || []) as BroadcastRecipient[];
 }
 
 export async function markRecipientSent(recipientId: string): Promise<void> {
   const { error } = await supabase.rpc('admin_mark_recipient_sent', { p_recipient_id: recipientId });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
 }
 
 // Trigger the actual email send via edge function. Returns counts + whether
@@ -965,7 +965,7 @@ export async function sendBroadcastEmails(broadcastId: string): Promise<{
   const { data, error } = await supabase.functions.invoke('send-broadcast-emails', {
     body: { broadcast_id: broadcastId },
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data;
 }
 
@@ -990,7 +990,7 @@ export async function sendBroadcastWhatsapp(
   const { data, error } = await supabase.functions.invoke('send-broadcast-whatsapp', {
     body: { broadcast_id: broadcastId, strip_urls: !!opts.stripUrls },
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data;
 }
 
@@ -1057,7 +1057,7 @@ export type PendingRedditOrder = {
 
 export async function listPendingRedditOrders(): Promise<PendingRedditOrder[]> {
   const { data, error } = await supabase.rpc('admin_list_pending_reddit_orders');
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return (data || []) as PendingRedditOrder[];
 }
 
@@ -1073,7 +1073,7 @@ export async function importRedditOrder(opts: {
     p_min_level: opts.minLevel ?? 0,
     p_title_override: opts.titleOverride ?? null,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data;
 }
 
@@ -1118,7 +1118,7 @@ export async function adminUpdateTask(u: AdminTaskUpdate): Promise<string> {
     p_end_at: u.end_at ?? null,
     p_status: u.status ?? null,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data as string;
 }
 
@@ -1158,7 +1158,7 @@ export async function adminCreateTask(u: AdminCreateTaskInput) {
     p_wa_group_draft: u.wa_group_draft ?? null,
     p_status: u.status ?? 'draft',
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data;
 }
 
@@ -1192,14 +1192,14 @@ export async function adminMarkPayoutPaid(payoutId: string): Promise<void> {
   const { error } = await supabase.rpc('admin_mark_payout_paid', {
     p_payout_id: payoutId,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
 }
 
 export async function adminCancelPayout(payoutId: string): Promise<void> {
   const { error } = await supabase.rpc('admin_cancel_payout', {
     p_payout_id: payoutId,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
 }
 
 export async function adminUpdateTaskStatus(taskId: string, status: 'draft' | 'active' | 'paused' | 'completed'): Promise<void> {
@@ -1207,12 +1207,12 @@ export async function adminUpdateTaskStatus(taskId: string, status: 'draft' | 'a
     p_task_id: taskId,
     p_status: status,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
 }
 
 export async function adminDeleteTask(taskId: string): Promise<{ ok: boolean; error?: string; message?: string }> {
   const { data, error } = await supabase.rpc('admin_delete_task', { p_task_id: taskId });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data;
 }
 
@@ -1240,7 +1240,7 @@ export type EligibleTask = {
 
 export async function listEligibleTasksForUser(): Promise<EligibleTask[]> {
   const { data, error } = await supabase.rpc('list_eligible_tasks_for_user');
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return (data || []) as EligibleTask[];
 }
 
@@ -1265,7 +1265,7 @@ export type MyAssignmentRow = {
 
 export async function getMyPendingAssignments(): Promise<MyAssignmentRow[]> {
   const { data, error } = await supabase.rpc('get_my_pending_assignments');
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return (data || []) as MyAssignmentRow[];
 }
 
@@ -1287,7 +1287,7 @@ export type TaskHistoryRow = {
 
 export async function getMyTaskHistory(): Promise<TaskHistoryRow[]> {
   const { data, error } = await supabase.rpc('get_my_task_history');
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return (data || []) as TaskHistoryRow[];
 }
 
@@ -1295,7 +1295,7 @@ export async function getMyTaskHistory(): Promise<TaskHistoryRow[]> {
 // proof. The immutable history table keeps the original rejection event.
 export async function retryRejectedAssignment(assignmentId: string): Promise<void> {
   const { error } = await supabase.rpc('retry_rejected_assignment', { p_assignment_id: assignmentId });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
 }
 
 // Admin: reject WITH reason + retry flag. allow_retry=true (default) lets
@@ -1306,7 +1306,7 @@ export async function adminRejectAssignment(assignmentId: string, reason: string
     p_reason: reason,
     p_can_retry: allowRetry,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
 }
 
 // Admin: revert an approved or rejected assignment back to submitted.
@@ -1339,7 +1339,7 @@ export async function adminRevertAssignment(assignmentId: string, reason: string
 // Delete a broadcast (admin only). Cascade deletes recipients.
 export async function deleteBroadcast(broadcastId: string): Promise<void> {
   const { error } = await supabase.from('broadcasts').delete().eq('id', broadcastId);
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
 }
 
 // ============================================================
@@ -1389,13 +1389,13 @@ export async function listInboxThreads(opts?: { channel?: InboxChannel; includeA
     p_channel: opts?.channel ?? null,
     p_include_archived: opts?.includeArchived ?? false,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return (data || []) as InboxThreadRow[];
 }
 
 export async function getThreadMessages(threadId: string): Promise<InboxMessageRow[]> {
   const { data, error } = await supabase.rpc('admin_get_thread_messages', { p_thread_id: threadId });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return (data || []) as InboxMessageRow[];
 }
 
@@ -1406,7 +1406,7 @@ export async function sendInboxReply(threadId: string, body: string, subject?: s
     p_body: body,
     p_subject: subject ?? null,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
 
   // Step 2 — kick off the edge function to actually dispatch via SMTP/Fonnte
   const { data: sendResult, error: invokeErr } = await supabase.functions.invoke('inbox-send-reply', {
@@ -1433,7 +1433,7 @@ export async function createInboxThread(opts: {
     p_name: opts.name ?? null,
     p_subject: opts.subject ?? null,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data as string;
 }
 
@@ -1442,7 +1442,7 @@ export async function archiveInboxThread(threadId: string, archived = true): Pro
     p_thread_id: threadId,
     p_archived: archived,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
 }
 
 export async function logInboundMessage(opts: {
@@ -1461,7 +1461,7 @@ export async function logInboundMessage(opts: {
     p_subject: opts.subject ?? null,
     p_body: opts.body,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data as string;
 }
 
@@ -1532,7 +1532,7 @@ export async function uploadTaskProofImage(opts: {
     upsert: false,
     contentType,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   const { data: publicUrl } = supabase.storage.from('task-proofs').getPublicUrl(path);
   return publicUrl.publicUrl;
 }
@@ -1558,7 +1558,7 @@ export async function sendTestBroadcast(opts: {
     p_test_email: opts.testEmail ?? null,
     p_test_whatsapp: opts.testWhatsapp ?? null,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   const broadcastId = data as string;
   const out: any = { broadcast_id: broadcastId };
 
@@ -1855,7 +1855,7 @@ export async function adminInviteRedditArmy(
 /** List Reddit accounts available as warmed accounts (not yet linked to active army profiles). */
 export async function listAvailableWarmedAccounts(): Promise<{ id: string; username: string; karma: number; account_age_days: number; level: number }[]> {
   const { data, error } = await supabase.rpc('list_available_warmed_accounts');
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return (data || []) as { id: string; username: string; karma: number; account_age_days: number; level: number }[];
 }
 
@@ -2148,7 +2148,7 @@ export async function uploadProofImages(opts: {
       upsert: false,
       contentType: file.type || mimeTypeFromExt(ext),
     });
-    if (error) throw error;
+    if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
     const { data: pub } = supabase.storage.from('task-proofs').getPublicUrl(path);
     entries.push({ type: 'image', url: pub.publicUrl, name: file.name });
   }
@@ -2181,7 +2181,7 @@ export async function submitChallengeAssignmentProof(opts: {
       updated_at: new Date().toISOString(),
     })
     .eq('id', opts.assignmentId);
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
 }
 
 /** Army self-reports today's Reddit activity (Phase 2 check-in, honor system). */
@@ -2230,7 +2230,7 @@ export async function adminListDailyActivityLog(days = 14): Promise<DailyActivit
     .limit(200);
   if (error) {
     console.error('[adminListDailyActivityLog]', error);
-    throw error;
+    throw new Error(error.message || 'Gagal memuat log check-in.');
   }
   return (data ?? []) as unknown as DailyActivityLogRow[];
 }
@@ -2244,7 +2244,7 @@ export async function adminVerifyDailyActivity(id: string, ok: boolean): Promise
       verified_at: ok ? new Date().toISOString() : null,
     })
     .eq('id', id);
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
 }
 
 /** Admin: manually release one stuck hold (repair valve, logged). */
@@ -2253,5 +2253,5 @@ export async function adminReleaseHold(holdId: string, reason: string): Promise<
     p_hold_id: holdId,
     p_reason: reason,
   });
-  if (error) throw error;
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
 }
