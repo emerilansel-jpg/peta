@@ -104,6 +104,8 @@ function SortableTaskItem({
   } = useSortable({ id: task.id });
 
   const approvedCount = (task as any).task_assignments?.filter((a: any) => a.status === 'approved').length || 0;
+  const workingCount = (task as any).task_assignments?.filter((a: any) => a.status === 'in_progress').length || 0;
+  const waitingCount = (task as any).task_assignments?.filter((a: any) => a.status === 'submitted').length || 0;
   const approvedPct = Math.min(100, Math.round((approvedCount / Math.max(1, Number(task.max_assignments || 1))) * 100));
 
   const style = {
@@ -193,8 +195,18 @@ function SortableTaskItem({
                 <span className="font-bold text-dark">
                   {approvedCount}/{task.max_assignments} selesai
                 </span>
+                {workingCount > 0 && (
+                  <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">
+                    {workingCount} dikerjakan
+                  </span>
+                )}
+                {waitingCount > 0 && (
+                  <span className="text-[10px] bg-warning/10 text-warning px-1.5 py-0.5 rounded-full font-semibold">
+                    {waitingCount} menunggu review
+                  </span>
+                )}
                 <span className="text-[10px]">
-                  ({task.current_assignments}/{task.max_assignments} slots diisi)
+                  ({task.current_assignments}/{task.max_assignments} slot terpakai)
                 </span>
                 <span>-</span>
                 <span>{formatGate(task)}</span>
