@@ -431,6 +431,7 @@ function OrderEditModal({
 }) {
   const isCommentOrder = (order.target_type || 'upvote') === 'comment';
   const isYouTubeUploadOrder = (order.target_type || 'upvote') === 'youtube_upload';
+  const isPreferredOrder = (order.target_type || '') === 'preferred_source';
   const isSingleUnitOrder = isCommentOrder || isYouTubeUploadOrder;
   const parsedNotes = parseOrderNotes(order.notes);
   const [status, setStatus] = useState(order.status);
@@ -512,20 +513,30 @@ function OrderEditModal({
             <h4 className="font-semibold text-sm text-slate-900 mb-3">Order details</h4>
             <div className="grid grid-cols-2 gap-3 text-sm">
               <div>
-                <p className="text-xs text-slate-500">{isCommentOrder ? 'Target page' : isYouTubeUploadOrder ? 'Video source' : 'Thread URL'}</p>
+                <p className="text-xs text-slate-500">{isCommentOrder ? 'Target page' : isYouTubeUploadOrder ? 'Video source' : isPreferredOrder ? 'Button URL' : 'Thread URL'}</p>
                 <a href={order.thread_url} target="_blank" rel="noopener noreferrer" className="text-orange-600 hover:underline break-all flex items-center gap-1">
                   {order.thread_url.substring(0, 40)}... <ExternalLink size={10} />
                 </a>
               </div>
               <div>
-                <p className="text-xs text-slate-500">{isCommentOrder ? 'Platform' : 'Subreddit'}</p>
+                <p className="text-xs text-slate-500">{isCommentOrder || isPreferredOrder ? 'Platform' : 'Subreddit'}</p>
                 <p className="font-medium">
-                  {order.subreddit ? (isCommentOrder ? order.subreddit : isYouTubeUploadOrder ? 'YouTube' : `r/${order.subreddit}`) : '—'}
+                  {isPreferredOrder
+                    ? 'Google'
+                    : order.subreddit
+                      ? (isCommentOrder ? order.subreddit : isYouTubeUploadOrder ? 'YouTube' : `r/${order.subreddit}`)
+                      : '—'}
                 </p>
               </div>
               <div>
                 <p className="text-xs text-slate-500">Requested</p>
-                <p className="font-medium">{isSingleUnitOrder ? (isYouTubeUploadOrder ? '1 upload' : '1 comment') : `${order.requested_upvotes} upvotes`}</p>
+                <p className="font-medium">
+                  {isPreferredOrder
+                    ? `${order.requested_upvotes} selections`
+                    : isSingleUnitOrder
+                      ? (isYouTubeUploadOrder ? '1 upload' : '1 comment')
+                      : `${order.requested_upvotes} upvotes`}
+                </p>
               </div>
               <div>
                 <p className="text-xs text-slate-500">Revenue</p>
@@ -619,7 +630,7 @@ function OrderEditModal({
           {!isSingleUnitOrder && (
           <div>
             <label className="block text-sm font-semibold text-slate-700 mb-2">
-              Delivered upvotes <span className="text-slate-400 font-normal">(of {order.requested_upvotes})</span>
+              {isPreferredOrder ? 'Delivered selections' : 'Delivered upvotes'} <span className="text-slate-400 font-normal">(of {order.requested_upvotes})</span>
             </label>
             <input
               type="number"
