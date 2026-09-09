@@ -6,14 +6,13 @@
 --   2. Company Page Follows ($0.25/unit, reward Rp1.500, 10-25 units)
 --   3. Post Comments ($0.75/unit, reward Rp4.000, 5-10 units)
 --
--- Features:
---   - Accountless in PeTa (no Reddit account required)
---   - Strict cross-order target dedup: 1 worker can only fulfill
---     1 unit per service per target URL across all orders.
---   - For comments: supports both worker-written (from brief)
---     and client-supplied custom drafts (reddit_order_comment_drafts).
---   - Auto-activation: orders mint ACTIVE PeTa tasks immediately.
---   - Cancellation: automatically refunds unfulfilled credits.
+-- Adheres to Task Visibility Invariants (2026-09-03):
+--   (a) list_eligible_tasks_for_user open bucket
+--   (b) claim_task_assignment no-account branch + is_hidden check
+--   (c) tg_enforce_assignment_rules no-account branch + is_hidden check
+--   (d) tg_enforce_per_account_limit no-account branch
+--   (e) admin_create_task / admin_update_task category->task_type CASE
+--   (f) tasks_task_category_check constraint (preserves reddit_challenge)
 -- ============================================================
 
 -- ------------------------------------------------------------
@@ -450,7 +449,8 @@ $fn$;
 -- ------------------------------------------------------------
 -- 5. Update claim_task_assignment:
 --    Allow claim without Reddit account for LinkedIn categories,
---    enforce cross-order target deduplication, and assign comment draft.
+--    enforce is_hidden, enforce cross-order target dedup,
+--    and assign comment draft.
 -- ------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.claim_task_assignment(
   p_task_id uuid,
@@ -486,7 +486,8 @@ BEGIN
 
   IF v_task.status <> 'active'
     OR (v_task.start_at IS NOT NULL AND now() < v_task.start_at)
-    OR (v_task.end_at IS NOT NULL AND now() >= v_task.end_at) THEN
+    OR (v_task.end_at IS NOT NULL AND now() >= v_task.end_at)
+    OR v_task.is_hidden THEN
     RAISE EXCEPTION 'Task ini sudah tidak aktif.' USING ERRCODE = 'P0001';
   END IF;
 
@@ -698,5 +699,197 @@ BEGIN
   END IF;
 END
 $fn$;
+
+-- ------------------------------------------------------------
+-- 7. Update tg_enforce_assignment_rules:
+--    Include LinkedIn categories in no-account bucket + is_hidden check
+-- ------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.tg_enforce_assignment_rules()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_task record;
+  v_limit int;
+  v_existing int;
+  v_live int;
+BEGIN
+  SELECT *
+  INTO v_task
+  FROM public.tasks
+  WHERE id = NEW.task_id
+  FOR UPDATE;
+
+  IF v_task.id IS NULL THEN
+    RAISE EXCEPTION 'Task tidak ditemukan.' USING ERRCODE = 'P0001';
+  END IF;
+
+  v_limit := COALESCE(v_task.per_account_limit, 1);
+
+  IF TG_OP = 'INSERT' THEN
+    IF v_task.status <> 'active'
+      OR (v_task.start_at IS NOT NULL AND now() < v_task.start_at)
+      OR (v_task.end_at IS NOT NULL AND now() >= v_task.end_at)
+      OR v_task.is_hidden THEN
+      RAISE EXCEPTION 'Task ini sudah tidak aktif.' USING ERRCODE = 'P0001';
+    END IF;
+
+    SELECT public.task_live_assignment_count(NEW.task_id) INTO v_live;
+    IF v_live >= COALESCE(v_task.max_assignments, 0) THEN
+      PERFORM public.sync_task_slot_count(NEW.task_id);
+      RAISE EXCEPTION 'Quota task sudah penuh. Ambil task lain.' USING ERRCODE = 'P0001';
+    END IF;
+
+    -- No-Reddit-account categories
+    IF COALESCE(v_task.task_category, '') IN (
+      'forum_comment', 'youtube_upload', 'preferred_source',
+      'linkedin_like', 'linkedin_follow', 'linkedin_comment'
+    ) THEN
+      NEW.reddit_account_id := NULL;
+      NEW.user_id := COALESCE(NEW.user_id, auth.uid());
+      IF NEW.user_id IS NULL THEN
+        RAISE EXCEPTION 'Login dulu untuk ambil task.' USING ERRCODE = 'P0001';
+      END IF;
+
+      SELECT COUNT(*) INTO v_existing
+      FROM public.task_assignments
+      WHERE task_id = NEW.task_id
+        AND user_id = NEW.user_id
+        AND status IN ('in_progress','submitted','approved');
+
+      IF v_existing >= v_limit THEN
+        RAISE EXCEPTION 'Kamu sudah pernah kerjain task ini (max % per member). Coba task lain.', v_limit
+          USING ERRCODE = 'P0001';
+      END IF;
+    ELSE
+      IF NEW.reddit_account_id IS NULL THEN
+        RAISE EXCEPTION 'Akun Reddit wajib untuk task ini.' USING ERRCODE = 'P0001';
+      END IF;
+
+      SELECT user_id INTO NEW.user_id
+      FROM public.reddit_accounts
+      WHERE id = NEW.reddit_account_id;
+
+      IF NEW.user_id IS NULL THEN
+        RAISE EXCEPTION 'Akun tidak valid.' USING ERRCODE = 'P0001';
+      END IF;
+
+      SELECT COUNT(*) INTO v_existing
+      FROM public.task_assignments
+      WHERE task_id = NEW.task_id
+        AND reddit_account_id = NEW.reddit_account_id
+        AND status IN ('in_progress','submitted','approved');
+
+      IF v_existing >= v_limit THEN
+        RAISE EXCEPTION 'Akun Reddit ini sudah pernah kerjain task ini (max % per akun). Coba task lain.', v_limit
+          USING ERRCODE = 'P0001';
+      END IF;
+    END IF;
+  END IF;
+
+  IF NEW.draft_comment IS NOT NULL
+    AND (TG_OP = 'INSERT' OR NEW.draft_comment IS DISTINCT FROM OLD.draft_comment OR NEW.status IS DISTINCT FROM OLD.status) THEN
+    PERFORM public.enforce_unique_forum_comment(NEW.id, NEW.task_id, NEW.draft_comment);
+  END IF;
+
+  RETURN NEW;
+END $function$;
+
+-- ------------------------------------------------------------
+-- 8. Update tg_enforce_per_account_limit:
+--    Include LinkedIn categories in no-account bucket
+-- ------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.tg_enforce_per_account_limit()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_limit int;
+  v_existing int;
+  v_category text;
+BEGIN
+  SELECT COALESCE(per_account_limit, 1), task_category
+  INTO v_limit, v_category
+  FROM public.tasks
+  WHERE id = NEW.task_id;
+
+  IF v_category IN (
+    'forum_comment', 'youtube_upload', 'preferred_source',
+    'linkedin_like', 'linkedin_follow', 'linkedin_comment'
+  ) THEN
+    SELECT COUNT(*) INTO v_existing
+    FROM public.task_assignments
+    WHERE task_id = NEW.task_id
+      AND user_id = NEW.user_id
+      AND status IN ('in_progress','submitted','approved');
+    IF v_existing >= v_limit THEN
+      RAISE EXCEPTION 'Kamu sudah pernah kerjain task ini (max % per member). Coba task lain.', v_limit
+        USING ERRCODE = 'P0001';
+    END IF;
+  ELSE
+    IF NEW.reddit_account_id IS NULL THEN
+      RAISE EXCEPTION 'Akun Reddit wajib untuk task ini.'
+        USING ERRCODE = 'P0001';
+    END IF;
+    SELECT COUNT(*) INTO v_existing
+    FROM public.task_assignments
+    WHERE task_id = NEW.task_id
+      AND reddit_account_id = NEW.reddit_account_id
+      AND status IN ('in_progress','submitted','approved');
+    IF v_existing >= v_limit THEN
+      RAISE EXCEPTION 'Akun Reddit ini sudah pernah kerjain task ini (max % per akun). Coba task lain.', v_limit
+        USING ERRCODE = 'P0001';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END $function$;
+
+-- ------------------------------------------------------------
+-- 9. Patch admin_create_task / admin_update_task CASE mappings
+-- ------------------------------------------------------------
+DO $patch$
+DECLARE
+  r record;
+  v_new text;
+BEGIN
+  FOR r IN
+    SELECT oid, pg_get_functiondef(oid) AS src, proname
+    FROM pg_proc
+    WHERE proname IN ('admin_create_task', 'admin_update_task')
+      AND pronamespace = 'public'::regnamespace
+  LOOP
+    IF r.src LIKE '%linkedin_like%' THEN
+      CONTINUE;
+    END IF;
+    v_new := replace(
+      r.src,
+      $q$WHEN 'preferred_source'   THEN 'upvote'$q$,
+      $q$WHEN 'preferred_source'   THEN 'upvote'
+      WHEN 'linkedin_like'      THEN 'upvote'
+      WHEN 'linkedin_follow'    THEN 'upvote'
+      WHEN 'linkedin_comment'   THEN 'comment'$q$
+    );
+    IF v_new = r.src THEN
+      v_new := replace(
+        r.src,
+        $q$WHEN 'preferred_source' THEN 'upvote'$q$,
+        $q$WHEN 'preferred_source' THEN 'upvote'
+        WHEN 'linkedin_like' THEN 'upvote'
+        WHEN 'linkedin_follow' THEN 'upvote'
+        WHEN 'linkedin_comment' THEN 'comment'$q$
+      );
+    END IF;
+    IF v_new <> r.src THEN
+      EXECUTE v_new;
+      RAISE NOTICE 'patched % (added linkedin categories)', r.proname;
+    END IF;
+  END LOOP;
+END
+$patch$;
 
 NOTIFY pgrst, 'reload schema';
