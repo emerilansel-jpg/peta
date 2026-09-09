@@ -1,5 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getRedditOrders, createRedditOrder, createForumCommentOrder, createForumCommentOrdersBulk, createYouTubeUploadOrder, createPreferredSourceOrder } from '../lib/api';
+import {
+  getRedditOrders,
+  createRedditOrder,
+  createForumCommentOrder,
+  createForumCommentOrdersBulk,
+  createYouTubeUploadOrder,
+  createPreferredSourceOrder,
+  createLinkedInOrder,
+  type LinkedInOrderInput,
+} from '../lib/api';
 import type { ForumCommentOrderInput } from '../lib/api';
 
 export function useRedditOrders() {
@@ -67,6 +76,14 @@ export function useRedditOrders() {
     },
   });
 
+  const createLinkedInOrderMutation = useMutation({
+    mutationFn: (input: LinkedInOrderInput) => createLinkedInOrder(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reddit', 'orders'] });
+      queryClient.invalidateQueries({ queryKey: ['reddit', 'credits'] });
+    },
+  });
+
   return {
     orders: orders || [],
     isLoading,
@@ -85,6 +102,8 @@ export function useRedditOrders() {
     isCreatingYouTubeUploadOrder: createYouTubeUploadOrderMutation.isPending,
     createPreferredSourceOrder: createPreferredSourceOrderMutation.mutate,
     isCreatingPreferredSourceOrder: createPreferredSourceOrderMutation.isPending,
+    createLinkedInOrder: createLinkedInOrderMutation.mutate,
+    isCreatingLinkedInOrder: createLinkedInOrderMutation.isPending,
     error: createOrderMutation.error,
   };
 }

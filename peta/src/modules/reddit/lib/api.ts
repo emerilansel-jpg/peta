@@ -141,6 +141,50 @@ export async function createPreferredSourceOrder(
   return data;
 }
 
+export interface LinkedInOrderInput {
+  service: 'linkedin_like' | 'linkedin_follow' | 'linkedin_comment';
+  targetUrl: string;
+  quantity: number;
+  notes?: string | null;
+  commentMode?: 'brief' | 'custom';
+  commentBrief?: string | null;
+  commentDrafts?: { comment_text: string }[] | null;
+  requestId?: string | null;
+}
+
+// Create a LinkedIn engagement order via RPC ($0.20 Like, $0.25 Follow, $0.75 Comment).
+export async function createLinkedInOrder(input: LinkedInOrderInput) {
+  const { data, error } = await supabase.rpc('fn_create_linkedin_order', {
+    p_service: input.service,
+    p_target_url: input.targetUrl,
+    p_quantity: input.quantity,
+    p_notes: input.notes || null,
+    p_comment_mode: input.commentMode || 'brief',
+    p_comment_brief: input.commentBrief || null,
+    p_comment_drafts: input.commentDrafts && input.commentDrafts.length > 0 ? input.commentDrafts : null,
+    p_request_id: input.requestId || null,
+  });
+
+  if (error) {
+    console.error('[createLinkedInOrder] RPC error:', error);
+    if (error.message?.includes('insufficient_credits')) {
+      throw new Error('Insufficient credits. Please top up your account.');
+    }
+    if (error.message?.includes('service_disabled')) {
+      throw new Error('This LinkedIn service is paused right now. Please check back soon.');
+    }
+    if (error.message?.includes('valid_linkedin_url_required')) {
+      throw new Error('Please enter a valid LinkedIn URL (https://linkedin.com/posts/... or /company/...).');
+    }
+    if (error.message?.includes('quantity')) {
+      throw new Error(error.message);
+    }
+    throw error;
+  }
+
+  return data;
+}
+
 export interface ForumCommentOrderInput {
   targetUrl: string;
   platform: string | null;
@@ -282,8 +326,8 @@ export async function getStraightRegistrationMode(): Promise<StraightRegistratio
 
 export type StraightPricingRow = {
   key: string;
-  platform: 'reddit' | 'forum' | 'youtube';
-  service: 'upvote' | 'comment' | 'thread' | 'upload';
+  platform: 'reddit' | 'forum' | 'youtube' | 'google' | 'linkedin';
+  service: 'upvote' | 'comment' | 'thread' | 'upload' | 'select' | 'like' | 'follow';
   mention_mode: 'none' | 'plain' | 'link';
   label: string;
   price_cents: number;

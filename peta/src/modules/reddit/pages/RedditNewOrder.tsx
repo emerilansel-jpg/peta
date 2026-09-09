@@ -23,6 +23,8 @@ import {
   Link as LinkIcon,
   PlayCircle,
   Star,
+  ThumbsUp,
+  UserPlus,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { RedditLayout } from '../components/RedditLayout';
@@ -86,6 +88,39 @@ const SERVICES: Service[] = [
     iconColor: 'text-emerald-600',
   },
   {
+    id: 'linkedin-like',
+    platform: 'LinkedIn',
+    name: 'Post Likes',
+    icon: ThumbsUp,
+    description: 'Real people like your LinkedIn post at a natural pace',
+    status: 'active',
+    badge: 'New',
+    iconBg: 'bg-blue-100',
+    iconColor: 'text-blue-700',
+  },
+  {
+    id: 'linkedin-follow',
+    platform: 'LinkedIn',
+    name: 'Company Followers',
+    icon: UserPlus,
+    description: 'Real people follow your LinkedIn company page',
+    status: 'active',
+    badge: 'New',
+    iconBg: 'bg-blue-100',
+    iconColor: 'text-blue-700',
+  },
+  {
+    id: 'linkedin-comment',
+    platform: 'LinkedIn',
+    name: 'Post Comments',
+    icon: MessageSquare,
+    description: 'Helpful comments written from your brief or custom text',
+    status: 'active',
+    badge: 'New',
+    iconBg: 'bg-blue-100',
+    iconColor: 'text-blue-700',
+  },
+  {
     id: 'reddit-comment',
     platform: 'Forums',
     name: 'Comments',
@@ -141,7 +176,17 @@ const SERVICES: Service[] = [
   },
 ];
 
-type ViewMode = 'select' | 'reddit-upvote' | 'reddit-comment' | 'youtube-upload' | 'preferred-source' | 'coming-soon' | 'feature-request';
+type ViewMode =
+  | 'select'
+  | 'reddit-upvote'
+  | 'reddit-comment'
+  | 'youtube-upload'
+  | 'preferred-source'
+  | 'linkedin-like'
+  | 'linkedin-follow'
+  | 'linkedin-comment'
+  | 'coming-soon'
+  | 'feature-request';
 
 type BulkForumTarget = {
   keyword: string;
@@ -197,6 +242,18 @@ export function RedditNewOrder() {
       const on = straightEnabled(pricing, 'preferred_source', true);
       return { ...s, status: on ? s.status : 'paused' as const };
     }
+    if (s.id === 'linkedin-like') {
+      const on = straightEnabled(pricing, 'linkedin_like', true);
+      return { ...s, status: on ? s.status : 'paused' as const };
+    }
+    if (s.id === 'linkedin-follow') {
+      const on = straightEnabled(pricing, 'linkedin_follow', true);
+      return { ...s, status: on ? s.status : 'paused' as const };
+    }
+    if (s.id === 'linkedin-comment') {
+      const on = straightEnabled(pricing, 'linkedin_comment', true);
+      return { ...s, status: on ? s.status : 'paused' as const };
+    }
     return s;
   }), [pricing]);
 
@@ -226,6 +283,9 @@ export function RedditNewOrder() {
       {view === 'reddit-upvote' && <RedditUpvoteOrderForm onBack={handleBack} />}
       {view === 'youtube-upload' && <YouTubeUploadOrderForm onBack={handleBack} />}
       {view === 'preferred-source' && <PreferredSourceOrderForm onBack={handleBack} />}
+      {view === 'linkedin-like' && <LinkedInOrderForm serviceType="linkedin_like" onBack={handleBack} />}
+      {view === 'linkedin-follow' && <LinkedInOrderForm serviceType="linkedin_follow" onBack={handleBack} />}
+      {view === 'linkedin-comment' && <LinkedInOrderForm serviceType="linkedin_comment" onBack={handleBack} />}
       {view === 'reddit-comment' && (
         <ForumCommentOrderForm
           onBack={handleBack}
@@ -252,6 +312,7 @@ function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect
   const redditServices = visible.filter((s) => s.platform === 'Reddit');
   const youtubeServices = visible.filter((s) => s.platform === 'YouTube');
   const googleServices = visible.filter((s) => s.platform === 'Google');
+  const linkedinServices = visible.filter((s) => s.platform === 'LinkedIn');
   const forumServices = visible.filter((s) => s.platform === 'Forums' || s.platform === 'Facebook');
   const customServices = visible.filter((s) => s.platform === 'Custom');
 
@@ -301,6 +362,21 @@ function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {googleServices.map((s) => (
+              <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Platform: LinkedIn */}
+      {linkedinServices.length > 0 && (
+        <div className="mb-10">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-7 h-7 rounded bg-blue-700 flex items-center justify-center text-white text-xs font-bold font-sans">in</div>
+            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">LinkedIn</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {linkedinServices.map((s) => (
               <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
             ))}
           </div>
@@ -2015,6 +2091,422 @@ function PreferredSourceOrderForm({ onBack }: { onBack: () => void }) {
                 className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-semibold transition"
               >
                 {isCreatingPreferredSourceOrder ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" /> Placing order...
+                  </>
+                ) : (
+                  <>
+                    Confirm & pay {formatUSD(cost)} <ArrowRight size={18} />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// View 2e: LinkedIn Order Form (Likes, Follows, Comments)
+// ============================================================
+function LinkedInOrderForm({
+  serviceType,
+  onBack,
+}: {
+  serviceType: 'linkedin_like' | 'linkedin_follow' | 'linkedin_comment';
+  onBack: () => void;
+}) {
+  const navigate = useNavigate();
+  const { balance } = useRedditCredits();
+  const pricing = useStraightPricing();
+  const { createLinkedInOrder, isCreatingLinkedInOrder } = useRedditOrders();
+
+  const isLike = serviceType === 'linkedin_like';
+  const isFollow = serviceType === 'linkedin_follow';
+  const isComment = serviceType === 'linkedin_comment';
+
+  const defaultQty = isComment ? 5 : 10;
+  const minQty = isComment ? 5 : 10;
+  const maxQty = isComment ? 10 : 25;
+  const fallbackCents = isLike ? 20 : isFollow ? 25 : 75;
+
+  const [targetUrl, setTargetUrl] = useState('');
+  const [quantity, setQuantity] = useState(defaultQty);
+  const [notes, setNotes] = useState('');
+  const [commentMode, setCommentMode] = useState<'brief' | 'custom'>('brief');
+  const [commentBrief, setCommentBrief] = useState('');
+  const [customComments, setCustomComments] = useState<string[]>(() => Array(defaultQty).fill(''));
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const unitCents = straightPrice(pricing, serviceType, fallbackCents);
+  const enabled = straightEnabled(pricing, serviceType, true);
+  const cost = unitCents * quantity;
+
+  const handleQuantityChange = (newQty: number) => {
+    const clamped = Math.min(maxQty, Math.max(minQty, newQty));
+    setQuantity(clamped);
+    if (isComment) {
+      setCustomComments((prev) => {
+        const next = [...prev];
+        while (next.length < clamped) next.push('');
+        return next.slice(0, clamped);
+      });
+    }
+  };
+
+  const isValidUrl = /^https?:\/\/(?:[a-z0-9-]+\.)*linkedin\.com\/[^\s]+/i.test(targetUrl.trim());
+  const isValidQuantity = quantity >= minQty && quantity <= maxQty;
+  const hasEnoughCredit = balance >= cost;
+
+  const isValidComment = !isComment || (
+    commentMode === 'brief'
+      ? commentBrief.trim().length >= 10
+      : customComments.slice(0, quantity).every((c) => c.trim().length >= 5)
+  );
+
+  const canSubmit = isValidUrl && isValidQuantity && isValidComment && hasEnoughCredit && enabled && !isCreatingLinkedInOrder;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!enabled) {
+      toast.error('This service is paused right now.');
+      return;
+    }
+    if (!isValidUrl) {
+      toast.error('Please enter a valid LinkedIn URL (https://linkedin.com/posts/... or /company/...)');
+      return;
+    }
+    if (!isValidQuantity) {
+      toast.error(`Quantity must be between ${minQty} and ${maxQty}`);
+      return;
+    }
+    if (isComment && commentMode === 'brief' && commentBrief.trim().length < 10) {
+      toast.error('Please provide a comment brief (at least 10 characters)');
+      return;
+    }
+    if (isComment && commentMode === 'custom' && !customComments.slice(0, quantity).every((c) => c.trim().length >= 5)) {
+      toast.error(`Please provide all ${quantity} custom comments (min 5 characters each)`);
+      return;
+    }
+    if (!hasEnoughCredit) {
+      toast.error('Insufficient credit. Top up to continue.');
+      return;
+    }
+    setShowConfirm(true);
+  };
+
+  const handleConfirm = () => {
+    const drafts = isComment && commentMode === 'custom'
+      ? customComments.slice(0, quantity).map((c) => ({ comment_text: c.trim() }))
+      : null;
+
+    createLinkedInOrder(
+      {
+        service: serviceType,
+        targetUrl: targetUrl.trim(),
+        quantity,
+        notes: notes.trim() || null,
+        commentMode: isComment ? commentMode : undefined,
+        commentBrief: isComment && commentMode === 'brief' ? commentBrief.trim() : null,
+        commentDrafts: drafts,
+      },
+      {
+        onSuccess: (order: { id?: number } | null) => {
+          const unitLabel = isComment ? 'comments' : isFollow ? 'followers' : 'likes';
+          toast.success(`LinkedIn order placed — ${quantity} ${unitLabel}. ${formatUSD(cost)} deducted.`);
+          setShowConfirm(false);
+          navigate(order?.id ? `/orders/${order.id}` : spath('/orders'));
+        },
+        onError: (err: Error) => {
+          toast.error(err.message || 'Failed to create order');
+          setShowConfirm(false);
+        },
+      }
+    );
+  };
+
+  const titleText = isLike ? 'LinkedIn Post Likes' : isFollow ? 'LinkedIn Company Followers' : 'LinkedIn Post Comments';
+  const subtitleText = isLike
+    ? `${formatUSD(unitCents)} per like · Real accounts`
+    : isFollow
+    ? `${formatUSD(unitCents)} per follower · Real accounts`
+    : `${formatUSD(unitCents)} per comment · Brief or custom text`;
+
+  const targetLabel = isFollow ? 'LinkedIn Company Page URL' : 'LinkedIn Post URL';
+  const targetPlaceholder = isFollow ? 'https://www.linkedin.com/company/your-company' : 'https://www.linkedin.com/posts/...';
+  const targetHelp = isFollow
+    ? 'Public company page URL. Real people will open this page and click Follow.'
+    : 'Public post URL. Real people will open this post to engage.';
+
+  return (
+    <div className="p-6 md:p-10 max-w-3xl mx-auto">
+      <button
+        onClick={onBack}
+        className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 mb-4"
+      >
+        <ArrowLeft size={14} /> Choose different service
+      </button>
+
+      <div className="mb-8">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-700">
+            {isLike ? <ThumbsUp size={20} /> : isFollow ? <UserPlus size={20} /> : <MessageSquare size={20} />}
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">{titleText}</h1>
+            <p className="text-sm text-slate-500">{subtitleText}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-6 p-4 rounded-xl bg-slate-900 text-white flex items-center justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-widest text-slate-400 font-semibold">Available credit</p>
+          <p className="text-2xl font-bold mt-0.5">{formatUSD(balance)}</p>
+        </div>
+        <button
+          onClick={() => navigate(spath('/topup'))}
+          className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-semibold flex items-center gap-2"
+        >
+          <Wallet size={14} />
+          Top up
+        </button>
+      </div>
+
+      {!enabled && (
+        <div className="mb-6 p-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 text-sm text-amber-900 flex items-start gap-2">
+          <AlertCircle size={16} className="shrink-0 mt-0.5 text-amber-500" />
+          <p><span className="font-semibold">{titleText} is paused right now.</span> This service is temporarily unavailable — please check back soon.</p>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl ring-1 ring-slate-200 p-8 space-y-8">
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
+            <span className="w-6 h-6 rounded-full bg-blue-700 text-white text-xs font-bold flex items-center justify-center">1</span>
+            {targetLabel}
+          </label>
+          <input
+            type="url"
+            value={targetUrl}
+            onChange={(e) => setTargetUrl(e.target.value)}
+            placeholder={targetPlaceholder}
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900"
+            required
+          />
+          <p className="mt-2 text-xs text-slate-500">{targetHelp}</p>
+        </div>
+
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
+            <span className="w-6 h-6 rounded-full bg-blue-700 text-white text-xs font-bold flex items-center justify-center">2</span>
+            How many {isComment ? 'comments' : isFollow ? 'followers' : 'likes'}?
+          </label>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => handleQuantityChange(quantity - (isComment ? 1 : 5))}
+              className="w-11 h-11 rounded-xl ring-1 ring-slate-300 text-slate-700 text-xl font-bold hover:bg-slate-50"
+            >
+              −
+            </button>
+            <input
+              type="number"
+              min={minQty}
+              max={maxQty}
+              value={quantity}
+              onChange={(e) => handleQuantityChange(parseInt(e.target.value) || minQty)}
+              className="w-24 text-center px-3 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-slate-900 font-bold"
+            />
+            <button
+              type="button"
+              onClick={() => handleQuantityChange(quantity + (isComment ? 1 : 5))}
+              className="w-11 h-11 rounded-xl ring-1 ring-slate-300 text-slate-700 text-xl font-bold hover:bg-slate-50"
+            >
+              +
+            </button>
+            <span className="text-sm text-slate-500">
+              ({minQty}–{maxQty} per order)
+            </span>
+          </div>
+          <p className="mt-2 text-xs text-slate-500">
+            Performed by real human accounts with public profiles. 1 worker = 1 action max per target.
+          </p>
+        </div>
+
+        {isComment && (
+          <div>
+            <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
+              <span className="w-6 h-6 rounded-full bg-blue-700 text-white text-xs font-bold flex items-center justify-center">3</span>
+              Comment style
+            </label>
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <button
+                type="button"
+                onClick={() => setCommentMode('brief')}
+                className={`p-3.5 rounded-xl border text-left text-sm font-medium transition ${
+                  commentMode === 'brief'
+                    ? 'border-blue-600 bg-blue-50 text-blue-900'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                }`}
+              >
+                <div className="font-bold mb-0.5">Worker writes from brief</div>
+                <div className="text-xs text-slate-500 leading-snug">Workers write relevant, professional comments following your instructions</div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCommentMode('custom')}
+                className={`p-3.5 rounded-xl border text-left text-sm font-medium transition ${
+                  commentMode === 'custom'
+                    ? 'border-blue-600 bg-blue-50 text-blue-900'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                }`}
+              >
+                <div className="font-bold mb-0.5">Provide custom comments</div>
+                <div className="text-xs text-slate-500 leading-snug">You supply exact comments; each worker is assigned one unique comment</div>
+              </button>
+            </div>
+
+            {commentMode === 'brief' ? (
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                  Comment Brief / Instructions <span className="text-red-500">*</span>
+                </label>
+                <textarea
+                  value={commentBrief}
+                  onChange={(e) => setCommentBrief(e.target.value)}
+                  placeholder="Example: Keep tone professional in English. Discuss the value of transparent reporting in B2B growth. Don't mention competitors."
+                  rows={3}
+                  className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900 text-sm"
+                  required
+                />
+                <p className="mt-1 text-xs text-slate-500">Brief guidelines for workers to write on-topic comments.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <label className="block text-xs font-semibold text-slate-700">
+                  Provide {quantity} unique comments <span className="text-red-500">*</span>
+                </label>
+                {customComments.slice(0, quantity).map((c, i) => (
+                  <div key={i}>
+                    <span className="text-[11px] font-semibold text-slate-500">Comment #{i + 1}</span>
+                    <input
+                      type="text"
+                      value={c}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCustomComments((prev) => {
+                          const next = [...prev];
+                          next[i] = val;
+                          return next;
+                        });
+                      }}
+                      placeholder={`Custom comment text #${i + 1}`}
+                      className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 text-sm"
+                      required
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div>
+          <label className="block text-sm font-semibold text-slate-900 mb-2">
+            Extra instructions <span className="text-slate-400 font-normal">(optional)</span>
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Pacing notes, specific preferences..."
+            rows={2}
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none text-slate-900 text-sm"
+          />
+        </div>
+
+        <div className="p-5 rounded-xl bg-slate-50 ring-1 ring-slate-200">
+          <div className="flex justify-between text-sm mb-2">
+            <span className="text-slate-600">{titleText}</span>
+            <span className="text-slate-900 font-semibold">{quantity} × {formatUSD(unitCents)}</span>
+          </div>
+          <div className="flex justify-between pt-3 mt-3 border-t border-slate-200">
+            <span className="text-slate-900 font-bold">Total</span>
+            <span className="text-2xl font-bold text-blue-700">{formatUSD(cost)}</span>
+          </div>
+          {!hasEnoughCredit && (
+            <div className="mt-3 p-3 rounded-lg bg-rose-50 text-sm text-rose-700 flex items-start gap-2">
+              <AlertCircle size={16} className="shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">Insufficient credit</p>
+                <p>You need {formatUSD(cost - balance)} more. <button type="button" onClick={() => navigate(spath('/topup'))} className="underline font-semibold">Top up now</button>.</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-blue-700 hover:bg-blue-800 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-semibold transition shadow-lg shadow-blue-700/20"
+        >
+          {enabled ? 'Review order' : 'Service paused'}
+          {enabled && <ArrowRight size={18} />}
+        </button>
+      </form>
+
+      {/* Confirmation modal */}
+      {showConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+            onClick={() => !isCreatingLinkedInOrder && setShowConfirm(false)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="px-6 pt-6 pb-2 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-900">Confirm order</h3>
+              <button
+                onClick={() => !isCreatingLinkedInOrder && setShowConfirm(false)}
+                className="p-1 rounded hover:bg-slate-100"
+                disabled={isCreatingLinkedInOrder}
+              >
+                <X size={18} className="text-slate-500" />
+              </button>
+            </div>
+            <div className="px-6 pb-6 space-y-4">
+              <p className="text-sm text-slate-600">
+                Review your order. <span className="font-semibold text-slate-900">{formatUSD(cost)}</span> will be deducted from your credit balance on confirmation.
+              </p>
+              <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 divide-y divide-slate-200">
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Service</p>
+                  <p className="text-sm text-slate-900 mt-1">{titleText} — {quantity} units</p>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Target URL</p>
+                  <p className="text-sm text-slate-900 mt-1 break-all">{targetUrl}</p>
+                </div>
+                {isComment && (
+                  <div className="px-4 py-3">
+                    <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Comment mode</p>
+                    <p className="text-sm text-slate-900 mt-1">
+                      {commentMode === 'brief' ? 'Worker writes from brief' : `${quantity} custom comments provided`}
+                    </p>
+                  </div>
+                )}
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Total</p>
+                  <p className="text-sm font-bold text-slate-900 mt-1">{formatUSD(cost)}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleConfirm}
+                disabled={isCreatingLinkedInOrder}
+                className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-blue-700 hover:bg-blue-800 disabled:bg-slate-300 text-white font-semibold transition"
+              >
+                {isCreatingLinkedInOrder ? (
                   <>
                     <Loader2 size={18} className="animate-spin" /> Placing order...
                   </>

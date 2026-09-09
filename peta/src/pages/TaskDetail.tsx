@@ -95,11 +95,16 @@ export function TaskDetail() {
     enabled: !!taskId,
   });
   const category = task?.task_category || task?.task_type;
-  const isUpvote = category === 'reddit_upvote' || task?.task_type === 'upvote';
+  const isLinkedInLike = category === 'linkedin_like';
+  const isLinkedInFollow = category === 'linkedin_follow';
+  const isLinkedInComment = category === 'linkedin_comment';
+  const isLinkedIn = isLinkedInLike || isLinkedInFollow || isLinkedInComment;
+  const isUpvote = (category === 'reddit_upvote' || task?.task_type === 'upvote') && !isLinkedIn;
   const isForumComment = category === 'forum_comment';
   const isYouTubeUpload = category === 'youtube_upload';
   const isPreferredSource = category === 'preferred_source';
-  const isComment = isForumComment || category === 'reddit_comment' || task?.task_type === 'comment';
+  const isComment = isForumComment || category === 'reddit_comment' || isLinkedInComment || task?.task_type === 'comment';
+  const isNoAccountNeeded = isForumComment || isYouTubeUpload || isPreferredSource || isLinkedIn;
   const platformLabel = task ? platformForTask(task) : 'Forum';
 
   const startMutation = useMutation({
@@ -129,7 +134,7 @@ export function TaskDetail() {
     if (autoStartAttempted.current) return;
     if (
       stage === 'preview' &&
-      ((accounts.length === 1 && selectedAccountId) || ((isForumComment || isYouTubeUpload || isPreferredSource) && accounts.length === 0)) &&
+      ((accounts.length === 1 && selectedAccountId) || (isNoAccountNeeded && accounts.length === 0)) &&
       !startMutation.isPending &&
       !checkingExistingAssignment &&
       !assignmentId
@@ -137,11 +142,8 @@ export function TaskDetail() {
       autoStartAttempted.current = true;
       startMutation.mutate();
     }
-    // isForumComment/isYouTubeUpload/isPreferredSource must be in deps so the
-    // effect fires when the task loads and reveals a task that doesn't need
-    // Reddit accounts.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accounts.length, selectedAccountId, stage, isForumComment, isYouTubeUpload, isPreferredSource, taskId, checkingExistingAssignment, assignmentId, startMutation.isPending]);
+  }, [accounts.length, selectedAccountId, stage, isNoAccountNeeded, taskId, checkingExistingAssignment, assignmentId, startMutation.isPending]);
 
   const submitMutation = useMutation({
     mutationFn: () => {
@@ -227,7 +229,11 @@ export function TaskDetail() {
         ? !!(draftComment?.trim() || commentPost)
         : !!draftComment?.trim())
     : true;
-  const canSubmit = (isUpvote || isPreferredSource)
+  const canSubmit = (isLinkedInLike || isLinkedInFollow)
+    ? !!proofImageUrl && !!submittedUsername.trim() && !!assignmentId
+    : isLinkedInComment
+    ? !!proofImageUrl && !!proofUrl.trim() && !!submittedUsername.trim() && !!assignmentId && (hasCommentText || !!userNote.trim() || !!draftComment?.trim())
+    : (isUpvote || isPreferredSource)
     ? !!proofImageUrl && !!assignmentId
     : isYouTubeUpload
     ? !!proofUrl.trim() && !!assignmentId
@@ -341,7 +347,7 @@ export function TaskDetail() {
           <Card>
             <p className="text-xs uppercase font-bold tracking-wide text-muted mb-2">Pilih akun</p>
             <h2 className="text-lg font-extrabold mb-1">
-              {isForumComment ? 'Profil tracking untuk task ini' : isYouTubeUpload || isPreferredSource ? 'Task ini tanpa akun Reddit' : 'Akun Reddit untuk task ini'}
+              {isForumComment ? 'Profil tracking untuk task ini' : isNoAccountNeeded ? 'Task ini tanpa akun Reddit' : 'Akun Reddit untuk task ini'}
             </h2>
             <p className="text-sm text-muted mb-4">
               {isForumComment
@@ -350,6 +356,8 @@ export function TaskDetail() {
                 ? 'Upload video ke channel YouTube-mu sendiri. URL video hasil upload jadi bukti nanti.'
                 : isPreferredSource
                 ? 'Klik tombol Preferred Source pakai akun Google-mu sendiri. Screenshot hasilnya jadi bukti nanti.'
+                : isLinkedIn
+                ? 'Gunakan akun LinkedIn publik milikmu sendiri. URL profil LinkedIn kamu akan disertakan sebagai bukti.'
                 : 'Komentar / upvote akan tercatat atas nama akun ini.'}
             </p>
             <div className="space-y-2 mb-5">
@@ -396,8 +404,8 @@ export function TaskDetail() {
   }
 
   // ----- NO REDDIT ACCOUNT: only block Reddit-specific tasks. Forum / YouTube
-  // / Preferred Source tasks can be completed without a Reddit account.
-  if (accounts.length === 0 && !isForumComment && !isYouTubeUpload && !isPreferredSource) {
+  // / Preferred Source / LinkedIn tasks can be completed without a Reddit account.
+  if (accounts.length === 0 && !isNoAccountNeeded) {
     return (
       <Layout userRole="army">
         <div className="max-w-2xl mx-auto pb-8">
@@ -510,14 +518,26 @@ export function TaskDetail() {
           num={2}
           done={false}
           active={threadOpened}
-          title={isUpvote
+          title={isLinkedInLike
+            ? 'Beri Like pada post LinkedIn'
+            : isLinkedInFollow
+            ? 'Follow Company Page di LinkedIn'
+            : isLinkedInComment
+            ? 'Tulis komentar di post LinkedIn'
+            : isUpvote
             ? 'Klik tombol upvote'
             : isPreferredSource
             ? 'Pilih Preferred Source di Google'
             : isYouTubeUpload
             ? 'Upload video ke YouTube'
             : `Post komentar di ${platformLabel}`}
-          subtitle={isUpvote
+          subtitle={isLinkedInLike
+            ? 'Pastikan tombol Like berubah jadi warna biru aktif. Itu tanda Like sukses.'
+            : isLinkedInFollow
+            ? 'Pastikan tombol berubah jadi Following. Itu tanda Follow sukses.'
+            : isLinkedInComment
+            ? 'Tulis komentar relevan di post tersebut atau gunakan draft yang disediakan.'
+            : isUpvote
             ? 'Pastikan panah upvote berubah jadi warna terang. Itu tanda upvote sukses.'
             : isPreferredSource
             ? 'Klik tombol Preferred Source di halamannya, konfirmasi di Google, terus screenshot hasilnya.'
@@ -530,6 +550,25 @@ export function TaskDetail() {
               New model: comment lives in task.brief, instructions in task.description.
               Legacy tasks packed both into brief — splitForumBrief() still handles them. */}
           {(() => {
+            // LinkedIn Like / Follow tasks: show brief/instructions guide
+            if (isLinkedInLike || isLinkedInFollow) {
+              const guide = (task.brief || task.description || '').trim();
+              if (!guide) return null;
+              return (
+                <div className="bg-blue-50 ring-1 ring-blue-300 rounded-xl p-3 mb-3">
+                  <p className="text-[10px] uppercase font-bold tracking-wide text-blue-900 mb-1">
+                    Panduan tugas LinkedIn
+                  </p>
+                  <p className="text-sm text-blue-950 whitespace-pre-line leading-relaxed">
+                    {guide}
+                  </p>
+                  <p className="text-[11px] text-blue-800 mt-2 font-semibold">
+                    Gunakan akun LinkedIn publik kamu sendiri. Screenshot bukti dan cantumkan URL profil LinkedIn kamu di Step 3.
+                  </p>
+                </div>
+              );
+            }
+
             // YouTube upload tasks: show the metadata guide from the brief.
             if (isYouTubeUpload) {
               const guide = (task.brief || task.description || '').trim();
@@ -568,11 +607,13 @@ export function TaskDetail() {
               );
             }
 
-            const comment = isForumComment
-              ? (draftComment?.trim() || commentPost)
+            const comment = (isForumComment || isLinkedInComment)
+              ? (draftComment?.trim() || (isForumComment ? commentPost : ''))
               : draftComment?.trim();
-            const legacyStd = splitForumBrief(task.brief).standardBrief;
-            const instructions = memberSafePostingBrief(legacyStd || task.description || '').trim();
+            const legacyStd = isForumComment ? splitForumBrief(task.brief).standardBrief : '';
+            const instructions = isLinkedInComment
+              ? (task.brief || task.description || '').trim()
+              : memberSafePostingBrief(legacyStd || task.description || '').trim();
             if (!comment && !instructions) return null;
             return (
               <div className="space-y-3 mb-3">
@@ -606,7 +647,7 @@ export function TaskDetail() {
                 {instructions && (
                   <div className="bg-sky-50 ring-1 ring-sky-300 rounded-xl p-3">
                     <p className="text-[10px] uppercase font-bold tracking-wide text-sky-900 mb-1">
-                      Cara posting aman
+                      {isLinkedInComment ? 'Petunjuk Komentar' : 'Cara posting aman'}
                     </p>
                     <p className="text-sm text-sky-950 whitespace-pre-line leading-relaxed">
                       {instructions}
@@ -628,7 +669,17 @@ export function TaskDetail() {
           done={false}
           active={threadOpened}
           title="Submit URL, username, dan bukti"
-          subtitle={isUpvote ? 'Screenshot wajib untuk upvote.' : isYouTubeUpload ? 'URL video YouTube wajib. Screenshot optional tapi disarankan.' : 'URL komentar dan username wajib. Screenshot optional tapi disarankan.'}
+          subtitle={
+            isLinkedInLike || isLinkedInFollow
+              ? 'URL profil LinkedIn publik dan screenshot wajib.'
+              : isLinkedInComment
+              ? 'URL profil, link komentar, dan screenshot wajib.'
+              : isUpvote
+              ? 'Screenshot wajib untuk upvote.'
+              : isYouTubeUpload
+              ? 'URL video YouTube wajib. Screenshot optional tapi disarankan.'
+              : 'URL komentar dan username wajib. Screenshot optional tapi disarankan.'
+          }
         >
           {/* SCREENSHOT UPLOAD */}
           {proofImageUrl ? (
@@ -690,8 +741,73 @@ export function TaskDetail() {
             </>
           )}
 
-          {/* For comment tasks — submitted URL + platform username are required, screenshot is optional. */}
-          {!isUpvote && (
+          {/* For LinkedIn tasks — public profile URL is required for all; comment permalink is required for comment. */}
+          {isLinkedIn ? (
+            <div className="mt-3">
+              <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
+                URL Profil LinkedIn Publik Kamu <span className="text-danger">*</span>
+              </p>
+              <div className="relative mb-3">
+                <LinkIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                <input
+                  type="url"
+                  value={submittedUsername}
+                  onChange={(e) => setSubmittedUsername(e.target.value)}
+                  placeholder="https://www.linkedin.com/in/username-kamu"
+                  className="w-full pl-10 pr-3 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm"
+                  required
+                />
+              </div>
+              <p className="text-[11px] text-muted mb-3 -mt-2">
+                Akun/profil LinkedIn kamu wajib berstatus publik agar dapat diverifikasi oleh admin dan klien.
+              </p>
+
+              {isLinkedInComment && (
+                <>
+                  <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
+                    URL / Permalink Komentar Kamu di LinkedIn <span className="text-danger">*</span>
+                  </p>
+                  <div className="relative mb-3">
+                    <LinkIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                    <input
+                      type="url"
+                      value={proofUrl}
+                      onChange={(e) => setProofUrl(e.target.value)}
+                      placeholder="https://www.linkedin.com/feed/update/.../?commentUrn=..."
+                      className="w-full pl-10 pr-3 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm"
+                      required
+                    />
+                  </div>
+
+                  <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
+                    Teks komentar yang kamu tulis
+                  </p>
+                  <textarea
+                    value={userNote}
+                    onChange={(e) => setUserNote(e.target.value)}
+                    placeholder="Tuliskan teks komentar kamu di sini..."
+                    className="w-full px-4 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition resize-none text-sm mb-3"
+                    rows={2}
+                  />
+                </>
+              )}
+
+              {!isLinkedInComment && (
+                <>
+                  <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
+                    Catatan untuk admin (opsional)
+                  </p>
+                  <textarea
+                    value={userNote}
+                    onChange={(e) => setUserNote(e.target.value)}
+                    placeholder="Catatan tambahan (opsional)..."
+                    className="w-full px-4 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition resize-none text-sm mb-3"
+                    rows={2}
+                  />
+                </>
+              )}
+            </div>
+          ) : !isUpvote ? (
             <>
               <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
                 {isYouTubeUpload ? 'URL video hasil upload di YouTube' : 'URL komentar / thread setelah komentar tampil'}
@@ -733,11 +849,17 @@ export function TaskDetail() {
                 rows={3}
               />
             </>
-          )}
+          ) : null}
 
-          {isUpvote && (
+          {isUpvote && !isLinkedIn && (
             <p className="text-xs text-warning bg-warning/10 px-3 py-2 rounded-lg mt-2">
               Upvote task: <b>screenshot wajib</b>. Pastikan panah upvote berwarna terang/aktif.
+            </p>
+          )}
+
+          {isLinkedIn && (
+            <p className="text-xs text-primary bg-primary/10 px-3 py-2 rounded-lg mt-2">
+              LinkedIn task: <b>screenshot bukti dan URL profil publik wajib</b> diisi dengan benar.
             </p>
           )}
           {isYouTubeUpload && (
@@ -840,6 +962,7 @@ function platformForTask(task: any) {
   const category = task.task_category || task.task_type;
   if (category === 'youtube_upload' || task.task_category === 'youtube_upload') return 'YouTube';
   if (category === 'preferred_source' || task.task_category === 'preferred_source') return 'Google';
+  if (category && String(category).startsWith('linkedin')) return 'LinkedIn';
   if (category === 'reddit_upvote' || category === 'reddit_comment' || task.task_type === 'upvote') return 'Reddit';
   const text = `${task.title || ''} ${task.description || ''} ${task.target_url || ''}`.toLowerCase();
   if (text.includes('hubspot')) return 'HubSpot';

@@ -194,6 +194,48 @@ function serviceMeta(order: RedditOrderRecord) {
       } as Record<string, string>,
     };
   }
+  if ((order.target_type || 'upvote') === 'linkedin_like') {
+    return {
+      name: 'LinkedIn post likes',
+      targetLabel: 'Post URL',
+      quantityLabel: 'Likes',
+      progress: `${order.delivered_upvotes || 0} / ${order.requested_upvotes} likes`,
+      statusDesc: {
+        pending: 'Reviewing your post and queuing workers.',
+        processing: 'Real people are liking your LinkedIn post.',
+        completed: 'All likes delivered. Proof and profiles verified below.',
+        cancelled: 'Order was cancelled; unfulfilled credits refunded.',
+      } as Record<string, string>,
+    };
+  }
+  if ((order.target_type || 'upvote') === 'linkedin_follow') {
+    return {
+      name: 'LinkedIn company followers',
+      targetLabel: 'Company page URL',
+      quantityLabel: 'Followers',
+      progress: `${order.delivered_upvotes || 0} / ${order.requested_upvotes} followers`,
+      statusDesc: {
+        pending: 'Reviewing your company page and queuing workers.',
+        processing: 'Real people are following your LinkedIn company page.',
+        completed: 'All followers delivered. Proof and profiles verified below.',
+        cancelled: 'Order was cancelled; unfulfilled credits refunded.',
+      } as Record<string, string>,
+    };
+  }
+  if ((order.target_type || 'upvote') === 'linkedin_comment') {
+    return {
+      name: 'LinkedIn post comments',
+      targetLabel: 'Post URL',
+      quantityLabel: 'Comments',
+      progress: `${order.delivered_upvotes || 0} / ${order.requested_upvotes} comments`,
+      statusDesc: {
+        pending: 'Reviewing your comment brief/drafts.',
+        processing: 'Real people are posting comments on your LinkedIn post.',
+        completed: 'All comments delivered. Check comment links and screenshots below.',
+        cancelled: 'Order was cancelled; unfulfilled credits refunded.',
+      } as Record<string, string>,
+    };
+  }
   return {
     name: 'Reddit upvotes',
     targetLabel: 'Target thread',
@@ -371,7 +413,7 @@ export function RedditOrderDetail() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Order #{order.id}</h1>
             <p className="text-slate-600 mt-1">
-              {service.name} · {order.subreddit && (order.target_type || 'upvote') !== 'comment' && order.target_type !== 'preferred_source' ? `r/${order.subreddit}` : order.subreddit || order.thread_url}
+              {service.name} · {order.subreddit && !['comment', 'preferred_source', 'linkedin_like', 'linkedin_follow', 'linkedin_comment'].includes(order.target_type || 'upvote') && order.subreddit !== 'LinkedIn' && order.subreddit !== 'Google' ? `r/${order.subreddit}` : order.thread_url}
             </p>
           </div>
           <button
