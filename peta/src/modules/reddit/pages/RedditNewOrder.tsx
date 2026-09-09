@@ -327,7 +327,7 @@ function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect
       {redditServices.length > 0 && (
         <div className="mb-10">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-7 h-7 rounded bg-orange-500 flex items-center justify-center text-white text-sm font-bold">R</div>
+            <img src="/platforms/reddit.png" alt="Reddit" className="w-7 h-7 object-contain" />
             <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Reddit</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -342,7 +342,7 @@ function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect
       {youtubeServices.length > 0 && (
         <div className="mb-10">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-7 h-7 rounded bg-red-600 flex items-center justify-center text-white text-sm font-bold">Y</div>
+            <img src="/platforms/youtube.png" alt="YouTube" className="w-7 h-7 object-contain" />
             <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">YouTube</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -357,7 +357,7 @@ function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect
       {googleServices.length > 0 && (
         <div className="mb-10">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-7 h-7 rounded bg-emerald-600 flex items-center justify-center text-white text-sm font-bold">G</div>
+            <img src="/platforms/google.png" alt="Google" className="w-7 h-7 object-contain" />
             <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Google</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -372,7 +372,7 @@ function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect
       {linkedinServices.length > 0 && (
         <div className="mb-10">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-7 h-7 rounded bg-blue-700 flex items-center justify-center text-white text-xs font-bold font-sans">in</div>
+            <img src="/platforms/linkedin.png" alt="LinkedIn" className="w-7 h-7 object-contain" />
             <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">LinkedIn</h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
