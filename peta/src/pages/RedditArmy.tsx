@@ -471,9 +471,9 @@ function InvitedState({
         </ul>
       </Card>
 
-      <Card className="mb-4 bg-yellow-50 border border-yellow-200">
-        <p className="text-xs text-yellow-800 leading-relaxed">
-          ⚠️ <strong>Syarat main:</strong> 1 device & 1 IP. Jangan ganti selama program. Pamit H-30 kalau mau berhenti.
+      <Card className="mb-4 bg-blue-50 border border-blue-200">
+        <p className="text-xs text-blue-900 leading-relaxed">
+          ℹ️ <strong>Prinsip Kontributor:</strong> Pelajari aturan subreddit tujuan, tulis komentar relevan & jujur, dan selalu cantumkan disclosure hubungan kerja sama jika diminta. Jangan gunakan bot atau manipulasi vote.
         </p>
       </Card>
 

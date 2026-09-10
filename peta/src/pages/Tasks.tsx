@@ -256,7 +256,7 @@ export function Tasks() {
                     : 'Akun Reddit kamu tidak bisa ditemukan'}
                 </p>
                 <p className="text-sm text-danger/85 mt-0.5">
-                  Tanpa akun Reddit aktif, task PeTa nggak bisa dikerjain. Daftar akun baru di Reddit, lalu tambahkan ke PeTa lewat halaman Akun.
+                  Cek status notifikasi resmi di akun Reddit kamu atau hubungi admin PeTa lewat bantuan. Jangan terburu-buru membuat akun baru untuk menghindari pembatasan.
                 </p>
               </div>
             </div>

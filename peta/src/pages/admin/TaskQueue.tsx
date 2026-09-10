@@ -12,7 +12,7 @@ import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
 import { toast } from '../../components/Toast';
-import { listPendingRedditOrders, importRedditOrder, adminUpdateTask, adminCreateTask, adminUpdateTaskStatus, adminDeleteTask } from '../../lib/api';
+import { listPendingRedditOrders, importRedditOrder, adminUpdateTask, adminCreateTask, adminUpdateTaskStatus, adminDeleteTask, adminReviewTaskEligibility } from '../../lib/api';
 import { cleanInternalText } from '../../lib/internalText';
 
 // Convert ISO timestamp to local-datetime input format (YYYY-MM-DDTHH:mm).
@@ -34,7 +34,7 @@ const COMMENT_PRESETS = [5000, 8000, 11000, 14000, 17000, 20000];
 const UPVOTE_PRESETS  = [500, 1000, 1500, 2000];
 // LEVEL_OPTIONS removed; gates now use min_karma + min_age directly.
 
-type FilterKey = 'all' | 'draft' | 'active' | 'paused' | 'hidden';
+type FilterKey = 'all' | 'pending_review' | 'draft' | 'active' | 'paused' | 'hidden';
 type TaskStatus = 'draft' | 'active' | 'paused' | 'completed';
 type TaskCategory = 'reddit_upvote' | 'reddit_comment' | 'reddit_post_thread' | 'forum_comment' | 'youtube_upload';
 
@@ -70,10 +70,13 @@ type TaskRow = {
   is_hidden: boolean;
   source_order_id?: number | null;
   task_assignments?: Array<{ status: string }>;
+  eligibility_status?: 'legacy' | 'pending' | 'approved' | 'revision' | 'rejected' | null;
+  eligibility_reason?: string | null;
 };
 
-const FILTERS: Array<[FilterKey, string, (tasks: TaskRow[], stats: { draft: number; active: number; paused: number; hidden: number }) => number]> = [
+const FILTERS: Array<[FilterKey, string, (tasks: TaskRow[], stats: { draft: number; active: number; paused: number; hidden: number; pending_review: number }) => number]> = [
   ['all', 'Semua', (tasks) => tasks.length],
+  ['pending_review', 'Review Kelayakan', (_tasks, stats) => stats.pending_review],
   ['draft', 'Draft', (_tasks, stats) => stats.draft],
   ['active', 'Aktif', (_tasks, stats) => stats.active],
   ['paused', 'Paused', (_tasks, stats) => stats.paused],
@@ -87,12 +90,14 @@ function SortableTaskItem({
   onToggleStatus,
   onToggleHidden,
   onDelete,
+  onReviewEligibility,
 }: {
   task: TaskRow;
   onEdit: (t: TaskRow) => void;
   onToggleStatus: (t: TaskRow) => void;
   onToggleHidden: (t: TaskRow) => void;
   onDelete: (t: TaskRow) => void;
+  onReviewEligibility?: (t: TaskRow, decision: 'approved' | 'revision' | 'rejected', reason?: string) => void;
 }) {
   const {
     attributes,
@@ -142,6 +147,11 @@ function SortableTaskItem({
                   }`}>
                     {formatStatus(task.status)}
                   </span>
+                  {task.eligibility_status === 'pending' && (
+                    <span className="text-[10px] uppercase tracking-wide font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full ring-1 ring-amber-300">
+                      ⏳ Butuh Review Kelayakan
+                    </span>
+                  )}
                   {task.is_hidden && (
                     <span className="text-[10px] uppercase tracking-wide font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
                       Hidden
@@ -182,6 +192,33 @@ function SortableTaskItem({
                 Rp{task.reward_amount.toLocaleString('id-ID')}
               </p>
             </div>
+
+            {task.eligibility_status === 'pending' && onReviewEligibility && (
+              <div className="my-2 p-2.5 bg-amber-50 rounded-xl ring-1 ring-amber-200 flex items-center justify-between gap-3 flex-wrap">
+                <div>
+                  <p className="text-xs font-bold text-amber-900">Task Reddit Butuh Review Kelayakan Dispatch</p>
+                  <p className="text-[11px] text-amber-700">Pastikan thread aktif, topik relevan, dan brief patuh aturan subreddit sebelum dibuka ke army.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => onReviewEligibility(task, 'approved')}
+                    className="tap-shrink px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm"
+                  >
+                    ✓ Loloskan & Aktifkan
+                  </button>
+                  <button
+                    onClick={() => {
+                      const reason = window.prompt('Masukkan alasan penolakan / revisi:') || '';
+                      if (reason) onReviewEligibility(task, 'rejected', reason);
+                    }}
+                    className="tap-shrink px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-sm"
+                  >
+                    ✕ Tolak
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="mb-2">
               <div className="h-1.5 rounded-full bg-light overflow-hidden">
                 <div
@@ -568,13 +605,25 @@ export function AdminTaskQueue() {
   const filtered = scoped.filter((t) => {
     if (filter === 'all') return true;
     if (filter === 'hidden') return t.is_hidden;
+    if (filter === 'pending_review') return t.eligibility_status === 'pending';
     return t.status === filter && !t.is_hidden;
   });
+  const pendingReviewCount = scoped.filter((t) => t.eligibility_status === 'pending').length;
   const activeCount = scoped.filter((t) => t.status === 'active' && !t.is_hidden).length;
   const draftCount = scoped.filter((t) => t.status === 'draft' && !t.is_hidden).length;
   const pausedCount = scoped.filter((t) => t.status === 'paused' && !t.is_hidden).length;
   const hiddenCount = scoped.filter((t) => t.is_hidden).length;
   const openSlots = scoped.reduce((sum, t) => sum + Math.max(0, Number(t.max_assignments || 0) - Number(t.current_assignments || 0)), 0);
+
+  const reviewEligibilityMutation = useMutation({
+    mutationFn: ({ taskId, decision, reason }: { taskId: string; decision: 'approved' | 'revision' | 'rejected'; reason?: string }) =>
+      adminReviewTaskEligibility(taskId, decision, reason),
+    onSuccess: (_, vars) => {
+      toast.success(vars.decision === 'approved' ? 'Task lolos review kelayakan & aktif!' : 'Status kelayakan task diupdate.');
+      refetch();
+    },
+    onError: (e: any) => toast.error(e?.message || 'Gagal update status kelayakan'),
+  });
 
   return (
     <Layout userRole="admin">
@@ -705,7 +754,7 @@ export function AdminTaskQueue() {
               filter === k ? 'bg-primary text-white' : 'bg-white ring-1 ring-border text-muted'
             }`}
           >
-            {l} ({getCount(scoped, { draft: draftCount, active: activeCount, paused: pausedCount, hidden: hiddenCount })})
+            {l} ({getCount(scoped, { draft: draftCount, active: activeCount, paused: pausedCount, hidden: hiddenCount, pending_review: pendingReviewCount })})
           </button>
         ))}
       </div>
@@ -734,6 +783,9 @@ export function AdminTaskQueue() {
                   key={t.id}
                   task={t}
                   onEdit={openEdit}
+                  onReviewEligibility={(task, decision, reason) =>
+                    reviewEligibilityMutation.mutate({ taskId: task.id, decision, reason })
+                  }
                   onToggleStatus={(task) => {
                     if (task.status === 'draft') {
                       setBlastTask(task);

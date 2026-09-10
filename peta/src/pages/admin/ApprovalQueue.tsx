@@ -7,7 +7,7 @@ import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { ConfirmDialog } from '../../components/ConfirmDialog';
 import { supabase } from '../../lib/supabase';
-import { adminApproveAssignment, adminRejectAssignment, adminRevertAssignment, adminRepairAssignmentUserId, sendTaskApprovedEmail, sendPetaEmail } from '../../lib/api';
+import { adminApproveAssignment, adminRejectAssignment, adminRevertAssignment, adminRepairAssignmentUserId, sendTaskApprovedEmail, sendPetaEmail, adminReviewAssignmentVisibility } from '../../lib/api';
 import { toast } from '../../components/Toast';
 
 // ─── Multi-proof helpers (proof_media jsonb, additive to legacy cols) ───
@@ -142,6 +142,12 @@ export function AdminApprovalQueue() {
         proof_url: r.proof_url,
         proof_image_url: r.proof_image_url,
         proof_media: r.proof_media ?? [],
+        proof_urls: r.proof_urls ?? [],
+        contributor_workflow: r.contributor_workflow,
+        first_proof_submitted_at: r.first_proof_submitted_at,
+        visibility_check_after: r.visibility_check_after,
+        visibility_status: r.visibility_status,
+        visibility_reason: r.visibility_reason,
         submitted_url: r.submitted_url,
         submitted_username: r.submitted_username,
         draft_comment: r.draft_comment,
@@ -274,6 +280,16 @@ export function AdminApprovalQueue() {
       refetch();
     },
     onError: (e: any) => toast.error(`Gagal reject: ${e.message || e}`),
+  });
+
+  const reviewVisibilityMutation = useMutation({
+    mutationFn: ({ id, visibility, reason }: { id: string; visibility: 'visible' | 'not_visible' | 'unknown'; reason?: string }) =>
+      adminReviewAssignmentVisibility(id, visibility, reason),
+    onSuccess: (_, vars) => {
+      toast.success(`Status tayang: ${vars.visibility === 'visible' ? 'Tayang' : vars.visibility === 'not_visible' ? 'Belum tayang' : 'Unknown'}`);
+      refetch();
+    },
+    onError: (e: any) => toast.error(`Gagal update status tayang: ${e.message || e}`),
   });
 
   const repairMutation = useMutation({
@@ -627,6 +643,24 @@ export function AdminApprovalQueue() {
                             Thread <ExternalLink size={10} />
                           </a>
                         )}
+                        {a.contributor_workflow && (
+                          <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              a.visibility_status === 'visible'
+                                ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300'
+                                : a.visibility_status === 'not_visible'
+                                ? 'bg-rose-100 text-rose-800 ring-1 ring-rose-300'
+                                : 'bg-amber-100 text-amber-800 ring-1 ring-amber-300'
+                            }`}>
+                              {a.visibility_status === 'visible' ? '✓ Tayang' : a.visibility_status === 'not_visible' ? '✕ Belum Tayang' : '⏳ Cek Tayang'}
+                            </span>
+                            {a.visibility_check_after && (
+                              <span className="text-[9px] text-muted">
+                                Max: {new Date(a.visibility_check_after).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </td>
                       <td className="px-2 py-3 align-top text-xs">
                         <span className="font-semibold text-slate-900">{a.army_name || '-'}</span>
@@ -669,13 +703,29 @@ export function AdminApprovalQueue() {
                         Rp{a.tasks?.reward_amount?.toLocaleString('id-ID')}
                       </td>
                       <td className="px-2 py-3 align-top text-right whitespace-nowrap">
-                        <div className="flex justify-end gap-1">
+                        <div className="flex justify-end gap-1 items-center">
+                          {a.contributor_workflow && a.visibility_status !== 'visible' && (
+                            <button
+                              onClick={() => reviewVisibilityMutation.mutate({ id: a.id, visibility: 'visible' })}
+                              disabled={reviewVisibilityMutation.isPending}
+                              className="tap-shrink px-2 py-1 rounded bg-emerald-50 hover:bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300 text-[10px] font-bold"
+                              title="Tandai komentar sudah tayang publik"
+                            >
+                              Set Tayang
+                            </button>
+                          )}
                           <Button
                             onClick={() => approveMutation.mutate(a)}
                             variant="success"
                             size="sm"
-                            disabled={approveMutation.isPending || broken}
-                            title={broken ? 'Repair owner sebelum approve' : 'Approve'}
+                            disabled={approveMutation.isPending || broken || (a.contributor_workflow && a.visibility_status !== 'visible')}
+                            title={
+                              broken
+                                ? 'Repair owner sebelum approve'
+                                : (a.contributor_workflow && a.visibility_status !== 'visible')
+                                ? 'Verifikasi tayang terlebih dahulu (klik Set Tayang)'
+                                : 'Approve'
+                            }
                           >
                             <Check size={14} />
                           </Button>
@@ -731,6 +781,24 @@ export function AdminApprovalQueue() {
                       <p className="text-[11px] text-muted flex items-center gap-1 mt-0.5">
                         <Clock size={10} /> {formatSubmittedAt(a.submitted_at || a.updated_at || a.created_at)}
                       </p>
+                      {a.contributor_workflow && (
+                        <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            a.visibility_status === 'visible'
+                              ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300'
+                              : a.visibility_status === 'not_visible'
+                              ? 'bg-rose-100 text-rose-800 ring-1 ring-rose-300'
+                              : 'bg-amber-100 text-amber-800 ring-1 ring-amber-300'
+                          }`}>
+                            {a.visibility_status === 'visible' ? '✓ Tayang' : a.visibility_status === 'not_visible' ? '✕ Belum Tayang' : '⏳ Cek Tayang'}
+                          </span>
+                          {a.visibility_check_after && (
+                            <span className="text-[10px] text-muted">
+                              Deadline: {new Date(a.visibility_check_after).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       {broken && (
                         <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-bold text-danger bg-danger/10 px-2 py-0.5 rounded-full">
                           ⚠️ Missing owner
@@ -786,15 +854,33 @@ export function AdminApprovalQueue() {
                     </div>
                   </div>
 
-                  <div className="flex gap-2 mt-3">
+                  <div className="flex gap-2 mt-3 items-center">
+                    {a.contributor_workflow && a.visibility_status !== 'visible' && (
+                      <Button
+                        onClick={() => reviewVisibilityMutation.mutate({ id: a.id, visibility: 'visible' })}
+                        variant="outline"
+                        size="sm"
+                        disabled={reviewVisibilityMutation.isPending}
+                        className="!border-emerald-300 !text-emerald-700 hover:!bg-emerald-50 text-xs font-bold shrink-0"
+                        title="Tandai komentar sudah tayang publik"
+                      >
+                        ✓ Set Tayang
+                      </Button>
+                    )}
                     <Button
                       onClick={() => approveMutation.mutate(a)}
                       variant="success"
                       size="sm"
                       loading={approveMutation.isPending}
-                      disabled={approveMutation.isPending || broken}
+                      disabled={approveMutation.isPending || broken || (a.contributor_workflow && a.visibility_status !== 'visible')}
                       fullWidth
-                      title={broken ? 'Repair owner sebelum approve' : 'Approve'}
+                      title={
+                        broken
+                          ? 'Repair owner sebelum approve'
+                          : (a.contributor_workflow && a.visibility_status !== 'visible')
+                          ? 'Set Tayang terlebih dahulu'
+                          : 'Approve'
+                      }
                     >
                       <Check size={14} /> Approve
                     </Button>

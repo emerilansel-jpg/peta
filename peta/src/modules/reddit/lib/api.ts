@@ -534,7 +534,32 @@ export async function getStraightProviderHealth(): Promise<StraightProviderHealt
   };
 }
 
+function forumScreeningPayload(input: ForumCommentOrderInput) {
+  return {
+    target_url: input.targetUrl, platform: input.platform, comment_text: input.commentText,
+    use_suggested_comment: input.useSuggestedComment, brand_name: input.brandName,
+    brand_domain: input.brandDomain, brand_mention_mode: input.brandMentionMode,
+    source_keyword: input.sourceKeyword ?? null, notes: input.notes ?? null,
+    quantity: input.quantity ?? 1, comment_drafts: input.commentDrafts?.length ? input.commentDrafts : [],
+    is_reply: input.isReply ?? false, reply_to: input.replyToComment ?? null,
+  };
+}
+
+async function screenForumOrder(order: ReturnType<typeof forumScreeningPayload>) {
+  const { data: pilot, error: pilotError } = await supabase.rpc('contributor_pilot_enabled');
+  if (pilotError) throw pilotError;
+  if (!pilot || !/(^|\.)reddit\.com$/i.test(new URL(order.target_url).hostname)) return;
+  const { data, error } = await supabase.functions.invoke('generate-forum-comment', {
+    body: { action: 'screen_order', order },
+  });
+  if (error) throw new Error('Order screening unavailable. Please retry; no order was placed.');
+  if (!data || !['pass', 'manual_review'].includes(data.verdict)) {
+    throw new Error(`${data?.verdict === 'reject' ? 'Order rejected' : 'Revise your order'}: ${data?.reason || 'Screening did not approve this brief.'}`);
+  }
+}
+
 export async function createForumCommentOrder(input: ForumCommentOrderInput) {
+  await screenForumOrder(forumScreeningPayload(input));
   const { data, error } = await supabase.rpc('fn_create_forum_comment_order', {
     p_target_url: input.targetUrl,
     p_platform: input.platform,
@@ -560,6 +585,8 @@ export async function createForumCommentOrder(input: ForumCommentOrderInput) {
 
 export async function createForumCommentOrdersBulk(inputs: ForumCommentOrderInput[]): Promise<ForumCommentOrderResult[]> {
   if (!inputs.length) return [];
+  // Screen every exact payload before the existing atomic bulk checkout charges.
+  for (const input of inputs) await screenForumOrder(forumScreeningPayload(input));
   const { data, error } = await supabase.rpc('fn_create_forum_comment_orders_bulk', {
     p_orders: inputs.map((input) => ({
       target_url: input.targetUrl,

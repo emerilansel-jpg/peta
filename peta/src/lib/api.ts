@@ -365,6 +365,34 @@ export async function createTaskAssignment(taskId: string, redditAccountId?: str
   return data;
 }
 
+export type TaskEligibilityStatus = 'legacy' | 'pending' | 'approved' | 'revision' | 'rejected';
+export type AssignmentVisibilityStatus = 'visible' | 'not_visible' | 'unknown';
+
+export interface TaskAssignment {
+  id: string;
+  task_id: string;
+  user_id: string;
+  reddit_account_id?: string | null;
+  status: 'in_progress' | 'submitted' | 'approved' | 'rejected';
+  draft_comment?: string | null;
+  proof_url?: string | null;
+  proof_image_url?: string | null;
+  submitted_url?: string | null;
+  submitted_username?: string | null;
+  proof_urls?: string[] | null;
+  admin_notes?: string | null;
+  can_retry?: boolean;
+  contributor_workflow?: boolean;
+  first_proof_submitted_at?: string | null;
+  visibility_check_after?: string | null;
+  visibility_status?: AssignmentVisibilityStatus | null;
+  visibility_reason?: string | null;
+  balance_credited_at?: string | null;
+  created_at?: string;
+  updated_at?: string;
+  [key: string]: any;
+}
+
 export type TaskAssignmentUpdate = {
   draft_comment?: string | null;
   user_note?: string | null;
@@ -373,7 +401,39 @@ export type TaskAssignmentUpdate = {
   submitted_url?: string | null;
   submitted_username?: string | null;
   status?: 'in_progress' | 'submitted' | 'approved' | 'rejected';
+  proof_urls?: string[] | null;
+  contributor_workflow?: boolean;
+  first_proof_submitted_at?: string | null;
+  visibility_check_after?: string | null;
+  visibility_status?: AssignmentVisibilityStatus | null;
+  visibility_reason?: string | null;
 };
+
+export async function submitAssignmentProof(
+  assignmentId: string,
+  data: {
+    proof_url: string;
+    submitted_url?: string;
+    submitted_username?: string;
+    draft_comment?: string;
+    proof_urls?: string[];
+    user_note?: string | null;
+    proof_image_url?: string | null;
+  }
+): Promise<TaskAssignment> {
+  const { data: assignment, error } = await supabase.rpc('submit_assignment_proof', {
+    p_assignment_id: assignmentId,
+    p_proof_url: data.proof_url,
+    p_submitted_url: data.submitted_url ?? null,
+    p_submitted_username: data.submitted_username ?? null,
+    p_draft_comment: data.draft_comment ?? null,
+    p_proof_urls: data.proof_urls ?? [],
+    p_user_note: data.user_note ?? null,
+    p_proof_image_url: data.proof_image_url ?? null,
+  });
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
+  return assignment as TaskAssignment;
+}
 
 export async function updateTaskAssignment(assignmentId: string, updates: TaskAssignmentUpdate) {
   if (!assignmentId) throw new Error('Assignment belum dibuat. Coba refresh halaman dan klik Mulai Task lagi.');
@@ -1223,6 +1283,32 @@ export async function adminDeleteTask(taskId: string): Promise<{ ok: boolean; er
   const { data, error } = await supabase.rpc('admin_delete_task', { p_task_id: taskId });
   if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data;
+}
+
+export async function adminReviewTaskEligibility(
+  taskId: string,
+  decision: 'approved' | 'revision' | 'rejected',
+  reason?: string
+): Promise<void> {
+  const { error } = await supabase.rpc('admin_review_task_eligibility', {
+    p_task_id: taskId,
+    p_decision: decision,
+    p_reason: reason ?? null,
+  });
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
+}
+
+export async function adminReviewAssignmentVisibility(
+  assignmentId: string,
+  visibility: 'visible' | 'not_visible' | 'unknown',
+  reason?: string
+): Promise<void> {
+  const { error } = await supabase.rpc('admin_review_assignment_visibility', {
+    p_assignment_id: assignmentId,
+    p_visibility: visibility,
+    p_reason: reason ?? null,
+  });
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
 }
 
 // Army-side: list tasks this user can actually do right now (filtered server-side).

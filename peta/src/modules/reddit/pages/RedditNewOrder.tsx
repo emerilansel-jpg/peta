@@ -60,10 +60,11 @@ const SERVICES: Service[] = [
     platform: 'Reddit',
     name: 'Upvotes',
     icon: ArrowUp,
-    description: 'High-retention upvotes for Reddit & other forums',
-    status: 'active',
-    iconBg: 'bg-orange-100',
-    iconColor: 'text-orange-600',
+    description: 'Layanan paid upvote dihentikan demi kepatuhan platform',
+    status: 'paused',
+    badge: 'Discontinued',
+    iconBg: 'bg-slate-100',
+    iconColor: 'text-slate-400',
   },
   {
     id: 'youtube-upload',
@@ -745,11 +746,11 @@ function RedditUpvoteOrderForm({ onBack }: { onBack: () => void }) {
 
         <button
           type="submit"
-          disabled={!isValidUrl || !hasEnoughCredit || isCreating || !upvoteEnabled}
+          disabled={!isValidUrl || !hasEnoughCredit || isCreating || !upvoteEnabled || platform === 'reddit'}
           className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-orange-500 hover:bg-orange-600 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-semibold transition shadow-lg shadow-orange-500/20"
         >
-          {upvoteEnabled ? 'Review order' : 'Upvotes paused'}
-          {upvoteEnabled && <ArrowRight size={18} />}
+          {platform === 'reddit' ? 'Reddit Upvotes Discontinued' : upvoteEnabled ? 'Review order' : 'Upvotes paused'}
+          {upvoteEnabled && platform !== 'reddit' && <ArrowRight size={18} />}
         </button>
       </form>
 

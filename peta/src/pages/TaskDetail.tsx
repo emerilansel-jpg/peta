@@ -11,7 +11,7 @@ import { Button } from '../components/Button';
 import { CardSkeleton } from '../components/Skeleton';
 import { ConfettiBurst } from '../components/Confetti';
 import { supabase } from '../lib/supabase';
-import { createTaskAssignment, updateTaskAssignment, uploadTaskProofImage, type TaskAssignmentUpdate } from '../lib/api';
+import { createTaskAssignment, submitAssignmentProof, uploadTaskProofImage } from '../lib/api';
 import { WHATSAPP_GROUP_URL } from '../lib/config';
 import { toast } from '../components/Toast';
 
@@ -123,50 +123,25 @@ export function TaskDetail() {
     },
   });
 
-  // If user has exactly 1 reddit account (which is the enforced limit), skip
-  // the manual account-pick step. Forum tasks can also start without Reddit.
-  // autoStartAttempted guards against an infinite retry loop: when the start
-  // mutation fails (e.g. already-submitted assignment), stage stays 'preview'
-  // and this effect would otherwise re-fire on every dependency tick and spam
-  // error toasts (observed in QA: "Gagal memulai task" x10+).
-  const autoStartAttempted = React.useRef(false);
-  React.useEffect(() => {
-    if (autoStartAttempted.current) return;
-    if (
-      stage === 'preview' &&
-      ((accounts.length === 1 && selectedAccountId) || (isNoAccountNeeded && accounts.length === 0)) &&
-      !startMutation.isPending &&
-      !checkingExistingAssignment &&
-      !assignmentId
-    ) {
-      autoStartAttempted.current = true;
-      startMutation.mutate();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accounts.length, selectedAccountId, stage, isNoAccountNeeded, taskId, checkingExistingAssignment, assignmentId, startMutation.isPending]);
+  // Explicit start: user clicks "Mulai Kerjakan Tugas" in preview stage.
+  // Auto-start is disabled to prevent accidental slot claims on simple page view.
 
   const submitMutation = useMutation({
-    mutationFn: () => {
-      const updates: TaskAssignmentUpdate = {
+    mutationFn: async () => {
+      await submitAssignmentProof(assignmentId, {
+        proof_url: proofUrl || proofImageUrl || '',
+        submitted_url: proofUrl || undefined,
+        submitted_username: submittedUsername || undefined,
+        draft_comment: !isForumComment ? (draftComment || undefined) : undefined,
+        proof_urls: proofImageUrl ? [proofImageUrl] : [],
         user_note: userNote || null,
-        proof_url: proofUrl || proofImageUrl || null,
-        submitted_url: proofUrl || null,
-        submitted_username: submittedUsername || null,
         proof_image_url: proofImageUrl || null,
-        status: 'submitted',
-      };
-      // For forum_comment, draft_comment is the assigned comment text from
-      // reddit_order_comment_drafts and must stay immutable. The user note
-      // (user_note) is the only editable free-text field.
-      if (!isForumComment) {
-        updates.draft_comment = draftComment || null;
-      }
-      return updateTaskAssignment(assignmentId, updates);
+      });
     },
     onSuccess: () => {
       setStage('done');
       setConfetti(true);
-      toast.success('Tersubmit! Admin verify dalam max 3 hari kerja.');
+      toast.success('Tersubmit! Admin verifikasi kelayakan & bukti tayang max 3 hari (72 jam).');
     },
     onError: (e: any) => toast.error(e?.message || 'Gagal submit task'),
   });
@@ -331,10 +306,24 @@ export function TaskDetail() {
     );
   }
 
-  // ----- PREVIEW STAGE — only shown if user has MULTIPLE reddit accounts -----
-  // With the 1-account-per-user enforcement, this stage is auto-skipped via
-  // the effect above. Kept here for legacy multi-account rows / admins.
-  if (stage === 'preview' && accounts.length > 1) {
+  // Loading state
+  if (taskLoading || checkingExistingAssignment) {
+    return (
+      <Layout userRole="army">
+        <div className="max-w-2xl mx-auto pb-24 sm:pb-0">
+          <button
+            onClick={() => navigate('/tasks')}
+            className="text-muted hover:text-dark flex items-center gap-1 text-sm font-semibold mb-3"
+          >
+            <ArrowLeft size={16} /> Semua Tugas
+          </button>
+          <CardSkeleton />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!task) {
     return (
       <Layout userRole="army">
         <div className="max-w-2xl mx-auto pb-8">
@@ -345,58 +334,7 @@ export function TaskDetail() {
             <ArrowLeft size={16} /> Semua Tugas
           </button>
           <Card>
-            <p className="text-xs uppercase font-bold tracking-wide text-muted mb-2">Pilih akun</p>
-            <h2 className="text-lg font-extrabold mb-1">
-              {isForumComment ? 'Profil tracking untuk task ini' : isNoAccountNeeded ? 'Task ini tanpa akun Reddit' : 'Akun Reddit untuk task ini'}
-            </h2>
-            <p className="text-sm text-muted mb-4">
-              {isForumComment
-                ? `Ini hanya untuk tracking PeTa. Username ${platformLabel} tetap kamu isi nanti saat submit bukti.`
-                : isYouTubeUpload
-                ? 'Upload video ke channel YouTube-mu sendiri. URL video hasil upload jadi bukti nanti.'
-                : isPreferredSource
-                ? 'Klik tombol Preferred Source pakai akun Google-mu sendiri. Screenshot hasilnya jadi bukti nanti.'
-                : isLinkedIn
-                ? 'Gunakan akun LinkedIn publik milikmu sendiri. URL profil LinkedIn kamu akan disertakan sebagai bukti.'
-                : 'Komentar / upvote akan tercatat atas nama akun ini.'}
-            </p>
-            <div className="space-y-2 mb-5">
-              {accounts.map((acc) => (
-                <label
-                  key={acc.id}
-                  className={`flex items-center gap-3 p-3 rounded-xl ring-2 cursor-pointer tap-shrink ${
-                    selectedAccountId === acc.id ? 'ring-primary bg-primary/5' : 'ring-border hover:ring-primary/40'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="account"
-                    checked={selectedAccountId === acc.id}
-                    onChange={() => setSelectedAccountId(acc.id)}
-                    className="sr-only"
-                  />
-                  <div className={`w-5 h-5 rounded-full grid place-items-center ${
-                    selectedAccountId === acc.id ? 'bg-primary' : 'ring-2 ring-border bg-white'
-                  }`}>
-                    {selectedAccountId === acc.id && <Check size={12} className="text-white" />}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-sm">u/{acc.username}</p>
-                    <p className="text-xs text-muted">Karma: {acc.karma}</p>
-                  </div>
-                </label>
-              ))}
-            </div>
-            <Button
-              onClick={() => startMutation.mutate()}
-              variant="primary"
-              size="lg"
-              loading={startMutation.isPending}
-              disabled={!selectedAccountId}
-              fullWidth
-            >
-              Mulai Task
-            </Button>
+            <p className="text-sm text-muted">Task tidak ditemukan atau sudah tidak aktif.</p>
           </Card>
         </div>
       </Layout>
@@ -428,11 +366,113 @@ export function TaskDetail() {
     );
   }
 
-  // ----- SUBMIT STAGE — 3-step linear flow -----
-  // Defensive: this default branch assumes we already have an active
-  // assignment. If the auto-start effect is still waiting for the task to load
-  // (e.g. a forum task with no linked Reddit account), show a loading state
-  // instead of a broken form whose submit button would hit an empty UUID.
+  // ----- PREVIEW STAGE — manual explicit start flow -----
+  if (stage === 'preview') {
+    return (
+      <Layout userRole="army">
+        <div className="max-w-2xl mx-auto pb-24 sm:pb-0">
+          <button
+            onClick={() => navigate('/tasks')}
+            className="text-muted hover:text-dark flex items-center gap-1 text-sm font-semibold mb-3"
+          >
+            <ArrowLeft size={16} /> Semua Tugas
+          </button>
+
+          {/* Reward header */}
+          <Card className="mb-4 bg-gradient-to-br from-primary/10 via-yellow-50 to-secondary/10 ring-primary/20">
+            <div className="flex items-start gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <span className="text-[10px] font-bold uppercase tracking-wide bg-primary/15 text-primary px-2 py-0.5 rounded-full">
+                    {isUpvote ? 'Upvote' : isPreferredSource ? 'Preferred Source' : isComment ? `${platformLabel} Comment` : isYouTubeUpload ? 'YouTube Upload' : `${platformLabel} Task`}
+                  </span>
+                </div>
+                <h1 className="text-xl sm:text-2xl font-extrabold mb-2 leading-tight">{task.title}</h1>
+                <p className="text-sm text-muted line-clamp-2">{task.description}</p>
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted">
+                  <span>{minutes} min</span>
+                  <span>{task.current_assignments}/{task.max_assignments} dikerjakan</span>
+                </div>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="text-[10px] text-muted uppercase font-bold tracking-wide">Reward</p>
+                <p className="text-2xl sm:text-3xl font-extrabold text-primary money leading-none">
+                  Rp{task.reward_amount.toLocaleString('id-ID')}
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          {/* Brief / Persyaratan Preview */}
+          <Card className="mb-4">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-muted mb-2">Instruksi & Brief Tugas</h2>
+            <div className="bg-light/60 p-3 rounded-xl ring-1 ring-border mb-3 text-xs leading-relaxed whitespace-pre-line text-dark">
+              {task.description || 'Ikuti instruksi sesuai brief task saat pengerjaan.'}
+            </div>
+            {task.brief && (
+              <div className="bg-blue-50 ring-1 ring-blue-200 rounded-xl p-3 mb-3 text-xs leading-relaxed text-blue-950">
+                <p className="text-[10px] font-bold uppercase text-blue-900 mb-1">Panduan Posting / Komentar</p>
+                <p className="whitespace-pre-line">{task.brief}</p>
+              </div>
+            )}
+
+            {accounts.length > 1 ? (
+              <div className="space-y-2 my-4">
+                <p className="text-xs font-bold text-muted">Pilih Akun Reddit:</p>
+                {accounts.map((acc) => (
+                  <label
+                    key={acc.id}
+                    className={`flex items-center gap-3 p-2.5 rounded-xl ring-2 cursor-pointer tap-shrink ${
+                      selectedAccountId === acc.id ? 'ring-primary bg-primary/5' : 'ring-border hover:ring-primary/40'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="account"
+                      checked={selectedAccountId === acc.id}
+                      onChange={() => setSelectedAccountId(acc.id)}
+                      className="sr-only"
+                    />
+                    <div className={`w-4 h-4 rounded-full grid place-items-center ${
+                      selectedAccountId === acc.id ? 'bg-primary' : 'ring-2 ring-border bg-white'
+                    }`}>
+                      {selectedAccountId === acc.id && <Check size={10} className="text-white" />}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-sm">u/{acc.username}</p>
+                      <p className="text-[11px] text-muted">Karma: {acc.karma}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            ) : accounts.length === 1 ? (
+              <div className="p-3 bg-light rounded-xl text-xs text-muted mb-4 flex items-center justify-between">
+                <span>Mengerjakan dengan: <strong className="text-dark">u/{accounts[0].username}</strong></span>
+                <span className="font-semibold text-primary">Karma {accounts[0].karma}</span>
+              </div>
+            ) : isNoAccountNeeded ? (
+              <div className="p-3 bg-light rounded-xl text-xs text-muted mb-4">
+                Tugas {platformLabel} ini tidak memerlukan akun Reddit terhubung.
+              </div>
+            ) : null}
+
+            <Button
+              onClick={() => startMutation.mutate()}
+              variant="primary"
+              size="lg"
+              loading={startMutation.isPending}
+              disabled={!isNoAccountNeeded && !selectedAccountId}
+              fullWidth
+            >
+              Mulai Kerjakan Tugas →
+            </Button>
+          </Card>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Defensive fallback if stage is neither done nor preview nor submit
   if (stage !== 'submit') {
     return (
       <Layout userRole="army">
