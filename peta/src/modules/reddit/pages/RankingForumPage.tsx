@@ -120,13 +120,11 @@ export function RankingForumPage() {
   // with hardcoded fallbacks if the table isn't available yet.
   const commentMode: 'plain' | 'link' = (wantsSuggestion && mentionMode === 'link') ? 'link' : 'plain';
   const platformOf = (url: string) => (/(^|\.)reddit\.com/i.test(url) ? 'reddit' : 'forum');
-  // Reddit is hard-excluded from all client-facing surfaces.
-  // Additional platforms are hidden when the admin turns off all their pricing rows.
+  // Check if platform comment service is enabled in admin settings/pricing
   const isPlatformEnabled = (url: string): boolean => {
-    if (platformOf(url) === 'reddit') return false;
     const p = platformOf(url);
-    const plainOn = pricing.find((r) => r.key === `${p}_comment_plain`)?.enabled ?? true;
-    const linkOn = pricing.find((r) => r.key === `${p}_comment_link`)?.enabled ?? true;
+    const plainOn = pricing.find((r) => r.key === `${p}_comment_plain`)?.enabled ?? (p !== 'reddit');
+    const linkOn = pricing.find((r) => r.key === `${p}_comment_link`)?.enabled ?? (p !== 'reddit');
     return plainOn || linkOn;
   };
   const commentPriceFor = (url: string): { cents: number; enabled: boolean } => {

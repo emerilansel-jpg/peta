@@ -1,6 +1,6 @@
 import { spath } from '../../lib/path';
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Bot, CheckCircle2, ExternalLink, KeyRound, Loader2, RefreshCw, Save, ShieldCheck, Users, Zap } from 'lucide-react';
+import { AlertTriangle, Bot, CheckCircle2, ExternalLink, KeyRound, Loader2, RefreshCw, Save, ShieldCheck, Users, Zap, MessageSquare } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { AdminBreadcrumb, AdminLayout } from '../../components/AdminLayout';
 import {
@@ -47,6 +47,8 @@ export function AdminSettings() {
   const [checkingHealth, setCheckingHealth] = useState(false);
   const [regMode, setRegMode] = useState<StraightRegistrationMode>('signup');
   const [autoActivate, setAutoActivate] = useState(true);
+  const [redditServiceEnabled, setRedditServiceEnabled] = useState(true);
+  const [savingRedditService, setSavingRedditService] = useState(false);
   const [regModeUpdatedAt, setRegModeUpdatedAt] = useState('');
   const [savingRegMode, setSavingRegMode] = useState(false);
   const [resyncing, setResyncing] = useState(false);
@@ -64,6 +66,7 @@ export function AdminSettings() {
         setUpdatedAt(aiSettings.updated_at);
         setRegMode(straightSettings.registration_mode);
         setAutoActivate(straightSettings.auto_activate_tasks ?? true);
+        setRedditServiceEnabled(straightSettings.reddit_service_enabled ?? true);
         setRegModeUpdatedAt(straightSettings.updated_at);
         checkHealth();
       } catch (error) {
@@ -106,7 +109,11 @@ export function AdminSettings() {
   const saveRegMode = async () => {
     setSavingRegMode(true);
     try {
-      await updateStraightSettings({ registrationMode: regMode, autoActivateTasks: autoActivate });
+      await updateStraightSettings({
+        registrationMode: regMode,
+        autoActivateTasks: autoActivate,
+        redditServiceEnabled,
+      });
       toast.success('Settings updated');
       const next = await getStraightSettings();
       setRegModeUpdatedAt(next.updated_at);
@@ -114,6 +121,25 @@ export function AdminSettings() {
       toast.error(error instanceof Error ? error.message : 'Failed to save registration mode');
     } finally {
       setSavingRegMode(false);
+    }
+  };
+
+  const toggleRedditService = async (enabled: boolean) => {
+    setSavingRedditService(true);
+    try {
+      await updateStraightSettings({
+        registrationMode: regMode,
+        autoActivateTasks: autoActivate,
+        redditServiceEnabled: enabled,
+      });
+      setRedditServiceEnabled(enabled);
+      toast.success(enabled ? 'Layanan Reddit DIAKTIFKAN' : 'Layanan Reddit DINONAKTIFKAN (Paused)');
+      const next = await getStraightSettings();
+      setRegModeUpdatedAt(next.updated_at);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Gagal mengubah status layanan Reddit');
+    } finally {
+      setSavingRedditService(false);
     }
   };
 
@@ -226,6 +252,64 @@ export function AdminSettings() {
                 {regModeUpdatedAt ? `Last updated ${new Date(regModeUpdatedAt).toLocaleString()}.` : ''}
                 Changes take effect immediately across the landing page, nav, and signup page.
               </p>
+            </div>
+
+            {/* Reddit Service Master Switch */}
+            <div className="bg-white rounded-2xl ring-1 ring-slate-200 p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <MessageSquare size={18} className="text-orange-600" />
+                    <h2 className="text-lg font-bold text-slate-900">Layanan Reddit (Order Intake)</h2>
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-extrabold ${
+                      redditServiceEnabled ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                    }`}>
+                      {redditServiceEnabled ? '● AKTIF (ON)' : '○ PAUSED (OFF)'}
+                    </span>
+                  </div>
+                  <p className="text-sm text-slate-500 mt-1 max-w-2xl">
+                    Saklar utama untuk mengaktifkan atau mem-pause seluruh pemesanan layanan komentar Reddit di Straight.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    disabled={savingRedditService}
+                    onClick={() => toggleRedditService(true)}
+                    className={`px-5 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                      redditServiceEnabled
+                        ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-600'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {savingRedditService && redditServiceEnabled && <Loader2 size={12} className="animate-spin" />}
+                    ON (Aktif)
+                  </button>
+                  <button
+                    type="button"
+                    disabled={savingRedditService}
+                    onClick={() => toggleRedditService(false)}
+                    className={`px-5 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                      !redditServiceEnabled
+                        ? 'bg-rose-600 text-white shadow-sm ring-2 ring-rose-600'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {savingRedditService && !redditServiceEnabled && <Loader2 size={12} className="animate-spin" />}
+                    OFF (Pause)
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-4 p-4 rounded-xl bg-slate-50 ring-1 ring-slate-200/60 text-xs text-slate-600 space-y-1.5">
+                <p>
+                  • <strong>Jika ON:</strong> Klien dapat memesan komentar Reddit di Straight. Setiap pesanan wajib lolos pre-screening AI, review kelayakan dispatch admin di PeTa, dan bukti tayang 72 jam.
+                </p>
+                <p>
+                  • <strong>Jika OFF:</strong> Seluruh pemesanan Reddit di-pause. Klien tidak dapat memesan task Reddit baru. Layanan non-Reddit (LinkedIn, YouTube, Google Preferred Source, forum non-Reddit) tetap aktif normal.
+                </p>
+              </div>
             </div>
 
             {/* Order pipeline */}

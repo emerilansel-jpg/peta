@@ -280,6 +280,7 @@ export type StraightRegistrationMode = 'signup' | 'waitlist';
 export type StraightSettings = {
   registration_mode: StraightRegistrationMode;
   auto_activate_tasks?: boolean;
+  reddit_service_enabled?: boolean;
   updated_at: string;
 };
 
@@ -292,6 +293,7 @@ export async function getStraightSettings(): Promise<StraightSettings> {
 export async function updateStraightSettings(input: {
   registrationMode: StraightRegistrationMode;
   autoActivateTasks?: boolean;
+  redditServiceEnabled?: boolean;
 }) {
   const params: Record<string, unknown> = {
     p_registration_mode: input.registrationMode,
@@ -299,9 +301,22 @@ export async function updateStraightSettings(input: {
   if (input.autoActivateTasks !== undefined) {
     params.p_auto_activate_tasks = input.autoActivateTasks;
   }
+  if (input.redditServiceEnabled !== undefined) {
+    params.p_reddit_service_enabled = input.redditServiceEnabled;
+  }
   const { data, error } = await supabase.rpc('admin_update_straight_settings', params);
   if (error) throw error;
   return data;
+}
+
+export async function getStraightRedditServiceEnabled(): Promise<boolean> {
+  try {
+    const { data, error } = await supabase.rpc('get_straight_reddit_service_enabled');
+    if (error) throw error;
+    return Boolean(data ?? true);
+  } catch {
+    return true;
+  }
 }
 
 // Public: get current registration mode (no auth required)

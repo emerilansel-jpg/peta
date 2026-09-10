@@ -1,6 +1,17 @@
 # Cold Start Handoff - Straight Ltd + PeTa
 
-> LATEST repair continuation (2026-09-10): **LEGACY CLAIM/EXPIRY REPAIRED LOCALLY; STAGING GATE STILL PENDING. No remote schema/data mutation, commit, push, or deployment.**
+> LATEST (2026-09-10): **STRAIGHT ADMIN REDDIT ON/OFF TRIGGER DEPLOYED & LIVE.**
+> - **Reddit Service Master Switch di Straight Admin (`/admin/settings`):** Ditambahkan panel kontrol khusus untuk mem-pause / mengaktifkan intake pemesanan komentar Reddit secara instan.
+>   - **ON:** Klien dapat memesan komentar Reddit (wajib pre-screening AI, dispatch approval admin di PeTa, batas bukti tayang 72 jam).
+>   - **OFF (Pause):** Seluruh pemesanan komentar Reddit di Straight ditolak/di-pause baik di UI (`RedditNewOrder.tsx`, `RankingForumPage.tsx`) maupun di level trigger database (`guard_straight_screening`).
+>   - **Layanan Non-Reddit:** (LinkedIn, YouTube, Preferred Source Google, forum non-Reddit) tetap berjalan normal tanpa terpengaruh saklar Reddit ini.
+> - **Database Production (`yorlsgzsawchpeeazcvi`):** Migrasi `20260910140000_straight_reddit_service_toggle.sql` diaplikasikan. Kolom `reddit_service_enabled` aktif di `public.straight_settings`, RPC `admin_get_straight_settings` & `admin_update_straight_settings` disinkronkan, dan fungsi publik `get_straight_reddit_service_enabled` tersedia.
+> - **Cloudflare Pages Deployed:**
+>   - PeTa: https://e6eead45.peta-cvm.pages.dev
+>   - Straight: https://1a7a2963.straight-4dv.pages.dev
+> - **GitHub Repository:** Ter-commit dan ter-push ke `github/main` (commit `4d1f85b` dan kelanjutannya).
+>
+> Previous repair continuation (2026-09-10): **LEGACY CLAIM/EXPIRY REPAIRED LOCALLY; STAGING GATE STILL PENDING. No remote schema/data mutation, commit, push, or deployment.**
 > - `20260910120000_workflow_authorization.sql`: private RLS capability table keyed by transaction/backend; all API roles denied table access. Existing claim RPC wrapped, internal function EXECUTE revoked; only initial draft assignment during the authenticated claim gets an exception. Expiry wrapper is scheduler/service-executable, internal function revoked; guard allows only exact overdue untouched-work cancellation. No user-writable GUC or broad service-role bypass. Expiry excludes proof-bearing retries and already credited work, syncs only affected tasks.
 > - PASS rerun `test-workflow-replay.py`: real legacy checkout with reserved drafts -> actual claim; actual expiry without JWT, repeat expiry zero; direct draft tampering, capability-table insertion, private RPC invocation, public expiry as authenticated, forged GUC plus cancellation update all rejected. PASS `test-workflow-local.mjs`: existing ownership/approval/72h/direct-bypass tests; signature-only fixture additions explicitly documented. Replay still has 40 managed-extension restore errors, not full Supabase parity.
 > - Staging closure requires more than additive tables: `user_credits_source_check` rejects `task_reward`; slot sync currently marks tasks completed when merely claimed, unlike prod; expiry absent; 9-param checkout differs from prod13; payout validator differs in accountless ownership, task-revert accounting and Rp20K minimum. Staging has its own 6-param payout RPC with user_note and 4-param reject RPC with rejection_type, so copying prod wholesale would lose valid staging contracts.
