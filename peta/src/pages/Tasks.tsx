@@ -131,16 +131,6 @@ export function Tasks() {
     enabled: !!user?.id,
   });
 
-  const { data: userProfile } = useQuery({
-    queryKey: ['userProfile', user?.id],
-    queryFn: async () => {
-      const { data } = await supabase.from('users').select('role').eq('id', user!.id).single();
-      return data;
-    },
-    enabled: !!user?.id,
-  });
-  const isAdmin = userProfile?.role === 'admin';
-
   // Reddit Army membership gate. Karma level, streak harian, and the
   // program banner are REDDIT ARMY status — they only render when the
   // user has a reddit_army_profiles row (i.e. invited/unlocked). Regular
@@ -198,17 +188,6 @@ export function Tasks() {
     enabled: !!user?.id,
   });
 
-  // Reddit account is the gate to real tasks. If the user dropped off at
-  // step 4/5 of onboarding (or clicked "Urus Nanti"), karmaInfo.username is
-  // null. Show a top-of-page nudge banner + flip the per-card lock label so
-  // they understand exactly what's blocking them.
-  const needsReddit = isAdmin ? false : (user?.id ? !karmaInfo?.username : false);
-  const explicitlyDeferred = React.useMemo(() => {
-    if (!user?.id) return false;
-    try { return localStorage.getItem(`reddit_pending:${user.id}`) === '1'; }
-    catch { return false; }
-  }, [user?.id]);
-
   const dismissMutation = useMutation({
     mutationFn: dismissWaGroup,
     onSuccess: () => {
@@ -262,28 +241,9 @@ export function Tasks() {
           </Card>
         )}
 
-        {/* ============================================================
-            REDDIT SETUP GATE — shown only when user has no Reddit account
-            attached yet. Sits above everything (even referral hero) because
-            without a Reddit account, payable tasks literally cannot run for
-            this user. Tone is friendly when they explicitly deferred,
-            informative when they just dropped off.
-        ============================================================= */}
-        {needsReddit && (
-          <RedditSetupBanner
-            explicitlyDeferred={explicitlyDeferred}
-            onResume={() => navigate('/onboarding')}
-          />
-        )}
-
-        {/* ============================================================
-            REDDIT ACCOUNT FLAGGED BANNER — shown when the user HAS a
-            Reddit account but our most-recent sync detected it as
-            suspended or not_found. Different visual from the setup
-            banner: red tone, urgency copy, link to /account so they
-            can attach a new working username.
-        ============================================================= */}
-        {!needsReddit && karmaInfo?.hasFlaggedAccount && (
+        {/* REDDIT ACCOUNT FLAGGED BANNER — shown only for Reddit Army members
+            whose Reddit account is suspended or not_found. */}
+        {isRedditArmy && karmaInfo?.hasFlaggedAccount && (
           <Card className="mb-3 bg-danger/5 ring-2 ring-danger/40">
             <div className="flex items-start gap-3 mb-3">
               <div className="w-10 h-10 bg-danger text-white rounded-xl grid place-items-center shrink-0 text-lg">
@@ -556,8 +516,8 @@ export function Tasks() {
           </div>
         )}
 
-        {/* Empty state — Reddit setup OK but no eligible tasks right now. */}
-        {!needsReddit && !tasksLoading && eligibleTasks.length === 0 && inProgressAssignments.length === 0 && pendingAssignments.length === 0 && completedHistory.length === 0 && (
+        {/* Empty state — no eligible tasks right now. */}
+        {!tasksLoading && eligibleTasks.length === 0 && inProgressAssignments.length === 0 && pendingAssignments.length === 0 && completedHistory.length === 0 && (
           <Card className="mb-5 text-center py-6" padding="sm">
             <p className="font-bold text-sm">Belum ada task aktif buat kamu</p>
             <p className="text-xs text-muted mt-1">
@@ -631,9 +591,7 @@ export function Tasks() {
           <span className="text-xs text-muted">Berputar tiap hari</span>
         </div>
         <p className="text-xs text-muted mb-3 px-1">
-          {needsReddit
-            ? 'Inilah jenis task & bayaran yang nunggu kamu. Selesaikan setup akun dulu — task real diumumkan di grup setelah unlock 👇'
-            : 'Inilah jenis task & bayaran yang biasanya muncul. Yang real diumumkan di grup 👇'}
+          Inilah jenis task & bayaran yang biasanya muncul. Yang real diumumkan di grup 👇
         </p>
 
         <div className="space-y-2 mb-5">
@@ -643,7 +601,7 @@ export function Tasks() {
                 <div className="bg-white/95 ring-1 ring-black/10 rounded-full px-3 py-1 flex items-center gap-1.5 shadow-sm">
                   <Lock size={12} className="text-muted" />
                   <span className="text-[11px] font-bold text-dark">
-                    {needsReddit ? 'Selesaikan setup akun untuk unlock' : 'Diumumkan di grup WA'}
+                    Diumumkan di grup WA
                   </span>
                 </div>
               </div>
@@ -716,63 +674,6 @@ function platformForTask(task: { title?: string | null; description?: string | n
   if (text.includes('stackexchange') || text.includes('stack exchange')) return 'Stack Exchange';
   if (text.includes('producthunt')) return 'Product Hunt';
   return 'Forum';
-}
-
-// ============================================================
-// REDDIT SETUP GATE BANNER
-// Shown only when the user has no Reddit account attached. This is the
-// single biggest blocker between sign-up and earning, so we lead with it
-// above every other CTA. Two tones:
-//   • explicitlyDeferred ➡️ warm "lanjutkan" framing (they chose to delay)
-//   • default            ➡️ informative "selesaikan" framing (they dropped)
-// ============================================================
-function RedditSetupBanner({
-  explicitlyDeferred, onResume,
-}: {
-  explicitlyDeferred: boolean;
-  onResume: () => void;
-}) {
-  return (
-    <Card className="mb-3 bg-gradient-to-br from-yellow-300 via-yellow-200 to-orange-200 ring-yellow-400 border-0 relative overflow-hidden">
-      <div className="absolute -top-6 -right-6 w-32 h-32 bg-yellow-400/40 rounded-full blur-3xl pointer-events-none" />
-      <div className="relative">
-        <div className="flex items-center gap-2 mb-2 flex-wrap">
-          <span className="inline-flex items-center gap-1 rounded-full bg-yellow-900 text-yellow-100 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide">
-            <Lock size={10} /> Belum unlock
-          </span>
-          <span className="text-[10px] uppercase font-bold tracking-wide text-yellow-900/80">
-            Selesai 5 menit
-          </span>
-        </div>
-
-        <h2 className="text-xl sm:text-2xl font-extrabold leading-tight mb-1 text-yellow-950">
-          {explicitlyDeferred
-            ? 'Yuk lanjutin setup akunmu'
-            : 'Setup akun kerja dulu — baru kamu bisa earn task'}
-        </h2>
-        <p className="text-sm text-yellow-950/85 mb-3">
-          {explicitlyDeferred
-            ? 'Akun dipakai buat tracking task komentar berbayar Rp5K-20K. Sisa 2 step + bonus Rp10K nungguin.'
-            : 'Tanpa setup akun, task belum bisa kamu ambil. 2 step lagi (5 menit) + bonus Rp10K masuk saldo.'}
-        </p>
-
-        <Button
-          onClick={onResume}
-          variant="primary"
-          fullWidth
-          size="lg"
-          className="!bg-yellow-900 hover:!bg-yellow-950 !text-white"
-        >
-          {explicitlyDeferred ? '🔓 Lanjutkan Setup' : '🔓 Setup Akun Sekarang'}
-          <ArrowRight size={16} />
-        </Button>
-
-        <p className="text-[11px] text-yellow-950/70 mt-2 text-center">
-          Sambil nunggu, kamu masih bisa ajak teman ➡️ tiap teman = +Rp20K masuk saldo (lihat di bawah)
-        </p>
-      </div>
-    </Card>
-  );
 }
 
 // ============================================================

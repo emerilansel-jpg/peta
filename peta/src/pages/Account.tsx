@@ -1,37 +1,24 @@
 import React from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { RefreshCw, Plus, Trash2, X, LogOut, Copy, MessageCircle, Pencil, Check, AlertTriangle, Target } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { LogOut, MessageCircle, Pencil, Check, AlertTriangle, Target, X, Copy, Trash2 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { CardSkeleton } from '../components/Skeleton';
 import { SocialShare } from '../components/SocialShare';
 import { supabase } from '../lib/supabase';
-import { getRedditAccounts, addRedditAccount, updateRedditAccountKarma, getReferralStats, getReferralAnalytics } from '../lib/api';
-import { getLevelInfo, LEVELS } from '../lib/levels';
+import { getReferralStats, getReferralAnalytics } from '../lib/api';
 import { toast } from '../components/Toast';
 
 export function Account() {
   const navigate = useNavigate();
-  const [params, setParams] = useSearchParams();
   const [user, setUser] = React.useState<any>(null);
-  const [newUsername, setNewUsername] = React.useState('');
-  const [showSheet, setShowSheet] = React.useState(params.get('add') === '1');
   const [editingWa, setEditingWa] = React.useState(false);
   const [waValue, setWaValue] = React.useState('');
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [deleteConfirm, setDeleteConfirm] = React.useState('');
   const [deleting, setDeleting] = React.useState(false);
-
-  React.useEffect(() => {
-    if (params.get('add') === '1') {
-      // Strip the param so refreshes don't re-open the sheet
-      params.delete('add');
-      setParams(params, { replace: true });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   React.useEffect(() => {
     (async () => {
@@ -40,12 +27,6 @@ export function Account() {
       setUser(data.user);
     })();
   }, [navigate]);
-
-  const { data: accounts = [], isLoading, refetch } = useQuery({
-    queryKey: ['redditAccounts', user?.id],
-    queryFn: () => getRedditAccounts(user!.id),
-    enabled: !!user?.id,
-  });
 
   const { data: profile, refetch: refetchProfile } = useQuery({
     queryKey: ['userProfile', user?.id],
@@ -87,23 +68,6 @@ export function Account() {
     },
     enabled: !!user?.id,
   });
-
-  // Karma level/progress/reward ladder = REDDIT ARMY status. Only render
-  // it for registered members (any reddit_army_profiles row); regular
-  // army sees plain account info (username, karma, age, sync).
-  const { data: raMembership } = useQuery({
-    queryKey: ['redditArmyMembership', user?.id],
-    queryFn: async () => {
-      const { data } = await supabase
-        .from('reddit_army_profiles')
-        .select('program_status')
-        .eq('user_id', user!.id)
-        .maybeSingle();
-      return data;
-    },
-    enabled: !!user?.id,
-  });
-  const isRedditArmy = !!raMembership;
 
   React.useEffect(() => {
     if (profile?.whatsapp) setWaValue(profile.whatsapp);
@@ -158,83 +122,6 @@ export function Account() {
     else toast.error('Gagal menyalin — copy manual ya');
   };
 
-
-  const addMutation = useMutation({
-    mutationFn: (username: string) => addRedditAccount(user.id, username),
-    onSuccess: () => {
-      toast.success('Akun ditambahkan ✅');
-      setNewUsername('');
-      setShowSheet(false);
-      refetch();
-    },
-    onError: (e: any) => {
-      const msg = e?.message || '';
-      if (e?.code === '23505' || /duplicate|unique/i.test(msg)) {
-        toast.error('Username Reddit sudah terdaftar.');
-      } else {
-        toast.error(msg || 'Gagal menambahkan akun');
-      }
-    },
-  });
-
-  // Track per-account sync result so we can show a "Reddit blocked, lapor
-  // manual" banner when auto-sync hits Reddit's bot wall. The banner links
-  // to /karma-mission where the honor-system claim form lives.
-  const [syncFailedFor, setSyncFailedFor] = React.useState<string | null>(null);
-  const syncMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const account = accounts.find((a) => a.id === id);
-      const beforeKarma = account?.karma ?? 0;
-      const result = await updateRedditAccountKarma(id, account?.username);
-      return { id, beforeKarma, ...result };
-    },
-    onSuccess: (data: any) => {
-      refetch();
-      const newKarma = data.account?.karma ?? data.karma ?? data.beforeKarma;
-      if (data.fallback) {
-        setSyncFailedFor(data.id);
-        // Distinguish: account doesn't exist / suspended / proxy-blocked
-        if (data.statusFlag === 'not_found') {
-          toast.error('❌ Username Reddit tidak ditemukan. Cek typo atau akun mungkin udah dihapus.');
-        } else if (data.statusFlag === 'suspended') {
-          toast.error('⛔ Akun Reddit kamu kena suspend. Daftar akun baru di reddit.com.');
-        } else {
-          toast.error('🌐 Reddit memblokir auto-sync. Hubungi admin buat update karma manual.');
-        }
-      } else if (newKarma > data.beforeKarma) {
-        setSyncFailedFor(null);
-        toast.success(`Karma +${newKarma - data.beforeKarma} 🎉`);
-      } else if (newKarma === data.beforeKarma) {
-        setSyncFailedFor(null);
-        toast.success('Sync OK — karma tidak berubah');
-      } else {
-        setSyncFailedFor(null);
-        toast.success('Karma disync 📊');
-      }
-    },
-    onError: (_e, id) => {
-      setSyncFailedFor(id);
-      toast.error('Gagal sync — Reddit memblokir. Lapor manual.');
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from('reddit_accounts').delete().eq('id', id);
-      if (error) throw error;
-    },
-    onSuccess: () => { toast.success('Akun dihapus'); refetch(); },
-    onError: () => toast.error('Gagal menghapus akun'),
-  });
-
-  const handleAdd = () => {
-    let u = newUsername.trim();
-    if (!u) { toast.error('Masukkan username Reddit'); return; }
-    if (u.startsWith('u/')) u = u.slice(2);
-    if (u.includes('reddit.com/user/')) u = u.split('reddit.com/user/')[1].split(/[/?]/)[0];
-    addMutation.mutate(u);
-  };
-
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/login');
@@ -263,7 +150,7 @@ export function Account() {
     }
   };
 
-  if (isLoading) {
+  if (!user) {
     return (
       <Layout userRole="army">
         <div className="space-y-3"><CardSkeleton /><CardSkeleton /></div>
@@ -403,172 +290,6 @@ export function Account() {
         )}
       </Card>
 
-      {/* Reddit Accounts */}
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-extrabold">Akun Reddit</h2>
-        {/* Limit: 1 reddit account per PeTa user. Hide "Tambah" once linked. */}
-        {accounts.length === 0 && (
-          <button
-            onClick={() => setShowSheet(true)}
-            className="tap-shrink text-primary text-sm font-bold flex items-center gap-1 hover:underline"
-          >
-            <Plus size={16} /> Tambah
-          </button>
-        )}
-        {accounts.length > 0 && (
-          <span className="text-[11px] text-muted font-bold bg-light px-2 py-0.5 rounded-full">
-            1 akun max
-          </span>
-        )}
-      </div>
-
-      {accounts.length === 0 ? (
-        <Card className="text-center py-10">
-          <div className="text-5xl mb-3">🎯</div>
-          <p className="font-bold mb-1">Hubungkan akun Reddit pertama</p>
-          <p className="text-sm text-muted mb-5">Wajib supaya bisa ambil task & cair.</p>
-          <Button onClick={() => setShowSheet(true)} variant="primary" fullWidth>
-            <Plus size={18} /> Tambah Akun Reddit
-          </Button>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {accounts.map((account) => {
-            const lvl = getLevelInfo(account.level);
-            const nextIdx = Math.min(account.level + 1, LEVELS.length - 1);
-            const next = LEVELS[nextIdx];
-            const progress = next.maxKarma === Infinity
-              ? 100
-              : Math.min((account.karma / (next.maxKarma + 1)) * 100, 100);
-
-            return (
-              <Card key={account.id}>
-                <div className="flex items-start justify-between gap-3 mb-3">
-                  <div className="min-w-0">
-                    <p className="font-extrabold text-lg truncate">u/{account.username}</p>
-                    {isRedditArmy && (
-                      <p className="text-sm text-primary font-semibold">
-                        {lvl.emoji} {lvl.name}
-                      </p>
-                    )}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-2xl font-extrabold money">{account.karma}</p>
-                    <p className="text-[10px] text-muted">karma</p>
-                  </div>
-                </div>
-
-                {isRedditArmy && (
-                  <div className="mb-3">
-                    <div className="flex items-center justify-between text-xs mb-1.5">
-                      <span className="text-muted">Progress ke {next.emoji} {next.name}</span>
-                      <span className="font-bold text-dark">{Math.round(progress)}%</span>
-                    </div>
-                    <div className="w-full h-2 bg-light rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-gradient-to-r from-primary to-secondary rounded-full transition-all"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-
-                <div className={`grid gap-2 mb-4 text-xs ${isRedditArmy ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                  <div className="bg-light rounded-lg p-2.5">
-                    <p className="text-muted">Umur akun</p>
-                    <p className="font-bold text-base">{account.account_age_days} hari</p>
-                  </div>
-                  {isRedditArmy && (
-                    <div className="bg-light rounded-lg p-2.5">
-                      <p className="text-muted">Reward/task</p>
-                      <p className="font-bold text-base text-primary money">
-                        Rp{lvl.reward.toLocaleString('id-ID')}
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Sync-failed / karma=0 banner — message depends on the
-                    actual reason (not_found / suspended / blocked). Points
-                    user to the right next action for each case. */}
-                {(syncFailedFor === account.id || account.karma === 0 || account.status_flag === 'not_found' || account.status_flag === 'suspended') && (
-                  <div className={`mb-3 rounded-xl p-3 ring-1 ${
-                    account.status_flag === 'not_found' || account.status_flag === 'suspended'
-                      ? 'bg-danger/10 ring-danger/40'
-                      : 'bg-warning/10 ring-warning/40'
-                  }`}>
-                    <div className="flex items-start gap-2 mb-2">
-                      <AlertTriangle size={16} className={`shrink-0 mt-0.5 ${
-                        account.status_flag === 'not_found' || account.status_flag === 'suspended' ? 'text-danger' : 'text-warning'
-                      }`} />
-                      <div className="text-xs">
-                        {account.status_flag === 'not_found' ? (
-                          <>
-                            <p className="font-extrabold text-danger">Username Reddit tidak ditemukan</p>
-                            <p className="text-danger/80 mt-0.5">
-                              <code className="bg-white/60 px-1 rounded">u/{account.username}</code> tidak terdaftar di Reddit. Cek typo, atau akun mungkin sudah dihapus / di-shadowban. Hapus akun ini lalu tambah username yang benar.
-                            </p>
-                          </>
-                        ) : account.status_flag === 'suspended' ? (
-                          <>
-                            <p className="font-extrabold text-danger">Akun Reddit kena suspend</p>
-                            <p className="text-danger/80 mt-0.5">
-                              <code className="bg-white/60 px-1 rounded">u/{account.username}</code> di-suspend Reddit. Buat akun baru dulu, hapus yang ini, terus tambah username yang baru.
-                            </p>
-                          </>
-                        ) : (
-                          <>
-                            <p className="font-extrabold text-warning">Reddit memblokir auto-sync</p>
-                            <p className="text-warning/80 mt-0.5">
-                              Bukan salah kamu — Reddit anti-bot ke server. Hubungi admin buat update karma manual.
-                            </p>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    {account.status_flag !== 'not_found' && account.status_flag !== 'suspended' && (
-                      <Button
-                        onClick={() => navigate('/reddit-army')}
-                        variant="primary"
-                        size="sm"
-                        fullWidth
-                        className="!bg-warning hover:!brightness-110"
-                      >
-                        <Target size={14} /> Cek Reddit Army
-                      </Button>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex gap-2">
-                  <Button
-                    onClick={() => syncMutation.mutate(account.id)}
-                    variant="outline"
-                    size="md"
-                    loading={syncMutation.isPending}
-                    fullWidth
-                  >
-                    <RefreshCw size={16} /> Sync Karma
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      if (confirm(`Hapus akun u/${account.username}?`)) {
-                        deleteMutation.mutate(account.id);
-                      }
-                    }}
-                    variant="ghost"
-                    size="md"
-                    disabled={deleteMutation.isPending}
-                  >
-                    <Trash2 size={16} />
-                  </Button>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-
       {/* Hero Army Banner — only shown for active hero army members */}
       {heroArmyProfile && (
         <Card className="mb-4 bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200">
@@ -649,41 +370,6 @@ export function Account() {
       >
         <LogOut size={16} /> Logout
       </button>
-
-      {/* Bottom sheet: add account */}
-      {showSheet && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center animate-fade-in">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setShowSheet(false)} />
-          <div className="relative bg-white w-full sm:max-w-md sm:rounded-3xl rounded-t-3xl shadow-2xl animate-slide-up safe-bottom">
-            <div className="p-5">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-xl font-extrabold">Tambah akun Reddit</h3>
-                <button onClick={() => setShowSheet(false)} className="p-2 -mr-2 text-muted hover:text-dark">
-                  <X size={22} />
-                </button>
-              </div>
-              <p className="text-sm text-muted mb-4">Format apa aja boleh: <b>u/nama</b>, <b>nama</b>, atau URL profil lengkap.</p>
-              <input
-                type="text"
-                value={newUsername}
-                onChange={(e) => setNewUsername(e.target.value)}
-                placeholder="u/username_kamu"
-                className="w-full min-h-[48px] px-4 py-3 text-base bg-light border-2 border-transparent rounded-xl focus:outline-none focus:border-primary focus:bg-white transition mb-4"
-                autoFocus
-              />
-              <Button
-                onClick={handleAdd}
-                variant="primary"
-                size="lg"
-                loading={addMutation.isPending}
-                fullWidth
-              >
-                ✅ Tambah Akun
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Delete account confirmation modal (type-email-to-confirm) */}
       {deleteOpen && (

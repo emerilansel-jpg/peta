@@ -7,7 +7,7 @@ import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { CardSkeleton } from '../components/Skeleton';
 import { supabase } from '../lib/supabase';
-import { getPayoutHistory, requestPayout, getTotalEarnings, getMaxRedditKarma, getMyPendingAssignments, listEligibleTasksForUser, type EligibleTask, sendPayoutRequestEmail } from '../lib/api';
+import { getPayoutHistory, requestPayout, getTotalEarnings, getMyPendingAssignments, listEligibleTasksForUser, type EligibleTask, sendPayoutRequestEmail } from '../lib/api';
 import { toast } from '../components/Toast';
 
 // Bonus (signup + referral) tetap locked sampai Rp100K task earnings.
@@ -81,22 +81,12 @@ export function Earnings() {
     .reduce((sum, a) => sum + (a.task_reward || 0), 0);
   const pendingApprovalCount = myAssignments.filter((a) => a.status === 'submitted').length;
 
-  // Detect "no Reddit account" state — same gate Tasks uses. Earnings page
-  // is the second-most likely place a stalled user lands ("kapan cair?"),
-  // so we surface the same setup nudge here too.
-  const { data: karmaInfo } = useQuery({
-    queryKey: ['maxKarma', user?.id],
-    queryFn: () => getMaxRedditKarma(user!.id),
-    enabled: !!user?.id,
-  });
-  const needsReddit = user?.id ? !karmaInfo?.username : false;
-
   // Eligible tasks — used to compute concrete "X upvote = unlock bonus" CTA.
   // Pulls the cheapest available reward so the math feels achievable.
   const { data: eligibleTasks = [] } = useQuery<EligibleTask[]>({
     queryKey: ['eligibleTasks-earnings', user?.id],
     queryFn: () => listEligibleTasksForUser(),
-    enabled: !!user?.id && !!karmaInfo?.username,
+    enabled: !!user?.id,
     refetchInterval: 120_000,
   });
   const cheapestUpvote = eligibleTasks
@@ -196,34 +186,6 @@ export function Earnings() {
               </p>
             </div>
           </div>
-        </Card>
-      )}
-
-      {/* Reddit setup nudge — only shown when user has no Reddit account.
-          Without it, real task earnings are impossible, so we point them
-          back to onboarding before they wonder why their saldo is stuck. */}
-      {needsReddit && (
-        <Card className="mb-3 bg-yellow-50 ring-yellow-300">
-          <div className="flex items-start gap-3 mb-3">
-            <div className="w-10 h-10 bg-yellow-400 text-yellow-950 rounded-xl grid place-items-center shrink-0">
-              <Lock size={18} />
-            </div>
-            <div className="flex-1">
-              <p className="font-extrabold text-yellow-950">Setup Reddit dulu biar saldo bisa naik</p>
-              <p className="text-sm text-yellow-900/85 mt-0.5">
-                Task baru dibayar lewat akun Reddit kamu. Selesai 5 menit + bonus Rp10K masuk saldo.
-              </p>
-            </div>
-          </div>
-          <Button
-            onClick={() => navigate('/onboarding')}
-            variant="primary"
-            size="md"
-            fullWidth
-            className="!bg-yellow-900 hover:!bg-yellow-950 !text-white"
-          >
-            🔓 Lanjutkan Setup <ArrowRight size={14} />
-          </Button>
         </Card>
       )}
 
