@@ -46,27 +46,15 @@ export function ResetPassword() {
     }
     setLoading(true);
     try {
-      // 1. Verify token and get user_id
-      const { data: verifyData, error: verifyError } = await supabase.rpc('verify_password_reset_token', {
+      const { data, error: rpcError } = await supabase.rpc('reset_user_password_with_token', {
         p_token: token,
+        p_new_password: password,
       });
-      if (verifyError || !verifyData?.[0]?.valid) {
-        throw new Error(verifyData?.[0]?.message || 'Token tidak valid atau sudah expired');
+
+      if (rpcError) throw rpcError;
+      if (!data?.ok) {
+        throw new Error(data?.error || 'Gagal ubah password');
       }
-
-      const userId = verifyData[0].user_id;
-
-      // 2. Update password via admin RPC (service_role)
-      const { error: updateError } = await supabase.rpc('admin_update_user_password', {
-        p_user_id: userId,
-        p_password: password,
-      });
-      if (updateError) throw updateError;
-
-      // 3. Consume token
-      await supabase.rpc('consume_password_reset_token', {
-        p_token: token,
-      });
 
       setDone(true);
       toast.success('Password berhasil diubah! 🎉');
