@@ -95,17 +95,17 @@ export function ForgotPassword() {
   };
 
   return (
-    <div className="min-h-dvh bg-gradient-to-br from-primary via-[#FF8B6B] to-secondary flex flex-col">
-      <div className="p-4 safe-top">
+    <div className="min-h-dvh bg-gradient-to-br from-primary via-[#FF8B6B] to-secondary flex flex-col justify-between">
+      <div className="w-full max-w-md mx-auto px-4 pt-8 pb-2 safe-top">
         <button
           onClick={() => navigate('/login')}
-          className="text-white/90 flex items-center gap-1 text-sm font-semibold hover:text-white"
+          className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/20 hover:bg-white/30 active:scale-95 text-white text-sm font-semibold backdrop-blur-md border border-white/25 transition-all shadow-sm"
         >
-          <ArrowLeft size={18} /> Kembali ke login
+          <ArrowLeft size={16} /> Kembali ke login
         </button>
       </div>
 
-      <div className="flex-1 flex items-end sm:items-center justify-center px-4 pb-4 sm:pb-8">
+      <div className="flex-1 flex items-center justify-center px-4 py-4 sm:py-6">
         <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md p-6 sm:p-8 animate-slide-up">
           <img
             src="/logo-horizontal.png"
@@ -253,9 +253,11 @@ export function ForgotPassword() {
         </div>
       </div>
 
-      <p className="text-center text-xs text-white/80 pb-4 safe-bottom">
-        🔒 Data aman • Encrypted login
-      </p>
+      <div className="pb-8 pt-2 safe-bottom">
+        <p className="text-center text-xs text-white/90 font-medium">
+          🔒 Data aman • Encrypted login
+        </p>
+      </div>
     </div>
   );
 }
