@@ -24,9 +24,11 @@ function json(body: unknown, status = 200) {
 
 function generateToken(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
   let token = '';
   for (let i = 0; i < 32; i++) {
-    token += chars.charAt(Math.floor(Math.random() * chars.length));
+    token += chars.charAt(bytes[i] % chars.length);
   }
   return token;
 }
@@ -132,6 +134,25 @@ Deno.serve(async (req: Request) => {
     }
 
     const user = users[0];
+
+    // Cooldown check: max 1 reset email per 60 seconds per user
+    const cooldownRes = await fetch(
+      `${supabaseUrl}/rest/v1/password_reset_tokens?user_id=eq.${user.id}&created_at=gte.${encodeURIComponent(new Date(Date.now() - 60 * 1000).toISOString())}&select=id&limit=1`,
+      {
+        headers: {
+          'apikey': serviceRoleKey,
+          'Authorization': `Bearer ${serviceRoleKey}`,
+        },
+      }
+    );
+    if (cooldownRes.ok) {
+      const recent = await cooldownRes.json();
+      if (recent && recent.length > 0) {
+        return json({ ok: true, message: isStraight
+          ? 'If this email is registered, a reset link has been sent.'
+          : 'Jika email terdaftar, link reset akan dikirim ke email kamu.' });
+      }
+    }
 
     // 2. Generate token and store it
     const token = generateToken();
