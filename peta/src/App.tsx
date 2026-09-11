@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { isStraightHost } from './modules/reddit/lib/path';
@@ -125,6 +125,18 @@ function HostRoute({ straight, peta }: { straight: ReactNode; peta?: ReactNode }
   return peta ? <>{peta}</> : <Navigate to="/" replace />;
 }
 
+// On straight.ltd, strip /reddit prefix and bounce to clean route directly
+// (e.g. /reddit/admin -> /admin, /reddit/orders/1 -> /orders/1).
+// On PeTa domain, render the fallback legacy component.
+function LegacyRedditRedirect({ fallback }: { fallback: ReactNode }) {
+  const location = useLocation();
+  if (isStraightHost()) {
+    const clean = location.pathname.replace(/^\/reddit/, '') || '/';
+    return <Navigate to={`${clean}${location.search}`} replace />;
+  }
+  return <>{fallback}</>;
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
@@ -185,40 +197,39 @@ function App() {
           <Route path="/earnings" element={<RequireAuth><Earnings /></RequireAuth>} />
 
           {/* Reddit Upvotes Routes — LEGACY /reddit/* tree, kept for old links */}
-          <Route path="/reddit/waitlist" element={<WaitlistPage />} />
-          <Route path="/reddit/signup" element={<RedditSignup />} />
-          <Route path="/reddit/login" element={<RedditLogin />} />
-          <Route path="/reddit/dashboard" element={<RequireAuth loginPath="/reddit/login"><RedditDashboard /></RequireAuth>} />
-          <Route path="/reddit/new-order" element={<RequireAuth loginPath="/reddit/login"><RedditNewOrder /></RequireAuth>} />
-          <Route path="/reddit/orders" element={<RequireAuth loginPath="/reddit/login"><RedditOrders /></RequireAuth>} />
-          <Route path="/reddit/orders/:orderId" element={<RequireAuth loginPath="/reddit/login"><RedditOrderDetail /></RequireAuth>} />
-          <Route path="/reddit/topup" element={<RequireAuth loginPath="/reddit/login"><RedditTopup /></RequireAuth>} />
-          <Route path="/reddit/reviews" element={<RequireAuth loginPath="/reddit/login"><RedditReviews /></RequireAuth>} />
-          <Route path="/reddit/feature-requests" element={<RequireAuth loginPath="/reddit/login"><RedditFeatureRequests /></RequireAuth>} />
-          <Route path="/reddit/ranking-forum" element={<RequireAuth loginPath="/reddit/login"><RankingForumPage /></RequireAuth>} />
-          <Route path="/reddit/ai-visibility" element={<RequireAuth loginPath="/reddit/login"><AiVisibilityPage /></RequireAuth>} />
-          <Route path="/reddit/terms" element={<TermsPage />} />
-          <Route path="/reddit/privacy" element={<PrivacyPage />} />
-          <Route path="/reddit/refunds" element={<RefundsPage />} />
-          <Route path="/reddit/contact" element={<ContactPage />} />
-          <Route path="/reddit/forgot-password" element={<RedditForgotPassword />} />
-          <Route path="/reddit/reset-password" element={<RedditResetPassword />} />
+          <Route path="/reddit/waitlist" element={<LegacyRedditRedirect fallback={<WaitlistPage />} />} />
+          <Route path="/reddit/signup" element={<LegacyRedditRedirect fallback={<RedditSignup />} />} />
+          <Route path="/reddit/login" element={<LegacyRedditRedirect fallback={<RedditLogin />} />} />
+          <Route path="/reddit/dashboard" element={<LegacyRedditRedirect fallback={<RequireAuth loginPath="/reddit/login"><RedditDashboard /></RequireAuth>} />} />
+          <Route path="/reddit/new-order" element={<LegacyRedditRedirect fallback={<RequireAuth loginPath="/reddit/login"><RedditNewOrder /></RequireAuth>} />} />
+          <Route path="/reddit/orders" element={<LegacyRedditRedirect fallback={<RequireAuth loginPath="/reddit/login"><RedditOrders /></RequireAuth>} />} />
+          <Route path="/reddit/orders/:orderId" element={<LegacyRedditRedirect fallback={<RequireAuth loginPath="/reddit/login"><RedditOrderDetail /></RequireAuth>} />} />
+          <Route path="/reddit/topup" element={<LegacyRedditRedirect fallback={<RequireAuth loginPath="/reddit/login"><RedditTopup /></RequireAuth>} />} />
+          <Route path="/reddit/reviews" element={<LegacyRedditRedirect fallback={<RequireAuth loginPath="/reddit/login"><RedditReviews /></RequireAuth>} />} />
+          <Route path="/reddit/feature-requests" element={<LegacyRedditRedirect fallback={<RequireAuth loginPath="/reddit/login"><RedditFeatureRequests /></RequireAuth>} />} />
+          <Route path="/reddit/ranking-forum" element={<LegacyRedditRedirect fallback={<RequireAuth loginPath="/reddit/login"><RankingForumPage /></RequireAuth>} />} />
+          <Route path="/reddit/ai-visibility" element={<LegacyRedditRedirect fallback={<RequireAuth loginPath="/reddit/login"><AiVisibilityPage /></RequireAuth>} />} />
+          <Route path="/reddit/terms" element={<LegacyRedditRedirect fallback={<TermsPage />} />} />
+          <Route path="/reddit/privacy" element={<LegacyRedditRedirect fallback={<PrivacyPage />} />} />
+          <Route path="/reddit/refunds" element={<LegacyRedditRedirect fallback={<RefundsPage />} />} />
+          <Route path="/reddit/contact" element={<LegacyRedditRedirect fallback={<ContactPage />} />} />
+          <Route path="/reddit/forgot-password" element={<LegacyRedditRedirect fallback={<RedditForgotPassword />} />} />
+          <Route path="/reddit/reset-password" element={<LegacyRedditRedirect fallback={<RedditResetPassword />} />} />
           {/* Reddit Admin Routes */}
-          <Route path="/reddit/admin" element={<AdminGuard><AdminOverview /></AdminGuard>} />
-          <Route path="/reddit/admin/orders" element={<AdminGuard><RedditAdminOrders /></AdminGuard>} />
-          <Route path="/reddit/admin/tickets" element={<AdminGuard><RedditAdminTickets /></AdminGuard>} />
-          <Route path="/reddit/admin/tickets/:ticketId" element={<AdminGuard><RedditAdminTickets /></AdminGuard>} />
-          <Route path="/reddit/admin/clients" element={<AdminGuard><RedditAdminClients /></AdminGuard>} />
-          <Route path="/reddit/admin/clients/:userId" element={<AdminGuard><RedditAdminClients /></AdminGuard>} />
-          <Route path="/reddit/admin/reviews" element={<AdminGuard><RedditAdminReviews /></AdminGuard>} />
-          <Route path="/reddit/admin/feature-requests" element={<AdminGuard><RedditAdminFeatureRequests /></AdminGuard>} />
-          <Route path="/reddit/admin/finance" element={<AdminGuard><RedditAdminFinance /></AdminGuard>} />
-          <Route path="/reddit/admin/settings" element={<AdminGuard><RedditAdminSettings /></AdminGuard>} />
-          <Route path="/reddit/admin/retention" element={<AdminGuard><RedditAdminRetention /></AdminGuard>} />
-          <Route path="/reddit/admin/waitlist" element={<AdminGuard><AdminWaitlist /></AdminGuard>} />
+          <Route path="/reddit/admin" element={<LegacyRedditRedirect fallback={<AdminGuard><AdminOverview /></AdminGuard>} />} />
+          <Route path="/reddit/admin/orders" element={<LegacyRedditRedirect fallback={<AdminGuard><RedditAdminOrders /></AdminGuard>} />} />
+          <Route path="/reddit/admin/tickets" element={<LegacyRedditRedirect fallback={<AdminGuard><RedditAdminTickets /></AdminGuard>} />} />
+          <Route path="/reddit/admin/tickets/:ticketId" element={<LegacyRedditRedirect fallback={<AdminGuard><RedditAdminTickets /></AdminGuard>} />} />
+          <Route path="/reddit/admin/clients" element={<LegacyRedditRedirect fallback={<AdminGuard><RedditAdminClients /></AdminGuard>} />} />
+          <Route path="/reddit/admin/clients/:userId" element={<LegacyRedditRedirect fallback={<AdminGuard><RedditAdminClients /></AdminGuard>} />} />
+          <Route path="/reddit/admin/reviews" element={<LegacyRedditRedirect fallback={<AdminGuard><RedditAdminReviews /></AdminGuard>} />} />
+          <Route path="/reddit/admin/feature-requests" element={<LegacyRedditRedirect fallback={<AdminGuard><RedditAdminFeatureRequests /></AdminGuard>} />} />
+          <Route path="/reddit/admin/finance" element={<LegacyRedditRedirect fallback={<AdminGuard><RedditAdminFinance /></AdminGuard>} />} />
+          <Route path="/reddit/admin/settings" element={<LegacyRedditRedirect fallback={<AdminGuard><RedditAdminSettings /></AdminGuard>} />} />
+          <Route path="/reddit/admin/retention" element={<LegacyRedditRedirect fallback={<AdminGuard><RedditAdminRetention /></AdminGuard>} />} />
+          <Route path="/reddit/admin/waitlist" element={<LegacyRedditRedirect fallback={<AdminGuard><AdminWaitlist /></AdminGuard>} />} />
 
           {/* Admin Routes (guarded) */}
-          <Route path="/admin" element={<AdminRouteWrapper><AdminGuard><AdminDashboard /></AdminGuard></AdminRouteWrapper>} />
           <Route path="/admin/accounts" element={<AdminRouteWrapper><AdminGuard><AdminRedditAccounts /></AdminGuard></AdminRouteWrapper>} />
           <Route path="/admin/tasks" element={<AdminRouteWrapper><AdminGuard><AdminTaskQueue /></AdminGuard></AdminRouteWrapper>} />
           <Route path="/admin/approval" element={<AdminRouteWrapper><AdminGuard><AdminApprovalQueue /></AdminGuard></AdminRouteWrapper>} />

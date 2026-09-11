@@ -16,6 +16,7 @@ import {
 import { RedditLayout } from '../components/RedditLayout';
 import { checkAiVisibility } from '../lib/api';
 import type { AiVisibilityResult } from '../lib/api';
+import { spath } from '../lib/path';
 
 export function AiVisibilityPage() {
   const navigate = useNavigate();
@@ -156,7 +157,7 @@ export function AiVisibilityPage() {
                       </p>
                     </div>
                     <button
-                      onClick={() => navigate(`/reddit/ranking-forum`)}
+                      onClick={() => navigate(spath('/ranking-forum'))}
                       className="shrink-0 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg bg-orange-500 hover:bg-orange-400 text-white text-sm font-bold"
                     >
                       Start a campaign

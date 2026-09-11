@@ -9,7 +9,7 @@
 
 export function isStraightHost(): boolean {
   if (typeof window === 'undefined') return false;
-  return /(^|\.)straight\.ltd$/i.test(window.location.hostname);
+  return /(^|\.)straight\.ltd$/i.test(window.location.hostname) || /(^|\.)straight-[a-z0-9-]+\.pages\.dev$/i.test(window.location.hostname);
 }
 
 // Map a clean Straight path to the right route for the current host:

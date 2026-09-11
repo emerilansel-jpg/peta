@@ -174,7 +174,7 @@ export function RedditOrders() {
                     const status = STATUS_CONFIG[order.status] || STATUS_CONFIG.pending;
                     const service = serviceLabel(order);
                     return (
-                      <tr key={order.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => navigate(`/reddit/orders/${order.id}`)}>
+                      <tr key={order.id} className="hover:bg-slate-50 cursor-pointer" onClick={() => navigate(spath(`/orders/${order.id}`))}>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div>
@@ -214,7 +214,7 @@ export function RedditOrders() {
                         </td>
                         <td className="px-6 py-4 text-right">
                           <Link
-                            to={`/reddit/orders/${order.id}`}
+                            to={spath(`/orders/${order.id}`)}
                             onClick={(e) => e.stopPropagation()}
                             className="inline-flex items-center gap-1 text-xs font-semibold text-orange-600 hover:text-orange-700"
                           >
@@ -237,7 +237,7 @@ export function RedditOrders() {
                 return (
                   <Link
                     key={order.id}
-                    to={`/reddit/orders/${order.id}`}
+                    to={spath(`/orders/${order.id}`)}
                     className="block p-4 hover:bg-slate-50"
                   >
                     <div className="flex items-start justify-between mb-2">

@@ -320,7 +320,7 @@ export function RedditLayout({ children, showAdminLink = false }: RedditLayoutPr
               <div className="flex items-center gap-2 shrink-0">
                 <RouterLink
                   to={reviewableOrders.length === 1
-                    ? `/reddit/orders/${reviewableOrders[0].id}`
+                    ? spath(`/orders/${reviewableOrders[0].id}`)
                     : spath('/reviews')}
                   className="px-3 md:px-4 py-1.5 rounded-lg bg-white text-orange-600 hover:bg-orange-50 text-xs md:text-sm font-bold inline-flex items-center gap-1 whitespace-nowrap"
                 >

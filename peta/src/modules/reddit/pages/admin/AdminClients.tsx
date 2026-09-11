@@ -138,7 +138,7 @@ function ClientsList() {
                 {filtered.map((u) => (
                   <tr key={u.id} className="hover:bg-slate-50">
                     <td className="px-6 py-4">
-                      <Link to={`/reddit/admin/clients/${u.id}`} className="block">
+                      <Link to={spath(`/admin/clients/${u.id}`)} className="block">
                         <p className="font-semibold text-slate-900">{u.full_name || '—'}</p>
                         <p className="text-xs text-slate-500">{u.email}</p>
                       </Link>
@@ -162,7 +162,7 @@ function ClientsList() {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <Link
-                        to={`/reddit/admin/clients/${u.id}`}
+                        to={spath(`/admin/clients/${u.id}`)}
                         className="inline-flex items-center gap-1 text-xs font-semibold text-orange-600 hover:text-orange-700"
                       >
                         View <ChevronRight size={12} />
@@ -330,7 +330,7 @@ function ClientDetail({ userId }: { userId: string }) {
                 {pagedOrders.map((o: any) => (
                   <Link
                     key={o.id}
-                    to={`/reddit/admin/orders?focus=${o.id}`}
+                    to={spath(`/admin/orders?focus=${o.id}`)}
                     className="block px-6 py-3 hover:bg-slate-50 flex items-center justify-between gap-4"
                   >
                     <div className="min-w-0 flex-1">

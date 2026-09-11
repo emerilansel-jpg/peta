@@ -574,7 +574,7 @@ function RedditUpvoteOrderForm({ onBack }: { onBack: () => void }) {
           primaryLabel="Got it — show me my orders"
           onDismiss={() => {
             setShowSuccessModal(false);
-            navigate(newOrderInfo?.id ? `/reddit/orders/${newOrderInfo.id}` : spath('/orders'));
+            navigate(newOrderInfo?.id ? spath(`/orders/${newOrderInfo.id}`) : spath('/orders'));
           }}
         />
       )}
@@ -1105,7 +1105,7 @@ function ForumCommentOrderForm({
           primaryLabel="Got it - show me my orders"
           onDismiss={() => {
             setShowSuccessModal(false);
-            navigate(!isBulk && newOrderId ? `/reddit/orders/${newOrderId}` : spath('/orders'));
+            navigate(!isBulk && newOrderId ? spath(`/orders/${newOrderId}`) : spath('/orders'));
           }}
         />
       )}
@@ -1584,7 +1584,7 @@ function YouTubeUploadOrderForm({ onBack }: { onBack: () => void }) {
         onSuccess: (order: { id?: number } | null) => {
           toast.success(`YouTube Upload order placed. ${formatUSD(cost)} deducted from credit.`);
           setShowConfirm(false);
-          navigate(order?.id ? `/reddit/orders/${order.id}` : spath('/orders'));
+          navigate(order?.id ? spath(`/orders/${order.id}`) : spath('/orders'));
         },
         onError: (err: Error) => {
           toast.error(err.message || 'Failed to create order');

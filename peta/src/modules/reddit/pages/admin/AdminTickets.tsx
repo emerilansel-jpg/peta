@@ -149,7 +149,7 @@ function AdminTicketsList() {
               {filtered.map((t) => (
                 <li key={t.id}>
                   <Link
-                    to={`/reddit/admin/tickets/${t.id}`}
+                    to={spath(`/admin/tickets/${t.id}`)}
                     className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50"
                   >
                     {/* Unread indicator */}
@@ -368,7 +368,7 @@ function AdminTicketDetail({ ticketId }: { ticketId: number }) {
                 </div>
               </div>
               <Link
-                to={`/reddit/admin/clients/${ticket.user_id}`}
+                to={spath(`/admin/clients/${ticket.user_id}`)}
                 className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-orange-600 hover:text-orange-700"
               >
                 View profile <ChevronRight size={12} />
@@ -406,7 +406,7 @@ function AdminTicketDetail({ ticketId }: { ticketId: number }) {
                   </div>
                 </div>
                 <Link
-                  to={`/reddit/admin/orders?focus=${ticket.order.id}`}
+                  to={spath(`/admin/orders?focus=${ticket.order.id}`)}
                   className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-orange-600 hover:text-orange-700"
                 >
                   Manage order <ChevronRight size={12} />

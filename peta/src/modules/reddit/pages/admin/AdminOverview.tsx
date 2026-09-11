@@ -210,7 +210,7 @@ export function AdminOverview() {
                 recentOrders.map((order) => (
                   <Link
                     key={order.id}
-                    to={`/reddit/admin/orders?focus=${order.id}`}
+                    to={spath(`/admin/orders?focus=${order.id}`)}
                     className="block px-6 py-3 hover:bg-slate-50 flex items-center justify-between gap-4"
                   >
                     <div className="min-w-0 flex-1">
@@ -247,7 +247,7 @@ export function AdminOverview() {
                 recentTickets.map((ticket) => (
                   <Link
                     key={ticket.id}
-                    to={`/reddit/admin/tickets/${ticket.id}`}
+                    to={spath(`/admin/tickets/${ticket.id}`)}
                     className="block px-6 py-3 hover:bg-slate-50 flex items-center justify-between gap-4"
                   >
                     <div className="min-w-0 flex-1">
