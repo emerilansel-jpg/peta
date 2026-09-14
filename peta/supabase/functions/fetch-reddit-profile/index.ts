@@ -75,6 +75,15 @@ Deno.serve(async (req: Request) => {
           if (r.ok) {
             const j = await r.json();
             const data = j?.data;
+            if (data?.is_suspended === true) {
+              return json({
+                ok: true,
+                found: true,
+                is_suspended: true,
+                username: data.name || username,
+                source: url,
+              });
+            }
             if (data?.name) {
               const createdUtc = Number(data.created_utc || 0);
               const accountAgeDays = createdUtc > 0

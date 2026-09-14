@@ -6,9 +6,9 @@ import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
 import { getLevelInfo } from '../../lib/levels';
-import { adminSetKarma, adminRejectKarmaClaim, updateRedditAccountKarma, buildWhatsappLink } from '../../lib/api';
+import { adminSetKarma, adminRejectKarmaClaim, updateRedditAccountKarma, replaceRedditAccount, buildWhatsappLink } from '../../lib/api';
 import { toast } from '../../components/Toast';
-import { Pencil, RefreshCw, Check, X, ExternalLink, ShieldCheck, Trash2, Zap, MessageCircle, AlertTriangle } from 'lucide-react';
+import { Pencil, RefreshCw, Check, X, ExternalLink, ShieldCheck, Trash2, Zap, MessageCircle, AlertTriangle, RotateCcw } from 'lucide-react';
 
 type StatusFlag = 'ok' | 'suspended' | 'not_found' | 'unknown';
 
@@ -69,21 +69,41 @@ export function AdminRedditAccounts() {
     const flagText = a.status_flag === 'suspended'
       ? 'kena suspend Reddit'
       : a.status_flag === 'not_found'
-      ? 'tidak bisa ditemukan / dihapus'
+      ? 'tidak bisa ditemukan / shadowban'
       : 'bermasalah';
     return [
       `Halo *${a.users?.full_name || 'kak'}*,`,
       ``,
       `Akun Reddit kamu *u/${a.username}* lagi ${flagText}.`,
       ``,
-      `Bisa di-cek di profile Reddit kamu. Kalau memang suspended, daftar akun baru → balik ke PeTa → /account → "Tambah akun Reddit".`,
+      `Bisa di-cek di profile Reddit kamu. Kalau memang suspended / shadowban, kamu bisa langsung ganti ke akun Reddit baru di menu Reddit Army:`,
       ``,
-      `Tanpa akun Reddit aktif, kamu nggak bisa kerjain task PeTa. Yuk fix sekarang biar saldo bisa lanjut naik!`,
+      `https://www.penghasilantambahan.com/reddit-army`,
+      ``,
+      `Tenang, seluruh riwayat tugas & saldo kamu sebelumnya tetap aman dan tidak hilang!`,
       ``,
       `— PeTa Team`,
-      `https://www.penghasilantambahan.com/account`,
     ].join('\n');
   };
+
+  const [replacing, setReplacing] = useState<{ id: string; username: string; userId: string; newUsername: string } | null>(null);
+
+  const replaceMutation = useMutation({
+    mutationFn: async () => {
+      if (!replacing) return;
+      return replaceRedditAccount({
+        newUsername: replacing.newUsername,
+        reason: 'Penggantian akun oleh admin (banned/shadowban)',
+        userId: replacing.userId,
+      });
+    },
+    onSuccess: (res: any) => {
+      toast.success(res?.message || 'Akun berhasil diganti!');
+      setReplacing(null);
+      queryClient.invalidateQueries({ queryKey: ['allRedditAccounts'] });
+    },
+    onError: (e: any) => toast.error(e?.message || 'Gagal ganti akun'),
+  });
 
   const setKarmaMutation = useMutation({
     mutationFn: ({ id, karma, age }: { id: string; karma: number; age: number }) =>
@@ -416,6 +436,9 @@ export function AdminRedditAccounts() {
                         <Button size="sm" variant="ghost" onClick={() => startEdit(a)} aria-label="Edit karma">
                           <Pencil className="w-4 h-4" />
                         </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setReplacing({ id: a.id, username: a.username, userId: a.user_id, newUsername: '' })} title="Ganti akun Reddit">
+                          <RotateCcw className="w-4 h-4" /> Ganti
+                        </Button>
                         <Button size="sm" variant="outline"
                           onClick={() => syncMutation.mutate({ id: a.id, username: a.username })}
                           disabled={syncMutation.isPending}
@@ -519,6 +542,12 @@ export function AdminRedditAccounts() {
                               <Pencil className="w-4 h-4" />
                             </Button>
                             <Button size="sm" variant="outline" className="ml-1"
+                              onClick={() => setReplacing({ id: a.id, username: a.username, userId: a.user_id, newUsername: '' })}
+                              title="Ganti ke akun Reddit baru"
+                            >
+                              <RotateCcw className="w-4 h-4" /> Ganti
+                            </Button>
+                            <Button size="sm" variant="outline" className="ml-1"
                               onClick={() => syncMutation.mutate({ id: a.id, username: a.username })}
                               disabled={syncMutation.isPending}
                               aria-label="Sync from Reddit"
@@ -536,6 +565,53 @@ export function AdminRedditAccounts() {
             </table>
           </Card>
         </>
+      )}
+
+      {replacing && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <Card className="w-full max-w-md animate-slide-up">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-bold flex items-center gap-2">
+                <RotateCcw size={18} className="text-primary" /> Ganti Akun Reddit Member
+              </h3>
+              <button onClick={() => setReplacing(null)} className="p-1 text-muted hover:text-dark">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="bg-emerald-50 ring-1 ring-emerald-200 rounded-xl p-3 mb-4 text-xs text-emerald-950 leading-relaxed">
+              <p className="font-bold mb-0.5">💡 Histori & Saldo Tetap Aman</p>
+              <p>
+                Mengganti akun lama <strong>u/{replacing.username}</strong> ke akun baru. Riwayat tugas & saldo member tetap utuh dan aman.
+              </p>
+            </div>
+            <div className="space-y-3 mb-5">
+              <div>
+                <label className="block text-xs font-bold mb-1">Username Reddit Baru</label>
+                <input
+                  type="text"
+                  value={replacing.newUsername}
+                  onChange={(e) => setReplacing({ ...replacing, newUsername: e.target.value })}
+                  placeholder="Contoh: u/username_baru"
+                  className="w-full px-3 py-2 text-sm rounded-xl border border-gray-300 focus:outline-none focus:border-primary"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="ghost" fullWidth onClick={() => setReplacing(null)} disabled={replaceMutation.isPending}>
+                Batal
+              </Button>
+              <Button
+                variant="primary"
+                fullWidth
+                loading={replaceMutation.isPending}
+                disabled={!replacing.newUsername.trim() || replaceMutation.isPending}
+                onClick={() => replaceMutation.mutate()}
+              >
+                Verifikasi & Simpan
+              </Button>
+            </div>
+          </Card>
+        </div>
       )}
     </Layout>
   );

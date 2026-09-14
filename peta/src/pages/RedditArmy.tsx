@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Trophy, Flame, Lock, Sparkles, Clock,
   CheckCircle2, XCircle, AlertTriangle, Wallet, RefreshCw, Hourglass,
-  Camera, Plus, Trash2, ImagePlus, X,
+  Camera, Plus, Trash2, ImagePlus, X, RotateCcw,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
@@ -18,6 +18,7 @@ import {
   cancelRedditArmyResignation,
   getRedditAccounts,
   updateRedditAccountKarma,
+  replaceRedditAccount,
   uploadProofImages,
   submitChallengeAssignmentProof,
   selfReportDailyActivity,
@@ -46,6 +47,28 @@ function RedditAccountManager({ userId, warmedAccountId, warmedUsername }: {
   });
 
   const [syncFailedFor, setSyncFailedFor] = useState<string | null>(null);
+  const [showReplaceModal, setShowReplaceModal] = useState(false);
+  const [newUsername, setNewUsername] = useState('');
+  const [replaceReason, setReplaceReason] = useState('Akun lama kena ban / shadowban di Reddit');
+
+  const replaceMutation = useMutation({
+    mutationFn: async () => {
+      return replaceRedditAccount({
+        newUsername,
+        reason: replaceReason,
+      });
+    },
+    onSuccess: (res) => {
+      toast.success(res.message || 'Akun Reddit berhasil diganti! 🎉');
+      setShowReplaceModal(false);
+      setNewUsername('');
+      queryClient.invalidateQueries({ queryKey: ['redditAccounts'] });
+      queryClient.invalidateQueries({ queryKey: ['redditArmyProfile'] });
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Gagal mengganti akun');
+    },
+  });
 
   const syncMutation = useMutation({
     mutationFn: async (id: string) => {
@@ -60,7 +83,7 @@ function RedditAccountManager({ userId, warmedAccountId, warmedUsername }: {
       if (data.fallback) {
         setSyncFailedFor(data.id);
         if (data.statusFlag === 'not_found' || data.statusFlag === 'suspended') {
-          toast.error('❌ Akun Reddit kamu bermasalah. Hubungi admin.');
+          toast.error('❌ Akun Reddit kamu bermasalah / kena ban. Silakan ganti akun.');
         } else {
           toast.error('🌐 Reddit memblokir auto-sync. Hubungi admin buat update manual.');
         }
@@ -78,6 +101,85 @@ function RedditAccountManager({ userId, warmedAccountId, warmedUsername }: {
     },
   });
 
+  const replaceModal = showReplaceModal && (
+    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4">
+      <Card className="w-full max-w-md animate-slide-up">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-lg font-bold text-dark flex items-center gap-2">
+            <RotateCcw size={18} className="text-primary" /> Ganti Akun Reddit
+          </h3>
+          <button
+            onClick={() => setShowReplaceModal(false)}
+            className="p-1 text-muted hover:text-dark rounded-lg"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="bg-emerald-50 ring-1 ring-emerald-200 rounded-xl p-3 mb-4 text-xs text-emerald-950 leading-relaxed">
+          <p className="font-bold mb-0.5">💡 Saldo & Tugas Sebelumnya Tetap Aman</p>
+          <p>
+            Seluruh saldo yang sudah terkumpul dan tugas yang sudah selesai tidak akan hilang atau di-reset. Akun baru ini akan dicek dan otomatis digunakan untuk tugas selanjutnya.
+          </p>
+        </div>
+
+        <div className="space-y-3 mb-5">
+          <div>
+            <label className="block text-xs font-bold text-dark mb-1">
+              Username Reddit Baru
+            </label>
+            <input
+              type="text"
+              value={newUsername}
+              onChange={(e) => setNewUsername(e.target.value)}
+              placeholder="Contoh: u/username_baru"
+              className="w-full px-3 py-2 text-sm rounded-xl border border-gray-300 focus:outline-none focus:border-primary"
+            />
+            <p className="text-[11px] text-muted mt-1">
+              Pastikan akun Reddit baru sudah aktif, publik, dan tidak berstatus banned / shadowban.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-dark mb-1">
+              Alasan Penggantian
+            </label>
+            <select
+              value={replaceReason}
+              onChange={(e) => setReplaceReason(e.target.value)}
+              className="w-full px-3 py-2 text-sm rounded-xl border border-gray-300 focus:outline-none focus:border-primary bg-white text-dark"
+            >
+              <option value="Akun lama kena ban / shadowban di Reddit">Akun lama kena ban / shadowban di Reddit</option>
+              <option value="Ingin ganti ke akun Reddit pribadi baru">Ingin ganti ke akun Reddit pribadi baru</option>
+              <option value="Akun lama lupa password / tidak bisa diakses">Akun lama lupa password / tidak bisa diakses</option>
+              <option value="Lainnya">Lainnya</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <Button
+            variant="ghost"
+            fullWidth
+            onClick={() => setShowReplaceModal(false)}
+            disabled={replaceMutation.isPending}
+          >
+            Batal
+          </Button>
+          <Button
+            variant="primary"
+            fullWidth
+            loading={replaceMutation.isPending}
+            disabled={!newUsername.trim() || replaceMutation.isPending}
+            onClick={() => replaceMutation.mutate()}
+          >
+            Verifikasi & Ganti
+          </Button>
+        </div>
+      </Card>
+    </div>
+  );
+
   if (isLoading) return null;
 
   // Prefer the program's warmed account; fall back to the member's own.
@@ -89,22 +191,44 @@ function RedditAccountManager({ userId, warmedAccountId, warmedUsername }: {
     if (!warmedUsername) return null;
     return (
       <Card className="mb-4">
-        <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-3 mb-3">
           <div className="min-w-0">
             <p className="text-xs text-muted font-semibold uppercase tracking-wide">Akun Terhubung</p>
             <p className="font-extrabold text-lg truncate">u/{warmedUsername}</p>
-            <p className="text-[11px] text-gray-500 mt-0.5">Akun warmed dikelola admin — karma disync dari sisi admin.</p>
+            <p className="text-[11px] text-gray-500 mt-0.5">Akun warmed dikelola admin.</p>
           </div>
         </div>
+        <Button
+          onClick={() => setShowReplaceModal(true)}
+          variant="outline"
+          size="sm"
+          fullWidth
+        >
+          <RotateCcw size={14} /> Ganti Akun Reddit
+        </Button>
+        {replaceModal}
       </Card>
     );
   }
+
+  const isProblem = syncFailedFor === account.id || account.status_flag === 'not_found' || account.status_flag === 'suspended';
 
   return (
     <Card className="mb-4">
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="min-w-0">
-          <p className="text-xs text-muted font-semibold uppercase tracking-wide">Akun Terhubung</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="text-xs text-muted font-semibold uppercase tracking-wide">Akun Terhubung</p>
+            {account.status_flag === 'suspended' ? (
+              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 ring-1 ring-rose-300">
+                🚫 Banned
+              </span>
+            ) : account.status_flag === 'not_found' ? (
+              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 ring-1 ring-amber-300">
+                ⚠️ Shadowban / 404
+              </span>
+            ) : null}
+          </div>
           <p className="font-extrabold text-lg truncate">u/{account.username}</p>
         </div>
         <div className="text-right shrink-0">
@@ -120,29 +244,58 @@ function RedditAccountManager({ userId, warmedAccountId, warmedUsername }: {
         </div>
       </div>
 
-      {(syncFailedFor === account.id || account.karma === 0 || account.status_flag === 'not_found' || account.status_flag === 'suspended') && (
+      {(isProblem || account.karma === 0) && (
         <div className="mb-3 rounded-xl p-3 ring-1 bg-warning/10 ring-warning/40">
           <div className="flex items-start gap-2">
             <AlertTriangle size={16} className="shrink-0 mt-0.5 text-warning" />
-            <div className="text-xs">
-              <p className="font-extrabold text-warning">Perhatian Akun</p>
-              <p className="text-warning/80 mt-0.5">
-                Ada kemungkinan Reddit memblokir auto-sync atau akun error. Hubungi admin buat update karma manual jika perlu.
+            <div className="text-xs flex-1">
+              <p className="font-extrabold text-warning">
+                {account.status_flag === 'suspended'
+                  ? 'Akun Reddit Kena Suspend / Ban'
+                  : account.status_flag === 'not_found'
+                  ? 'Akun Reddit Tidak Ditemukan / Shadowban'
+                  : 'Perhatian Akun'}
               </p>
+              <p className="text-warning/80 mt-0.5">
+                {account.status_flag === 'suspended' || account.status_flag === 'not_found'
+                  ? 'Akun ini terdeteksi bermasalah di Reddit dan tidak bisa mengambil tugas. Silakan ganti dengan akun baru yang aktif.'
+                  : 'Ada kemungkinan Reddit memblokir auto-sync atau akun error. Hubungi admin atau ganti akun jika perlu.'}
+              </p>
+              {(account.status_flag === 'suspended' || account.status_flag === 'not_found') && (
+                <button
+                  type="button"
+                  onClick={() => setShowReplaceModal(true)}
+                  className="mt-2 text-xs font-bold text-primary underline block"
+                >
+                  → Ganti Akun Reddit Sekarang
+                </button>
+              )}
             </div>
           </div>
         </div>
       )}
 
-      <Button
-        onClick={() => syncMutation.mutate(account.id)}
-        variant="outline"
-        size="md"
-        loading={syncMutation.isPending}
-        fullWidth
-      >
-        <RefreshCw size={16} /> Sync Karma (Poin Extra)
-      </Button>
+      <div className="flex gap-2">
+        <Button
+          onClick={() => syncMutation.mutate(account.id)}
+          variant="outline"
+          size="md"
+          loading={syncMutation.isPending}
+          className="flex-1"
+        >
+          <RefreshCw size={16} /> Sync Karma
+        </Button>
+        <Button
+          onClick={() => setShowReplaceModal(true)}
+          variant={isProblem ? 'primary' : 'outline'}
+          size="md"
+          className="flex-1"
+        >
+          <RotateCcw size={16} /> Ganti Akun
+        </Button>
+      </div>
+
+      {replaceModal}
     </Card>
   );
 }

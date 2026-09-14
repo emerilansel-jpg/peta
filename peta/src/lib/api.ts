@@ -101,7 +101,7 @@ export type SyncRedditResult = {
 export async function syncRedditKarma(username: string): Promise<SyncRedditResult> {
   // Sanitize: strip URL prefix, slashes, whitespace; keep only username chars.
   const clean = String(username || '')
-    .replace(/^.*?(?:reddit\.com\/)?(?:u\/|user\/)?/i, '')
+    .replace(/^.*?(?:reddit\.com\/(?:user|u)\/|u\/|user\/)/i, '')
     .replace(/[^A-Za-z0-9_-]/g, '')
     .slice(0, 32);
   if (!clean) {
@@ -121,6 +121,16 @@ export async function syncRedditKarma(username: string): Promise<SyncRedditResul
       body: { username: clean },
     });
     if (!error && data?.ok) {
+      if (data.is_suspended) {
+        return {
+          karma: 0,
+          accountAgeDays: 0,
+          level: 0,
+          success: true,
+          fallback: false,
+          statusFlag: 'suspended',
+        };
+      }
       if (data.found) {
         const karma = Number(data.karma) || 0;
         const accountAgeDays = Number(data.account_age_days) || 0;
@@ -133,8 +143,8 @@ export async function syncRedditKarma(username: string): Promise<SyncRedditResul
           statusFlag: 'ok',
         };
       }
-      // Definitive 404 — user doesn't exist.
-      return { karma: 0, accountAgeDays: 0, level: 0, success: true, fallback: true, statusFlag: 'not_found' };
+      // Definitive 404 — user doesn't exist or is shadowbanned.
+      return { karma: 0, accountAgeDays: 0, level: 0, success: true, fallback: false, statusFlag: 'not_found' };
     }
   } catch (error) {
     console.warn('fetch-reddit-profile edge function failed:', error);
@@ -198,11 +208,17 @@ export async function syncRedditKarma(username: string): Promise<SyncRedditResul
   return { karma: 0, accountAgeDays: 0, level: 0, success: true, fallback: true, statusFlag: 'unknown' };
 }
 
-export async function getRedditAccounts(userId: string) {
-  const { data, error } = await supabase
+export async function getRedditAccounts(userId: string, activeOnly = true) {
+  let query = supabase
     .from('reddit_accounts')
     .select('*')
     .eq('user_id', userId);
+
+  if (activeOnly) {
+    query = query.or('is_active.eq.true,is_active.is.null');
+  }
+
+  const { data, error } = await query.order('created_at', { ascending: false });
 
   if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return data;
@@ -274,6 +290,44 @@ export async function updateRedditAccountKarma(accountId: string, username: stri
 
   if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return { account: data, fallback: karmaData.fallback, statusFlag: karmaData.statusFlag, karma: (data?.karma as number) ?? 0 };
+}
+
+export async function replaceRedditAccount(input: {
+  newUsername: string;
+  reason: string;
+  userId?: string;
+}): Promise<{ ok: boolean; message: string; username: string; account_id: string; karma: number }> {
+  const clean = input.newUsername
+    .replace(/^.*?(?:reddit\.com\/(?:user|u)\/|u\/|user\/)/i, '')
+    .replace(/[^A-Za-z0-9_-]/g, '')
+    .trim();
+
+  if (clean.length < 3) {
+    throw new Error('Username Reddit minimal 3 karakter.');
+  }
+
+  // Verify the new account with Reddit API / edge function
+  const karmaData = await syncRedditKarma(clean);
+
+  if (karmaData.statusFlag === 'suspended') {
+    throw new Error(`Akun Reddit u/${clean} berstatus suspended/banned di Reddit. Gunakan akun yang aktif.`);
+  }
+  if (karmaData.statusFlag === 'not_found') {
+    throw new Error(`Akun Reddit u/${clean} tidak ditemukan atau terkena shadowban di Reddit.`);
+  }
+
+  const { data, error } = await supabase.rpc('replace_user_reddit_account', {
+    p_new_username: clean,
+    p_reason: input.reason || 'Akun lama bermasalah/banned',
+    p_initial_karma: karmaData.karma || 0,
+    p_initial_age_days: karmaData.accountAgeDays || 0,
+    p_user_id: input.userId || null,
+  });
+
+  if (error) throw new Error(error.message || 'Gagal mengganti akun Reddit');
+  if (!data?.ok) throw new Error(data?.error || 'Gagal mengganti akun Reddit');
+
+  return data;
 }
 
 // User toggle: hide the "Gabung WhatsApp" CTA on the Tasks page forever.
