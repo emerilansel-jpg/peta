@@ -70,16 +70,33 @@ export function Onboarding() {
         if (firstIncomplete) setCurrentStep(firstIncomplete);
       }
 
-      // If user already has signup bonus credits in DB, onboarding is done
+      // Check claimed onboarding steps from user_credits
       const { data: existingCredits } = await supabase
         .from('user_credits')
-        .select('id')
+        .select('description')
         .eq('user_id', data.user.id)
-        .eq('source', 'signup_bonus')
-        .limit(1);
+        .eq('source', 'signup_bonus');
+
       if (existingCredits && existingCredits.length > 0) {
-        navigate('/tasks', { replace: true });
-        return;
+        const descs = existingCredits.map((c: any) => c.description);
+        const hasStep1 = descs.includes('Bonus pendaftaran');
+        const hasStep2 = descs.includes('Bonus gabung grup WhatsApp');
+        const hasStep3 = descs.includes('Bonus setup WARP');
+
+        const dbCompleted: number[] = [];
+        if (hasStep1) dbCompleted.push(1);
+        if (hasStep2) dbCompleted.push(2);
+        if (hasStep3) dbCompleted.push(3);
+
+        // All main steps finished -> go to tasks
+        if (hasStep1 && hasStep2 && hasStep3) {
+          navigate('/tasks', { replace: true });
+          return;
+        }
+
+        setCompletedSteps((prev) => Array.from(new Set([...prev, ...dbCompleted])));
+        const nextStep = [1, 2, 3].find((n) => !dbCompleted.includes(n)) || 1;
+        setCurrentStep(nextStep);
       }
     })();
   }, [navigate]);

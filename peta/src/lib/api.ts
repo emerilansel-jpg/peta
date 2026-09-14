@@ -535,6 +535,7 @@ export interface TaskAssignment {
   can_retry?: boolean;
   contributor_workflow?: boolean;
   first_proof_submitted_at?: string | null;
+  submitted_at?: string | null;
   visibility_check_after?: string | null;
   visibility_status?: AssignmentVisibilityStatus | null;
   visibility_reason?: string | null;
@@ -555,6 +556,7 @@ export type TaskAssignmentUpdate = {
   proof_urls?: string[] | null;
   contributor_workflow?: boolean;
   first_proof_submitted_at?: string | null;
+  submitted_at?: string | null;
   visibility_check_after?: string | null;
   visibility_status?: AssignmentVisibilityStatus | null;
   visibility_reason?: string | null;
@@ -2415,7 +2417,7 @@ export async function submitChallengeAssignmentProof(opts: {
   if (!firstImage && !firstUrl) {
     throw new Error('Minimal 1 bukti (screenshot atau link) sebelum submit.');
   }
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('task_assignments')
     .update({
       status: 'submitted',
@@ -2426,8 +2428,11 @@ export async function submitChallengeAssignmentProof(opts: {
       submitted_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })
-    .eq('id', opts.assignmentId);
+    .eq('id', opts.assignmentId)
+    .select('id')
+    .maybeSingle();
   if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
+  if (!data) throw new Error('Misi tidak ditemukan atau tidak dapat diperbarui. Pastikan sesi kamu masih aktif.');
 }
 
 /** Army self-reports today's Reddit activity (Phase 2 check-in, honor system). */

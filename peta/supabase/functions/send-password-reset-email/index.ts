@@ -102,6 +102,26 @@ Deno.serve(async (req: Request) => {
     }
 
     const isStraight = product === 'straight';
+    const defaultOrigin = isStraight ? 'https://straight.ltd' : 'https://penghasilantambahan.com';
+    const ALLOWED_ORIGINS = [
+      'https://penghasilantambahan.com',
+      'https://staging.penghasilantambahan.com',
+      'https://straight.ltd',
+    ];
+    let origin = defaultOrigin;
+    if (base_url && typeof base_url === 'string') {
+      try {
+        const parsed = new URL(base_url);
+        if (ALLOWED_ORIGINS.includes(parsed.origin.toLowerCase())) {
+          origin = parsed.origin.toLowerCase();
+        }
+      } catch {
+        origin = defaultOrigin;
+      }
+    }
+    const safePath = (reset_path && typeof reset_path === 'string' && reset_path.startsWith('/') && !reset_path.includes('//'))
+      ? reset_path
+      : '/reset-password';
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
@@ -190,7 +210,7 @@ Deno.serve(async (req: Request) => {
     const fromAddress = isStraight
       ? (Deno.env.get('STRAIGHT_EMAIL_FROM') || 'Straight Ltd <care@straight.ltd>')
       : (Deno.env.get('EMAIL_FROM') || 'PeTA <peta@penghasilantambahan.com>');
-    const resetUrl = `${base_url || 'https://penghasilantambahan.com'}${reset_path}?token=${token}`;
+    const resetUrl = `${origin}${safePath}?token=${token}`;
     const subject = isStraight ? 'Reset your Straight Ltd password' : 'Reset Password PeTA';
     const html = isStraight ? straightTemplate(resetUrl, user.full_name) : petaTemplate(resetUrl, user.full_name);
 

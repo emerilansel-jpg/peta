@@ -49,6 +49,24 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'whatsapp_required' }, 400);
     }
 
+    const defaultOrigin = 'https://penghasilantambahan.com';
+    const ALLOWED_ORIGINS = [
+      'https://penghasilantambahan.com',
+      'https://staging.penghasilantambahan.com',
+      'https://straight.ltd',
+    ];
+    let origin = defaultOrigin;
+    if (base_url && typeof base_url === 'string') {
+      try {
+        const parsed = new URL(base_url);
+        if (ALLOWED_ORIGINS.includes(parsed.origin.toLowerCase())) {
+          origin = parsed.origin.toLowerCase();
+        }
+      } catch {
+        origin = defaultOrigin;
+      }
+    }
+
     const normalizedPhone = normalizePhone(whatsapp);
     if (normalizedPhone.length < 10) {
       return json({ error: 'invalid_phone' }, 400);
@@ -130,7 +148,7 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'fonnte_not_configured' }, 500);
     }
 
-    const resetUrl = `${base_url || 'https://penghasilantambahan.com'}/reset-password?token=${token}`;
+    const resetUrl = `${origin}/reset-password?token=${token}`;
     const message = `🔐 *Reset Password PeTa*
 
 Halo ${user.full_name || 'PeTa Army'}!

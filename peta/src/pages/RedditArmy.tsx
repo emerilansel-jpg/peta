@@ -382,8 +382,11 @@ export function RedditArmy() {
   });
 
   const claimMut = useMutation({
-    mutationFn: ({ taskId, accountId }: { taskId: string; accountId: string }) =>
-      claimChallengeTask(taskId, accountId),
+    mutationFn: async ({ taskId, accountId }: { taskId: string; accountId: string }) => {
+      const res = await claimChallengeTask(taskId, accountId);
+      if (!res.ok) throw new Error(res.error || 'Gagal memulai misi.');
+      return res;
+    },
     onSuccess: () => {
       toast.success('Misi dimulai! Kerjain di Reddit, balik lagi ke sini, terus submit bukti screenshotnya. 📸');
       queryClient.invalidateQueries({ queryKey: ['reddit-army-challenge-tasks'] });

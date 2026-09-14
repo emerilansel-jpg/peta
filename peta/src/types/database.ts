@@ -17,6 +17,7 @@ export interface TaskAssignment {
   can_retry?: boolean;
   contributor_workflow?: boolean;
   first_proof_submitted_at?: string | null;
+  submitted_at?: string | null;
   visibility_check_after?: string | null;
   visibility_status?: AssignmentVisibilityStatus | null;
   visibility_reason?: string | null;
