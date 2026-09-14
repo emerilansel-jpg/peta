@@ -167,7 +167,7 @@ export function Onboarding() {
     description: needsWhatsappStep
       ? 'Selamat datang di PenghasilanTambahan.com (PeTa) — kamu sekarang bagian dari PeTa Army. Bakal dibayar buat ngerjain tugas ringan di internet — gampang banget.\n\nIsi nomor WhatsApp di bawah supaya admin bisa kontak kamu untuk konfirmasi payout. Lalu klik klaim bonus.'
       : foundingFull
-        ? 'Selamat datang di PenghasilanTambahan.com (PeTa) — kamu sekarang bagian dari PeTa Army. Bakal dibayar buat ngerjain tugas ringan di internet — gampang banget.\n\nSlot founding (100 member pertama) sudah penuh, jadi bonus Rp50.000 founding tidak berlaku untuk kamu. Tapi kamu tetap bisa earning dari task.'
+        ? 'Selamat datang di PenghasilanTambahan.com (PeTa) — kamu sekarang bagian dari PeTa Army. Bakal dibayar buat ngerjain tugas ringan di internet — gampang banget.\n\nSlot founding (100 member pertama) sudah penuh, jadi bonus Rp50.000 founding tidak berlaku untuk kamu. Tapi kamu tetap bisa langsung earning dari task komentar dan dapat bonus referral Rp20.000 tiap kali ajak teman!'
         : 'Selamat datang di PenghasilanTambahan.com (PeTa) — kamu sekarang bagian dari PeTa Army. Bonus Rp25.000 udah siap masuk saldo kamu.\n\nKlik tombol di bawah untuk klaim, lalu lanjut ke step setup berikutnya.',
     buttonText: foundingFull ? 'Lanjut Setup ➜' : '💰 Klaim Bonus Rp25.000',
     hint: foundingFull ? 'Bonus founding penuh — lanjut setup, task tetap bisa dikerjakan' : 'Bonus langsung masuk saldo setelah klaim',
@@ -227,7 +227,9 @@ export function Onboarding() {
       emoji: '🎯',
       heading: 'Siap Mulai Earn!',
       subheading: 'Step 4 dari 4',
-      description: 'Selamat! Kamu sudah selesai setup dan saldo bonus Rp50.000 sudah masuk.\n\nTask baru (Google Preferred Source, Forum, YouTube) siap kamu kerjakan.\n\nPantau notif di grup WhatsApp biar dapat duluan. Sementara nunggu, ajak teman → tiap teman = +Rp20.000.',
+      description: foundingFull
+        ? 'Selamat! Kamu sudah selesai setup akun PeTa.\n\nTask baru (Google Preferred Source, Forum, YouTube) siap kamu kerjakan.\n\nPantau notif di grup WhatsApp biar dapat duluan. Dan bagikan link referral kamu → tiap teman = +Rp20.000 langsung masuk saldo kamu.'
+        : 'Selamat! Kamu sudah selesai setup dan saldo bonus Rp50.000 sudah masuk.\n\nTask baru (Google Preferred Source, Forum, YouTube) siap kamu kerjakan.\n\nPantau notif di grup WhatsApp biar dapat duluan. Sementara nunggu, ajak teman → tiap teman = +Rp20.000.',
       buttonText: '🚀 Mulai Earning Sekarang!',
       hint: 'Kamu siap! Notif task masuk via WhatsApp.',
       action: handleStepFinish,

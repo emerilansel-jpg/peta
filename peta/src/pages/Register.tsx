@@ -126,8 +126,14 @@ export function Register() {
           <div className="bg-yellow-100 ring-2 ring-yellow-300 rounded-xl p-3 mb-5 flex items-start gap-3">
             <Gift size={22} className="text-yellow-700 shrink-0 mt-0.5" />
             <div className="text-sm">
-              <p className="font-extrabold text-yellow-900">Bonus Rp50.000 menunggu</p>
-              <p className="text-yellow-800/80">Selesai onboarding 5 menit, langsung masuk saldo.</p>
+              <p className="font-extrabold text-yellow-900">
+                {referralCode ? 'Bonus Referral Rp20.000 Menunggu' : 'Cuan Komentar & Bonus Referral Rp20K'}
+              </p>
+              <p className="text-yellow-800/80">
+                {referralCode
+                  ? 'Daftar dengan kode referral, dapatkan Rp20.000 langsung masuk saldo kamu.'
+                  : 'Daftar gratis dalam 30 detik. Kerjakan tugas & dapatkan Rp20.000 tiap undang teman.'}
+              </p>
             </div>
           </div>
 
@@ -259,7 +265,7 @@ export function Register() {
             )}
 
             <Button type="submit" variant="primary" size="lg" loading={loading} fullWidth className="!rounded-2xl">
-              💰 Daftar & Klaim Bonus Rp50K
+              💰 Daftar & Mulai Earning
             </Button>
 
             <ul className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-muted">

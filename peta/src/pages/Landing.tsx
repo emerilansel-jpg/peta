@@ -78,7 +78,7 @@ export function Landing() {
             <span className="opacity-90">·</span>
             <span className="font-semibold tabular-nums">
               {isFull
-                ? 'slot habis'
+                ? `100 slot terpenuhi (${foundingCount} member aktif)`
                 : <>sisa <span className="font-extrabold tabular-nums">{slotsLeft}</span> slot</>
               }
             </span>
@@ -96,7 +96,7 @@ export function Landing() {
             Cuan tanpa skill, tanpa modal, langsung cair ke e-wallet 24 jam.
           </p>
           <p className="text-sm sm:text-base opacity-95 max-w-xl mb-7">
-            🎁 Founding 100 dapat bonus <b className="text-yellow-200 underline decoration-2 underline-offset-2">Rp50.000</b> + <b className="text-yellow-200">Rp20.000</b> tiap teman yang kamu ajak. Slot ke-101 dst tidak dapat bonus founding.
+            🎁 Bonus founding Rp50K sudah terpenuhi ({foundingCount}/100), tapi <b className="text-yellow-200 underline decoration-2 underline-offset-2">Bonus Referral Rp20.000 per teman</b> & task komentar tetap aktif tanpa batas kuota untuk semua member!
           </p>
 
           {/* Visual scarcity bar — replaces fake stars/reviews */}
@@ -113,7 +113,7 @@ export function Landing() {
             </div>
             <p className="text-xs opacity-90 mt-2">
               {isFull
-                ? 'Pendaftaran founding ditutup. Kamu masuk waitlist untuk gelombang berikutnya.'
+                ? 'Slot founding 100 selesai. Pendaftaran army reguler tetap buka — ajak teman & dapat Rp20.000 per referral!'
                 : 'Tiap satu slot terisi, sisa makin sedikit. Tutup permanen begitu nyentuh 100.'}
             </p>
           </div>
@@ -124,7 +124,7 @@ export function Landing() {
               onClick={() => goRegister()}
               className="tap-shrink bg-yellow-300 hover:bg-yellow-200 text-[#1A1D1F] font-extrabold rounded-2xl px-6 py-4 text-lg shadow-xl shadow-black/20 flex items-center justify-center gap-2"
             >
-              {isFull ? '📝 Masuk Waitlist' : <>💰 Klaim Slot Founding <ArrowRight size={20} /></>}
+              {isFull ? <>🚀 Daftar & Mulai Earning <ArrowRight size={20} /></> : <>💰 Klaim Slot Founding <ArrowRight size={20} /></>}
             </button>
             <button
               onClick={() => navigate('/login')}
@@ -290,8 +290,7 @@ export function Landing() {
             Tiap teman yang ikut, kamu dapat <span className="text-primary">Rp20.000</span>
           </h2>
           <p className="text-muted text-base sm:text-lg mb-4">
-            Bagikan link referral kamu. Tiap teman yang daftar, <b>kamu dapat Rp20K</b> & <b>mereka dapat Rp25K</b>.
-            Sebelum slot founding habis — tutup permanen di angka 100.
+            Bagikan link referral kamu. Tiap teman yang daftar lewat kodemu, <b>kamu dapat Rp20K</b> & <b>temanmu dapat Rp20K</b> langsung masuk saldo. Berlaku tanpa batas kuota member!
           </p>
           <p className="text-sm text-muted">
             Ajak 10 teman = <b className="text-primary money">Rp200.000</b> langsung masuk saldo.
@@ -310,8 +309,8 @@ export function Landing() {
               ['Butuh skill khusus?', 'Tidak. Kalau bisa baca & nulis komentar sopan dalam Bahasa Indonesia, kamu udah cukup. Reward kecil dulu (Rp5K), naik seiring level.'],
               ['Aman buat akun saya?', 'Aman. Kami tidak login ke akun kamu, tidak post atas namamu, tidak minta password. Tiap komen kamu ketik & kirim sendiri.'],
               ['Berapa cuan realistis?', 'Tergantung level + jumlah task yang kamu ambil. Reward per komen Rp5.000 (level 0) – Rp20.000 (level 5). Tanpa janji muluk angka mingguan — yang jelas, tiap task selesai = saldo kamu langsung naik.'],
-              ['Kenapa cuma 100 founding?', 'Komunitas kecil = payout cepat, support 1-on-1, kontrol kualitas. Slot 101 dst akan dibuka di gelombang berikutnya tanpa bonus founding.'],
-              ['Bonus referral berapa?', 'Rp20.000 untuk kamu DAN Rp25.000 untuk teman yang kamu ajak. Tanpa batas selama slot founding masih ada.'],
+              ['Kenapa cuma 100 founding?', 'Bonus onboarding gratis Rp50.000 diberikan khusus untuk 100 member founding pertama. Untuk member selanjutnya, pendaftaran tetap gratis, task komentar tetap bisa dikerjakan, dan bonus referral Rp20.000 tetap jalan tanpa batas.'],
+              ['Bonus referral berapa?', 'Rp20.000 untuk kamu DAN Rp20.000 untuk teman yang mendaftar dengan kodemu. Tetap berlaku aktif tanpa batas kuota member.'],
             ].map(([q, a]) => (
               <details key={q} className="group bg-white rounded-xl ring-1 ring-black/5 p-4">
                 <summary className="font-bold cursor-pointer flex items-center justify-between list-none">
@@ -329,18 +328,18 @@ export function Landing() {
       <section className="bg-gradient-to-br from-primary to-secondary text-white">
         <div className="container-custom py-14 sm:py-20 text-center">
           <h2 className="text-3xl sm:text-5xl font-extrabold mb-3">
-            {isFull ? 'Founding 100 udah penuh' : 'Sisa ' + slotsLeft + ' slot founding'}
+            {isFull ? 'Gabung PeTa Army Sekarang' : 'Sisa ' + slotsLeft + ' slot founding'}
           </h2>
           <p className="text-base sm:text-xl opacity-95 mb-6 max-w-xl mx-auto">
             {isFull
-              ? 'Masuk waitlist gelombang berikutnya — dikabarin via email + WA pas slot baru buka.'
+              ? 'Pendaftaran army gratis tetap buka. Kerjakan task komentar & ajak teman untuk dapat Rp20.000 per referral.'
               : 'Daftar gratis sekarang. Bonus founding Rp50K cuma buat 100 pertama. Cair 24 jam.'}
           </p>
           <button
             onClick={() => goRegister()}
             className="tap-shrink bg-yellow-300 hover:bg-yellow-200 text-[#1A1D1F] font-extrabold rounded-2xl px-7 py-4 text-lg shadow-2xl flex items-center justify-center gap-2 mx-auto"
           >
-            {isFull ? '📝 Masuk Waitlist' : '💰 Klaim Slot Founding'} <ArrowRight size={20} />
+            {isFull ? <>🚀 Daftar & Mulai Earning <ArrowRight size={20} /></> : <>💰 Klaim Slot Founding <ArrowRight size={20} /></>}
           </button>
           <ul className="mt-5 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm">
             <li className="flex items-center gap-1"><Check size={16}/> Gratis selamanya</li>
@@ -350,22 +349,22 @@ export function Landing() {
         </div>
       </section>
 
-	      <footer className="bg-dark text-white/70 text-xs py-12 text-center">
-	        <div className="inline-flex bg-white rounded-2xl px-6 py-4 shadow-md mb-4">
-	          <img
-	            src="/logo-horizontal.png"
-	            alt="PeTa · PenghasilanTambahan.com"
-	            className="h-12 w-auto"
-	          />
-	        </div>
-	        <p className="mb-2">
-	          <a href="/privacy" className="hover:text-white underline underline-offset-2">Kebijakan Privasi</a>
-	          <span className="mx-2 opacity-40">·</span>
-	          <a href="/terms" className="hover:text-white underline underline-offset-2">Syarat & Ketentuan</a>
-	        </p>
-	        <p>© 2026 Penghasilantanbahan.com (PeTa) · Komunitas PeTa Army</p>
-	        <p className="opacity-60 mt-1">Komentar · Hasilkan · Tambahan</p>
-	      </footer>
+		      <footer className="bg-dark text-white/70 text-xs py-12 text-center">
+		        <div className="inline-flex bg-white rounded-2xl px-6 py-4 shadow-md mb-4">
+		          <img
+		            src="/logo-horizontal.png"
+		            alt="PeTa · PenghasilanTambahan.com"
+		            className="h-12 w-auto"
+		          />
+		        </div>
+		        <p className="mb-2">
+		          <a href="/privacy" className="hover:text-white underline underline-offset-2">Kebijakan Privasi</a>
+		          <span className="mx-2 opacity-40">·</span>
+		          <a href="/terms" className="hover:text-white underline underline-offset-2">Syarat & Ketentuan</a>
+		        </p>
+		        <p>© 2026 Penghasilantanbahan.com (PeTa) · Komunitas PeTa Army</p>
+		        <p className="opacity-60 mt-1">Komentar · Hasilkan · Tambahan</p>
+		      </footer>
 
       {/* Sticky mobile CTA */}
       <div className="md:hidden fixed bottom-0 inset-x-0 z-40 p-3 bg-white/95 backdrop-blur ring-1 ring-black/5 safe-bottom">
@@ -373,7 +372,7 @@ export function Landing() {
           onClick={() => goRegister()}
           className="w-full tap-shrink bg-primary hover:bg-primary-dark text-white font-extrabold rounded-2xl px-6 py-3.5 text-base shadow-lg shadow-primary/30 flex items-center justify-center gap-2"
         >
-          {isFull ? '📝 Masuk Waitlist' : `💰 Klaim Slot · sisa ${slotsLeft}`}
+          {isFull ? '🚀 Daftar & Mulai Earning' : `💰 Klaim Slot · sisa ${slotsLeft}`}
         </button>
       </div>
     </div>
