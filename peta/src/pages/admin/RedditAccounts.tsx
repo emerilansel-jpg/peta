@@ -6,7 +6,16 @@ import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
 import { getLevelInfo } from '../../lib/levels';
-import { adminSetKarma, adminRejectKarmaClaim, updateRedditAccountKarma, replaceRedditAccount, buildWhatsappLink } from '../../lib/api';
+import {
+  adminSetKarma,
+  adminRejectKarmaClaim,
+  updateRedditAccountKarma,
+  replaceRedditAccount,
+  adminListReplacementRequests,
+  adminReviewReplacementRequest,
+  buildWhatsappLink,
+  type AdminReplacementRequestRow,
+} from '../../lib/api';
 import { toast } from '../../components/Toast';
 import { Pencil, RefreshCw, Check, X, ExternalLink, ShieldCheck, Trash2, Zap, MessageCircle, AlertTriangle, RotateCcw } from 'lucide-react';
 
@@ -87,6 +96,26 @@ export function AdminRedditAccounts() {
   };
 
   const [replacing, setReplacing] = useState<{ id: string; username: string; userId: string; newUsername: string } | null>(null);
+
+  const { data: replacementRequests = [], refetch: refetchReplacements } = useQuery<AdminReplacementRequestRow[]>({
+    queryKey: ['adminReplacementRequests'],
+    queryFn: adminListReplacementRequests,
+    staleTime: 30_000,
+  });
+
+  const pendingReplacements = replacementRequests.filter((r) => r.status === 'pending');
+
+  const reviewReplacementMutation = useMutation({
+    mutationFn: (vars: { requestId: string; decision: 'approved' | 'rejected'; adminNotes?: string }) =>
+      adminReviewReplacementRequest(vars),
+    onSuccess: (res: any) => {
+      toast.success(res?.message || 'Berhasil memproses pengajuan ganti akun');
+      refetchReplacements();
+      queryClient.invalidateQueries({ queryKey: ['allRedditAccounts'] });
+      queryClient.invalidateQueries({ queryKey: ['adminReplacementRequests'] });
+    },
+    onError: (e: any) => toast.error(e?.message || 'Gagal memproses review pengajuan'),
+  });
 
   const replaceMutation = useMutation({
     mutationFn: async () => {
@@ -272,6 +301,81 @@ export function AdminRedditAccounts() {
           <p className="text-[11px] text-muted mt-1.5">
             {bulkSync.current} dari {bulkSync.total} · {bulkSync.updated} updated · {bulkSync.failed} fallback. Jangan tutup tab.
           </p>
+        </Card>
+      )}
+
+      {/* PENDING REDDIT ACCOUNT REPLACEMENT REQUESTS */}
+      {pendingReplacements.length > 0 && (
+        <Card className="mb-5 bg-blue-50/70 ring-1 ring-blue-300">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="text-xs uppercase tracking-wide font-bold text-blue-700">Antrean Pengajuan</p>
+              <h2 className="text-lg sm:text-xl font-extrabold text-blue-950">
+                {pendingReplacements.length} pengajuan ganti akun Reddit menunggu
+              </h2>
+              <p className="text-xs text-blue-800/80">
+                Member mengajukan ganti akun karena akun lama kena suspend/shadowban. Cek profile akun baru di Reddit, lalu setujui atau tolak.
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            {pendingReplacements.map((r) => (
+              <div key={r.request_id} className="bg-white rounded-xl ring-1 ring-blue-200 p-3 sm:p-4">
+                <div className="flex items-start justify-between gap-3 mb-2 flex-wrap">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-dark text-sm">{r.member_name || r.member_email}</span>
+                      <span className="text-xs text-muted">({r.member_email})</span>
+                    </div>
+                    <div className="mt-1 flex items-center gap-2 text-xs flex-wrap">
+                      <span className="text-rose-700 font-semibold line-through">u/{r.old_username}</span>
+                      <span>➔</span>
+                      <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded ring-1 ring-emerald-200">
+                        u/{r.new_username}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 mt-1">Alasan: <em>{r.reason}</em></p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <a
+                      href={`https://www.reddit.com/user/${r.new_username}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-300 hover:bg-gray-50 text-dark"
+                    >
+                      <ExternalLink size={12} /> Cek Profil Reddit
+                    </a>
+                    <Button
+                      size="sm"
+                      variant="primary"
+                      loading={reviewReplacementMutation.isPending}
+                      onClick={() => {
+                        if (confirm(`Setujui pergantian akun untuk ${r.member_name || r.member_email} ke u/${r.new_username}?`)) {
+                          reviewReplacementMutation.mutate({ requestId: r.request_id, decision: 'approved' });
+                        }
+                      }}
+                    >
+                      <Check size={14} /> Setujui
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      loading={reviewReplacementMutation.isPending}
+                      onClick={() => {
+                        const note = prompt('Alasan penolakan pengajuan:');
+                        if (note) {
+                          reviewReplacementMutation.mutate({ requestId: r.request_id, decision: 'rejected', adminNotes: note });
+                        }
+                      }}
+                    >
+                      <X size={14} /> Tolak
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         </Card>
       )}
 

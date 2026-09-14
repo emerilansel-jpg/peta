@@ -18,7 +18,8 @@ import {
   cancelRedditArmyResignation,
   getRedditAccounts,
   updateRedditAccountKarma,
-  replaceRedditAccount,
+  requestRedditAccountReplacement,
+  getMyReplacementRequest,
   uploadProofImages,
   submitChallengeAssignmentProof,
   selfReportDailyActivity,
@@ -46,27 +47,37 @@ function RedditAccountManager({ userId, warmedAccountId, warmedUsername }: {
     enabled: !!userId,
   });
 
+  const { data: replacementReq, refetch: refetchReplacementReq } = useQuery({
+    queryKey: ['myReplacementRequest', userId],
+    queryFn: getMyReplacementRequest,
+    enabled: !!userId,
+    staleTime: 15_000,
+  });
+
   const [syncFailedFor, setSyncFailedFor] = useState<string | null>(null);
   const [showReplaceModal, setShowReplaceModal] = useState(false);
   const [newUsername, setNewUsername] = useState('');
   const [replaceReason, setReplaceReason] = useState('Akun lama kena ban / shadowban di Reddit');
 
+  const isPendingApproval = replacementReq?.status === 'pending';
+
   const replaceMutation = useMutation({
     mutationFn: async () => {
-      return replaceRedditAccount({
+      return requestRedditAccountReplacement({
         newUsername,
         reason: replaceReason,
       });
     },
     onSuccess: (res) => {
-      toast.success(res.message || 'Akun Reddit berhasil diganti! 🎉');
+      toast.success(res.message || 'Pengajuan ganti akun terkirim ke admin! 📨');
       setShowReplaceModal(false);
       setNewUsername('');
+      refetchReplacementReq();
       queryClient.invalidateQueries({ queryKey: ['redditAccounts'] });
       queryClient.invalidateQueries({ queryKey: ['redditArmyProfile'] });
     },
     onError: (err: any) => {
-      toast.error(err.message || 'Gagal mengganti akun');
+      toast.error(err.message || 'Gagal mengajukan ganti akun');
     },
   });
 
@@ -106,7 +117,7 @@ function RedditAccountManager({ userId, warmedAccountId, warmedUsername }: {
       <Card className="w-full max-w-md animate-slide-up">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-lg font-bold text-dark flex items-center gap-2">
-            <RotateCcw size={18} className="text-primary" /> Ganti Akun Reddit
+            <RotateCcw size={18} className="text-primary" /> Ajukan Ganti Akun Reddit
           </h3>
           <button
             onClick={() => setShowReplaceModal(false)}
@@ -119,7 +130,7 @@ function RedditAccountManager({ userId, warmedAccountId, warmedUsername }: {
         <div className="bg-emerald-50 ring-1 ring-emerald-200 rounded-xl p-3 mb-4 text-xs text-emerald-950 leading-relaxed">
           <p className="font-bold mb-0.5">💡 Saldo & Tugas Sebelumnya Tetap Aman</p>
           <p>
-            Seluruh saldo yang sudah terkumpul dan tugas yang sudah selesai tidak akan hilang atau di-reset. Akun baru ini akan dicek dan otomatis digunakan untuk tugas selanjutnya.
+            Seluruh saldo yang sudah terkumpul dan tugas yang sudah selesai tidak akan hilang atau di-reset. Pengajuan kamu akan diverifikasi oleh admin sebelum diaktifkan.
           </p>
         </div>
 
@@ -173,7 +184,7 @@ function RedditAccountManager({ userId, warmedAccountId, warmedUsername }: {
             disabled={!newUsername.trim() || replaceMutation.isPending}
             onClick={() => replaceMutation.mutate()}
           >
-            Verifikasi & Ganti
+            Kirim Pengajuan ke Admin →
           </Button>
         </div>
       </Card>
@@ -198,14 +209,20 @@ function RedditAccountManager({ userId, warmedAccountId, warmedUsername }: {
             <p className="text-[11px] text-gray-500 mt-0.5">Akun warmed dikelola admin.</p>
           </div>
         </div>
-        <Button
-          onClick={() => setShowReplaceModal(true)}
-          variant="outline"
-          size="sm"
-          fullWidth
-        >
-          <RotateCcw size={14} /> Ganti Akun Reddit
-        </Button>
+        {isPendingApproval ? (
+          <div className="p-2.5 rounded-lg bg-blue-50 ring-1 ring-blue-200 text-xs text-blue-900 mb-2">
+            ⏳ Pengajuan ganti ke <strong>u/{replacementReq?.new_username}</strong> sedang menunggu verifikasi admin.
+          </div>
+        ) : (
+          <Button
+            onClick={() => setShowReplaceModal(true)}
+            variant="outline"
+            size="sm"
+            fullWidth
+          >
+            <RotateCcw size={14} /> Ajukan Ganti Akun Reddit
+          </Button>
+        )}
         {replaceModal}
       </Card>
     );
@@ -244,6 +261,30 @@ function RedditAccountManager({ userId, warmedAccountId, warmedUsername }: {
         </div>
       </div>
 
+      {isPendingApproval && (
+        <div className="mb-3 rounded-xl p-3.5 ring-1 bg-blue-50 ring-blue-200 text-xs text-blue-950">
+          <div className="flex items-start gap-2.5">
+            <Hourglass size={18} className="shrink-0 mt-0.5 text-blue-600 animate-pulse" />
+            <div className="flex-1">
+              <p className="font-extrabold text-blue-900">Pengajuan Ganti Akun Sedang Ditinjau Admin</p>
+              <p className="mt-1 leading-relaxed text-blue-800">
+                Kamu telah mengajukan ganti ke <strong className="font-bold">u/{replacementReq?.new_username}</strong>.
+                Admin akan memverifikasi akun ini sebelum disetujui. Saldo dan riwayat tugas kamu tetap aman.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {replacementReq?.status === 'rejected' && (
+        <div className="mb-3 rounded-xl p-3 ring-1 bg-rose-50 ring-rose-200 text-xs text-rose-950">
+          <p className="font-bold text-rose-900">Pengajuan Ganti Akun Sebelumnya Ditolak</p>
+          <p className="mt-0.5 text-rose-800">
+            Pengajuan ke u/{replacementReq?.new_username} ditolak: {replacementReq?.admin_notes || 'Akun tidak memenuhi syarat'}. Silakan ajukan akun Reddit lain.
+          </p>
+        </div>
+      )}
+
       {(isProblem || account.karma === 0) && (
         <div className="mb-3 rounded-xl p-3 ring-1 bg-warning/10 ring-warning/40">
           <div className="flex items-start gap-2">
@@ -258,16 +299,16 @@ function RedditAccountManager({ userId, warmedAccountId, warmedUsername }: {
               </p>
               <p className="text-warning/80 mt-0.5">
                 {account.status_flag === 'suspended' || account.status_flag === 'not_found'
-                  ? 'Akun ini terdeteksi bermasalah di Reddit dan tidak bisa mengambil tugas. Silakan ganti dengan akun baru yang aktif.'
-                  : 'Ada kemungkinan Reddit memblokir auto-sync atau akun error. Hubungi admin atau ganti akun jika perlu.'}
+                  ? 'Akun ini terdeteksi bermasalah di Reddit dan tidak bisa mengambil tugas. Silakan ajukan pergantian ke akun baru yang aktif.'
+                  : 'Ada kemungkinan Reddit memblokir auto-sync atau akun error. Hubungi admin atau ajukan ganti akun jika perlu.'}
               </p>
-              {(account.status_flag === 'suspended' || account.status_flag === 'not_found') && (
+              {(account.status_flag === 'suspended' || account.status_flag === 'not_found') && !isPendingApproval && (
                 <button
                   type="button"
                   onClick={() => setShowReplaceModal(true)}
                   className="mt-2 text-xs font-bold text-primary underline block"
                 >
-                  → Ganti Akun Reddit Sekarang
+                  → Ajukan Ganti Akun Reddit
                 </button>
               )}
             </div>
@@ -287,11 +328,12 @@ function RedditAccountManager({ userId, warmedAccountId, warmedUsername }: {
         </Button>
         <Button
           onClick={() => setShowReplaceModal(true)}
-          variant={isProblem ? 'primary' : 'outline'}
+          variant={isProblem && !isPendingApproval ? 'primary' : 'outline'}
           size="md"
           className="flex-1"
+          disabled={isPendingApproval}
         >
-          <RotateCcw size={16} /> Ganti Akun
+          <RotateCcw size={16} /> {isPendingApproval ? 'Menunggu Review' : 'Ajukan Ganti Akun'}
         </Button>
       </div>
 

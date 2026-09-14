@@ -292,6 +292,103 @@ export async function updateRedditAccountKarma(accountId: string, username: stri
   return { account: data, fallback: karmaData.fallback, statusFlag: karmaData.statusFlag, karma: (data?.karma as number) ?? 0 };
 }
 
+export async function requestRedditAccountReplacement(input: {
+  newUsername: string;
+  reason: string;
+}): Promise<{ ok: boolean; message: string; request_id?: string; new_username?: string }> {
+  const clean = input.newUsername
+    .replace(/^.*?(?:reddit\.com\/(?:user|u)\/|u\/|user\/)/i, '')
+    .replace(/[^A-Za-z0-9_-]/g, '')
+    .trim();
+
+  if (clean.length < 3) {
+    throw new Error('Username Reddit minimal 3 karakter.');
+  }
+
+  // Verify the new account status with Reddit API / edge function before submitting
+  const karmaData = await syncRedditKarma(clean);
+
+  if (karmaData.statusFlag === 'suspended') {
+    throw new Error(`Akun Reddit u/${clean} terdeteksi suspended / banned di Reddit. Masukkan akun yang aktif.`);
+  }
+  if (karmaData.statusFlag === 'not_found') {
+    throw new Error(`Akun Reddit u/${clean} tidak ditemukan atau terkena shadowban di Reddit.`);
+  }
+
+  const { data, error } = await supabase.rpc('request_reddit_account_replacement', {
+    p_new_username: clean,
+    p_reason: input.reason || 'Akun lama bermasalah / kena ban',
+  });
+
+  if (error) throw new Error(error.message || 'Gagal mengajukan ganti akun Reddit');
+  if (!data?.ok) throw new Error(data?.error || 'Gagal mengajukan ganti akun Reddit');
+
+  return data;
+}
+
+export type ReplacementRequest = {
+  id: string;
+  new_username: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  admin_notes?: string | null;
+  created_at: string;
+  reviewed_at?: string | null;
+  old_username?: string | null;
+};
+
+export async function getMyReplacementRequest(): Promise<ReplacementRequest | null> {
+  const { data, error } = await supabase.rpc('get_my_replacement_request');
+  if (error) {
+    console.error('getMyReplacementRequest error:', error);
+    return null;
+  }
+  return data as ReplacementRequest | null;
+}
+
+export type AdminReplacementRequestRow = {
+  request_id: string;
+  user_id: string;
+  member_email: string;
+  member_name: string;
+  member_whatsapp: string;
+  old_account_id: string | null;
+  old_username: string;
+  new_username: string;
+  reason: string;
+  status: 'pending' | 'approved' | 'rejected';
+  admin_notes: string | null;
+  created_at: string;
+  reviewed_at: string | null;
+};
+
+export async function adminListReplacementRequests(): Promise<AdminReplacementRequestRow[]> {
+  const { data, error } = await supabase.rpc('admin_list_replacement_requests');
+  if (error) throw new Error(error.message || 'Gagal memuat antrean penggantian akun');
+  return (data || []) as AdminReplacementRequestRow[];
+}
+
+export async function adminReviewReplacementRequest(input: {
+  requestId: string;
+  decision: 'approved' | 'rejected';
+  adminNotes?: string;
+  initialKarma?: number;
+  initialAgeDays?: number;
+}): Promise<{ ok: boolean; message: string }> {
+  const { data, error } = await supabase.rpc('admin_review_replacement_request', {
+    p_request_id: input.requestId,
+    p_decision: input.decision,
+    p_admin_notes: input.adminNotes || null,
+    p_initial_karma: input.initialKarma || 0,
+    p_initial_age_days: input.initialAgeDays || 0,
+  });
+
+  if (error) throw new Error(error.message || 'Gagal memproses review pengajuan');
+  if (!data?.ok) throw new Error(data?.error || 'Gagal memproses review pengajuan');
+
+  return data;
+}
+
 export async function replaceRedditAccount(input: {
   newUsername: string;
   reason: string;
