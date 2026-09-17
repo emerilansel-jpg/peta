@@ -9,6 +9,9 @@ console.log('1. Checking SQL migration structure & contracts...');
 const migrationPath = path.resolve('supabase/migrations/20260911000000_replace_reddit_account_flow.sql');
 assert(fs.existsSync(migrationPath), `Migration file not found at ${migrationPath}`);
 const sql = fs.readFileSync(migrationPath, 'utf8');
+const lockMigrationPath = path.resolve('supabase/migrations/20260917000000_lock_reddit_account_replacement.sql');
+assert(fs.existsSync(lockMigrationPath), `Lock migration file not found at ${lockMigrationPath}`);
+const lockSql = fs.readFileSync(lockMigrationPath, 'utf8');
 
 // Check column additions
 assert(sql.includes('is_active boolean NOT NULL DEFAULT true'), 'Missing is_active column');
@@ -23,7 +26,13 @@ assert(sql.includes('p_reason text'), 'Missing p_reason param');
 assert(sql.includes('p_initial_karma int'), 'Missing p_initial_karma param');
 assert(sql.includes('p_initial_age_days int'), 'Missing p_initial_age_days param');
 assert(sql.includes('p_user_id uuid'), 'Missing p_user_id param');
-assert(sql.includes('GRANT EXECUTE ON FUNCTION public.replace_user_reddit_account'), 'Missing grant on replace_user_reddit_account');
+assert(sql.includes('GRANT EXECUTE ON FUNCTION public.replace_user_reddit_account'), 'Missing original grant on replace_user_reddit_account');
+assert(lockSql.includes('REVOKE ALL ON FUNCTION public.replace_user_reddit_account(text, text, int, int, uuid)'), 'Direct replacement RPC revoke missing');
+assert(lockSql.includes('FROM PUBLIC, anon, authenticated;'), 'Direct replacement RPC must be inaccessible to clients');
+assert(lockSql.includes('CREATE OR REPLACE FUNCTION public.admin_replace_user_reddit_account'), 'Missing admin replacement wrapper');
+assert(lockSql.includes('IF NOT public.is_admin() THEN'), 'Admin replacement wrapper must enforce admin role');
+assert(lockSql.includes('GRANT EXECUTE ON FUNCTION public.admin_replace_user_reddit_account(text, text, int, int, uuid)'), 'Admin wrapper grant missing');
+assert(lockSql.includes('TO authenticated;'), 'Authenticated admins need access to the guarded wrapper');
 
 // Check claim_challenge_task active check
 assert(sql.includes('ra.is_active, true) = true'), 'Missing active check in claim_challenge_task');

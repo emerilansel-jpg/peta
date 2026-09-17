@@ -413,7 +413,7 @@ export async function replaceRedditAccount(input: {
     throw new Error(`Akun Reddit u/${clean} tidak ditemukan atau terkena shadowban di Reddit.`);
   }
 
-  const { data, error } = await supabase.rpc('replace_user_reddit_account', {
+  const { data, error } = await supabase.rpc('admin_replace_user_reddit_account', {
     p_new_username: clean,
     p_reason: input.reason || 'Akun lama bermasalah/banned',
     p_initial_karma: karmaData.karma || 0,
