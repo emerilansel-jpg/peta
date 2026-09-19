@@ -1,6 +1,43 @@
 # Cold Start Handoff - Straight Ltd + PeTa
 
-> LATEST (2026-09-10): **STRAIGHT ADMIN REDDIT ON/OFF TRIGGER DEPLOYED & LIVE.**
+> LATEST (2026-09-19): **REDDIT ACCOUNT REPLACEMENT SECURITY HARDENED & STRAIGHT OPENGRAPH/SHELL ISOLATION DEPLOYED LIVE.**
+> - **1. Fix Security Reddit Replacement Authorization (Locked to Admin):**
+>   - Menutup celah di mana authenticated worker/army dapat mengeksekusi direct RPC `replace_user_reddit_account` secara mandiri tanpa approval admin, serta memalsukan nilai karma & usia akun (`p_initial_karma`, `p_initial_age_days`) untuk membuka task level tinggi.
+>   - Hak eksekusi `replace_user_reddit_account` dicabut (`REVOKE`) dari `PUBLIC`, `anon`, dan `authenticated`.
+>   - Dibuat fungsi wrapper baru `admin_replace_user_reddit_account` yang memvalidasi role admin via `public.is_admin()`.
+>   - Alur pergantian akun bagi army wajib melewati pengajuan 2 tahap: `request_reddit_account_replacement` -> review admin (`admin_review_replacement_request`).
+>   - Frontend `src/lib/api.ts` dimutakhirkan, dan suite `scripts/test-reddit-replacement.mjs` diverifikasi lulus 100%.
+>   - Migrasi `20260917000000_lock_reddit_account_replacement.sql` diaplikasikan ke Supabase staging (`duxzxizedtvnopfihllz`) dan production (`yorlsgzsawchpeeazcvi`).
+> - **2. Fix Isolasi OpenGraph (OG) & Static Shell Straight.ltd vs PenghasilanTambahan.com:**
+>   - **Root cause issue:** Cloudflare Pages project `straight` men-deploy direktori `dist` yang sama persis dengan `peta`, di mana file root `index.html` adalah template PeTa. Social crawlers (WhatsApp, Facebook `facebookexternalhit`, LinkedIn, Twitter/X, Telegram) yang membaca raw HTML dari `https://www.straight.ltd/` mendapatkan metadata PeTa ("Penghasilan Tambahan Online", `penghasilantambahan.com`).
+>   - **Solusi permanen:**
+>     - Dibuat skrip `scripts/build-straight-dist.mjs` yang menyalin `dist` menjadi `dist-straight` dan menimpa `index.html` dengan `straight.html` (metadata Straight Ltd murni).
+>     - Pipeline build `package.json` otomatis meng-generate `dist` (PeTa) dan `dist-straight` (Straight) saat `npm run build`.
+>     - Ditambahkan npm scripts: `deploy:peta`, `deploy:straight`, dan `deploy:all`.
+>     - `functions/_middleware.ts` diperluas mengenali host preview `*.straight-4dv.pages.dev`.
+>     - Canonical `og:image` di `src/lib/brand.ts` distandarkan ke `https://www.straight.ltd/straight/og.png`.
+>   - **Verifikasi Live Berhasil (Tested via `facebookexternalhit/1.1`):**
+>     - `https://www.straight.ltd/` melayani:
+>       - `<title>Straight — Real People for Online Brand Visibility Tasks</title>`
+>       - `og:title`: `Straight — Real people for the online tasks that grow your brand`
+>       - `og:url`: `https://www.straight.ltd/`
+>       - `og:image`: `https://www.straight.ltd/straight/og.png`
+>       - `og:site_name`: `Straight Ltd`
+>     - `https://www.penghasilantambahan.com/` melayani:
+>       - `<title>Penghasilan Tambahan Online — Dibayar Cuma Buat Komentar | PeTa</title>`
+>       - `og:title`: `Penghasilan Tambahan Online — Dibayar Cuma Buat Komentar | PeTa`
+>       - `og:url`: `https://penghasilantambahan.com/`
+>       - `og:image`: `https://penghasilantambahan.com/og.png`
+>       - `og:site_name`: `PenghasilanTambahan.com (PeTa)`
+> - **Deployments:**
+>   - GitHub: Commit `e7eabe5` & `16dc211` di branch `fix/qa-core-hardening`.
+>   - Cloudflare Pages:
+>     - PeTa: https://6271bc0e.peta-cvm.pages.dev (`dist`)
+>     - Straight: https://c784978d.straight-4dv.pages.dev (`dist-straight`)
+>   - Supabase staging (`duxzxizedtvnopfihllz`): Migrasi `20260917000000` applied.
+>   - Supabase prod (`yorlsgzsawchpeeazcvi`): Migrasi `20260917000000` applied.
+>
+> Previous (2026-09-10): **STRAIGHT ADMIN REDDIT ON/OFF TRIGGER DEPLOYED & LIVE.**
 > - **Reddit Service Master Switch di Straight Admin (`/admin/settings`):** Ditambahkan panel kontrol khusus untuk mem-pause / mengaktifkan intake pemesanan komentar Reddit secara instan.
 >   - **ON:** Klien dapat memesan komentar Reddit (wajib pre-screening AI, dispatch approval admin di PeTa, batas bukti tayang 72 jam).
 >   - **OFF (Pause):** Seluruh pemesanan komentar Reddit di Straight ditolak/di-pause baik di UI (`RedditNewOrder.tsx`, `RankingForumPage.tsx`) maupun di level trigger database (`guard_straight_screening`).
