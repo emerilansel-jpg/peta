@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/build-straight-dist.mjs",
+    "deploy:peta": "wrangler pages deploy dist --project-name=peta --branch=main --commit-dirty=true",
+    "deploy:straight": "wrangler pages deploy dist-straight --project-name=straight --branch=main --commit-dirty=true",
+    "deploy:all": "npm run build && npm run deploy:peta && npm run deploy:straight",
     "lint": "eslint .",
     "test": "node scripts/test-contributor-backend.mjs && node scripts/test-reddit-replacement.mjs && node scripts/test-straight-screening.mjs && node scripts/test-security-and-regression.mjs",
     "test:parity": "node scripts/check-schema-parity.mjs",

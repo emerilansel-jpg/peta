@@ -16,7 +16,7 @@ export const onRequest: PagesFunction = async (context) => {
   }
 
   // straight.ltd hosts: fetch the shell file and return its content directly
-  const isStraight = /(^|\.)straight\.ltd(?::\d+)?$/i.test(host);
+  const isStraight = /(^|\.)straight\.ltd(?::\d+)?$/i.test(host) || host.includes('straight');
   if (isStraight) {
     const shellResp = await env.ASSETS.fetch(new URL('/straight.html', url));
     const body = await shellResp.text();
