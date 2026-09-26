@@ -49,7 +49,10 @@ async function main() {
   const columnQuery = `
     SELECT table_name, column_name
     FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name IN ('task_assignments', 'tasks', 'payouts', 'reddit_army_profiles')
+    WHERE table_schema = 'public' AND table_name IN (
+      'task_assignments', 'tasks', 'payouts', 'reddit_army_profiles',
+      'order_tickets', 'ticket_messages', 'reviews', 'feature_requests', 'app_secrets'
+    )
     ORDER BY table_name, column_name;
   `;
 

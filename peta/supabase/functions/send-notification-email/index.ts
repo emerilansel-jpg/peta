@@ -18,6 +18,8 @@
 import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 // @ts-ignore - Deno runtime, will be resolved at deploy
 import nodemailer from 'npm:nodemailer';
+// @ts-ignore - Deno runtime, will be resolved at deploy
+import { createClient } from 'npm:@supabase/supabase-js@2.45.0';
 
 interface EmailRequest {
   to: string;
@@ -40,6 +42,10 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
+
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') || '';
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
 // Tailwind-like inline email styles (works in most email clients)
 function emailTemplate(payload: EmailRequest, link?: string): string {
@@ -97,6 +103,30 @@ serve(async (req: Request) => {
       status: 405,
       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
     });
+  }
+
+  const authHeader = req.headers.get('Authorization') || '';
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+  if (!token) {
+    return new Response(JSON.stringify({ error: 'unauthenticated' }), {
+      status: 401,
+      headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+    });
+  }
+
+  // Allow service_role key or authenticated user
+  const isServiceRole = SUPABASE_SERVICE_ROLE_KEY && token === SUPABASE_SERVICE_ROLE_KEY;
+  if (!isServiceRole) {
+    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: userData, error: userErr } = await userClient.auth.getUser(token);
+    if (userErr || !userData?.user) {
+      return new Response(JSON.stringify({ error: 'invalid_auth_token' }), {
+        status: 401,
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
+    }
   }
 
   try {

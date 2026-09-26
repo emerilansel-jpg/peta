@@ -15,11 +15,30 @@ function json(body: unknown, status = 200) {
 }
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') || '';
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
+
+  const authHeader = req.headers.get('Authorization') || '';
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+  if (!token) {
+    return json({ error: 'unauthenticated' }, 401);
+  }
+
+  // Verify caller is admin or service_role
+  const isServiceRole = SUPABASE_SERVICE_ROLE_KEY && token === SUPABASE_SERVICE_ROLE_KEY;
+  if (!isServiceRole) {
+    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: isAdmin, error: adminErr } = await userClient.rpc('is_admin');
+    if (adminErr || !isAdmin) {
+      return json({ error: 'admin only' }, 403);
+    }
+  }
 
   try {
     const body = await req.json().catch(() => ({}));

@@ -725,8 +725,8 @@ function ReferralHero({
           Ajak teman = +Rp20K masuk saldo
         </h1>
         <p className="text-sm opacity-95 mb-3">
-          Tiap teman daftar pakai kode kamu, <b>kamu dapat Rp20K, dia dapat Rp25K</b>.
-          Berlaku selama slot founding 100 belum penuh.
+          Tiap teman daftar pakai kode kamu, <b>kamu dapat Rp20K & temanmu dapat Rp20K</b>.
+          Bonus referral tetap berlaku tanpa batas kuota!
         </p>
 
         {/* Mini scarcity bar — replaces fake "live activity" claims */}

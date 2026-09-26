@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { isStraightHost } from './modules/reddit/lib/path';
 import { ToastProvider } from './components/Toast';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { RouteMeta } from './components/RouteMeta';
 
 // Pages
 import { Landing } from './pages/Landing';
@@ -142,6 +143,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ToastProvider />
       <BrowserRouter>
+        <RouteMeta />
         <ErrorBoundary>
         <Routes>
           {/* Public Routes */}

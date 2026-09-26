@@ -25,8 +25,9 @@
 //   { "user_ids": ["uuid1", ...] }  // empty = all phase2/resigning users
 //
 // Authentication: caller MUST send the service-role key in the
-// Authorization header (anon key is rejected — bypasses RLS).
+// Authorization header OR be an authenticated admin.
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 
 const CLIENT_ID = Deno.env.get('REDDIT_CLIENT_ID') || '';
 const USER_AGENT = Deno.env.get('REDDIT_USER_AGENT')
@@ -273,6 +274,22 @@ async function recordActivity(opts: {
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: CORS });
+  }
+
+  const authHeader = req.headers.get('Authorization') || '';
+  const token = authHeader.replace(/^Bearer\s+/i, '');
+  if (!token) {
+    return json({ ok: false, error: 'unauthorized' }, 401);
+  }
+
+  if (token !== SERVICE_ROLE) {
+    const userClient = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY') || '', {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: isAdminData, error: adminErr } = await userClient.rpc('is_admin');
+    if (adminErr || !isAdminData) {
+      return json({ ok: false, error: 'forbidden' }, 403);
+    }
   }
 
   const startedAt = Date.now();

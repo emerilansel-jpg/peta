@@ -24,7 +24,7 @@ const FAQS = [
   },
   {
     q: '💰 Kapan saldo bisa dicairkan?',
-    a: 'Minimal saldo Rp150.000 baru bisa cair. Proses payout 24 jam kerja setelah admin mark sebagai paid. Transfer ke e-wallet (Dana, OVO, GoPay) atau bank.',
+    a: 'Tanpa minimum payout untuk saldo dari hasil task (bonus pendaftaran & referral kebuka setelah kamu menghasilkan minimal Rp100.000 dari task). Payout diproses oleh admin ke e-wallet (Dana, OVO, GoPay) atau transfer bank.',
   },
   {
     q: '📱 Kok saldo ada yang "locked"?',

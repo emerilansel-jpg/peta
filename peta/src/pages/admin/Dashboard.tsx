@@ -1,12 +1,24 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { Users, ListChecks, ClipboardCheck, Link as LinkIcon, ArrowUpRight, Trophy, CheckCircle2, XCircle, TrendingUp, DollarSign } from 'lucide-react';
+import { Users, ListChecks, ClipboardCheck, Link as LinkIcon, ArrowUpRight, Trophy, CheckCircle2, XCircle, TrendingUp, DollarSign, ShieldAlert, ShieldCheck, AlertTriangle, Flame, Target } from 'lucide-react';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
 import { supabase } from '../../lib/supabase';
 import { adminGetReferralLeaderboard } from '../../lib/api';
 
 export function AdminDashboard() {
+  const { data: growth } = useQuery({
+    queryKey: ['adminGrowthDashboard'],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc('admin_get_growth_dashboard', { p_days: 14 });
+      if (error) {
+        console.warn('admin_get_growth_dashboard error:', error);
+        return null;
+      }
+      return data;
+    },
+    refetchInterval: 30_000,
+  });
   const { data: stats } = useQuery({
     queryKey: ['adminStats'],
     queryFn: async () => {
@@ -98,6 +110,95 @@ export function AdminDashboard() {
         <p className="text-xs uppercase tracking-wide font-bold text-muted">Admin Console</p>
         <h1 className="text-2xl sm:text-3xl font-extrabold">Dashboard</h1>
       </div>
+
+      {/* OPERATING SUPPLY GATE — PIC Growth Engine */}
+      {growth?.gate && (
+        <Card className={`mb-6 p-4 border-2 ${
+          growth.gate.status === 'STOP'
+            ? 'border-red-400 bg-red-50/50'
+            : growth.gate.status === 'LOW'
+            ? 'border-yellow-400 bg-yellow-50/50'
+            : 'border-emerald-400 bg-emerald-50/40'
+        }`}>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-black/5">
+            <div className="flex items-center gap-2.5">
+              {growth.gate.status === 'STOP' ? (
+                <div className="w-9 h-9 rounded-xl bg-red-500 text-white grid place-items-center shrink-0">
+                  <ShieldAlert size={20} />
+                </div>
+              ) : growth.gate.status === 'LOW' ? (
+                <div className="w-9 h-9 rounded-xl bg-yellow-500 text-white grid place-items-center shrink-0">
+                  <AlertTriangle size={20} />
+                </div>
+              ) : (
+                <div className="w-9 h-9 rounded-xl bg-emerald-500 text-white grid place-items-center shrink-0">
+                  <ShieldCheck size={20} />
+                </div>
+              )}
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-extrabold text-dark">Operating Supply Gate</h2>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-black uppercase tracking-wider ${
+                    growth.gate.status === 'STOP'
+                      ? 'bg-red-600 text-white'
+                      : growth.gate.status === 'LOW'
+                      ? 'bg-yellow-600 text-white'
+                      : 'bg-emerald-600 text-white'
+                  }`}>
+                    GATE {growth.gate.status}
+                  </span>
+                </div>
+                <p className="text-xs text-muted">
+                  {growth.gate.status === 'STOP'
+                    ? 'Slot task habis (0). Hentikan promosi / referral push, cari supply task baru.'
+                    : growth.gate.status === 'LOW'
+                    ? 'Slot task menipis dibanding active army. Prioritaskan aktivasi, jangan scale iklan.'
+                    : 'Supply task aman. Siap menerima demand army baru.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 text-xs font-bold shrink-0">
+              <div>
+                <span className="text-muted block text-[10px] uppercase">Open Slots</span>
+                <span className="text-lg font-black text-dark">{growth.gate.open_slots}</span>
+              </div>
+              <div>
+                <span className="text-muted block text-[10px] uppercase">Active Army (14d)</span>
+                <span className="text-lg font-black text-primary">{growth.gate.active_army_14d}</span>
+              </div>
+              <div>
+                <span className="text-muted block text-[10px] uppercase">Review Backlog</span>
+                <span className="text-lg font-black text-orange-600">{growth.gate.submitted_backlog}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* First-task funnel metrics */}
+          <div className="pt-3 grid grid-cols-2 sm:grid-cols-5 gap-2 text-center text-xs">
+            <div className="bg-white/80 rounded-lg p-2 ring-1 ring-black/5">
+              <span className="text-[10px] text-muted block uppercase">Daftar Army</span>
+              <span className="font-extrabold text-base">{growth.funnel?.total_registered_army ?? 0}</span>
+            </div>
+            <div className="bg-white/80 rounded-lg p-2 ring-1 ring-black/5">
+              <span className="text-[10px] text-muted block uppercase">Onboarded</span>
+              <span className="font-extrabold text-base text-blue-600">{growth.funnel?.onboarded_total ?? 0}</span>
+            </div>
+            <div className="bg-white/80 rounded-lg p-2 ring-1 ring-black/5">
+              <span className="text-[10px] text-muted block uppercase">Ever Claim</span>
+              <span className="font-extrabold text-base text-purple-600">{growth.funnel?.ever_claimed_task ?? 0}</span>
+            </div>
+            <div className="bg-white/80 rounded-lg p-2 ring-1 ring-black/5">
+              <span className="text-[10px] text-muted block uppercase">Ever Approved</span>
+              <span className="font-extrabold text-base text-emerald-600">{growth.funnel?.ever_approved_task ?? 0}</span>
+            </div>
+            <div className="bg-white/80 rounded-lg p-2 ring-1 ring-black/5 col-span-2 sm:col-span-1">
+              <span className="text-[10px] text-muted block uppercase font-bold text-primary">Active Army (14d)</span>
+              <span className="font-black text-base text-primary">{growth.funnel?.active_14d_north_star ?? 0}</span>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Stats grid */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
@@ -227,6 +328,77 @@ export function AdminDashboard() {
             </tbody>
           </table>
         </Card>
+      )}
+
+      {/* Campaign Attribution */}
+      {growth?.campaigns && growth.campaigns.length > 0 && (
+        <div className="mt-8 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-extrabold uppercase tracking-wide text-muted flex items-center gap-2">
+              <Target size={14} className="text-primary" /> Campaign & Channel Attribution
+            </h2>
+            <span className="text-[11px] text-muted">first-touch attribution</span>
+          </div>
+          <Card padding="sm" className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left">
+                  <th className="py-1.5 pr-2 text-[10px] uppercase font-bold text-muted">Kanal / Source</th>
+                  <th className="py-1.5 px-2 text-[10px] uppercase font-bold text-muted">Campaign</th>
+                  <th className="py-1.5 px-2 text-[10px] uppercase font-bold text-muted text-right">Daftar</th>
+                  <th className="py-1.5 px-2 text-[10px] uppercase font-bold text-muted text-right">Onboarded</th>
+                  <th className="py-1.5 px-2 text-[10px] uppercase font-bold text-muted text-right">CR Onboard</th>
+                </tr>
+              </thead>
+              <tbody>
+                {growth.campaigns.map((c: any, i: number) => {
+                  const cr = c.signups > 0 ? ((c.onboarded / c.signups) * 100).toFixed(1) : '0';
+                  return (
+                    <tr key={`${c.source}-${c.campaign}-${i}`} className="border-b border-border last:border-0 hover:bg-light/50">
+                      <td className="py-2 pr-2 font-bold">{c.source}</td>
+                      <td className="py-2 px-2 text-xs text-muted">{c.campaign}</td>
+                      <td className="py-2 px-2 text-right tabular-nums font-bold">{c.signups}</td>
+                      <td className="py-2 px-2 text-right tabular-nums text-blue-600 font-bold">{c.onboarded}</td>
+                      <td className="py-2 px-2 text-right tabular-nums text-xs">{cr}%</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </Card>
+        </div>
+      )}
+
+      {/* Reactivation Segments Quick Action */}
+      {growth?.reactivation_segments && (
+        <div className="mt-8 mb-6">
+          <h2 className="text-sm font-extrabold uppercase tracking-wide text-muted mb-3 flex items-center gap-2">
+            <Flame size={14} className="text-orange-500" /> Reactivation & Operational Follow-ups
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Card padding="sm" className="bg-orange-50/50 border border-orange-200">
+              <p className="text-[10px] uppercase font-bold text-orange-800">Task Belum Submit (&gt;6 jam)</p>
+              <p className="text-2xl font-black text-orange-600">{growth.reactivation_segments.stalled_claims ?? 0}</p>
+              <p className="text-xs text-muted mt-1">Assignment in-progress yang belum kirim bukti</p>
+            </Card>
+
+            <Card padding="sm" className="bg-blue-50/50 border border-blue-200">
+              <p className="text-[10px] uppercase font-bold text-blue-800">Menunggu Review Admin</p>
+              <p className="text-2xl font-black text-blue-600">{growth.reactivation_segments.submitted_awaiting_approval ?? 0}</p>
+              <p className="text-xs text-muted mt-1">
+                <Link to="/admin/approval" className="underline font-bold text-blue-700">Buka Approval Queue →</Link>
+              </p>
+            </Card>
+
+            <Card padding="sm" className="bg-emerald-50/50 border border-emerald-200">
+              <p className="text-[10px] uppercase font-bold text-emerald-800">Opt-in Notifikasi WA</p>
+              <p className="text-2xl font-black text-emerald-600">{growth.reactivation_segments.opted_in_reactivation ?? 0}</p>
+              <p className="text-xs text-muted mt-1">
+                <Link to="/admin/broadcast" className="underline font-bold text-emerald-700">Kirim Broadcast Task →</Link>
+              </p>
+            </Card>
+          </div>
+        </div>
       )}
     </Layout>
   );

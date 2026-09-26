@@ -5,7 +5,7 @@ import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { toast } from '../components/Toast';
-import { claimOnboardingBonus, getFoundingMembers, type OnboardingStep } from '../lib/api';
+import { claimOnboardingBonus, getFoundingMembers, completeOnboarding, listEligibleTasksForUser, type OnboardingStep } from '../lib/api';
 import { WHATSAPP_GROUP_URL } from '../lib/config';
 import { ConfettiBurst } from '../components/Confetti';
 import { ArrowRight, ExternalLink } from 'lucide-react';
@@ -32,9 +32,14 @@ export function Onboarding() {
     requestAnimationFrame(() => setConfettiActive(true));
   };
 
-  const safeClaim = async (step: OnboardingStep) => {
-    try { await claimOnboardingBonus(step); }
-    catch (e) { console.warn('claimOnboardingBonus failed:', step, e); }
+  const safeClaim = async (step: OnboardingStep): Promise<boolean> => {
+    try {
+      await claimOnboardingBonus(step);
+      return true;
+    } catch (e) {
+      console.warn('claimOnboardingBonus failed:', step, e);
+      return false;
+    }
   };
 
   const lsKey = (uid: string) => `onboarding_completed:${uid}`;
@@ -125,12 +130,18 @@ export function Onboarding() {
       await supabase.from('users').update({ whatsapp: cleaned }).eq('id', user.id);
     }
     if (!completedSteps.includes(1)) {
-      markStepComplete(1);
       if (!foundingFull) {
-        await safeClaim('signup');
-        celebrate();
-        toast.success('+Rp25.000 masuk saldo! 🎉');
+        const ok = await safeClaim('signup');
+        if (ok) {
+          markStepComplete(1);
+          celebrate();
+          toast.success('+Rp25.000 masuk saldo! 🎉');
+        } else {
+          toast.error('Gagal klaim bonus. Silakan coba lagi.');
+          return;
+        }
       } else {
+        markStepComplete(1);
         toast('Bonus founding sudah penuh — kamu tetap bisa kerjain task 💪');
       }
     }
@@ -143,10 +154,15 @@ export function Onboarding() {
       return;
     }
     if (!completedSteps.includes(2)) {
-      markStepComplete(2);
-      await safeClaim('wa_group');
-      celebrate();
-      toast.success('+Rp10.000 masuk saldo! 🎊');
+      const ok = await safeClaim('wa_group');
+      if (ok) {
+        markStepComplete(2);
+        celebrate();
+        toast.success('+Rp10.000 masuk saldo! 🎊');
+      } else {
+        toast.error('Gagal klaim bonus WhatsApp. Silakan coba lagi.');
+        return;
+      }
     }
     setCurrentStep(3);
   };
@@ -157,18 +173,35 @@ export function Onboarding() {
       return;
     }
     if (!completedSteps.includes(3)) {
-      markStepComplete(3);
-      await safeClaim('warp');
-      celebrate();
-      toast.success('+Rp15.000 masuk saldo! Total bonus Rp50.000 ✨');
+      const ok = await safeClaim('warp');
+      if (ok) {
+        markStepComplete(3);
+        celebrate();
+        toast.success('+Rp15.000 masuk saldo! Total bonus Rp50.000 ✨');
+      } else {
+        toast.error('Gagal klaim bonus WARP. Silakan coba lagi.');
+        return;
+      }
     }
     setCurrentStep(4);
   };
 
-  const handleStepFinish = () => {
+  const handleStepFinish = async () => {
     markStepComplete(4);
+    await completeOnboarding();
     celebrate();
     toast.success('Selamat! Kamu siap mulai earning! 🚀');
+
+    // Langsung arahkan ke task pertama yang eligible bila tersedia
+    try {
+      const eligible = await listEligibleTasksForUser();
+      if (eligible && eligible.length > 0) {
+        navigate(`/task/${eligible[0].id}`);
+        return;
+      }
+    } catch (e) {
+      console.warn('Gagal memuat task pertama:', e);
+    }
     navigate('/tasks');
   };
 

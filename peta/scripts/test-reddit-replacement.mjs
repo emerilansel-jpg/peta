@@ -27,12 +27,16 @@ assert(sql.includes('p_initial_karma int'), 'Missing p_initial_karma param');
 assert(sql.includes('p_initial_age_days int'), 'Missing p_initial_age_days param');
 assert(sql.includes('p_user_id uuid'), 'Missing p_user_id param');
 assert(sql.includes('GRANT EXECUTE ON FUNCTION public.replace_user_reddit_account'), 'Missing original grant on replace_user_reddit_account');
-assert(lockSql.includes('REVOKE ALL ON FUNCTION public.replace_user_reddit_account(text, text, int, int, uuid)'), 'Direct replacement RPC revoke missing');
-assert(lockSql.includes('FROM PUBLIC, anon, authenticated;'), 'Direct replacement RPC must be inaccessible to clients');
+assert(
+  /REVOKE ALL ON FUNCTION public\.replace_user_reddit_account\(text, text, int, int, uuid\)[\s\S]*FROM PUBLIC, anon, authenticated;/i.test(lockSql),
+  'Direct replacement RPC must be inaccessible to clients',
+);
 assert(lockSql.includes('CREATE OR REPLACE FUNCTION public.admin_replace_user_reddit_account'), 'Missing admin replacement wrapper');
 assert(lockSql.includes('IF NOT public.is_admin() THEN'), 'Admin replacement wrapper must enforce admin role');
-assert(lockSql.includes('GRANT EXECUTE ON FUNCTION public.admin_replace_user_reddit_account(text, text, int, int, uuid)'), 'Admin wrapper grant missing');
-assert(lockSql.includes('TO authenticated;'), 'Authenticated admins need access to the guarded wrapper');
+assert(
+  /GRANT EXECUTE ON FUNCTION public\.admin_replace_user_reddit_account\(text, text, int, int, uuid\)[\s\S]*TO authenticated;/i.test(lockSql),
+  'Authenticated admins need access to the guarded wrapper',
+);
 
 // Check claim_challenge_task active check
 assert(sql.includes('ra.is_active, true) = true'), 'Missing active check in claim_challenge_task');
@@ -159,10 +163,18 @@ const req = simulateMemberRequest('u/fresh_account_2026', 'Akun lama shadowban')
 assert.strictEqual(req.status, 'pending', 'Request status must be pending');
 assert.strictEqual(accounts[0].is_active, false, 'Old account status check'); // from earlier test
 
-// 2. Member trying to submit second request while pending must throw
-assert.throws(() => {
-  simulateMemberRequest('u/another_one', 'test');
-}, /Sudah ada pengajuan pending/);
+	// 2. Member trying to submit second request while pending must throw
+	assert.throws(() => {
+	  simulateMemberRequest('u/another_one', 'test');
+	}, /Sudah ada pengajuan pending/);
 
-console.log('   ✓ 2-step approval flow & duplicate request prevention verified.');
-console.log('\nALL TESTS PASSED: Reddit account replacement flow is solid and safe.');
+	console.log('   ✓ 2-step approval flow & duplicate request prevention verified.');
+
+	console.log('5. Verifying active account filtering for Task execution...');
+	// TaskDetail filter: only active accounts must be returned
+	const activeAccounts = accounts.filter((a) => a.is_active !== false);
+	assert.strictEqual(activeAccounts.length, 1, 'Only the active account should be returned for task selection');
+	assert.strictEqual(activeAccounts[0].username, 'fresh_account_2026', 'Active account must be the new replacement account');
+	console.log('   ✓ Only 1 active account returned, old replaced accounts cleanly hidden.');
+
+	console.log('\nALL TESTS PASSED: Reddit account replacement flow is solid and safe.');

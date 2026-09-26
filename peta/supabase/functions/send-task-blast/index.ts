@@ -13,6 +13,7 @@
 //   supabase functions deploy send-task-blast --project-ref <ref>
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -26,6 +27,10 @@ function json(body: unknown, status = 200) {
     headers: { ...CORS, 'Content-Type': 'application/json' },
   });
 }
+
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') || '';
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
 function normalizePhone(phone: string): string {
   let p = phone.replace(/\D/g, '');
@@ -85,14 +90,32 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
+  const authHeader = req.headers.get('Authorization') || '';
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+  if (!token) {
+    return json({ error: 'unauthenticated' }, 401);
+  }
+
+  // Verify caller is admin or service_role
+  const isServiceRole = SUPABASE_SERVICE_ROLE_KEY && token === SUPABASE_SERVICE_ROLE_KEY;
+  if (!isServiceRole) {
+    const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: isAdmin, error: adminErr } = await userClient.rpc('is_admin');
+    if (adminErr || !isAdmin) {
+      return json({ error: 'admin only' }, 403);
+    }
+  }
+
   try {
     const payload: BlastPayload = await req.json();
     if (!payload.task_id) {
       return json({ error: 'task_id_required' }, 400);
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const supabaseUrl = SUPABASE_URL;
+    const serviceRoleKey = SUPABASE_SERVICE_ROLE_KEY;
     const fonnteToken = Deno.env.get('FONNTE_TOKEN');
 
     if (!supabaseUrl || !serviceRoleKey) {

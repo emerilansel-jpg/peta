@@ -19,27 +19,25 @@ import { toast } from './Toast';
 
 const buildMessage = (link: string): string => {
   return (
-    `Kamu tau nggak ada platform yang bayar kamu cuma buat komentar?\n\n` +
-    `Aku baru dapat Rp50K dari komentar internet. Literally cuma komentar doang.\n\n` +
-    `Platform-nya PeTa — bayar Rp5K-Rp20K per komen, cair ke e-wallet dalam 24 jam.\n\n` +
-    `Sekarang lagi buka Founding 100. Artinya cuma 100 orang bisa masuk - dan udah hampir penuh.\n\n` +
-    `Kalau kamu mau coba, pakai link aku biar dapet bonus Rp25K ekstra langsung:\n` +
+    `Lagi coba platform microtask Indonesia buat nambah uang saku: PeTa.\n\n` +
+    `Kerjain task digital dari HP, bayaran Rp5K-Rp20K per task, bisa ditarik tanpa minimum payout.\n\n` +
+    `Daftar gratis tanpa deposit. Kalau pakai link undanganku, kita berdua dapet bonus referral Rp20.000:\n` +
     `${link}\n\n` +
-    `PERHATIAN: kalau slot habis, tutup permanen. Aku nggak bisa janjiin kamu masih bisa masuk.`
+    `Cobain yuk!`
   );
 };
 
 const shortMessage = (link: string) =>
-  `Aku gabung PeTa - dibayar Rp5K-20K per komen di internet, cair 24 jam. Founding 100 - sisa slot terbatas. Pakai link aku, dapet bonus Rp25K: ${link}`;
+  `Coba PeTa yuk — platform task digital dari HP, reward per task langsung masuk & tanpa minimum payout. Daftar pakai link aku dapat bonus Rp20K: ${link}`;
 
 const TWITTER_LIMIT = 280; // X / Twitter character limit (URLs count as 23)
 
 const buildTwitter = (link: string) => {
   // Tweet must fit in 280 chars — URL counts as 23 regardless of length.
   const reserved = 23 + 4; // url + " ... "
-  const headline = `Dibayar cuma buat komentar di internet. Rp5K-20K per komen, cair 24 jam ke e-wallet.`;
-  const scarcity = `Founding 100 - slot terbatas. Pake link gw dapet bonus Rp25K.`;
-  let body = `${headline}\n\n${scarcity}`;
+  const headline = `Dapat penghasilan tambahan dari task digital di internet. Reward per task transparan & tanpa minimum payout.`;
+  const promo = `Daftar gratis pake link ini dapet bonus referral Rp20K:`;
+  let body = `${headline}\n\n${promo}`;
   if (body.length + reserved > TWITTER_LIMIT) body = body.slice(0, TWITTER_LIMIT - reserved - 3) + '...';
   return `${body}\n\n${link}`;
 };

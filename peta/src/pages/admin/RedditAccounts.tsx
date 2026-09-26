@@ -34,6 +34,7 @@ type Row = {
   status_flag: StatusFlag;
   flagged_at: string | null;
   last_sync_error: string | null;
+  is_active?: boolean;
   users?: { email?: string; full_name?: string; whatsapp?: string };
 };
 
@@ -52,6 +53,7 @@ export function AdminRedditAccounts() {
   // the codetabs proxy (free tier, may rate-limit). 500ms gap = ~2 req/sec.
   const [bulkSync, setBulkSync] = useState<{ running: boolean; current: number; total: number; updated: number; failed: number; lastUser: string } | null>(null);
   const [showProblemOnly, setShowProblemOnly] = useState(false);
+  const [showArchived, setShowArchived] = useState(false);
 
   const { data: accounts = [], isLoading } = useQuery<Row[]>({
     queryKey: ['allRedditAccounts'],
@@ -68,9 +70,9 @@ export function AdminRedditAccounts() {
     (a) => a.status_flag === 'suspended' || a.status_flag === 'not_found'
   ).length;
 
-  const visibleAccounts = showProblemOnly
-    ? accounts.filter((a) => a.status_flag === 'suspended' || a.status_flag === 'not_found')
-    : accounts;
+  const visibleAccounts = accounts
+    .filter((a) => (showArchived ? true : a.is_active !== false))
+    .filter((a) => (showProblemOnly ? (a.status_flag === 'suspended' || a.status_flag === 'not_found') : true));
 
   // Build a WhatsApp "fix your Reddit account" message for the owner of a
   // flagged account. Admin clicks → wa.me opens prefilled, admin hits send.
@@ -267,6 +269,16 @@ export function AdminRedditAccounts() {
                 <AlertTriangle size={14} /> {problemCount} bermasalah {showProblemOnly && '· tampil ✓'}
               </button>
             )}
+            <button
+              onClick={() => setShowArchived((s) => !s)}
+              className={`px-3 py-1.5 rounded-full text-xs font-bold transition ${
+                showArchived
+                  ? 'bg-gray-700 text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {showArchived ? 'Sembunyikan Arsip' : 'Tampilkan Arsip'}
+            </button>
             {bulkSync?.running ? (
               <>
                 <Button onClick={cancelBulkSync} variant="outline" size="sm" className="!border-danger !text-danger hover:!bg-danger hover:!text-white">
@@ -480,6 +492,11 @@ export function AdminRedditAccounts() {
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <p className="font-bold truncate">u/{a.username}</p>
+                        {a.is_active === false && (
+                          <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600">
+                            Arsip
+                          </span>
+                        )}
                         <span className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${flag.cls}`}>
                           {flag.emoji} {flag.label}
                         </span>
@@ -583,7 +600,14 @@ export function AdminRedditAccounts() {
                   const fixWaLink = a.users?.whatsapp ? buildWhatsappLink(a.users.whatsapp, buildFixMessage(a)) : null;
                   return (
                     <tr key={a.id} className={`border-b border-border last:border-0 hover:bg-light ${isProblem ? 'bg-danger/5' : ''}`}>
-                      <td className="px-2 py-3 font-bold">u/{a.username}</td>
+                      <td className="px-2 py-3 font-bold">
+                        u/{a.username}
+                        {a.is_active === false && (
+                          <span className="ml-1.5 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-600">
+                            Arsip
+                          </span>
+                        )}
+                      </td>
                       <td className="px-2 py-3 text-muted">{a.users?.email}</td>
                       <td className="px-2 py-3">
                         <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${flag.cls}`}>

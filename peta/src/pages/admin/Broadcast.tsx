@@ -226,11 +226,10 @@ export function AdminBroadcast() {
               ▸ Opsi B: Resend (kalo Spacemail ribet)
             </summary>
             <div className="mt-2 pl-3 border-l-2 border-primary/30 space-y-2 text-sm">
-              <p>Akun sudah dibuat:</p>
+              <p>Setup akun Resend melalui dashboard resmi:</p>
               <div className="bg-light rounded-lg p-2.5 text-xs font-mono">
                 <div>URL: <a href="https://resend.com/login" target="_blank" rel="noopener noreferrer" className="text-primary">resend.com/login</a></div>
-                <div>Email: <b>n311311@gmail.com</b></div>
-                <div>Password: <b>PetaResend!2026SecurePwd</b></div>
+                <div className="text-muted">Gunakan akun admin yang terdaftar di password manager resmi.</div>
               </div>
               <ol className="list-decimal pl-5 space-y-1">
                 <li>Login → API keys → Create → name "PeTa Prod" → Full access → copy <code>re_...</code> key</li>

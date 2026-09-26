@@ -16,7 +16,7 @@ type Member = {
   whatsapp: string | null;
   is_active: boolean;
   created_at: string;
-  reddit_accounts?: { username: string; karma: number; level: number }[];
+  reddit_accounts?: { username: string; karma: number; level: number; is_active?: boolean }[];
 };
 
 const formatDateTime = (iso: string) =>
@@ -35,7 +35,7 @@ export function AdminTeam() {
     queryFn: async () => {
       const { data } = await supabase
         .from('users')
-        .select('*, reddit_accounts(username, karma, level)')
+        .select('*, reddit_accounts(username, karma, level, is_active)')
         .eq('role', 'army')
         .order('created_at', { ascending: false });
       return (data as Member[]) || [];
@@ -120,7 +120,7 @@ export function AdminTeam() {
               </thead>
               <tbody>
                 {filtered.map((u) => {
-                  const acc = u.reddit_accounts?.[0];
+                  const acc = u.reddit_accounts?.find((a) => a.is_active !== false) || u.reddit_accounts?.[0];
                   return (
                     <tr key={u.id} className="border-b border-border last:border-0 hover:bg-light">
                       <td className="px-2 py-3 font-semibold">{u.full_name || u.email.split('@')[0]}</td>
@@ -183,7 +183,7 @@ export function AdminTeam() {
 }
 
 function MemberCard({ member, onEdit, onRefetch }: { member: Member; onEdit: () => void; onRefetch: () => void }) {
-  const acc = member.reddit_accounts?.[0];
+  const acc = member.reddit_accounts?.find((a) => a.is_active !== false) || member.reddit_accounts?.[0];
   return (
     <Card padding="sm">
       <div className="flex items-start justify-between gap-3 mb-2">

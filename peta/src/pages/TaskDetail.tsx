@@ -41,7 +41,11 @@ export function TaskDetail() {
       if (!data.user) { navigate('/login'); return; }
       setUser(data.user);
       const { data: accs } = await supabase
-        .from('reddit_accounts').select('*').eq('user_id', data.user.id);
+        .from('reddit_accounts')
+        .select('*')
+        .eq('user_id', data.user.id)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
       if (accs) {
         setAccounts(accs);
         setSelectedAccountId(accs[0]?.id || '');
@@ -700,7 +704,7 @@ export function TaskDetail() {
 
           {/* Example screenshot reference — visual mock so users know
               what counts as valid proof. CSS-only, no asset weight. */}
-          <ExampleScreenshot isUpvote={isUpvote} />
+          <ExampleScreenshot category={task.task_category || (isUpvote ? 'upvote' : 'comment')} />
         </StepCard>
 
         {/* ============ STEP 3 — UPLOAD BUKTI ============ */}
@@ -1056,59 +1060,81 @@ function memberSafePostingBrief(raw: string) {
 
 // ============================================================
 // ExampleScreenshot — CSS-only visual mock of what valid proof
-// looks like. Saves an asset download + always matches our brand.
+// looks like across categories. Saves asset downloads + matches brand.
 // ============================================================
-function ExampleScreenshot({ isUpvote }: { isUpvote: boolean }) {
+function ExampleScreenshot({ category }: { category: string }) {
+  const isUpvote = category === 'upvote' || category === 'reddit_upvote';
+  const isPref = category === 'preferred_source';
+  const isYT = category === 'youtube_upload';
+  const isLI = category.startsWith('linkedin');
+
   return (
     <div className="bg-light/60 rounded-xl p-3 ring-1 ring-black/5">
       <p className="text-[10px] uppercase font-bold tracking-wide text-muted mb-2">
-        Contoh screenshot yang benar
+        Contoh bukti yang valid
       </p>
       <div className="bg-white rounded-lg p-3 ring-1 ring-black/10 shadow-inner max-w-[280px] mx-auto">
-        {isUpvote ? (
-          <>
-            {/* Mock of Reddit upvote button — orange = upvoted */}
-            <div className="flex items-start gap-2.5">
-              <div className="flex flex-col items-center gap-1 shrink-0">
-                <div className="text-orange-500 text-2xl leading-none font-black animate-pulse">▲</div>
-                <div className="text-[10px] font-bold text-orange-500">142</div>
-                <div className="text-gray-300 text-xl leading-none">▼</div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="bg-gray-200 h-2.5 rounded w-4/5 mb-1.5" />
-                <div className="bg-gray-100 h-1.5 rounded w-3/5 mb-2" />
-                <div className="bg-gray-100 h-1.5 rounded w-2/5" />
-              </div>
+        {isPref ? (
+          <div className="flex items-center gap-2 py-1">
+            <div className="w-5 h-5 rounded-full bg-blue-500 text-white text-[10px] grid place-items-center font-bold">✓</div>
+            <div className="flex-1">
+              <div className="text-[10px] font-bold text-dark">Preferred Source Aktif</div>
+              <div className="bg-gray-100 h-2 rounded w-4/5 mt-1" />
             </div>
-            <div className="mt-3 pt-2 border-t border-gray-100 flex items-center gap-1.5 text-[9px] text-gray-400">
-              <span>r/example</span><span>-</span><span>2h ago</span>
+          </div>
+        ) : isYT ? (
+          <div className="flex items-center gap-2 py-1">
+            <div className="w-6 h-4 bg-red-600 rounded text-white text-[8px] grid place-items-center font-bold">▶</div>
+            <div className="flex-1">
+              <div className="text-[10px] font-bold text-dark">URL Video Publik</div>
+              <div className="text-[8px] text-gray-400">youtube.com/watch?v=...</div>
             </div>
-          </>
+          </div>
+        ) : isLI ? (
+          <div className="flex items-center gap-2 py-1">
+            <div className="w-5 h-5 bg-blue-700 rounded text-white text-[9px] grid place-items-center font-bold">in</div>
+            <div className="flex-1">
+              <div className="text-[10px] font-bold text-dark">Profil & Bukti Interaksi</div>
+              <div className="text-[8px] text-gray-400">Like / Follow / Komen aktif</div>
+            </div>
+          </div>
+        ) : isUpvote ? (
+          <div className="flex items-start gap-2.5">
+            <div className="flex flex-col items-center gap-1 shrink-0">
+              <div className="text-orange-500 text-2xl leading-none font-black animate-pulse">▲</div>
+              <div className="text-[10px] font-bold text-orange-500">142</div>
+              <div className="text-gray-300 text-xl leading-none">▼</div>
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="bg-gray-200 h-2.5 rounded w-4/5 mb-1.5" />
+              <div className="bg-gray-100 h-1.5 rounded w-3/5 mb-2" />
+              <div className="bg-gray-100 h-1.5 rounded w-2/5" />
+            </div>
+          </div>
         ) : (
-          <>
-            {/* Mock of a forum comment thread with user's comment highlighted */}
-            <div className="flex items-start gap-2">
-              <div className="w-6 h-6 bg-primary/20 rounded-full shrink-0" />
-              <div className="flex-1 min-w-0">
-                <div className="text-[9px] font-bold text-primary mb-1">username kamu</div>
-                <div className="bg-primary/10 ring-1 ring-primary/30 rounded-md p-2">
-                  <div className="bg-gray-300 h-1.5 rounded w-full mb-1" />
-                  <div className="bg-gray-300 h-1.5 rounded w-4/5 mb-1" />
-                  <div className="bg-gray-300 h-1.5 rounded w-2/3" />
-                </div>
-                <div className="flex gap-2 mt-1.5 text-[8px] text-gray-400">
-                  <span>Reply</span><span>Share</span>
-                </div>
+          <div className="flex items-start gap-2">
+            <div className="w-6 h-6 bg-primary/20 rounded-full shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-[9px] font-bold text-primary mb-1">username kamu</div>
+              <div className="bg-primary/10 ring-1 ring-primary/30 rounded-md p-2">
+                <div className="bg-gray-300 h-1.5 rounded w-full mb-1" />
+                <div className="bg-gray-300 h-1.5 rounded w-4/5 mb-1" />
+                <div className="bg-gray-300 h-1.5 rounded w-2/3" />
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
       <p className="text-[11px] text-muted mt-2 text-center leading-snug">
-        {isUpvote
-          ? 'Panah harus berwarna terang (orange/merah, tergantung tema). Sertakan URL bar juga biar admin verify.'
-          : 'Komentar dari username kamu harus terlihat. Kalau bisa sertakan URL bar dan waktu post.'
-        }
+        {isPref
+          ? 'Tangkapan layar harus memperlihatkan tombol Preferred Source aktif dan URL target.'
+          : isYT
+          ? 'Video harus berstatus Public / Unlisted dan link dapat diakses oleh admin.'
+          : isLI
+          ? 'Sertakan URL profil LinkedIn kamu dan screenshot yang memperlihatkan tindakan telah selesai.'
+          : isUpvote
+          ? 'Panah upvote harus berwarna aktif (orange/merah). Sertakan URL bar agar admin mudah memverifikasi.'
+          : 'Komentar dari username kamu harus terlihat jelas. Sertakan URL link postingan.'}
       </p>
     </div>
   );

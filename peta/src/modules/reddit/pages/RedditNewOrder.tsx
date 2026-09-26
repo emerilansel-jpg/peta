@@ -886,7 +886,7 @@ function ForumCommentOrderForm({
   const enabledFor = (url: string) =>
     straightEnabled(pricing, `${straightPlatformKey(url)}_comment_${mode}`, true);
   const unitCost = priceFor(targetUrl);
-  const effectiveQuantity = isBulk ? 1 : Math.max(1, Math.min(quantity, 500));
+  const effectiveQuantity = isBulk ? 1 : !wantsSuggestion ? 1 : Math.max(1, Math.min(quantity, 500));
   const cost = isBulk
     ? bulkQueue.reduce((sum, t) => sum + priceFor(t.url), 0)
     : unitCost * effectiveQuantity;
@@ -1257,15 +1257,18 @@ function ForumCommentOrderForm({
                 type="number"
                 min={1}
                 max={500}
-                value={quantity}
+                value={effectiveQuantity}
+                disabled={!wantsSuggestion}
                 onChange={(e) => setQuantity(Math.max(1, Math.min(500, parseInt(e.target.value) || 1)))}
-                className="w-28 px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-slate-900"
+                className={`w-28 px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-slate-900 ${
+                  !wantsSuggestion ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''
+                }`}
               />
-              <span className="text-sm text-slate-500">{effectiveQuantity} comment{quantity !== 1 ? 's' : ''} will be placed on this thread.</span>
+              <span className="text-sm text-slate-500">{effectiveQuantity} comment will be placed on this thread.</span>
             </div>
-            {!wantsSuggestion && quantity > 1 && (
-              <p className="mt-2 text-xs text-amber-700">
-                Self-written bulk comments will use the same text. Armies are instructed to adapt the wording naturally.
+            {!wantsSuggestion && (
+              <p className="mt-2 text-xs text-slate-500">
+                Quantity is 1 for self-written comments to prevent duplicate content flags on the target thread.
               </p>
             )}
           </div>

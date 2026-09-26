@@ -13,6 +13,7 @@
 // Deploy:
 //   supabase functions deploy send-peta-email --project-ref <ref>
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "npm:@supabase/supabase-js@2.45.0";
 import nodemailer from "npm:nodemailer";
 
 const CORS = {
@@ -20,6 +21,10 @@ const CORS = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 };
+
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') || '';
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 
 interface EmailRequest {
   to: string;
@@ -143,11 +148,37 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
+  const authHeader = req.headers.get('Authorization') || '';
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+  if (!token) {
+    return json({ error: 'unauthenticated' }, 401);
+  }
+
   try {
     const payload: EmailRequest = await req.json();
 
     if (!payload.to || !payload.subject || !payload.body) {
       return json({ error: 'missing_required_fields', fields: 'to, subject, body' }, 400);
+    }
+
+    // Authorization: service_role key can send to anyone; users can only send to themselves or must be admin.
+    const isServiceRole = SUPABASE_SERVICE_ROLE_KEY && token === SUPABASE_SERVICE_ROLE_KEY;
+    if (!isServiceRole) {
+      const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: userData, error: userErr } = await userClient.auth.getUser(token);
+      if (userErr || !userData?.user) {
+        return json({ error: 'invalid_auth_token' }, 401);
+      }
+
+      const callerUser = userData.user;
+      if (callerUser.email?.toLowerCase() !== payload.to.toLowerCase()) {
+        const { data: isAdmin, error: adminErr } = await userClient.rpc('is_admin');
+        if (adminErr || !isAdmin) {
+          return json({ error: 'forbidden_recipient' }, 403);
+        }
+      }
     }
 
     const smtpHost = Deno.env.get('SMTP_HOST');

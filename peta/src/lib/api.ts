@@ -782,6 +782,16 @@ export async function sendTaskApprovedEmail(to: string, fullName: string, taskTi
 //   fromWork = tasks              (was: tasks + signup_bonus)
 //   referral = bonus              (now includes signup_bonus too)
 export const BONUS_UNLOCK_FLOOR = 100000;
+export const MIN_PAYOUT = 0;
+
+export async function completeOnboarding(): Promise<void> {
+  try {
+    const { error } = await supabase.rpc('complete_onboarding');
+    if (error) console.warn('complete_onboarding error:', error);
+  } catch (err) {
+    console.warn('complete_onboarding exception:', err);
+  }
+}
 
 export async function getTotalEarnings(_userId: string): Promise<{
   tasks: number;
@@ -1020,6 +1030,17 @@ export async function getFoundingMembers() {
 }
 
 export async function getCommunityFeed(limit = 12): Promise<CommunityEvent[]> {
+  const { data: rpcRows, error } = await supabase.rpc('get_public_community_feed', { p_limit: limit });
+  if (!error && Array.isArray(rpcRows) && rpcRows.length > 0) {
+    return rpcRows.map((r: any) => ({
+      kind: r.kind,
+      who: r.who,
+      amount: r.amount || undefined,
+      at: r.created_at,
+      rel: relativeTime(r.created_at),
+    }));
+  }
+
   const [signups, payouts, refs] = await Promise.all([
     supabase
       .from('users')

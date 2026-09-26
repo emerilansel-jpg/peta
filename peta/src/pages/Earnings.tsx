@@ -7,13 +7,10 @@ import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { CardSkeleton } from '../components/Skeleton';
 import { supabase } from '../lib/supabase';
-import { getPayoutHistory, requestPayout, getTotalEarnings, getMyPendingAssignments, listEligibleTasksForUser, type EligibleTask, sendPayoutRequestEmail } from '../lib/api';
+import { getPayoutHistory, requestPayout, getTotalEarnings, getMyPendingAssignments, listEligibleTasksForUser, type EligibleTask, sendPayoutRequestEmail, BONUS_UNLOCK_FLOOR, MIN_PAYOUT } from '../lib/api';
 import { toast } from '../components/Toast';
 
-// Bonus (signup + referral) tetap locked sampai Rp100K task earnings.
-const BONUS_UNLOCK_FLOOR = 100000;
-const MIN_PAYOUT = 20000;
-const PAYOUT_PRESETS = [20000, 50000, 100000, 500000];
+const PAYOUT_PRESETS = [5000, 10000, 20000, 50000, 100000];
 
 const EWalletOptions = ['Shopee Pay', 'Dana', 'Gopay'] as const;
 const BankOptions = ['Jago', 'Mandiri', 'BRI', 'BCA'] as const;
@@ -136,14 +133,14 @@ export function Earnings() {
   const bonusUnlocked = earningsBreakdown.bonusUnlocked;
   const bonusShortfall = Math.max(BONUS_UNLOCK_FLOOR - earningsBreakdown.tasks, 0);
   const bonusProgress = Math.min((earningsBreakdown.tasks / BONUS_UNLOCK_FLOOR) * 100, 100);
-  // Bisa narik = saldo cair sudah mencapai minimum Rp20K
-  const canWithdraw = available >= MIN_PAYOUT;
+  // Bisa narik = saldo cair > 0
+  const canWithdraw = available > 0;
   // Quick-win math: cheapest reward → tasksToUnlock for bonus
   const quickReward = cheapestTask?.reward_amount || 1000;
   const tasksToUnlock = bonusShortfall > 0 ? Math.ceil(bonusShortfall / quickReward) : 0;
 
   const submit = () => {
-    if (amount < MIN_PAYOUT) { toast.error(`Minimum tarik Rp${MIN_PAYOUT.toLocaleString('id-ID')}`); return; }
+    if (amount <= 0) { toast.error('Jumlah penarikan harus lebih dari 0'); return; }
     if (amount > available) {
       if (!bonusUnlocked && earningsBreakdown.bonus > 0) {
         toast.error(`Bonus (signup+referral) kebuka setelah Rp${BONUS_UNLOCK_FLOOR.toLocaleString('id-ID')} dari task. Kurang Rp${bonusShortfall.toLocaleString('id-ID')} lagi.`);
@@ -210,10 +207,8 @@ export function Earnings() {
         </p>
         <p className="text-xs opacity-90 mb-4">
           {canWithdraw
-            ? 'Cair kapan aja. Minimum tarik Rp20K per request.'
-            : available > 0
-              ? 'Minimum tarik Rp20K. Yuk earning lagi buat nyampe minimum.'
-              : 'Belum ada saldo. Kerjain task pertama → langsung cair anytime.'}
+            ? 'Cair kapan aja. Tanpa minimum penarikan per request.'
+            : 'Belum ada saldo. Kerjain task pertama → langsung cair anytime.'}
         </p>
 
         {/* Action — STATE A: tarik (saldo > 0, no minimum) */}
@@ -267,7 +262,7 @@ export function Earnings() {
           <ul className="text-[12px] text-blue-950/90 space-y-1.5 leading-snug">
             <li className="flex items-start gap-2">
               <span className="font-bold text-green-700 shrink-0">1.</span>
-              <span><b>Saldo dari task</b> (komen + upvote approved) → <b>cair kapan aja</b>. Minimum tarik Rp20K per request. 🎉</span>
+              <span><b>Saldo dari task</b> (komen + upvote approved) → <b>cair kapan aja tanpa minimum</b>. 🎉</span>
             </li>
             <li className="flex items-start gap-2">
               <span className="font-bold text-orange-700 shrink-0">2.</span>
@@ -698,8 +693,8 @@ export function Earnings() {
               </div>
 
               <div className="bg-light rounded-xl p-3 mb-4 text-xs text-muted space-y-0.5">
-                <p>✅ <b>Minimum Rp{MIN_PAYOUT.toLocaleString('id-ID')}</b> per penarikan</p>
-                <p>⏱️ Max 24 jam proses transfer</p>
+                <p>✅ <b>Tanpa minimum</b> penarikan saldo</p>
+                <p>⏱️ Transfer diproses admin</p>
                 <p>🏦 Transfer ke {paymentType === 'ewallet' ? 'e-wallet' : 'rekening'} yang kamu pilih</p>
               </div>
 
@@ -708,7 +703,7 @@ export function Earnings() {
                 variant="primary"
                 size="lg"
                 loading={payoutMutation.isPending}
-                disabled={amount < MIN_PAYOUT || amount > available}
+                disabled={amount <= 0 || amount > available}
                 fullWidth
               >
                 Request Rp{amount.toLocaleString('id-ID')}

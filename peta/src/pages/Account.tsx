@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, MessageCircle, Pencil, Check, AlertTriangle, Target, X, Copy, Trash2 } from 'lucide-react';
+import { LogOut, MessageCircle, Pencil, Check, AlertTriangle, Target, X, Copy, Trash2, Bell } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
@@ -33,7 +33,7 @@ export function Account() {
     queryFn: async () => {
       const { data } = await supabase
         .from('users')
-        .select('email, full_name, whatsapp')
+        .select('email, full_name, whatsapp, reactivation_opt_in')
         .eq('id', user!.id)
         .maybeSingle();
       return data;
@@ -122,6 +122,22 @@ export function Account() {
     else toast.error('Gagal menyalin — copy manual ya');
   };
 
+  const toggleReactivation = async () => {
+    if (!user?.id) return;
+    const nextVal = !profile?.reactivation_opt_in;
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ reactivation_opt_in: nextVal })
+        .eq('id', user.id);
+      if (error) throw error;
+      toast.success(nextVal ? 'Notifikasi task aktif 🔔' : 'Notifikasi task dinonaktifkan');
+      refetchProfile();
+    } catch {
+      toast.error('Gagal mengubah pengaturan notifikasi');
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/login');
@@ -206,6 +222,31 @@ export function Account() {
         </div>
       </Card>
 
+      {/* Notifikasi Task WhatsApp */}
+      <Card className="mb-3" padding="sm">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 bg-primary/15 text-primary rounded-lg grid place-items-center shrink-0">
+              <Bell size={18} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase font-bold tracking-wide text-muted">Notifikasi Task</p>
+              <p className="text-xs font-semibold text-dark truncate">Kirim info task baru lewat WhatsApp</p>
+            </div>
+          </div>
+          <button
+            onClick={toggleReactivation}
+            className={`tap-shrink px-3 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 ${
+              profile?.reactivation_opt_in
+                ? 'bg-success text-white'
+                : 'bg-light text-muted ring-1 ring-border'
+            }`}
+          >
+            {profile?.reactivation_opt_in ? 'Aktif' : 'Mati'}
+          </button>
+        </div>
+      </Card>
+
       {/* Referral */}
       <Card className="mb-5 bg-gradient-to-br from-yellow-50 to-orange-50 ring-yellow-200">
         <div className="flex items-start justify-between gap-3 mb-3">
@@ -280,7 +321,7 @@ export function Account() {
 
         {refAnalytics && refAnalytics.uniqueClicks >= 5 && refAnalytics.signups === 0 && (
           <p className="text-xs text-warning font-semibold mt-3 text-center">
-            ⚡ Banyak klik tapi belum ada yang daftar. Coba tweak caption — soroti bonus Rp25K + scarcity.
+            ⚡ Banyak klik tapi belum ada yang daftar. Coba tweak caption — soroti tugas mudah tanpa deposit & bonus referral Rp20K.
           </p>
         )}
         {refAnalytics && refAnalytics.signups > 0 && (

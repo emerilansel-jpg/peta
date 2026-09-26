@@ -15,6 +15,7 @@ export function Register() {
   const [referralCode, setReferralCode] = React.useState(params.get('ref') || '');
   const [showRefField, setShowRefField] = React.useState(!!params.get('ref'));
   const [showPwd, setShowPwd] = React.useState(false);
+  const [optInReactivation, setOptInReactivation] = React.useState(true);
   const [loading, setLoading] = React.useState(false);
   const navigate = useNavigate();
 
@@ -61,6 +62,22 @@ export function Register() {
         whatsapp: cleanedWa,
       };
       if (referralCode.trim()) meta.referral_code = referralCode.trim().toLowerCase();
+
+      // First-touch attribution from URL params or sessionStorage
+      const utmSource = params.get('utm_source') || sessionStorage.getItem('peta_utm_source');
+      const utmMedium = params.get('utm_medium') || sessionStorage.getItem('peta_utm_medium');
+      const utmCampaign = params.get('utm_campaign') || sessionStorage.getItem('peta_utm_campaign');
+      const utmContent = params.get('utm_content') || sessionStorage.getItem('peta_utm_content');
+      const utmTerm = params.get('utm_term') || sessionStorage.getItem('peta_utm_term');
+      const landingPath = sessionStorage.getItem('peta_landing_path') || window.location.pathname;
+
+      if (utmSource) meta.acquisition_source = utmSource;
+      if (utmMedium) meta.acquisition_medium = utmMedium;
+      if (utmCampaign) meta.acquisition_campaign = utmCampaign;
+      if (utmContent) meta.acquisition_content = utmContent;
+      if (utmTerm) meta.acquisition_term = utmTerm;
+      if (landingPath) meta.acquisition_landing_path = landingPath;
+      meta.reactivation_opt_in = String(optInReactivation);
 
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -263,6 +280,16 @@ export function Register() {
                 <Tag size={12} /> Punya kode referral? Klik sini
               </button>
             )}
+
+            <label className="flex items-start gap-2 text-xs text-muted cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={optInReactivation}
+                onChange={(e) => setOptInReactivation(e.target.checked)}
+                className="mt-0.5 rounded text-primary focus:ring-primary h-4 w-4"
+              />
+              <span>Kirimkan notifikasi WhatsApp jika ada task baru yang sesuai (bisa diubah kapan saja di akun).</span>
+            </label>
 
             <Button type="submit" variant="primary" size="lg" loading={loading} fullWidth className="!rounded-2xl">
               💰 Daftar & Mulai Earning

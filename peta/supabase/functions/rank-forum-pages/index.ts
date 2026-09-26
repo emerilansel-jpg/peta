@@ -770,6 +770,20 @@ Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
   if (req.method !== 'POST') return json({ error: 'method_not_allowed' }, 405);
 
+  const supabaseUrl = Deno.env.get('SUPABASE_URL');
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY');
+  const authHeader = req.headers.get('Authorization') || '';
+  if (!authHeader.replace(/^Bearer\s+/i, '')) {
+    return json({ error: 'unauthorized' }, 401);
+  }
+
+  const auth = await fetch(`${supabaseUrl}/auth/v1/user`, {
+    headers: { apikey: anonKey!, Authorization: authHeader },
+  });
+  if (!auth.ok) return json({ error: 'unauthorized' }, 401);
+  const user = await auth.json().catch(() => ({}));
+  if (!user?.id) return json({ error: 'unauthorized' }, 401);
+
   try {
     const body = await req.json();
     if (body?.health === 'providers') {

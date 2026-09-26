@@ -18,6 +18,17 @@ export function Landing() {
   const registerHref = ref ? `/register?ref=${encodeURIComponent(ref)}` : '/register';
   const goRegister = () => navigate(registerHref);
 
+  // Capture UTM parameters into sessionStorage for first-touch attribution
+  React.useEffect(() => {
+    ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term'].forEach((k) => {
+      const val = searchParams.get(k);
+      if (val) sessionStorage.setItem(`peta_${k}`, val);
+    });
+    if (!sessionStorage.getItem('peta_landing_path')) {
+      sessionStorage.setItem('peta_landing_path', window.location.pathname);
+    }
+  }, [searchParams]);
+
   // Fire-and-forget click tracking. Server-side dedupes per visitor session
   // so the link owner doesn't inflate their own count by previewing.
   React.useEffect(() => {
@@ -152,11 +163,11 @@ export function Landing() {
           </div>
           <div className="flex flex-col items-center gap-1">
             <Zap size={20} className="text-warning" />
-            <span className="font-semibold">Payout 24 jam kerja</span>
+            <span className="font-semibold">Proses transparan</span>
           </div>
           <div className="flex flex-col items-center gap-1">
             <Wallet size={20} className="text-primary" />
-            <span className="font-semibold">Min cair Rp150K</span>
+            <span className="font-semibold">Tanpa min payout</span>
           </div>
         </div>
       </section>
@@ -165,7 +176,7 @@ export function Landing() {
       <section className="container-custom py-12 sm:py-16">
         <p className="text-primary font-bold text-sm tracking-wide mb-2">CARA KERJA</p>
         <h2 className="text-3xl sm:text-4xl font-extrabold mb-2">3 langkah, mulai earning penghasilan tambahan</h2>
-        <p className="text-muted mb-8">Setup PeTa di bawah 5 menit. Komen pertama kamu dibayar hari yang sama.</p>
+        <p className="text-muted mb-8">Setup PeTa di bawah 5 menit. Ambil task pertama dan reward langsung masuk setelah approved.</p>
         <div className="space-y-4">
           {[
             { n: 1, t: 'Daftar 30 detik', d: 'Email + password aja. Langsung dapat bonus Rp25K masuk saldo.', e: '🚀' },
@@ -272,10 +283,10 @@ export function Landing() {
               <div className="w-10 h-10 bg-warning/15 text-warning rounded-xl grid place-items-center mb-3">
                 <AlertTriangle size={20} />
               </div>
-              <h3 className="font-extrabold text-lg mb-1">Kalau gagal cair, refund</h3>
+              <h3 className="font-extrabold text-lg mb-1">Tanpa modal & deposit</h3>
               <p className="text-sm text-muted">
-                Pernah dijanjiin app lain trus zonk? Kami beda: payout otomatis 24 jam kerja
-                setelah saldo cukup. Kalau gagal, balik 100% — bukti di grup.
+                Daftar gratis, tidak ada biaya apa pun, tidak ada deposit sepeser pun.
+                Saldo dari task yang disetujui bisa langsung ditarik tanpa minimum payout.
               </p>
             </div>
           </div>
@@ -294,7 +305,7 @@ export function Landing() {
           </p>
           <p className="text-sm text-muted">
             Ajak 10 teman = <b className="text-primary money">Rp200.000</b> langsung masuk saldo.
-            Cair kalau total ≥ Rp150K.
+            Tarik saldo kapan saja tanpa minimum (bonus referral cair setelah Rp100K task approved).
           </p>
         </div>
       </section>
@@ -305,7 +316,7 @@ export function Landing() {
           <h2 className="text-2xl sm:text-3xl font-extrabold mb-6">Pertanyaan singkat</h2>
           <div className="space-y-2 max-w-2xl">
             {[
-              ['Beneran dibayar?', 'Ya. Min payout Rp150.000, transfer dalam 24 jam kerja ke rekening / e-wallet kamu. Bukti bayar PeTa Army sebelumnya bisa kamu lihat di grup WhatsApp setelah daftar.'],
+              ['Beneran dibayar?', 'Ya. Tanpa minimum payout, kamu bisa tarik saldo dari task yang disetujui ke rekening atau e-wallet. Bukti bayar PeTa Army bisa kamu lihat transparan di grup WhatsApp komunitas setelah daftar.'],
               ['Butuh skill khusus?', 'Tidak. Kalau bisa baca & nulis komentar sopan dalam Bahasa Indonesia, kamu udah cukup. Reward kecil dulu (Rp5K), naik seiring level.'],
               ['Aman buat akun saya?', 'Aman. Kami tidak login ke akun kamu, tidak post atas namamu, tidak minta password. Tiap komen kamu ketik & kirim sendiri.'],
               ['Berapa cuan realistis?', 'Tergantung level + jumlah task yang kamu ambil. Reward per komen Rp5.000 (level 0) – Rp20.000 (level 5). Tanpa janji muluk angka mingguan — yang jelas, tiap task selesai = saldo kamu langsung naik.'],
@@ -362,7 +373,7 @@ export function Landing() {
 		          <span className="mx-2 opacity-40">·</span>
 		          <a href="/terms" className="hover:text-white underline underline-offset-2">Syarat & Ketentuan</a>
 		        </p>
-		        <p>© 2026 Penghasilantanbahan.com (PeTa) · Komunitas PeTa Army</p>
+			        <p>© 2026 PenghasilanTambahan.com (PeTa) · Komunitas PeTa Army</p>
 		        <p className="opacity-60 mt-1">Komentar · Hasilkan · Tambahan</p>
 		      </footer>
 
