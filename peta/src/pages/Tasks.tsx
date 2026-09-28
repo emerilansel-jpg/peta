@@ -19,6 +19,7 @@ import {
   getFoundingMembers, listEligibleTasksForUser, type EligibleTask,
   getMyPendingAssignments, type MyAssignmentRow,
   getMyTaskHistory, type TaskHistoryRow,
+  getMyYouTubeAccounts,
 } from '../lib/api';
 import { LEVELS, getLevelInfo } from '../lib/levels';
 import { toast } from '../components/Toast';
@@ -175,6 +176,14 @@ export function Tasks() {
     enabled: !!user?.id,
     refetchInterval: 120_000,
   });
+
+  const { data: ytAccounts = [] } = useQuery({
+    queryKey: ['myYouTubeAccounts', user?.id],
+    queryFn: getMyYouTubeAccounts,
+    enabled: !!user?.id,
+    staleTime: 60_000,
+  });
+  const hasApprovedYt = ytAccounts.some((a) => a.verification_status === 'approved' && a.is_active);
 
   const inProgressAssignments = myAssignments.filter((a) => a.status === 'in_progress');
   const pendingAssignments = myAssignments.filter((a) => a.status === 'submitted');
@@ -432,6 +441,26 @@ export function Tasks() {
                   </button>
                 ))}
               </div>
+
+              {/* Notice jika filter YouTube dipilih tapi akun belum terverifikasi */}
+              {taskPlatformFilter === 'youtube' && !hasApprovedYt && (
+                <div className="mt-3 p-3.5 rounded-2xl bg-red-50/80 border border-red-200 text-xs flex items-start justify-between gap-3">
+                  <div>
+                    <span className="font-extrabold text-red-950 flex items-center gap-1.5 mb-1">
+                      🔒 Wajib Verifikasi YouTube Step 3
+                    </span>
+                    <p className="text-muted leading-relaxed">
+                      Task upload video YouTube bernilai Rp25.000/task. Supaya link di deskripsi bisa diklik penonton, daftarkan channel kamu yang sudah aktif <b>Fitur Lanjutan (Advanced Features)</b> terlebih dahulu.
+                    </p>
+                  </div>
+                  <Link
+                    to="/account"
+                    className="tap-shrink px-3 py-1.5 rounded-xl bg-red-600 text-white font-bold text-xs shrink-0 whitespace-nowrap hover:bg-red-700"
+                  >
+                    Verifikasi Channel
+                  </Link>
+                </div>
+              )}
             </div>
 
             {/* Filtered eligible tasks */}

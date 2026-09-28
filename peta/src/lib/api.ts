@@ -2527,3 +2527,106 @@ export async function adminReleaseHold(holdId: string, reason: string): Promise<
   });
   if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
 }
+
+// ============================================================
+// YouTube Account 3-Step Verification API
+// ============================================================
+
+export type YouTubeAccount = {
+  id: string;
+  user_id: string;
+  channel_name: string;
+  channel_url: string;
+  verification_screenshot_url: string;
+  verification_status: 'pending' | 'approved' | 'rejected';
+  rejection_reason?: string | null;
+  is_active: boolean;
+  created_at: string;
+  verified_at?: string | null;
+  verified_by?: string | null;
+};
+
+export type AdminYouTubeAccountRow = YouTubeAccount & {
+  user_full_name?: string | null;
+  user_email?: string | null;
+  user_whatsapp?: string | null;
+};
+
+export async function uploadYouTubeVerificationScreenshot(userId: string, file: File): Promise<string> {
+  const validExts = ['jpg', 'jpeg', 'png', 'webp', 'heic', 'heif'];
+  let ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (!ext || !validExts.includes(ext)) {
+    ext = 'jpg';
+  }
+  const path = `${userId}/yt-verify-${Date.now()}.${ext}`;
+  const contentType = file.type || 'image/jpeg';
+  const { error } = await supabase.storage.from('task-proofs').upload(path, file, {
+    cacheControl: '3600',
+    upsert: false,
+    contentType,
+  });
+  if (error) throw new Error(error.message || 'Gagal mengupload screenshot. Coba lagi.');
+  const { data: publicUrl } = supabase.storage.from('task-proofs').getPublicUrl(path);
+  return publicUrl.publicUrl;
+}
+
+export async function getMyYouTubeAccounts(): Promise<YouTubeAccount[]> {
+  const { data, error } = await supabase
+    .from('youtube_accounts')
+    .select('*')
+    .order('created_at', { ascending: false });
+  if (error) {
+    console.error('[getMyYouTubeAccounts]', error);
+    return [];
+  }
+  return data ?? [];
+}
+
+export async function registerYouTubeAccount(opts: {
+  channelName: string;
+  channelUrl: string;
+  file: File;
+}): Promise<YouTubeAccount> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Silakan login terlebih dahulu.');
+
+  const screenshotUrl = await uploadYouTubeVerificationScreenshot(user.id, opts.file);
+
+  const { data, error } = await supabase
+    .from('youtube_accounts')
+    .insert({
+      user_id: user.id,
+      channel_name: opts.channelName.trim(),
+      channel_url: opts.channelUrl.trim(),
+      verification_screenshot_url: screenshotUrl,
+      verification_status: 'pending',
+    })
+    .select('*')
+    .single();
+
+  if (error) throw new Error(error.message || 'Gagal mendaftarkan channel YouTube.');
+  return data;
+}
+
+export async function adminListYouTubeAccounts(): Promise<AdminYouTubeAccountRow[]> {
+  const { data, error } = await supabase.rpc('admin_list_youtube_accounts');
+  if (error) {
+    console.error('[adminListYouTubeAccounts]', error);
+    throw new Error(error.message || 'Gagal memuat antrean akun YouTube.');
+  }
+  return data ?? [];
+}
+
+export async function adminReviewYouTubeAccount(
+  accountId: string,
+  decision: 'approved' | 'rejected',
+  reason?: string
+): Promise<YouTubeAccount> {
+  const { data, error } = await supabase.rpc('admin_review_youtube_account', {
+    p_account_id: accountId,
+    p_decision: decision,
+    p_reason: reason || null,
+  });
+  if (error) throw new Error(error.message || 'Gagal memproses verifikasi channel YouTube.');
+  return data;
+}

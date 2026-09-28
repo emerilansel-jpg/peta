@@ -1,14 +1,14 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, MessageCircle, Pencil, Check, AlertTriangle, Target, X, Copy, Trash2, Bell } from 'lucide-react';
+import { LogOut, MessageCircle, Pencil, Check, AlertTriangle, Target, X, Copy, Trash2, Bell, Video, ExternalLink, CheckCircle2, Clock, AlertCircle, Plus } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
 import { Button } from '../components/Button';
 import { CardSkeleton } from '../components/Skeleton';
 import { SocialShare } from '../components/SocialShare';
 import { supabase } from '../lib/supabase';
-import { getReferralStats, getReferralAnalytics } from '../lib/api';
+import { getReferralStats, getReferralAnalytics, getMyYouTubeAccounts, registerYouTubeAccount, type YouTubeAccount } from '../lib/api';
 import { toast } from '../components/Toast';
 
 export function Account() {
@@ -19,6 +19,13 @@ export function Account() {
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [deleteConfirm, setDeleteConfirm] = React.useState('');
   const [deleting, setDeleting] = React.useState(false);
+
+  // YouTube Account Registration State
+  const [showYtModal, setShowYtModal] = React.useState(false);
+  const [ytChannelName, setYtChannelName] = React.useState('');
+  const [ytChannelUrl, setYtChannelUrl] = React.useState('');
+  const [ytFile, setYtFile] = React.useState<File | null>(null);
+  const [ytSubmitting, setYtSubmitting] = React.useState(false);
 
   React.useEffect(() => {
     (async () => {
@@ -138,6 +145,47 @@ export function Account() {
     }
   };
 
+  // User's YouTube Accounts (3-Step Verification)
+  const { data: ytAccounts, refetch: refetchYtAccounts } = useQuery({
+    queryKey: ['myYouTubeAccounts', user?.id],
+    queryFn: getMyYouTubeAccounts,
+    enabled: !!user?.id,
+  });
+
+  const handleRegisterYouTube = async () => {
+    if (!ytChannelName.trim()) {
+      toast.error('Nama channel wajib diisi');
+      return;
+    }
+    if (!ytChannelUrl.trim()) {
+      toast.error('Link channel wajib diisi');
+      return;
+    }
+    if (!ytFile) {
+      toast.error('Pilih file screenshot bukti kelayakan fitur');
+      return;
+    }
+
+    setYtSubmitting(true);
+    try {
+      await registerYouTubeAccount({
+        channelName: ytChannelName,
+        channelUrl: ytChannelUrl,
+        file: ytFile,
+      });
+      toast.success('Channel YouTube berhasil didaftarkan! Menunggu verifikasi admin.');
+      setShowYtModal(false);
+      setYtChannelName('');
+      setYtChannelUrl('');
+      setYtFile(null);
+      refetchYtAccounts();
+    } catch (err: any) {
+      toast.error(err.message || 'Gagal mendaftarkan channel YouTube');
+    } finally {
+      setYtSubmitting(false);
+    }
+  };
+
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/login');
@@ -245,6 +293,81 @@ export function Account() {
             {profile?.reactivation_opt_in ? 'Aktif' : 'Mati'}
           </button>
         </div>
+      </Card>
+
+      {/* Akun YouTube (3-Step Advanced Features) */}
+      <Card className="mb-3" padding="sm">
+        <div className="flex items-center justify-between gap-3 mb-2">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-lg bg-red-100 text-red-600 grid place-items-center shrink-0">
+              <Video size={18} />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-xs font-bold text-dark flex items-center gap-1.5">
+                Akun YouTube (Video Upload)
+              </h3>
+              <p className="text-[10px] text-muted truncate">Syarat wajib task YouTube: verifikasi 3 tahap aktif</p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowYtModal(true)}
+            className="!text-xs !py-1 !px-2.5 shrink-0"
+          >
+            <Plus size={14} className="mr-1 inline" /> Daftarkan Channel
+          </Button>
+        </div>
+
+        {ytAccounts && ytAccounts.length > 0 ? (
+          <div className="space-y-2 mt-3">
+            {ytAccounts.map((acc: YouTubeAccount) => (
+              <div key={acc.id} className="p-2.5 rounded-xl bg-light/70 ring-1 ring-border text-xs flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-1.5">
+                    <span className="font-bold text-dark truncate">{acc.channel_name}</span>
+                    <a href={acc.channel_url} target="_blank" rel="noopener noreferrer" className="text-muted hover:text-primary">
+                      <ExternalLink size={12} />
+                    </a>
+                  </div>
+                  <p className="text-[10px] text-muted truncate">{acc.channel_url}</p>
+                  {acc.verification_status === 'rejected' && acc.rejection_reason && (
+                    <p className="text-[10px] text-red-600 mt-1 font-semibold">Alasan ditolak: {acc.rejection_reason}</p>
+                  )}
+                </div>
+
+                <div className="shrink-0 text-right">
+                  {acc.verification_status === 'approved' ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-success/10 text-success">
+                      <CheckCircle2 size={12} /> Terverifikasi
+                    </span>
+                  ) : acc.verification_status === 'rejected' ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-danger/10 text-danger">
+                      <AlertCircle size={12} /> Ditolak
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-warning/10 text-warning">
+                      <Clock size={12} /> Menunggu Review
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="mt-2.5 p-3 rounded-xl bg-red-50/60 border border-red-200 text-xs">
+            <p className="font-semibold text-red-900 mb-1">Kenapa wajib verifikasi Step 3?</p>
+            <p className="text-muted text-[11px] leading-relaxed mb-2">
+              Agar link di deskripsi video YouTube bisa diklik penonton, channel kamu harus sudah mengaktifkan <b>Fitur Lanjutan (Advanced Features)</b> di YouTube Studio.
+            </p>
+            <button
+              onClick={() => setShowYtModal(true)}
+              className="tap-shrink text-[11px] font-bold text-red-600 underline hover:text-red-700"
+            >
+              + Daftarkan channel kamu sekarang agar bisa ambil task YouTube
+            </button>
+          </div>
+        )}
       </Card>
 
       {/* Referral */}
@@ -464,6 +587,88 @@ export function Account() {
                 >
                   {deleting ? 'Menghapus…' : (<><Trash2 size={16} /> Hapus Permanen</>)}
                 </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Verifikasi Akun YouTube */}
+      {showYtModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl max-w-md w-full p-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-border mb-4">
+              <h3 className="font-extrabold text-base flex items-center gap-2">
+                <Video size={18} className="text-red-600" /> Verifikasi Channel YouTube
+              </h3>
+              <button onClick={() => setShowYtModal(false)} className="text-muted hover:text-dark">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              <div className="p-3 bg-red-50/70 rounded-xl border border-red-200 text-red-950 leading-relaxed text-[11px]">
+                <p className="font-bold mb-1">Panduan Screenshot YouTube Studio:</p>
+                <ol className="list-decimal ml-4 space-y-1">
+                  <li>Buka <b>studio.youtube.com</b> di browser HP atau Desktop.</li>
+                  <li>Masuk ke <b>Setelan (Settings) &gt; Saluran (Channel) &gt; Kelayakan Fitur (Feature Eligibility)</b>.</li>
+                  <li>Screenshot bagian <b>Fitur Lanjutan (Advanced Features) = Aktif (Enabled)</b> beserta nama channel kamu.</li>
+                </ol>
+              </div>
+
+              <div>
+                <label className="font-bold text-dark block mb-1">Nama Channel YouTube</label>
+                <input
+                  type="text"
+                  placeholder="Contoh: Budi Gaming / Review Harian"
+                  value={ytChannelName}
+                  onChange={(e) => setYtChannelName(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-border text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-dark block mb-1">Link / URL Channel YouTube</label>
+                <input
+                  type="text"
+                  placeholder="https://youtube.com/@namachannel"
+                  value={ytChannelUrl}
+                  onChange={(e) => setYtChannelUrl(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-border text-xs focus:ring-1 focus:ring-primary focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="font-bold text-dark block mb-1">Screenshot Fitur Lanjutan (Aktif)</label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setYtFile(e.target.files?.[0] || null)}
+                  className="w-full text-xs text-muted file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                />
+                {ytFile && (
+                  <p className="text-[10px] text-success font-semibold mt-1">✓ File dipilih: {ytFile.name}</p>
+                )}
+              </div>
+
+              <div className="pt-2 flex gap-2">
+                <Button
+                  variant="outline"
+                  fullWidth
+                  onClick={() => setShowYtModal(false)}
+                  disabled={ytSubmitting}
+                >
+                  Batal
+                </Button>
+                <Button
+                  variant="primary"
+                  fullWidth
+                  onClick={handleRegisterYouTube}
+                  loading={ytSubmitting}
+                  disabled={!ytChannelName.trim() || !ytChannelUrl.trim() || !ytFile}
+                >
+                  Kirim untuk Direview
+                </Button>
               </div>
             </div>
           </div>

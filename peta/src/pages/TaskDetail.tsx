@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import {
   ArrowLeft, ExternalLink, Check, Camera, Link as LinkIcon, X,
-  ArrowRight, MessageCircle, Target, Sparkles, Copy, Image as ImageIcon,
+  ArrowRight, MessageCircle, Target, Sparkles, Copy, Image as ImageIcon, Video,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
@@ -11,7 +11,7 @@ import { Button } from '../components/Button';
 import { CardSkeleton } from '../components/Skeleton';
 import { ConfettiBurst } from '../components/Confetti';
 import { supabase } from '../lib/supabase';
-import { createTaskAssignment, submitAssignmentProof, uploadTaskProofImage } from '../lib/api';
+import { createTaskAssignment, submitAssignmentProof, uploadTaskProofImage, getMyYouTubeAccounts } from '../lib/api';
 import { WHATSAPP_GROUP_URL } from '../lib/config';
 import { toast } from '../components/Toast';
 
@@ -110,6 +110,13 @@ export function TaskDetail() {
   const isComment = isForumComment || category === 'reddit_comment' || isLinkedInComment || task?.task_type === 'comment';
   const isNoAccountNeeded = isForumComment || isYouTubeUpload || isPreferredSource || isLinkedIn;
   const platformLabel = task ? platformForTask(task) : 'Forum';
+
+  const { data: myYtAccounts = [] } = useQuery({
+    queryKey: ['myYouTubeAccounts'],
+    queryFn: getMyYouTubeAccounts,
+    enabled: isYouTubeUpload,
+  });
+  const approvedYtAccount = myYtAccounts.find((a) => a.verification_status === 'approved' && a.is_active);
 
   const startMutation = useMutation({
     mutationFn: () => createTaskAssignment(taskId!, selectedAccountId || null),
@@ -454,6 +461,40 @@ export function TaskDetail() {
                 <span>Mengerjakan dengan: <strong className="text-dark">u/{accounts[0].username}</strong></span>
                 <span className="font-semibold text-primary">Karma {accounts[0].karma}</span>
               </div>
+            ) : isYouTubeUpload ? (
+              !approvedYtAccount ? (
+                <div className="p-4 bg-red-50 rounded-2xl border border-red-200 text-xs mb-4">
+                  <div className="flex items-start gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-red-600 text-white grid place-items-center shrink-0">
+                      <Video size={16} />
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="font-extrabold text-red-950 text-sm mb-1">Wajib Verifikasi YouTube Step 3</h4>
+                      <p className="text-muted leading-relaxed mb-3">
+                        Task ini mewajibkan channel YouTube yang sudah mengaktifkan <b>Fitur Lanjutan (Advanced Features)</b> di YouTube Studio agar link eksternal di deskripsi video bisa diklik penonton.
+                      </p>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => navigate('/account')}
+                        className="!text-xs"
+                      >
+                        Verifikasi Channel di Menu Akun →
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-900 mb-4 flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] uppercase font-bold text-emerald-700 block">Channel Terverifikasi:</span>
+                    <strong className="text-dark">{approvedYtAccount.channel_name}</strong>
+                  </div>
+                  <span className="font-bold text-emerald-700 flex items-center gap-1 text-[11px]">
+                    <Check size={14} /> Tier 3 Aktif
+                  </span>
+                </div>
+              )
             ) : isNoAccountNeeded ? (
               <div className="p-3 bg-light rounded-xl text-xs text-muted mb-4">
                 Tugas {platformLabel} ini tidak memerlukan akun Reddit terhubung.
@@ -465,7 +506,7 @@ export function TaskDetail() {
               variant="primary"
               size="lg"
               loading={startMutation.isPending}
-              disabled={!isNoAccountNeeded && !selectedAccountId}
+              disabled={(!isNoAccountNeeded && !selectedAccountId) || (isYouTubeUpload && !approvedYtAccount)}
               fullWidth
             >
               Mulai Kerjakan Tugas →
@@ -613,17 +654,31 @@ export function TaskDetail() {
               );
             }
 
-            // YouTube upload tasks: show the metadata guide from the brief.
+            // YouTube upload tasks: show the metadata guide from the brief with quick copy.
             if (isYouTubeUpload) {
               const guide = (task.brief || task.description || '').trim();
               if (!guide) return null;
               return (
                 <div className="bg-sky-50 ring-1 ring-sky-300 rounded-xl p-3 mb-3">
-                  <p className="text-[10px] uppercase font-bold tracking-wide text-sky-900 mb-1">
-                    Panduan upload
-                  </p>
-                  <p className="text-sm text-sky-950 whitespace-pre-line leading-relaxed">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-[10px] uppercase font-bold tracking-wide text-sky-900">
+                      Brief & Metadata Upload Klien
+                    </p>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(guide);
+                        toast.success('Brief & metadata video berhasil dicopy! 📋');
+                      }}
+                      className="tap-shrink px-2 py-0.5 rounded-lg bg-sky-200/70 hover:bg-sky-200 text-sky-900 text-[10px] font-bold flex items-center gap-1"
+                    >
+                      <Copy size={11} /> Copy Metadata
+                    </button>
+                  </div>
+                  <p className="text-xs text-sky-950 whitespace-pre-line leading-relaxed bg-white/70 p-2.5 rounded-lg border border-sky-200 font-mono">
                     {guide}
+                  </p>
+                  <p className="text-[11px] text-sky-900 font-semibold mt-2">
+                    ⚠️ Pastikan link eksternal di kolom deskripsi video YouTube kamu benar-benar berwarna biru & bisa diklik penonton!
                   </p>
                 </div>
               );

@@ -194,9 +194,37 @@ assert.ok(redditNewOrderCode.includes('!wantsSuggestion ? 1'), 'RedditNewOrder m
 	assert.ok(sendPetaEmailCode.includes('unauthenticated'), 'send-peta-email must reject unauthenticated callers');
 	assert.ok(sendPetaEmailCode.includes('forbidden_recipient'), 'send-peta-email must protect against open relay');
 	assert.ok(sendBroadcastWaCode.includes('admin only'), 'send-broadcast-whatsapp must restrict to admin only');
-	assert.ok(sendTaskBlastCode.includes('admin only'), 'send-task-blast must restrict to admin only');
-	console.log('  ✓ Growth & Security Phase 0 rules and Edge Function protections verified.');
+		assert.ok(sendTaskBlastCode.includes('admin only'), 'send-task-blast must restrict to admin only');
+		console.log('  ✓ Growth & Security Phase 0 rules and Edge Function protections verified.');
 
-	console.log('===================================================');
-	console.log('ALL SECURITY AND QA REGRESSION CHECKS PASSED (100%)');
-	console.log('===================================================');
+		// 12. Verify YouTube 3-Step Verification & Gating
+		console.log('12. Checking YouTube 3-Step Verification & Gating...');
+		const ytMigrationPath = path.join(rootDir, 'supabase', 'migrations', '20260927000000_youtube_accounts_verification_gating.sql');
+		assert.ok(fs.existsSync(ytMigrationPath), 'Migration 20260927000000 must exist');
+		const ytSql = fs.readFileSync(ytMigrationPath, 'utf8');
+
+		assert.ok(ytSql.includes('CREATE TABLE IF NOT EXISTS public.youtube_accounts'), 'Must create public.youtube_accounts table');
+		assert.ok(ytSql.includes('youtube_account_id uuid REFERENCES public.youtube_accounts'), 'Must link youtube_account_id to task_assignments');
+		assert.ok(ytSql.includes('Wajib verifikasi akun YouTube Step 3'), 'Must enforce YouTube verification in claim_task_assignment');
+		assert.ok(ytSql.includes('COALESCE(t.task_category, \'\') <> \'youtube_upload\''), 'Must gate youtube_upload in list_eligible_tasks_for_user');
+		assert.ok(ytSql.includes('admin_list_youtube_accounts'), 'Must provide admin_list_youtube_accounts RPC');
+		assert.ok(ytSql.includes('admin_review_youtube_account'), 'Must provide admin_review_youtube_account RPC');
+
+		const apiPath = path.join(rootDir, 'src', 'lib', 'api.ts');
+		const apiCode = fs.readFileSync(apiPath, 'utf8');
+		assert.ok(apiCode.includes('getMyYouTubeAccounts'), 'api.ts must export getMyYouTubeAccounts');
+		assert.ok(apiCode.includes('registerYouTubeAccount'), 'api.ts must export registerYouTubeAccount');
+		assert.ok(apiCode.includes('adminListYouTubeAccounts'), 'api.ts must export adminListYouTubeAccounts');
+		assert.ok(apiCode.includes('adminReviewYouTubeAccount'), 'api.ts must export adminReviewYouTubeAccount');
+
+		const taskDetailCodeLatest = fs.readFileSync(taskDetailPath, 'utf8');
+		assert.ok(taskDetailCodeLatest.includes('Wajib Verifikasi YouTube Step 3'), 'TaskDetail must warn and block unverified YouTube claim');
+		assert.ok(taskDetailCodeLatest.includes('approvedYtAccount'), 'TaskDetail must verify approved YouTube account');
+
+		const ytAdminPagePath = path.join(rootDir, 'src', 'pages', 'admin', 'YouTubeAccounts.tsx');
+		assert.ok(fs.existsSync(ytAdminPagePath), 'YouTubeAccounts.tsx admin page must exist');
+		console.log('  ✓ YouTube 3-Step Verification & Gating verified.');
+
+		console.log('===================================================');
+		console.log('ALL SECURITY AND QA REGRESSION CHECKS PASSED (100%)');
+		console.log('===================================================');

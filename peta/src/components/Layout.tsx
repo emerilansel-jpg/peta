@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { LogOut, Home, Wallet, User as UserIcon, Menu, X, BarChart3, Users, ListChecks, ClipboardCheck, Coins, Link as LinkIcon, ShieldCheck, Megaphone, Inbox, Key, Radio, Trophy, Bell } from 'lucide-react';
+import { LogOut, Home, Wallet, User as UserIcon, Menu, X, BarChart3, Users, ListChecks, ClipboardCheck, Coins, Link as LinkIcon, ShieldCheck, Megaphone, Inbox, Key, Radio, Trophy, Bell, Video } from 'lucide-react';
 import { getMyPendingAssignments } from '../lib/api';
 import { supabase } from '../lib/supabase';
 
@@ -35,6 +35,7 @@ const adminLinks = [
   { href: '/admin/tasks',     label: 'Task Queue',  icon: ListChecks },
   { href: '/admin/approval',  label: 'Approval',    icon: ClipboardCheck },
   { href: '/admin/accounts',  label: 'Akun Reddit', icon: LinkIcon },
+  { href: '/admin/youtube-accounts', label: 'Akun YouTube', icon: Video },
   { href: '/admin/broadcast', label: 'Kirim Pesan', icon: Megaphone },
   { href: '/admin/wa-bot',    label: 'WA Bot',      icon: Radio },
   { href: '/admin/inbox',     label: 'Inbox',       icon: Inbox },

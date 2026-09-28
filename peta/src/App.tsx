@@ -69,6 +69,7 @@ import { AdminBroadcast } from './pages/admin/Broadcast';
 import { AdminInbox } from './pages/admin/Inbox';
 import { AdminSecrets } from './pages/admin/Secrets';
 import { AdminWaBot } from './pages/admin/WaBot';
+import { AdminYouTubeAccounts } from './pages/admin/YouTubeAccounts';
 import { AdminGuard } from './components/AdminGuard';
 import { AdminRouteWrapper } from './components/AdminRouteWrapper';
 import { RequireAuth } from './components/RequireAuth';
@@ -231,9 +232,10 @@ function App() {
           <Route path="/reddit/admin/retention" element={<LegacyRedditRedirect fallback={<AdminGuard><RedditAdminRetention /></AdminGuard>} />} />
           <Route path="/reddit/admin/waitlist" element={<LegacyRedditRedirect fallback={<AdminGuard><AdminWaitlist /></AdminGuard>} />} />
 
-          {/* Admin Routes (guarded) */}
-          <Route path="/admin/accounts" element={<AdminRouteWrapper><AdminGuard><AdminRedditAccounts /></AdminGuard></AdminRouteWrapper>} />
-          <Route path="/admin/tasks" element={<AdminRouteWrapper><AdminGuard><AdminTaskQueue /></AdminGuard></AdminRouteWrapper>} />
+	          {/* Admin Routes (guarded) */}
+	          <Route path="/admin/accounts" element={<AdminRouteWrapper><AdminGuard><AdminRedditAccounts /></AdminGuard></AdminRouteWrapper>} />
+	          <Route path="/admin/youtube-accounts" element={<AdminRouteWrapper><AdminGuard><AdminYouTubeAccounts /></AdminGuard></AdminRouteWrapper>} />
+	          <Route path="/admin/tasks" element={<AdminRouteWrapper><AdminGuard><AdminTaskQueue /></AdminGuard></AdminRouteWrapper>} />
           <Route path="/admin/approval" element={<AdminRouteWrapper><AdminGuard><AdminApprovalQueue /></AdminGuard></AdminRouteWrapper>} />
           <Route path="/admin/team" element={<AdminRouteWrapper><AdminGuard><AdminTeam /></AdminGuard></AdminRouteWrapper>} />
           <Route path="/admin/payroll" element={<AdminRouteWrapper><AdminGuard><AdminPayroll /></AdminGuard></AdminRouteWrapper>} />
