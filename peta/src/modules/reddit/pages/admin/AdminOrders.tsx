@@ -38,6 +38,11 @@ const SERVICE_CONFIG: Record<string, { label: string; emoji: string; color: stri
   comment: { label: 'Comments', emoji: '💬', color: 'bg-blue-100 text-blue-700' },
   thread: { label: 'New Thread', emoji: '📌', color: 'bg-purple-100 text-purple-700' },
   youtube_upload: { label: 'YouTube Upload', emoji: '▶️', color: 'bg-red-100 text-red-700' },
+  preferred_source: { label: 'Preferred Source', emoji: '⭐', color: 'bg-emerald-100 text-emerald-700' },
+  linkedin_like: { label: 'LinkedIn Like', emoji: '👍', color: 'bg-blue-100 text-blue-700' },
+  linkedin_follow: { label: 'LinkedIn Follow', emoji: '🏢', color: 'bg-blue-100 text-blue-700' },
+  linkedin_comment: { label: 'LinkedIn Comment', emoji: '💬', color: 'bg-blue-100 text-blue-700' },
+  trustpilot_review: { label: 'Trustpilot Review', emoji: '⭐', color: 'bg-emerald-100 text-emerald-700' },
 };
 
 type AdminOrderRecord = {

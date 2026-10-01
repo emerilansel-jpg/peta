@@ -7,7 +7,9 @@ import {
   createYouTubeUploadOrder,
   createPreferredSourceOrder,
   createLinkedInOrder,
+  createTrustpilotOrder,
   type LinkedInOrderInput,
+  type TrustpilotOrderInput,
 } from '../lib/api';
 import type { ForumCommentOrderInput } from '../lib/api';
 
@@ -84,6 +86,14 @@ export function useRedditOrders() {
     },
   });
 
+  const createTrustpilotOrderMutation = useMutation({
+    mutationFn: (input: TrustpilotOrderInput) => createTrustpilotOrder(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reddit', 'orders'] });
+      queryClient.invalidateQueries({ queryKey: ['reddit', 'credits'] });
+    },
+  });
+
   return {
     orders: orders || [],
     isLoading,
@@ -104,6 +114,8 @@ export function useRedditOrders() {
     isCreatingPreferredSourceOrder: createPreferredSourceOrderMutation.isPending,
     createLinkedInOrder: createLinkedInOrderMutation.mutate,
     isCreatingLinkedInOrder: createLinkedInOrderMutation.isPending,
+    createTrustpilotOrder: createTrustpilotOrderMutation.mutate,
+    isCreatingTrustpilotOrder: createTrustpilotOrderMutation.isPending,
     error: createOrderMutation.error,
   };
 }

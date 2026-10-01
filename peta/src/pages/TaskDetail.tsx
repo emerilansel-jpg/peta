@@ -103,12 +103,13 @@ export function TaskDetail() {
   const isLinkedInFollow = category === 'linkedin_follow';
   const isLinkedInComment = category === 'linkedin_comment';
   const isLinkedIn = isLinkedInLike || isLinkedInFollow || isLinkedInComment;
-  const isUpvote = (category === 'reddit_upvote' || task?.task_type === 'upvote') && !isLinkedIn;
+  const isTrustpilotReview = category === 'trustpilot_review';
+  const isUpvote = (category === 'reddit_upvote' || task?.task_type === 'upvote') && !isLinkedIn && !isTrustpilotReview;
   const isForumComment = category === 'forum_comment';
   const isYouTubeUpload = category === 'youtube_upload';
   const isPreferredSource = category === 'preferred_source';
-  const isComment = isForumComment || category === 'reddit_comment' || isLinkedInComment || task?.task_type === 'comment';
-  const isNoAccountNeeded = isForumComment || isYouTubeUpload || isPreferredSource || isLinkedIn;
+  const isComment = isForumComment || category === 'reddit_comment' || isLinkedInComment || isTrustpilotReview || task?.task_type === 'comment';
+  const isNoAccountNeeded = isForumComment || isYouTubeUpload || isPreferredSource || isLinkedIn || isTrustpilotReview;
   const platformLabel = task ? platformForTask(task) : 'Forum';
 
   const { data: myYtAccounts = [] } = useQuery({
@@ -215,7 +216,9 @@ export function TaskDetail() {
         ? !!(draftComment?.trim() || commentPost)
         : !!draftComment?.trim())
     : true;
-  const canSubmit = (isLinkedInLike || isLinkedInFollow)
+  const canSubmit = isTrustpilotReview
+    ? !!proofImageUrl && !!submittedUsername.trim() && !!assignmentId
+    : (isLinkedInLike || isLinkedInFollow)
     ? !!proofImageUrl && !!submittedUsername.trim() && !!assignmentId
     : isLinkedInComment
     ? !!proofImageUrl && !!proofUrl.trim() && !!submittedUsername.trim() && !!assignmentId && (hasCommentText || !!userNote.trim() || !!draftComment?.trim())
@@ -395,7 +398,7 @@ export function TaskDetail() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className="text-[10px] font-bold uppercase tracking-wide bg-primary/15 text-primary px-2 py-0.5 rounded-full">
-                    {isUpvote ? 'Upvote' : isPreferredSource ? 'Preferred Source' : isComment ? `${platformLabel} Comment` : isYouTubeUpload ? 'YouTube Upload' : `${platformLabel} Task`}
+                    {isUpvote ? 'Upvote' : isPreferredSource ? 'Preferred Source' : isTrustpilotReview ? 'Trustpilot Review' : isComment ? `${platformLabel} Comment` : isYouTubeUpload ? 'YouTube Upload' : `${platformLabel} Task`}
                   </span>
                 </div>
                 <h1 className="text-xl sm:text-2xl font-extrabold mb-2 leading-tight">{task.title}</h1>
@@ -549,7 +552,7 @@ export function TaskDetail() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <span className="text-[10px] font-bold uppercase tracking-wide bg-primary/15 text-primary px-2 py-0.5 rounded-full">
-                  {isUpvote ? 'Upvote' : isPreferredSource ? 'Preferred Source' : isComment ? `${platformLabel} Comment` : isYouTubeUpload ? 'YouTube Upload' : `${platformLabel} Task`}
+                  {isUpvote ? 'Upvote' : isPreferredSource ? 'Preferred Source' : isTrustpilotReview ? 'Trustpilot Review' : isComment ? `${platformLabel} Comment` : isYouTubeUpload ? 'YouTube Upload' : `${platformLabel} Task`}
                 </span>
               </div>
               <h1 className="text-xl sm:text-2xl font-extrabold mb-2 leading-tight">{task.title}</h1>
@@ -603,7 +606,9 @@ export function TaskDetail() {
           num={2}
           done={false}
           active={threadOpened}
-          title={isLinkedInLike
+          title={isTrustpilotReview
+            ? 'Tulis review di Trustpilot'
+            : isLinkedInLike
             ? 'Beri Like pada post LinkedIn'
             : isLinkedInFollow
             ? 'Follow Company Page di LinkedIn'
@@ -616,7 +621,9 @@ export function TaskDetail() {
             : isYouTubeUpload
             ? 'Upload video ke YouTube'
             : `Post komentar di ${platformLabel}`}
-          subtitle={isLinkedInLike
+          subtitle={isTrustpilotReview
+            ? 'Beri rating bintang 5 dan tulis ulasan sesuai brief atau draft di bawah.'
+            : isLinkedInLike
             ? 'Pastikan tombol Like berubah jadi warna biru aktif. Itu tanda Like sukses.'
             : isLinkedInFollow
             ? 'Pastikan tombol berubah jadi Following. Itu tanda Follow sukses.'
@@ -635,6 +642,53 @@ export function TaskDetail() {
               New model: comment lives in task.brief, instructions in task.description.
               Legacy tasks packed both into brief — splitForumBrief() still handles them. */}
           {(() => {
+            // Trustpilot review tasks: show draft or guidelines
+            if (isTrustpilotReview) {
+              const comment = draftComment?.trim();
+              const guide = (task.brief || task.description || '').trim();
+              return (
+                <div className="space-y-3 mb-3">
+                  {comment && (
+                    <div className="bg-emerald-50 ring-1 ring-emerald-300 rounded-xl p-3">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <p className="text-[10px] uppercase font-bold tracking-wide text-emerald-900">
+                          Draft review yang harus diposting
+                        </p>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(comment);
+                              toast.success('Review disalin! Tinggal paste di Trustpilot.');
+                            } catch {
+                              toast.error('Gagal menyalin otomatis. Copy manual ya.');
+                            }
+                          }}
+                          className="shrink-0 inline-flex items-center gap-1 text-[11px] font-bold text-emerald-900 bg-emerald-200 hover:bg-emerald-300 active:bg-emerald-300 rounded-lg px-2.5 py-1.5 tap-shrink"
+                        >
+                          <Copy className="w-3.5 h-3.5" />
+                          Copy review
+                        </button>
+                      </div>
+                      <p className="text-sm text-emerald-950 whitespace-pre-line leading-relaxed">
+                        {comment}
+                      </p>
+                    </div>
+                  )}
+                  {guide && (
+                    <div className="bg-sky-50 ring-1 ring-sky-300 rounded-xl p-3">
+                      <p className="text-[10px] uppercase font-bold tracking-wide text-sky-900 mb-1">
+                        Petunjuk review Trustpilot
+                      </p>
+                      <p className="text-sm text-sky-950 whitespace-pre-line leading-relaxed">
+                        {guide}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
             // LinkedIn Like / Follow tasks: show brief/instructions guide
             if (isLinkedInLike || isLinkedInFollow) {
               const guide = (task.brief || task.description || '').trim();
@@ -769,7 +823,9 @@ export function TaskDetail() {
           active={threadOpened}
           title="Submit URL, username, dan bukti"
           subtitle={
-            isLinkedInLike || isLinkedInFollow
+            isTrustpilotReview
+              ? 'Screenshot ulasan terbit dan nama/URL akun Trustpilot wajib.'
+              : isLinkedInLike || isLinkedInFollow
               ? 'URL profil LinkedIn publik dan screenshot wajib.'
               : isLinkedInComment
               ? 'URL profil, link komentar, dan screenshot wajib.'
@@ -840,8 +896,57 @@ export function TaskDetail() {
             </>
           )}
 
-          {/* For LinkedIn tasks — public profile URL is required for all; comment permalink is required for comment. */}
-          {isLinkedIn ? (
+          {/* For Trustpilot review tasks */}
+          {isTrustpilotReview ? (
+            <div className="mt-3">
+              <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
+                Nama Akun / URL Profil Trustpilot Kamu <span className="text-danger">*</span>
+              </p>
+              <div className="relative mb-3">
+                <LinkIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                <input
+                  type="text"
+                  value={submittedUsername}
+                  onChange={(e) => setSubmittedUsername(e.target.value)}
+                  placeholder="Contoh: John Doe atau https://www.trustpilot.com/users/..."
+                  className="w-full pl-10 pr-3 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm"
+                  required
+                />
+              </div>
+              <p className="text-[11px] text-muted mb-3 -mt-2">
+                Nama atau URL profil akun Trustpilot yang kamu gunakan saat menulis review.
+              </p>
+
+              <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
+                Link ulasan kamu di Trustpilot (opsional)
+              </p>
+              <div className="relative mb-3">
+                <LinkIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                <input
+                  type="url"
+                  value={proofUrl}
+                  onChange={(e) => setProofUrl(e.target.value)}
+                  placeholder="https://www.trustpilot.com/reviews/..."
+                  className="w-full pl-10 pr-3 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm"
+                />
+              </div>
+
+              <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
+                Catatan untuk admin (opsional)
+              </p>
+              <textarea
+                value={userNote}
+                onChange={(e) => setUserNote(e.target.value)}
+                placeholder="Catatan tambahan (opsional)..."
+                className="w-full px-4 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition resize-none text-sm mb-3"
+                rows={2}
+              />
+
+              <p className="text-xs text-primary bg-primary/10 px-3 py-2 rounded-lg mt-2">
+                Trustpilot task: <b>screenshot bukti ulasan terbit & rating bintang 5 wajib</b> di-upload di atas.
+              </p>
+            </div>
+          ) : isLinkedIn ? (
             <div className="mt-3">
               <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
                 URL Profil LinkedIn Publik Kamu <span className="text-danger">*</span>
@@ -1062,6 +1167,7 @@ function platformForTask(task: any) {
   if (category === 'youtube_upload' || task.task_category === 'youtube_upload') return 'YouTube';
   if (category === 'preferred_source' || task.task_category === 'preferred_source') return 'Google';
   if (category && String(category).startsWith('linkedin')) return 'LinkedIn';
+  if (category === 'trustpilot_review' || (category && String(category).startsWith('trustpilot'))) return 'Trustpilot';
   if (category === 'reddit_upvote' || category === 'reddit_comment' || task.task_type === 'upvote') return 'Reddit';
   const text = `${task.title || ''} ${task.description || ''} ${task.target_url || ''}`.toLowerCase();
   if (text.includes('hubspot')) return 'HubSpot';
@@ -1122,6 +1228,7 @@ function ExampleScreenshot({ category }: { category: string }) {
   const isPref = category === 'preferred_source';
   const isYT = category === 'youtube_upload';
   const isLI = category.startsWith('linkedin');
+  const isTP = category.startsWith('trustpilot');
 
   return (
     <div className="bg-light/60 rounded-xl p-3 ring-1 ring-black/5">
@@ -1129,7 +1236,15 @@ function ExampleScreenshot({ category }: { category: string }) {
         Contoh bukti yang valid
       </p>
       <div className="bg-white rounded-lg p-3 ring-1 ring-black/10 shadow-inner max-w-[280px] mx-auto">
-        {isPref ? (
+        {isTP ? (
+          <div className="flex items-center gap-2 py-1">
+            <div className="w-5 h-5 rounded bg-emerald-600 text-white text-[9px] grid place-items-center font-bold">★</div>
+            <div className="flex-1">
+              <div className="text-[10px] font-bold text-dark">Review 5 Bintang di Trustpilot</div>
+              <div className="text-[8px] text-gray-400">Ulasan & username terbit</div>
+            </div>
+          </div>
+        ) : isPref ? (
           <div className="flex items-center gap-2 py-1">
             <div className="w-5 h-5 rounded-full bg-blue-500 text-white text-[10px] grid place-items-center font-bold">✓</div>
             <div className="flex-1">

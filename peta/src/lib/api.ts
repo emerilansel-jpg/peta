@@ -945,7 +945,7 @@ export async function getMaxRedditKarma(userId: string): Promise<{
 
 export async function getCommunityStats() {
   const [armyCount, paidPayouts] = await Promise.all([
-    supabase.from('users').select('id', { count: 'exact', head: true }).eq('role', 'army').eq('is_active', true),
+    supabase.from('users').select('id', { count: 'exact', head: true }).in('role', ['army', 'hero_army']).eq('is_active', true),
     supabase.from('payouts').select('amount').eq('status', 'paid'),
   ]);
   const totalMembers = armyCount.count || 0;
@@ -1045,7 +1045,7 @@ export async function getCommunityFeed(limit = 12): Promise<CommunityEvent[]> {
     supabase
       .from('users')
       .select('full_name, email, created_at')
-      .eq('role', 'army')
+      .in('role', ['army', 'hero_army'])
       .order('created_at', { ascending: false })
       .limit(limit),
     supabase
@@ -1320,7 +1320,8 @@ export type TaskCategory =
   | 'preferred_source'
   | 'linkedin_like'
   | 'linkedin_follow'
-  | 'linkedin_comment';
+  | 'linkedin_comment'
+  | 'trustpilot_review';
 export type TaskStatus = 'draft' | 'active' | 'paused' | 'completed';
 
 export type AdminTaskUpdate = {

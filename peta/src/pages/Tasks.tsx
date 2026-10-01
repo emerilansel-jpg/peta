@@ -96,7 +96,7 @@ export function Tasks() {
   const queryClient = useQueryClient();
   const [user, setUser] = React.useState<any>(null);
   const [taskSearch, setTaskSearch] = React.useState('');
-  const [taskPlatformFilter, setTaskPlatformFilter] = React.useState<'all' | 'reddit' | 'forum' | 'youtube' | 'google' | 'linkedin'>('all');
+  const [taskPlatformFilter, setTaskPlatformFilter] = React.useState<'all' | 'reddit' | 'forum' | 'youtube' | 'google' | 'linkedin' | 'trustpilot'>('all');
 
   React.useEffect(() => {
     (async () => {
@@ -427,7 +427,7 @@ export function Tasks() {
                 />
               </div>
               <div className="flex gap-2 overflow-x-auto pb-1">
-                {(['all', 'reddit', 'forum', 'youtube', 'google', 'linkedin'] as const).map((f) => (
+                {(['all', 'reddit', 'forum', 'youtube', 'google', 'linkedin', 'trustpilot'] as const).map((f) => (
                   <button
                     key={f}
                     onClick={() => setTaskPlatformFilter(f)}
@@ -437,7 +437,7 @@ export function Tasks() {
                         : 'bg-light text-muted ring-1 ring-border hover:ring-primary/40'
                     }`}
                   >
-                    {f === 'all' ? 'Semua' : f === 'reddit' ? 'Reddit' : f === 'forum' ? 'Forum' : f === 'youtube' ? 'YouTube' : f === 'google' ? 'Google' : 'LinkedIn'}
+                    {f === 'all' ? 'Semua' : f === 'reddit' ? 'Reddit' : f === 'forum' ? 'Forum' : f === 'youtube' ? 'YouTube' : f === 'google' ? 'Google' : f === 'linkedin' ? 'LinkedIn' : 'Trustpilot'}
                   </button>
                 ))}
               </div>
@@ -473,7 +473,8 @@ export function Tasks() {
                   (taskPlatformFilter === 'forum' && cat === 'forum_comment') ||
                   (taskPlatformFilter === 'youtube' && cat === 'youtube_upload') ||
                   (taskPlatformFilter === 'google' && cat === 'preferred_source') ||
-                  (taskPlatformFilter === 'linkedin' && cat.startsWith('linkedin'));
+                  (taskPlatformFilter === 'linkedin' && cat.startsWith('linkedin')) ||
+                  (taskPlatformFilter === 'trustpilot' && cat.startsWith('trustpilot'));
                 return matchSearch && matchPlatform;
               });
 
@@ -497,6 +498,7 @@ export function Tasks() {
                   t.task_category === 'linkedin_like' ? 'LinkedIn Like' :
                   t.task_category === 'linkedin_follow' ? 'LinkedIn Follow' :
                   t.task_category === 'linkedin_comment' ? 'LinkedIn Comment' :
+                  t.task_category === 'trustpilot_review' ? 'Trustpilot Review' :
                   'Reddit Comment';
                 const slotsLeft = Math.max(t.max_assignments - t.current_assignments, 0);
                 return (
