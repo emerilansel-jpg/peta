@@ -121,7 +121,7 @@ export function TaskDetail() {
   const approvedYtAccount = myYtAccounts.find((a) => a.verification_status === 'approved' && a.is_active);
 
   const startMutation = useMutation({
-    mutationFn: () => createTaskAssignment(taskId!, selectedAccountId || null),
+    mutationFn: () => createTaskAssignment(taskId!, isNoAccountNeeded ? null : (selectedAccountId || null)),
     onSuccess: (a: { id: string; draft_comment?: string | null }) => {
       setAssignmentId(a.id);
       if (a.draft_comment) setDraftComment(a.draft_comment);
@@ -431,41 +431,7 @@ export function TaskDetail() {
               </div>
             )}
 
-            {accounts.length > 1 ? (
-              <div className="space-y-2 my-4">
-                <p className="text-xs font-bold text-muted">Pilih Akun Reddit:</p>
-                {accounts.map((acc) => (
-                  <label
-                    key={acc.id}
-                    className={`flex items-center gap-3 p-2.5 rounded-xl ring-2 cursor-pointer tap-shrink ${
-                      selectedAccountId === acc.id ? 'ring-primary bg-primary/5' : 'ring-border hover:ring-primary/40'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="account"
-                      checked={selectedAccountId === acc.id}
-                      onChange={() => setSelectedAccountId(acc.id)}
-                      className="sr-only"
-                    />
-                    <div className={`w-4 h-4 rounded-full grid place-items-center ${
-                      selectedAccountId === acc.id ? 'bg-primary' : 'ring-2 ring-border bg-white'
-                    }`}>
-                      {selectedAccountId === acc.id && <Check size={10} className="text-white" />}
-                    </div>
-                    <div className="flex-1">
-                      <p className="font-bold text-sm">u/{acc.username}</p>
-                      <p className="text-[11px] text-muted">Karma: {acc.karma}</p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-            ) : accounts.length === 1 ? (
-              <div className="p-3 bg-light rounded-xl text-xs text-muted mb-4 flex items-center justify-between">
-                <span>Mengerjakan dengan: <strong className="text-dark">u/{accounts[0].username}</strong></span>
-                <span className="font-semibold text-primary">Karma {accounts[0].karma}</span>
-              </div>
-            ) : isYouTubeUpload ? (
+            {isYouTubeUpload ? (
               !approvedYtAccount ? (
                 <div className="p-4 bg-red-50 rounded-2xl border border-red-200 text-xs mb-4">
                   <div className="flex items-start gap-2.5">
@@ -499,9 +465,69 @@ export function TaskDetail() {
                   </span>
                 </div>
               )
+            ) : isTrustpilotReview ? (
+              <div className="space-y-3 mb-4">
+                <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-300 text-xs">
+                  <div className="flex items-start gap-2.5">
+                    <span className="text-xl shrink-0">🛡️</span>
+                    <div className="flex-1">
+                      <h4 className="font-extrabold text-emerald-950 text-sm mb-1">Wajib Pakai VPN US / UK</h4>
+                      <p className="text-emerald-900 leading-relaxed mb-2.5">
+                        Sebelum membuka link Trustpilot dan menulis review, <b>wajib mengaktifkan VPN lokasi Amerika Serikat (US) atau UK</b> agar review tidak dianggap spam dan tidak disaring oleh Trustpilot.
+                      </p>
+                      <a
+                        href="https://windscribe.com/id"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm tap-shrink"
+                      >
+                        Gunakan VPN Windscribe Gratis <ExternalLink size={12} />
+                      </a>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-3 bg-light rounded-xl text-xs text-muted flex items-center justify-between">
+                  <span>Akun pengerjaan:</span>
+                  <strong className="text-dark">Akun Trustpilot Pribadi (Wajib Nama Bule)</strong>
+                </div>
+              </div>
             ) : isNoAccountNeeded ? (
               <div className="p-3 bg-light rounded-xl text-xs text-muted mb-4">
                 Tugas {platformLabel} ini tidak memerlukan akun Reddit terhubung.
+              </div>
+            ) : accounts.length > 1 ? (
+              <div className="space-y-2 my-4">
+                <p className="text-xs font-bold text-muted">Pilih Akun Reddit:</p>
+                {accounts.map((acc) => (
+                  <label
+                    key={acc.id}
+                    className={`flex items-center gap-3 p-2.5 rounded-xl ring-2 cursor-pointer tap-shrink ${
+                      selectedAccountId === acc.id ? 'ring-primary bg-primary/5' : 'ring-border hover:ring-primary/40'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="account"
+                      checked={selectedAccountId === acc.id}
+                      onChange={() => setSelectedAccountId(acc.id)}
+                      className="sr-only"
+                    />
+                    <div className={`w-4 h-4 rounded-full grid place-items-center ${
+                      selectedAccountId === acc.id ? 'bg-primary' : 'ring-2 ring-border bg-white'
+                    }`}>
+                      {selectedAccountId === acc.id && <Check size={10} className="text-white" />}
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-bold text-sm">u/{acc.username}</p>
+                      <p className="text-[11px] text-muted">Karma: {acc.karma}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            ) : accounts.length === 1 ? (
+              <div className="p-3 bg-light rounded-xl text-xs text-muted mb-4 flex items-center justify-between">
+                <span>Mengerjakan dengan: <strong className="text-dark">u/{accounts[0].username}</strong></span>
+                <span className="font-semibold text-primary">Karma {accounts[0].karma}</span>
               </div>
             ) : null}
 
@@ -580,6 +606,25 @@ export function TaskDetail() {
           title={`Buka halaman ${platformLabel}`}
           subtitle="Klik tombol di bawah. Target akan terbuka di tab baru."
         >
+          {isTrustpilotReview && (
+            <div className="p-3 mb-2 rounded-xl bg-emerald-50 ring-1 ring-emerald-300 text-xs text-emerald-950 flex items-start gap-2.5">
+              <span className="text-base shrink-0">🛡️</span>
+              <div className="flex-1">
+                <p className="font-extrabold text-emerald-900 mb-0.5">Wajib Aktifkan VPN US / UK Terlebih Dahulu!</p>
+                <p className="leading-relaxed mb-1.5">
+                  Sebelum klik tombol Buka di bawah, pastikan kamu sudah mengaktifkan <b>VPN ke lokasi Amerika Serikat (US) atau UK</b> agar review tidak diblokir atau disaring oleh Trustpilot.
+                </p>
+                <a
+                  href="https://windscribe.com/id"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 underline hover:text-emerald-950"
+                >
+                  Download VPN Windscribe Gratis <ExternalLink size={11} />
+                </a>
+              </div>
+            </div>
+          )}
           <a
             href={task.target_url}
             target="_blank"
@@ -651,13 +696,14 @@ export function TaskDetail() {
                 <div className="space-y-3 mb-3">
                   <div className="bg-rose-50 ring-2 ring-rose-400 rounded-xl p-4 border-l-4 border-rose-600 shadow-sm">
                     <p className="text-xs uppercase font-extrabold tracking-wide text-rose-900 flex items-center gap-1.5 mb-1.5">
-                      🚨 ATURAN MUTLAK NAMA AKUN & BAHASA REVIEW
+                      🚨 ATURAN MUTLAK VPN, NAMA AKUN & BAHASA REVIEW
                     </p>
                     <ul className="text-xs text-rose-950 space-y-1.5 font-medium list-disc pl-4 leading-relaxed">
+                      <li><b>WAJIB AKTIFKAN VPN US / UK</b>: Sebelum membuka link Trustpilot dan menulis review, kamu wajib mengaktifkan VPN lokasi Amerika Serikat (US) atau UK (Gunakan <a href="https://windscribe.com/id" target="_blank" rel="noopener noreferrer" className="font-bold underline text-rose-900">Windscribe</a> gratis). Dilarang keras submit dengan IP Indonesia!</li>
                       <li><b>WAJIB MENGGUNAKAN NAMA BULE / AMERIKA / ENGLISH</b> (Contoh: Alex Miller, Sarah Jenkins, David Clark, Emily Watson, Michael Brown). <b>DILARANG KERAS</b> memakai nama Indonesia / lokal!</li>
                       <li>Jika akun Trustpilot kamu saat ini masih nama Indonesia, buka profil Trustpilot kamu lalu <b>ganti Display Name menjadi nama Bule</b> sebelum menulis review.</li>
                       <li>Ulasan / review <b>WAJIB 100% dalam BAHASA INGGRIS</b> (English only).</li>
-                      <li>Jika nama akun masih nama Indonesia saat diverifikasi admin, submission kamu akan <b>LANGSUNG DI-REJECT</b> tanpa bayaran!</li>
+                      <li>Review dengan nama Indonesia atau tanpa VPN akan <b>LANGSUNG DI-REJECT</b> tanpa bayaran!</li>
                     </ul>
                   </div>
 
@@ -961,7 +1007,7 @@ export function TaskDetail() {
                   className="mt-0.5 rounded border-amber-400 text-primary focus:ring-primary h-4 w-4 shrink-0"
                 />
                 <span className="text-xs text-amber-950 font-semibold leading-snug">
-                  Saya menyatakan bahwa akun Trustpilot saya menggunakan nama Bule / English (bukan nama Indonesia/lokal) dan review ditulis dalam Bahasa Inggris.
+                  Saya menyatakan bahwa saya sudah mengaktifkan <b>VPN US / UK (Windscribe)</b>, akun Trustpilot saya menggunakan <b>nama Bule / English</b> (bukan nama lokal), dan review ditulis dalam <b>Bahasa Inggris</b>.
                 </span>
               </label>
 
