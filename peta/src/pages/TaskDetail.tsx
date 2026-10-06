@@ -34,6 +34,7 @@ export function TaskDetail() {
   const [threadOpened, setThreadOpened] = React.useState(false);
   const [confetti, setConfetti] = React.useState(false);
   const [checkingExistingAssignment, setCheckingExistingAssignment] = React.useState(true);
+  const [trustpilotConfirmed, setTrustpilotConfirmed] = React.useState(false);
 
   React.useEffect(() => {
     (async () => {
@@ -217,7 +218,7 @@ export function TaskDetail() {
         : !!draftComment?.trim())
     : true;
   const canSubmit = isTrustpilotReview
-    ? !!proofImageUrl && !!submittedUsername.trim() && !!assignmentId
+    ? !!proofImageUrl && !!submittedUsername.trim() && trustpilotConfirmed && !!assignmentId
     : (isLinkedInLike || isLinkedInFollow)
     ? !!proofImageUrl && !!submittedUsername.trim() && !!assignmentId
     : isLinkedInComment
@@ -648,6 +649,18 @@ export function TaskDetail() {
               const guide = (task.brief || task.description || '').trim();
               return (
                 <div className="space-y-3 mb-3">
+                  <div className="bg-rose-50 ring-2 ring-rose-400 rounded-xl p-4 border-l-4 border-rose-600 shadow-sm">
+                    <p className="text-xs uppercase font-extrabold tracking-wide text-rose-900 flex items-center gap-1.5 mb-1.5">
+                      🚨 ATURAN MUTLAK NAMA AKUN & BAHASA REVIEW
+                    </p>
+                    <ul className="text-xs text-rose-950 space-y-1.5 font-medium list-disc pl-4 leading-relaxed">
+                      <li><b>WAJIB MENGGUNAKAN NAMA BULE / AMERIKA / ENGLISH</b> (Contoh: Alex Miller, Sarah Jenkins, David Clark, Emily Watson, Michael Brown). <b>DILARANG KERAS</b> memakai nama Indonesia / lokal!</li>
+                      <li>Jika akun Trustpilot kamu saat ini masih nama Indonesia, buka profil Trustpilot kamu lalu <b>ganti Display Name menjadi nama Bule</b> sebelum menulis review.</li>
+                      <li>Ulasan / review <b>WAJIB 100% dalam BAHASA INGGRIS</b> (English only).</li>
+                      <li>Jika nama akun masih nama Indonesia saat diverifikasi admin, submission kamu akan <b>LANGSUNG DI-REJECT</b> tanpa bayaran!</li>
+                    </ul>
+                  </div>
+
                   {comment && (
                     <div className="bg-emerald-50 ring-1 ring-emerald-300 rounded-xl p-3">
                       <div className="flex items-center justify-between gap-2 mb-1">
@@ -899,8 +912,17 @@ export function TaskDetail() {
           {/* For Trustpilot review tasks */}
           {isTrustpilotReview ? (
             <div className="mt-3">
+              <div className="p-3.5 mb-3 rounded-xl bg-rose-50 ring-2 ring-rose-400 text-xs text-rose-950">
+                <p className="font-extrabold text-rose-900 mb-1 flex items-center gap-1">
+                  🚨 WAJIB NAMA BULE / ENGLISH
+                </p>
+                <p className="leading-relaxed">
+                  Nama akun Trustpilot kamu <b>wajib nama Bule / English</b> (contoh: Alex Miller, Sarah Jenkins). <b>Dilarang keras memakai nama Indonesia</b>. Submission dengan nama lokal akan langsung di-reject!
+                </p>
+              </div>
+
               <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
-                Nama Akun / URL Profil Trustpilot Kamu <span className="text-danger">*</span>
+                Nama Akun Trustpilot Kamu (Wajib Nama Bule / English) <span className="text-danger">*</span>
               </p>
               <div className="relative mb-3">
                 <LinkIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
@@ -908,13 +930,13 @@ export function TaskDetail() {
                   type="text"
                   value={submittedUsername}
                   onChange={(e) => setSubmittedUsername(e.target.value)}
-                  placeholder="Contoh: John Doe atau https://www.trustpilot.com/users/..."
-                  className="w-full pl-10 pr-3 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm"
+                  placeholder="Contoh: Alex Miller / Sarah Jenkins"
+                  className="w-full pl-10 pr-3 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm font-medium"
                   required
                 />
               </div>
               <p className="text-[11px] text-muted mb-3 -mt-2">
-                Nama atau URL profil akun Trustpilot yang kamu gunakan saat menulis review.
+                Nama display akun Trustpilot kamu yang terlihat pada review. Wajib nama Western/English.
               </p>
 
               <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
@@ -930,6 +952,18 @@ export function TaskDetail() {
                   className="w-full pl-10 pr-3 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm"
                 />
               </div>
+
+              <label className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 ring-1 ring-amber-300 cursor-pointer mb-3 select-none">
+                <input
+                  type="checkbox"
+                  checked={trustpilotConfirmed}
+                  onChange={(e) => setTrustpilotConfirmed(e.target.checked)}
+                  className="mt-0.5 rounded border-amber-400 text-primary focus:ring-primary h-4 w-4 shrink-0"
+                />
+                <span className="text-xs text-amber-950 font-semibold leading-snug">
+                  Saya menyatakan bahwa akun Trustpilot saya menggunakan nama Bule / English (bukan nama Indonesia/lokal) dan review ditulis dalam Bahasa Inggris.
+                </span>
+              </label>
 
               <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
                 Catatan untuk admin (opsional)
@@ -1086,7 +1120,9 @@ export function TaskDetail() {
             </Button>
             {!canSubmit && (
               <p className="text-[11px] text-muted text-center mt-2">
-                {isUpvote
+                {isTrustpilotReview && !trustpilotConfirmed
+                  ? 'Centang konfirmasi nama bule/English untuk submit.'
+                  : isUpvote
                   ? 'Upload screenshot dulu untuk submit.'
                   : isYouTubeUpload
                   ? 'Isi URL video YouTube hasil upload dulu.'

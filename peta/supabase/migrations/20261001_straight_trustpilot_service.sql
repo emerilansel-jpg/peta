@@ -319,19 +319,25 @@ BEGIN
   END;
 
   IF v_is_trustpilot THEN
-    v_description := 'Buka link profil Trustpilot bisnis target, tulis ulasan positif & bintang 5 sesuai instruksi/draft, lalu kirim screenshot review dan nama/profil Trustpilot kamu.';
+    v_description := 'WAJIB NAMA BULE / AMERIKA (ENGLISH NAME) & REVIEW BAHASA INGGRIS. Tulis ulasan bintang 5 di Trustpilot sesuai instruksi/draft, lalu kirim screenshot bukti.';
     v_brief := format(
-      E'⭐ Misi: Tulis review di Trustpilot untuk bisnis klien.\n\n' ||
-      E'Petunjuk review:\n%s\n\n' ||
+      E'⭐ Misi: Tulis review di Trustpilot untuk bisnis klien internasional.\n\n' ||
+      E'🚨 ATURAN MUTLAK NAMA AKUN & BAHASA REVIEW (WAJIB DIPATUHI):\n' ||
+      E'1. NAMA AKUN TRUSTPILOT WAJIB NAMA BULE / AMERIKA / ENGLISH (Contoh: Alex Miller, Sarah Jenkins, David Clark, Emily Watson, Michael Brown). DILARANG KERAS menggunakan nama Indonesia / lokal!\n' ||
+      E'2. Cara ganti nama: Buka Trustpilot.com -> My Profile / Pengaturan Akun -> Edit Display Name -> ubah jadi nama Bule sebelum menulis review.\n' ||
+      E'3. Ulasan WAJIB 100%% dalam BAHASA INGGRIS (English only).\n' ||
+      E'4. Review dengan nama Indonesia akan LANGSUNG DI-REJECT tanpa bayaran!\n\n' ||
+      E'Petunjuk review dari klien:\n%s\n\n' ||
       E'Langkah pengerjaan:\n' ||
-      E'1. Buka link Trustpilot bisnis di atas\n' ||
-      E'2. Klik "Write a review", beri rating bintang 5\n' ||
-      E'3. Jika ada draft ulasan yang disediakan, gunakan draft tersebut. Jika tidak, tulis ulasan yang positif, natural, dan sesuai petunjuk di atas.\n' ||
-      E'4. Pasang ulasan menggunakan akun Trustpilot aktifmu\n' ||
-      E'5. Screenshot halaman Trustpilot yang menampilkan ulasan kamu yang sudah terbit\n' ||
-      E'6. Kirim screenshot dan nama/URL profil akun Trustpilot kamu sebagai bukti.\n\n' ||
-      E'Catatan: 1 orang/akun hanya boleh 1x me-review bisnis ini.',
-      COALESCE(NULLIF(v_notes->>'review_brief', ''), 'Tulis review pengalaman positif, natural, dan profesional.')
+      E'1. Pastikan nama akun Trustpilot kamu sudah nama Bule / English (bukan nama Indonesia)\n' ||
+      E'2. Buka link Trustpilot bisnis di atas\n' ||
+      E'3. Klik "Write a review", beri rating bintang 5\n' ||
+      E'4. Gunakan draft ulasan atau tulis ulasan bahasa Inggris yang natural sesuai petunjuk\n' ||
+      E'5. Pasang ulasan di profil Trustpilot\n' ||
+      E'6. Screenshot ulasan kamu yang sudah terbit di Trustpilot\n' ||
+      E'7. Kirim screenshot dan nama akun Trustpilot bule kamu sebagai bukti.\n\n' ||
+      E'Catatan: 1 orang hanya boleh 1x me-review bisnis ini.',
+      COALESCE(NULLIF(v_notes->>'review_brief', ''), 'Tulis review pengalaman positif bintang 5 dalam bahasa Inggris yang natural dan profesional.')
     );
   ELSIF v_is_linkedin_like THEN
     v_description := 'Buka posting LinkedIn di link target, berikan Like dengan akun LinkedIn pribadimu, lalu kirim screenshot dan URL profilmu.';

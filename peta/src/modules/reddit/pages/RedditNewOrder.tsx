@@ -2753,7 +2753,7 @@ function TrustpilotOrderForm({ onBack }: { onBack: () => void }) {
             <span className="text-sm text-slate-500">reviews (1–20 per order)</span>
           </div>
           <p className="mt-2 text-xs text-slate-500">
-            Each review is written by a unique real person with their own Trustpilot account. 1 worker = 1 review max per business.
+            Each review is written by a unique real person using an English/Western display name. Reviews are 100% in English. 1 worker = 1 review max per business.
           </p>
         </div>
 

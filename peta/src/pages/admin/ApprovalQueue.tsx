@@ -529,9 +529,16 @@ export function AdminApprovalQueue() {
                         u/{a.reddit_accounts?.username || '-'} · {a.army_email || 'no email'}
                       </p>
                     </div>
-                    <p className="text-sm font-extrabold money shrink-0" style={{ color: isReverted ? '#FFB740' : isApproved ? '#06D6A0' : undefined }}>
-                      Rp{(a.tasks?.reward_amount || 0).toLocaleString('id-ID')}
-                    </p>
+                    <div>
+                      <p className="text-sm font-extrabold money shrink-0" style={{ color: isReverted ? '#FFB740' : isApproved ? '#06D6A0' : undefined }}>
+                        Rp{(a.tasks?.reward_amount || 0).toLocaleString('id-ID')}
+                      </p>
+                      {a.tasks?.task_category === 'reddit_challenge' && (
+                        <span className="block text-[10px] text-right font-medium text-purple-600">
+                          {a.tasks?.title?.includes('Veteran') ? 'Bonus Fase 1' : 'Tabungan Retensi'}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Evidence row — multi-proof gallery + URLs + comment, same as pending view */}
@@ -701,6 +708,11 @@ export function AdminApprovalQueue() {
                       </td>
                       <td className="px-2 py-3 align-top text-right whitespace-nowrap font-extrabold text-primary money">
                         Rp{a.tasks?.reward_amount?.toLocaleString('id-ID')}
+                        {a.tasks?.task_category === 'reddit_challenge' && (
+                          <span className="block text-[10px] font-medium text-purple-600">
+                            {a.tasks?.title?.includes('Veteran') ? 'Bonus Fase 1' : 'Tabungan Retensi'}
+                          </span>
+                        )}
                       </td>
                       <td className="px-2 py-3 align-top text-right whitespace-nowrap">
                         <div className="flex justify-end gap-1 items-center">
@@ -805,9 +817,16 @@ export function AdminApprovalQueue() {
                         </span>
                       )}
                     </div>
-                    <p className="text-base font-extrabold text-primary money shrink-0">
-                      Rp{a.tasks?.reward_amount?.toLocaleString('id-ID')}
-                    </p>
+                    <div>
+                      <p className="text-base font-extrabold text-primary money shrink-0">
+                        Rp{a.tasks?.reward_amount?.toLocaleString('id-ID')}
+                      </p>
+                      {a.tasks?.task_category === 'reddit_challenge' && (
+                        <span className="block text-[10px] text-right font-medium text-purple-600">
+                          {a.tasks?.title?.includes('Veteran') ? 'Bonus Fase 1' : 'Tabungan Retensi'}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex gap-2 items-stretch">
@@ -853,6 +872,18 @@ export function AdminApprovalQueue() {
                       </div>
                     </div>
                   </div>
+
+                  {a.tasks?.task_category === 'trustpilot_review' && (
+                    <div className="mt-2.5 p-2 rounded-lg bg-rose-50 ring-1 ring-rose-300 text-xs text-rose-950">
+                      <p className="font-bold text-rose-900 flex items-center gap-1">
+                        ⭐ Trustpilot Review Check:
+                      </p>
+                      <p className="mt-0.5">
+                        Username yang disubmit: <b className="font-mono bg-white px-1.5 py-0.5 rounded border border-rose-300">{a.reddit_accounts?.username || a.submitted_username}</b>.
+                        Wajib nama <b>Bule / English</b> (misal: Alex, Sarah, David). Jika nama lokal Indonesia, <b>REJECT</b>!
+                      </p>
+                    </div>
+                  )}
 
                   <div className="flex gap-2 mt-3 items-center">
                     {a.contributor_workflow && a.visibility_status !== 'visible' && (
