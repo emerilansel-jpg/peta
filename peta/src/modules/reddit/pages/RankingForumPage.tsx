@@ -371,7 +371,7 @@ export function RankingForumPage() {
             'bulk_source=ranking_forum',
             `bulk_target_title=${target.title}`,
             wantsSuggestion ? 'comment=ai_unique_per_page' : 'comment=client_guideline_unique_per_thread',
-          ].join('\\n'),
+          ].join('\n'),
         };
       });
       const orders = await createForumCommentOrdersBulkAsync(inputs);
@@ -379,8 +379,9 @@ export function RankingForumPage() {
       window.localStorage.removeItem(RANKING_DRAFT_KEY);
       toast.success(`${orders.length} comment order${orders.length === 1 ? '' : 's'} placed.`);
       setShowSuccess(true);
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to create bulk comment orders');
+    } catch (err: any) {
+      const msg = err?.message || (typeof err === 'string' ? err : 'Failed to create bulk comment orders');
+      toast.error(msg);
     } finally {
       await refetchBalance();
       setSubmittingOrders(false);

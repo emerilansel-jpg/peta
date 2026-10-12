@@ -593,18 +593,25 @@ export async function getStraightProviderHealth(): Promise<StraightProviderHealt
 
 function forumScreeningPayload(input: ForumCommentOrderInput) {
   return {
-    target_url: input.targetUrl, platform: input.platform, comment_text: input.commentText,
-    use_suggested_comment: input.useSuggestedComment, brand_name: input.brandName,
-    brand_domain: input.brandDomain, brand_mention_mode: input.brandMentionMode,
-    source_keyword: input.sourceKeyword ?? null, notes: input.notes ?? null,
-    quantity: input.quantity ?? 1, comment_drafts: input.commentDrafts?.length ? input.commentDrafts : [],
-    is_reply: input.isReply ?? false, reply_to: input.replyToComment ?? null,
+    target_url: input.targetUrl,
+    platform: input.platform ?? null,
+    comment_text: input.commentText,
+    use_suggested_comment: input.useSuggestedComment,
+    brand_name: input.brandName ?? null,
+    brand_domain: input.brandDomain ?? null,
+    brand_mention_mode: input.brandMentionMode ?? null,
+    source_keyword: input.sourceKeyword ?? null,
+    notes: input.notes ?? null,
+    quantity: input.quantity ?? 1,
+    comment_drafts: input.commentDrafts?.length ? input.commentDrafts : [],
+    is_reply: input.isReply ?? false,
+    reply_to: input.replyToComment ?? null,
   };
 }
 
 async function screenForumOrder(order: ReturnType<typeof forumScreeningPayload>) {
   const { data: pilot, error: pilotError } = await supabase.rpc('contributor_pilot_enabled');
-  if (pilotError) throw pilotError;
+  if (pilotError) throw new Error(pilotError.message || 'Failed to check account screening');
   if (!pilot || !/(^|\.)reddit\.com$/i.test(new URL(order.target_url).hostname)) return;
   const { data, error } = await supabase.functions.invoke('generate-forum-comment', {
     body: { action: 'screen_order', order },
@@ -619,12 +626,12 @@ export async function createForumCommentOrder(input: ForumCommentOrderInput) {
   await screenForumOrder(forumScreeningPayload(input));
   const { data, error } = await supabase.rpc('fn_create_forum_comment_order', {
     p_target_url: input.targetUrl,
-    p_platform: input.platform,
+    p_platform: input.platform ?? null,
     p_comment_text: input.commentText,
     p_use_suggested_comment: input.useSuggestedComment,
-    p_brand_name: input.brandName,
-    p_brand_domain: input.brandDomain,
-    p_brand_mention_mode: input.brandMentionMode,
+    p_brand_name: input.brandName ?? null,
+    p_brand_domain: input.brandDomain ?? null,
+    p_brand_mention_mode: input.brandMentionMode ?? null,
     p_source_keyword: input.sourceKeyword ?? null,
     p_notes: input.notes ?? null,
     p_quantity: input.quantity ?? 1,
@@ -633,9 +640,11 @@ export async function createForumCommentOrder(input: ForumCommentOrderInput) {
     p_reply_to: input.replyToComment ?? null,
   });
   if (error) {
-    if (error.message.includes('insufficient_credits')) throw new Error('Insufficient credits. Please top up your account.');
-    if (error.message.includes('service_disabled')) throw new Error('This service is paused right now. Please check back soon.');
-    throw error;
+    const msg = error.message || String(error);
+    if (msg.includes('insufficient_credits')) throw new Error('Insufficient credits. Please top up your account.');
+    if (msg.includes('service_disabled') || msg.includes('reddit_service_disabled')) throw new Error('This service is paused right now. Please check back soon.');
+    if (msg.includes('screening_required')) throw new Error('Order compliance screening required. Please verify your order details.');
+    throw new Error(msg);
   }
   return data;
 }
@@ -647,12 +656,12 @@ export async function createForumCommentOrdersBulk(inputs: ForumCommentOrderInpu
   const { data, error } = await supabase.rpc('fn_create_forum_comment_orders_bulk', {
     p_orders: inputs.map((input) => ({
       target_url: input.targetUrl,
-      platform: input.platform,
+      platform: input.platform ?? null,
       comment_text: input.commentText,
       use_suggested_comment: input.useSuggestedComment,
-      brand_name: input.brandName,
-      brand_domain: input.brandDomain,
-      brand_mention_mode: input.brandMentionMode,
+      brand_name: input.brandName ?? null,
+      brand_domain: input.brandDomain ?? null,
+      brand_mention_mode: input.brandMentionMode ?? null,
       source_keyword: input.sourceKeyword ?? null,
       notes: input.notes ?? null,
       quantity: input.quantity ?? 1,
@@ -662,9 +671,11 @@ export async function createForumCommentOrdersBulk(inputs: ForumCommentOrderInpu
     })),
   });
   if (error) {
-    if (error.message.includes('insufficient_credits')) throw new Error('Insufficient credits. Please top up your account.');
-    if (error.message.includes('service_disabled')) throw new Error('This service is paused right now. Please check back soon.');
-    throw error;
+    const msg = error.message || String(error);
+    if (msg.includes('insufficient_credits')) throw new Error('Insufficient credits. Please top up your account.');
+    if (msg.includes('service_disabled') || msg.includes('reddit_service_disabled')) throw new Error('This service is paused right now. Please check back soon.');
+    if (msg.includes('screening_required')) throw new Error('Order compliance screening required. Please verify your order details.');
+    throw new Error(msg);
   }
   return (data || []) as ForumCommentOrderResult[];
 }

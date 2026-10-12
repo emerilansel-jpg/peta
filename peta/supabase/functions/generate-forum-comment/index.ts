@@ -351,6 +351,9 @@ async function screenOrder(req: Request, order: Record<string, unknown>, userId:
       if (['pass', 'revise', 'reject'].includes(parsed.verdict) && typeof parsed.reason === 'string' && parsed.reason.trim()) {
         verdict = parsed.verdict === 'pass' && (!rules || !context) ? 'manual_review' : parsed.verdict;
         reason = verdict === 'manual_review' ? 'Community rules or thread unavailable. Admin review required. ' + parsed.reason : parsed.reason;
+        if (verdict !== 'manual_review' && (!rules || !context) && /unavailable|cannot pass|cannot be verified/i.test(reason) && !/illegal|harassment|doxx|scam|hate/i.test(reason)) {
+          verdict = 'manual_review';
+        }
       }
     }
   } catch { /* Fail closed into manual review, never an unchecked pass. */ }

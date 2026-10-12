@@ -1077,7 +1077,7 @@ function ForumCommentOrderForm({
               `bulk_source=ranking_forum`,
               `bulk_target_title=${target.title}`,
               wantsSuggestion ? 'bulk_suggested=unique_per_thread_draft' : '',
-            ].filter(Boolean).join('\\n') || null,
+            ].filter(Boolean).join('\n') || null,
             commentDrafts: draft ? [{ comment_text: draft.comment_text }] : undefined,
           };
         });
@@ -1088,8 +1088,9 @@ function ForumCommentOrderForm({
         window.localStorage.removeItem(BULK_COMMENT_DRAFT_KEY);
         toast.success(`${bulkQueue.length} comment orders placed. ${formatUSD(cost)} deducted from credit.`);
         setShowSuccessModal(true);
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : 'Failed to create bulk comment orders');
+      } catch (err: any) {
+        const msg = err?.message || (typeof err === 'string' ? err : 'Failed to create bulk comment orders');
+        toast.error(msg);
       } finally {
         setBulkSubmitting(false);
       }
