@@ -227,6 +227,50 @@ export async function createTrustpilotOrder(input: TrustpilotOrderInput) {
   return data;
 }
 
+export interface GoogleMapsReviewOrderInput {
+  targetUrl: string;
+  quantity: number;
+  location?: string | null;
+  notes?: string | null;
+  reviewMode?: 'brief' | 'custom';
+  reviewBrief?: string | null;
+  reviewDrafts?: { comment_text: string }[] | null;
+  requestId?: string | null;
+}
+
+// Create a Google Maps review order via RPC ($5.00 global / $6.00 specific location).
+export async function createGoogleMapsReviewOrder(input: GoogleMapsReviewOrderInput) {
+  const { data, error } = await supabase.rpc('fn_create_google_maps_review_order', {
+    p_target_url: input.targetUrl,
+    p_quantity: input.quantity,
+    p_location: input.location ? input.location.trim() : null,
+    p_notes: input.notes || null,
+    p_review_mode: input.reviewMode || 'brief',
+    p_review_brief: input.reviewBrief || null,
+    p_review_drafts: input.reviewDrafts && input.reviewDrafts.length > 0 ? input.reviewDrafts : null,
+    p_request_id: input.requestId || null,
+  });
+
+  if (error) {
+    console.error('[createGoogleMapsReviewOrder] RPC error:', error);
+    if (error.message?.includes('insufficient_credits')) {
+      throw new Error('Insufficient credits. Please top up your account.');
+    }
+    if (error.message?.includes('service_disabled')) {
+      throw new Error('Google Maps review service is paused right now. Please check back soon.');
+    }
+    if (error.message?.includes('URL Google Maps tidak valid')) {
+      throw new Error('Please enter a valid Google Maps place/business URL.');
+    }
+    if (error.message?.includes('quantity')) {
+      throw new Error(error.message);
+    }
+    throw error;
+  }
+
+  return data;
+}
+
 export interface ForumCommentOrderInput {
   targetUrl: string;
   platform: string | null;

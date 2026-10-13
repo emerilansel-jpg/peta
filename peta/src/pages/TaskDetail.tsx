@@ -105,12 +105,13 @@ export function TaskDetail() {
   const isLinkedInComment = category === 'linkedin_comment';
   const isLinkedIn = isLinkedInLike || isLinkedInFollow || isLinkedInComment;
   const isTrustpilotReview = category === 'trustpilot_review';
-  const isUpvote = (category === 'reddit_upvote' || task?.task_type === 'upvote') && !isLinkedIn && !isTrustpilotReview;
+  const isGoogleMapsReview = category === 'google_maps_review';
+  const isUpvote = (category === 'reddit_upvote' || task?.task_type === 'upvote') && !isLinkedIn && !isTrustpilotReview && !isGoogleMapsReview;
   const isForumComment = category === 'forum_comment';
   const isYouTubeUpload = category === 'youtube_upload';
   const isPreferredSource = category === 'preferred_source';
-  const isComment = isForumComment || category === 'reddit_comment' || isLinkedInComment || isTrustpilotReview || task?.task_type === 'comment';
-  const isNoAccountNeeded = isForumComment || isYouTubeUpload || isPreferredSource || isLinkedIn || isTrustpilotReview;
+  const isComment = isForumComment || category === 'reddit_comment' || isLinkedInComment || isTrustpilotReview || isGoogleMapsReview || task?.task_type === 'comment';
+  const isNoAccountNeeded = isForumComment || isYouTubeUpload || isPreferredSource || isLinkedIn || isTrustpilotReview || isGoogleMapsReview;
   const platformLabel = task ? platformForTask(task) : 'Forum';
 
   const { data: myYtAccounts = [] } = useQuery({
@@ -217,7 +218,9 @@ export function TaskDetail() {
         ? !!(draftComment?.trim() || commentPost)
         : !!draftComment?.trim())
     : true;
-  const canSubmit = isTrustpilotReview
+  const canSubmit = isGoogleMapsReview
+    ? !!proofImageUrl && !!submittedUsername.trim() && !!assignmentId
+    : isTrustpilotReview
     ? !!proofImageUrl && !!submittedUsername.trim() && trustpilotConfirmed && !!assignmentId
     : (isLinkedInLike || isLinkedInFollow)
     ? !!proofImageUrl && !!submittedUsername.trim() && !!assignmentId
@@ -399,7 +402,7 @@ export function TaskDetail() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className="text-[10px] font-bold uppercase tracking-wide bg-primary/15 text-primary px-2 py-0.5 rounded-full">
-                    {isUpvote ? 'Upvote' : isPreferredSource ? 'Preferred Source' : isTrustpilotReview ? 'Trustpilot Review' : isComment ? `${platformLabel} Comment` : isYouTubeUpload ? 'YouTube Upload' : `${platformLabel} Task`}
+                    {isUpvote ? 'Upvote' : isPreferredSource ? 'Preferred Source' : isTrustpilotReview ? 'Trustpilot Review' : isGoogleMapsReview ? 'Google Maps Review' : isComment ? `${platformLabel} Comment` : isYouTubeUpload ? 'YouTube Upload' : `${platformLabel} Task`}
                   </span>
                 </div>
                 <h1 className="text-xl sm:text-2xl font-extrabold mb-2 leading-tight">{task.title}</h1>
@@ -491,6 +494,30 @@ export function TaskDetail() {
                   <strong className="text-dark">Akun Trustpilot Pribadi (Wajib Nama Bule)</strong>
                 </div>
               </div>
+            ) : isGoogleMapsReview ? (
+              <div className="space-y-3 mb-4">
+                <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-300 text-xs">
+                  <div className="flex items-start gap-2.5">
+                    <span className="text-xl shrink-0">📍</span>
+                    <div className="flex-1">
+                      <h4 className="font-extrabold text-emerald-950 text-sm mb-1">SOP Ulasan Google Maps (Anti-Drop)</h4>
+                      <p className="text-emerald-900 leading-relaxed mb-1.5">
+                        • <b>Wajib Akun Google Pribadi Berumur & Aktif:</b> Dilarang akun baru buat/ternak (Google langsung drop rating dari akun baru).
+                      </p>
+                      <p className="text-emerald-900 leading-relaxed mb-1.5">
+                        • <b>Koneksi Normal (Tanpa VPN):</b> Gunakan koneksi seluler/Wi-Fi normal kamu. <b>Dilarang pakai VPN gratis/datacenter</b> agar ulasan tidak di-shadowban Google.
+                      </p>
+                      <p className="text-emerald-900 leading-relaxed">
+                        • <b>Rating Bintang 5:</b> Beri rating 5 bintang dan tulis ulasan natural 2-4 kalimat sesuai brief.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-3 bg-light rounded-xl text-xs text-muted flex items-center justify-between">
+                  <span>Akun pengerjaan:</span>
+                  <strong className="text-dark">Akun Google Pribadi Kamu</strong>
+                </div>
+              </div>
             ) : isNoAccountNeeded ? (
               <div className="p-3 bg-light rounded-xl text-xs text-muted mb-4">
                 Tugas {platformLabel} ini tidak memerlukan akun Reddit terhubung.
@@ -579,7 +606,7 @@ export function TaskDetail() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <span className="text-[10px] font-bold uppercase tracking-wide bg-primary/15 text-primary px-2 py-0.5 rounded-full">
-                  {isUpvote ? 'Upvote' : isPreferredSource ? 'Preferred Source' : isTrustpilotReview ? 'Trustpilot Review' : isComment ? `${platformLabel} Comment` : isYouTubeUpload ? 'YouTube Upload' : `${platformLabel} Task`}
+                  {isUpvote ? 'Upvote' : isPreferredSource ? 'Preferred Source' : isTrustpilotReview ? 'Trustpilot Review' : isGoogleMapsReview ? 'Google Maps Review' : isComment ? `${platformLabel} Comment` : isYouTubeUpload ? 'YouTube Upload' : `${platformLabel} Task`}
                 </span>
               </div>
               <h1 className="text-xl sm:text-2xl font-extrabold mb-2 leading-tight">{task.title}</h1>
@@ -654,6 +681,8 @@ export function TaskDetail() {
           active={threadOpened}
           title={isTrustpilotReview
             ? 'Tulis review di Trustpilot'
+            : isGoogleMapsReview
+            ? 'Tulis review di Google Maps (⭐⭐⭐⭐⭐)'
             : isLinkedInLike
             ? 'Beri Like pada post LinkedIn'
             : isLinkedInFollow
@@ -669,6 +698,8 @@ export function TaskDetail() {
             : `Post komentar di ${platformLabel}`}
           subtitle={isTrustpilotReview
             ? 'Beri rating bintang 5 dan tulis ulasan sesuai brief atau draft di bawah.'
+            : isGoogleMapsReview
+            ? 'Beri rating bintang 5 dan tulis ulasan natural sesuai brief atau draft di bawah.'
             : isLinkedInLike
             ? 'Pastikan tombol Like berubah jadi warna biru aktif. Itu tanda Like sukses.'
             : isLinkedInFollow
@@ -734,19 +765,79 @@ export function TaskDetail() {
                       </p>
                     </div>
                   )}
-                  {guide && (
-                    <div className="bg-sky-50 ring-1 ring-sky-300 rounded-xl p-3">
-                      <p className="text-[10px] uppercase font-bold tracking-wide text-sky-900 mb-1">
-                        Petunjuk review Trustpilot
-                      </p>
-                      <p className="text-sm text-sky-950 whitespace-pre-line leading-relaxed">
-                        {guide}
-                      </p>
+                      {guide && (
+                        <div className="bg-sky-50 ring-1 ring-sky-300 rounded-xl p-3">
+                          <p className="text-[10px] uppercase font-bold tracking-wide text-sky-900 mb-1">
+                            Petunjuk review Trustpilot
+                          </p>
+                          <p className="text-sm text-sky-950 whitespace-pre-line leading-relaxed">
+                            {guide}
+                          </p>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              );
-            }
+                  );
+                }
+
+                // Google Maps review tasks: show draft or guidelines with Anti-Drop rules
+                if (isGoogleMapsReview) {
+                  const comment = draftComment?.trim();
+                  const guide = (task.brief || task.description || '').trim();
+                  return (
+                    <div className="space-y-3 mb-3">
+                      <div className="bg-emerald-50 ring-2 ring-emerald-400 rounded-xl p-4 border-l-4 border-emerald-600 shadow-sm">
+                        <p className="text-xs uppercase font-extrabold tracking-wide text-emerald-900 flex items-center gap-1.5 mb-1.5">
+                          📍 SOP REVIEW GOOGLE MAPS AGAR RATING TIDAK HILANG
+                        </p>
+                        <ul className="text-xs text-emerald-950 space-y-1.5 font-medium list-disc pl-4 leading-relaxed">
+                          <li><b>AKUN GOOGLE ASLI & BERUMUR</b>: Wajib gunakan akun Google pribadi kamu yang sudah aktif lama. Dilarang keras akun ternak baru buat (Google otomatis memfilter ulasan dari akun baru).</li>
+                          <li><b>JANGAN GUNAKAN VPN GRATISAN / DATACENTER</b>: Gunakan koneksi seluler atau Wi-Fi asli kamu. IP VPN murah akan langsung ditandai oleh Google dan rating akan di-drop.</li>
+                          <li><b>RATING 5 BINTANG</b>: Beri rating bintang 5 penuh pada bisnis target.</li>
+                          <li><b>ULASAN NATURAL</b>: Tulis ulasan 2-4 kalimat yang positif, ramah, dan spesifik. Jika tersedia draft di bawah, kamu bisa langsung copy draft tersebut.</li>
+                          <li><b>PASTIKAN SUDAH TAYANG</b>: Cek apakah ulasanmu sudah terbit dan berstatus Publik di Google Maps sebelum mengambil screenshot.</li>
+                        </ul>
+                      </div>
+
+                      {comment && (
+                        <div className="bg-emerald-50 ring-1 ring-emerald-300 rounded-xl p-3">
+                          <div className="flex items-center justify-between gap-2 mb-1">
+                            <p className="text-[10px] uppercase font-bold tracking-wide text-emerald-900">
+                              Draft review yang harus diposting
+                            </p>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                try {
+                                  await navigator.clipboard.writeText(comment);
+                                  toast.success('Review disalin! Tinggal paste di Google Maps.');
+                                } catch {
+                                  toast.error('Gagal menyalin otomatis. Copy manual ya.');
+                                }
+                              }}
+                              className="shrink-0 inline-flex items-center gap-1 text-[11px] font-bold text-emerald-900 bg-emerald-200 hover:bg-emerald-300 active:bg-emerald-300 rounded-lg px-2.5 py-1.5 tap-shrink"
+                            >
+                              <Copy className="w-3.5 h-3.5" />
+                              Copy review
+                            </button>
+                          </div>
+                          <p className="text-sm text-emerald-950 whitespace-pre-line leading-relaxed">
+                            {comment}
+                          </p>
+                        </div>
+                      )}
+                      {guide && (
+                        <div className="bg-sky-50 ring-1 ring-sky-300 rounded-xl p-3">
+                          <p className="text-[10px] uppercase font-bold tracking-wide text-sky-900 mb-1">
+                            Petunjuk review Google Maps
+                          </p>
+                          <p className="text-sm text-sky-950 whitespace-pre-line leading-relaxed">
+                            {guide}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
 
             // LinkedIn Like / Follow tasks: show brief/instructions guide
             if (isLinkedInLike || isLinkedInFollow) {
@@ -884,6 +975,8 @@ export function TaskDetail() {
           subtitle={
             isTrustpilotReview
               ? 'Screenshot ulasan terbit dan nama/URL akun Trustpilot wajib.'
+              : isGoogleMapsReview
+              ? 'Screenshot ulasan terbit dan nama akun Google Reviewer wajib.'
               : isLinkedInLike || isLinkedInFollow
               ? 'URL profil LinkedIn publik dan screenshot wajib.'
               : isLinkedInComment
@@ -955,8 +1048,66 @@ export function TaskDetail() {
             </>
           )}
 
-          {/* For Trustpilot review tasks */}
-          {isTrustpilotReview ? (
+          {/* For Google Maps review tasks */}
+          {isGoogleMapsReview ? (
+            <div className="mt-3">
+              <div className="p-3.5 mb-3 rounded-xl bg-emerald-50 ring-2 ring-emerald-300 text-xs text-emerald-950">
+                <p className="font-extrabold text-emerald-900 mb-1 flex items-center gap-1">
+                  📍 NAMA AKUN GOOGLE & SCREENSHOT ULASAN
+                </p>
+                <p className="leading-relaxed">
+                  Pastikan ulasan kamu sudah terbit dan berstatus <b>Public di Google Maps</b> sebelum submit. Masukkan <b>Nama Akun Google</b> yang kamu gunakan untuk menulis ulasan.
+                </p>
+              </div>
+
+              <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
+                Nama Akun Google Reviewer Kamu <span className="text-danger">*</span>
+              </p>
+              <div className="relative mb-3">
+                <LinkIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                <input
+                  type="text"
+                  value={submittedUsername}
+                  onChange={(e) => setSubmittedUsername(e.target.value)}
+                  placeholder="Contoh: Budi Santoso / Sarah Jenkins"
+                  className="w-full pl-10 pr-3 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm font-medium"
+                  required
+                />
+              </div>
+              <p className="text-[11px] text-muted mb-3 -mt-2">
+                Nama profil Google kamu yang terlihat pada ulasan publik.
+              </p>
+
+              <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
+                Link ulasan kamu di Google Maps (opsional)
+              </p>
+              <div className="relative mb-3">
+                <LinkIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                <input
+                  type="url"
+                  value={proofUrl}
+                  onChange={(e) => setProofUrl(e.target.value)}
+                  placeholder="https://maps.app.goo.gl/... (opsional)"
+                  className="w-full pl-10 pr-3 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm"
+                />
+              </div>
+
+              <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
+                Catatan untuk admin (opsional)
+              </p>
+              <textarea
+                value={userNote}
+                onChange={(e) => setUserNote(e.target.value)}
+                placeholder="Catatan tambahan (opsional)..."
+                className="w-full px-4 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition resize-none text-sm mb-3"
+                rows={2}
+              />
+
+              <p className="text-xs text-primary bg-primary/10 px-3 py-2 rounded-lg mt-2">
+                Google Maps task: <b>screenshot bukti ulasan terbit & rating bintang 5 wajib</b> di-upload di atas.
+              </p>
+            </div>
+          ) : isTrustpilotReview ? (
             <div className="mt-3">
               <div className="p-3.5 mb-3 rounded-xl bg-rose-50 ring-2 ring-rose-400 text-xs text-rose-950">
                 <p className="font-extrabold text-rose-900 mb-1 flex items-center gap-1">
@@ -1166,7 +1317,11 @@ export function TaskDetail() {
             </Button>
             {!canSubmit && (
               <p className="text-[11px] text-muted text-center mt-2">
-                {isTrustpilotReview && !trustpilotConfirmed
+                {isGoogleMapsReview && !proofImageUrl
+                  ? 'Upload screenshot ulasan Google Maps kamu dulu.'
+                  : isGoogleMapsReview && !submittedUsername.trim()
+                  ? 'Masukkan nama akun Google reviewer kamu dulu.'
+                  : isTrustpilotReview && !trustpilotConfirmed
                   ? 'Centang konfirmasi nama bule/English untuk submit.'
                   : isUpvote
                   ? 'Upload screenshot dulu untuk submit.'
@@ -1247,6 +1402,7 @@ function StepCard({
 function platformForTask(task: any) {
   const category = task.task_category || task.task_type;
   if (category === 'youtube_upload' || task.task_category === 'youtube_upload') return 'YouTube';
+  if (category === 'google_maps_review' || (category && String(category).startsWith('google_maps'))) return 'Google Maps';
   if (category === 'preferred_source' || task.task_category === 'preferred_source') return 'Google';
   if (category && String(category).startsWith('linkedin')) return 'LinkedIn';
   if (category === 'trustpilot_review' || (category && String(category).startsWith('trustpilot'))) return 'Trustpilot';
@@ -1311,6 +1467,7 @@ function ExampleScreenshot({ category }: { category: string }) {
   const isYT = category === 'youtube_upload';
   const isLI = category.startsWith('linkedin');
   const isTP = category.startsWith('trustpilot');
+  const isGM = category.startsWith('google_maps');
 
   return (
     <div className="bg-light/60 rounded-xl p-3 ring-1 ring-black/5">
@@ -1318,7 +1475,15 @@ function ExampleScreenshot({ category }: { category: string }) {
         Contoh bukti yang valid
       </p>
       <div className="bg-white rounded-lg p-3 ring-1 ring-black/10 shadow-inner max-w-[280px] mx-auto">
-        {isTP ? (
+        {isGM ? (
+          <div className="flex items-center gap-2 py-1">
+            <div className="w-5 h-5 rounded bg-blue-600 text-white text-[9px] grid place-items-center font-bold">📍</div>
+            <div className="flex-1">
+              <div className="text-[10px] font-bold text-dark">Review 5 Bintang di Google Maps</div>
+              <div className="text-[8px] text-gray-400">Ulasan publik & nama reviewer</div>
+            </div>
+          </div>
+        ) : isTP ? (
           <div className="flex items-center gap-2 py-1">
             <div className="w-5 h-5 rounded bg-emerald-600 text-white text-[9px] grid place-items-center font-bold">★</div>
             <div className="flex-1">

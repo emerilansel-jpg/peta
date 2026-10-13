@@ -250,6 +250,20 @@ function serviceMeta(order: RedditOrderRecord) {
       } as Record<string, string>,
     };
   }
+  if ((order.target_type || 'upvote') === 'google_maps_review') {
+    return {
+      name: 'Google Maps reviews',
+      targetLabel: 'Google Maps business URL',
+      quantityLabel: 'Reviews',
+      progress: `${order.delivered_upvotes || 0} / ${order.requested_upvotes} reviews`,
+      statusDesc: {
+        pending: 'Reviewing your Google Maps target and guidelines.',
+        processing: 'Real people are writing 5-star reviews on your Google Maps business profile.',
+        completed: 'All reviews delivered. Check review details and screenshots below.',
+        cancelled: 'Order was cancelled; unfulfilled credits refunded.',
+      } as Record<string, string>,
+    };
+  }
   return {
     name: 'Reddit upvotes',
     targetLabel: 'Target thread',
@@ -427,7 +441,7 @@ export function RedditOrderDetail() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Order #{order.id}</h1>
             <p className="text-slate-600 mt-1">
-              {service.name} · {order.subreddit && !['comment', 'preferred_source', 'linkedin_like', 'linkedin_follow', 'linkedin_comment', 'trustpilot_review'].includes(order.target_type || 'upvote') && order.subreddit !== 'LinkedIn' && order.subreddit !== 'Google' && order.subreddit !== 'Trustpilot' ? `r/${order.subreddit}` : order.thread_url}
+              {service.name} · {order.subreddit && !['comment', 'preferred_source', 'linkedin_like', 'linkedin_follow', 'linkedin_comment', 'trustpilot_review', 'google_maps_review'].includes(order.target_type || 'upvote') && order.subreddit !== 'LinkedIn' && order.subreddit !== 'Google' && order.subreddit !== 'Google Maps' && order.subreddit !== 'Trustpilot' ? `r/${order.subreddit}` : order.thread_url}
             </p>
           </div>
           <button

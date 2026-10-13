@@ -225,15 +225,37 @@ assert.ok(redditNewOrderCode.includes('!wantsSuggestion ? 1'), 'RedditNewOrder m
 			assert.ok(fs.existsSync(ytAdminPagePath), 'YouTubeAccounts.tsx admin page must exist');
 			console.log('  ✓ YouTube 3-Step Verification & Gating verified.');
 
-			// 13. Verify Forum Comment Credit Deduction via Credit Transactions
-			console.log('13. Checking Forum Comment Credit Deduction & Invariants...');
-			const forumCreditMigrationPath = path.join(rootDir, 'supabase', 'migrations', '20261012100000_fix_forum_comment_credit_transactions.sql');
-			assert.ok(fs.existsSync(forumCreditMigrationPath), 'Migration 20261012100000 must exist');
-			const forumCreditSql = fs.readFileSync(forumCreditMigrationPath, 'utf8');
-			assert.ok(forumCreditSql.includes('INSERT INTO public.credit_transactions'), 'Must deduct credits via credit_transactions ledger');
-			assert.ok(!forumCreditSql.includes('UPDATE public.users SET credit_balance'), 'Must never directly UPDATE users.credit_balance');
-			console.log('  ✓ Forum comment credit deduction & invariants verified.');
+				// 13. Verify Forum Comment Credit Deduction via Credit Transactions
+				console.log('13. Checking Forum Comment Credit Deduction & Invariants...');
+				const forumCreditMigrationPath = path.join(rootDir, 'supabase', 'migrations', '20261012100000_fix_forum_comment_credit_transactions.sql');
+				assert.ok(fs.existsSync(forumCreditMigrationPath), 'Migration 20261012100000 must exist');
+				const forumCreditSql = fs.readFileSync(forumCreditMigrationPath, 'utf8');
+				assert.ok(forumCreditSql.includes('INSERT INTO public.credit_transactions'), 'Must deduct credits via credit_transactions ledger');
+				assert.ok(!forumCreditSql.includes('UPDATE public.users SET credit_balance'), 'Must never directly UPDATE users.credit_balance');
+				console.log('  ✓ Forum comment credit deduction & invariants verified.');
 
-			console.log('===================================================');
-			console.log('ALL SECURITY AND QA REGRESSION CHECKS PASSED (100%)');
-			console.log('===================================================');
+				// 14. Verify Google Maps Review Service & Anti-Drop Contracts
+				console.log('14. Checking Google Maps Review Service & Anti-Drop Contracts...');
+				const gmapsMigrationPath = path.join(rootDir, 'supabase', 'migrations', '20261012110000_straight_google_maps_review_service.sql');
+				assert.ok(fs.existsSync(gmapsMigrationPath), 'Migration 20261012110000 must exist');
+				const gmapsSql = fs.readFileSync(gmapsMigrationPath, 'utf8');
+				assert.ok(gmapsSql.includes("'google_maps_review'"), 'Must add google_maps_review to constraints');
+				assert.ok(gmapsSql.includes("'google_maps_review_location'"), 'Must add google_maps_review_location to straight_pricing');
+				assert.ok(gmapsSql.includes('fn_create_google_maps_review_order'), 'Must create fn_create_google_maps_review_order RPC');
+				assert.ok(gmapsSql.includes('claim_task_assignment'), 'Must update claim_task_assignment');
+				assert.ok(gmapsSql.includes('list_eligible_tasks_for_user'), 'Must update list_eligible_tasks_for_user');
+
+				const redditApiPath = path.join(rootDir, 'src', 'modules', 'reddit', 'lib', 'api.ts');
+				const redditApiCode = fs.readFileSync(redditApiPath, 'utf8');
+				assert.ok(redditApiCode.includes('createGoogleMapsReviewOrder'), 'api.ts must export createGoogleMapsReviewOrder');
+
+				const redditHooksPath = path.join(rootDir, 'src', 'modules', 'reddit', 'hooks', 'useRedditOrders.ts');
+				const redditHooksCode = fs.readFileSync(redditHooksPath, 'utf8');
+				assert.ok(redditHooksCode.includes('createGoogleMapsReviewOrder'), 'useRedditOrders must export createGoogleMapsReviewOrder');
+
+				assert.ok(redditNewOrderCode.includes('GoogleMapsReviewOrderForm'), 'RedditNewOrder must contain GoogleMapsReviewOrderForm');
+				console.log('  ✓ Google Maps Review service & Anti-Drop contracts verified.');
+
+				console.log('===================================================');
+				console.log('ALL SECURITY AND QA REGRESSION CHECKS PASSED (100%)');
+				console.log('===================================================');

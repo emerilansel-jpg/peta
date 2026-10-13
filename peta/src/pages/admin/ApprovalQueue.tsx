@@ -885,6 +885,18 @@ export function AdminApprovalQueue() {
                     </div>
                   )}
 
+                  {a.tasks?.task_category === 'google_maps_review' && (
+                    <div className="mt-2.5 p-2 rounded-lg bg-emerald-50 ring-1 ring-emerald-300 text-xs text-emerald-950">
+                      <p className="font-bold text-emerald-900 flex items-center gap-1">
+                        📍 Google Maps Review Check:
+                      </p>
+                      <p className="mt-0.5">
+                        Nama Google Reviewer yang disubmit: <b className="font-mono bg-white px-1.5 py-0.5 rounded border border-emerald-300">{a.reddit_accounts?.username || a.submitted_username}</b>.
+                        Pastikan screenshot membuktikan ulasan sudah tayang publik dengan rating bintang 5 di listing Google Maps target.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="flex gap-2 mt-3 items-center">
                     {a.contributor_workflow && a.visibility_status !== 'visible' && (
                       <Button

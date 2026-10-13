@@ -1583,11 +1583,14 @@ function QueueStat({
 }
 
 function formatTaskCategory(t: TaskRow) {
-  const category = t.task_category || (t.task_type === 'upvote' ? 'reddit_upvote' : t.task_type === 'upload' ? 'youtube_upload' : 'reddit_comment');
+  const category = (t.task_category as string) || (t.task_type === 'upvote' ? 'reddit_upvote' : t.task_type === 'upload' ? 'youtube_upload' : 'reddit_comment');
   if (category === 'reddit_upvote') return 'Upvote';
   if (category === 'reddit_post_thread') return 'Post thread';
   if (category === 'forum_comment') return 'Forum comment';
   if (category === 'youtube_upload') return 'YouTube upload';
+  if (category === 'preferred_source') return 'Google Preferred Source';
+  if (category === 'trustpilot_review') return 'Trustpilot review';
+  if (category === 'google_maps_review') return 'Google Maps review';
   return 'Comment';
 }
 
@@ -1627,6 +1630,7 @@ function formatTaskDescription(t: TaskRow) {
 function platformForUrl(url: string, category?: TaskCategory) {
   const text = url.toLowerCase();
   if (category === 'youtube_upload' || text.includes('youtube.com') || text.includes('youtu.be')) return 'YouTube';
+  if ((category as string) === 'google_maps_review' || text.includes('maps.google') || text.includes('google.com/maps') || text.includes('maps.app.goo.gl')) return 'Google Maps';
   if (category === 'reddit_comment' || category === 'reddit_upvote' || text.includes('reddit.com')) return 'Reddit';
   if (text.includes('quora.com')) return 'Quora';
   if (text.includes('facebook.com/groups') || text.includes('fb.com/groups')) return 'Facebook Groups';

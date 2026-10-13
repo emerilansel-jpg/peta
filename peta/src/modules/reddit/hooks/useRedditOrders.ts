@@ -8,8 +8,10 @@ import {
   createPreferredSourceOrder,
   createLinkedInOrder,
   createTrustpilotOrder,
+  createGoogleMapsReviewOrder,
   type LinkedInOrderInput,
   type TrustpilotOrderInput,
+  type GoogleMapsReviewOrderInput,
 } from '../lib/api';
 import type { ForumCommentOrderInput } from '../lib/api';
 
@@ -94,6 +96,14 @@ export function useRedditOrders() {
     },
   });
 
+  const createGoogleMapsReviewOrderMutation = useMutation({
+    mutationFn: (input: GoogleMapsReviewOrderInput) => createGoogleMapsReviewOrder(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reddit', 'orders'] });
+      queryClient.invalidateQueries({ queryKey: ['reddit', 'credits'] });
+    },
+  });
+
   return {
     orders: orders || [],
     isLoading,
@@ -116,6 +126,9 @@ export function useRedditOrders() {
     isCreatingLinkedInOrder: createLinkedInOrderMutation.isPending,
     createTrustpilotOrder: createTrustpilotOrderMutation.mutate,
     isCreatingTrustpilotOrder: createTrustpilotOrderMutation.isPending,
+    createGoogleMapsReviewOrder: createGoogleMapsReviewOrderMutation.mutate,
+    createGoogleMapsReviewOrderAsync: createGoogleMapsReviewOrderMutation.mutateAsync,
+    isCreatingGoogleMapsReviewOrder: createGoogleMapsReviewOrderMutation.isPending,
     error: createOrderMutation.error,
   };
 }

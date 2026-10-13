@@ -472,7 +472,7 @@ export function Tasks() {
                   (taskPlatformFilter === 'reddit' && cat.startsWith('reddit')) ||
                   (taskPlatformFilter === 'forum' && cat === 'forum_comment') ||
                   (taskPlatformFilter === 'youtube' && cat === 'youtube_upload') ||
-                  (taskPlatformFilter === 'google' && cat === 'preferred_source') ||
+                  (taskPlatformFilter === 'google' && (cat === 'preferred_source' || cat === 'google_maps_review')) ||
                   (taskPlatformFilter === 'linkedin' && cat.startsWith('linkedin')) ||
                   (taskPlatformFilter === 'trustpilot' && cat.startsWith('trustpilot'));
                 return matchSearch && matchPlatform;
@@ -495,6 +495,7 @@ export function Tasks() {
                   t.task_category === 'forum_comment' ? `${platformForTask(t)} Comment` :
                   t.task_category === 'youtube_upload' ? 'YouTube Upload' :
                   t.task_category === 'preferred_source' ? 'Google Preferred Source' :
+                  t.task_category === 'google_maps_review' ? 'Google Maps Review' :
                   t.task_category === 'linkedin_like' ? 'LinkedIn Like' :
                   t.task_category === 'linkedin_follow' ? 'LinkedIn Follow' :
                   t.task_category === 'linkedin_comment' ? 'LinkedIn Comment' :
@@ -698,6 +699,7 @@ export function Tasks() {
 
 function platformForTask(task: { title?: string | null; description?: string | null; target_url?: string | null }) {
   const text = `${task.title || ''} ${task.description || ''} ${task.target_url || ''}`.toLowerCase();
+  if (text.includes('google maps') || text.includes('maps.google') || text.includes('google.com/maps') || text.includes('maps.app.goo.gl')) return 'Google Maps';
   if (text.includes('hubspot')) return 'HubSpot';
   if (text.includes('quora')) return 'Quora';
   if (text.includes('indiehackers')) return 'Indie Hackers';

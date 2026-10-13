@@ -1321,7 +1321,8 @@ export type TaskCategory =
   | 'linkedin_like'
   | 'linkedin_follow'
   | 'linkedin_comment'
-  | 'trustpilot_review';
+  | 'trustpilot_review'
+  | 'google_maps_review';
 export type TaskStatus = 'draft' | 'active' | 'paused' | 'completed';
 
 export type AdminTaskUpdate = {

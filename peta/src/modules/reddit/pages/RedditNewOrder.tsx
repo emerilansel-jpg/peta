@@ -25,6 +25,7 @@ import {
   Star,
   ThumbsUp,
   UserPlus,
+  MapPin,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { RedditLayout } from '../components/RedditLayout';
@@ -83,6 +84,17 @@ const SERVICES: Service[] = [
     name: 'Preferred Source',
     icon: Star,
     description: 'Real people choose your site as their Preferred Source on Google',
+    status: 'active',
+    badge: 'New',
+    iconBg: 'bg-emerald-100',
+    iconColor: 'text-emerald-600',
+  },
+  {
+    id: 'google-maps-review',
+    platform: 'Google',
+    name: 'Maps Reviews',
+    icon: MapPin,
+    description: 'Real people write 5-star Google Maps reviews from $5.00/review',
     status: 'active',
     badge: 'New',
     iconBg: 'bg-emerald-100',
@@ -198,6 +210,7 @@ type ViewMode =
   | 'linkedin-follow'
   | 'linkedin-comment'
   | 'trustpilot-review'
+  | 'google-maps-review'
   | 'coming-soon'
   | 'feature-request';
 
@@ -271,6 +284,10 @@ export function RedditNewOrder() {
       const on = straightEnabled(pricing, 'trustpilot_review', true);
       return { ...s, status: on ? s.status : 'paused' as const };
     }
+    if (s.id === 'google-maps-review') {
+      const on = straightEnabled(pricing, 'google_maps_review', true);
+      return { ...s, status: on ? s.status : 'paused' as const };
+    }
     return s;
   }), [pricing]);
 
@@ -304,6 +321,7 @@ export function RedditNewOrder() {
       {view === 'linkedin-follow' && <LinkedInOrderForm serviceType="linkedin_follow" onBack={handleBack} />}
       {view === 'linkedin-comment' && <LinkedInOrderForm serviceType="linkedin_comment" onBack={handleBack} />}
       {view === 'trustpilot-review' && <TrustpilotOrderForm onBack={handleBack} />}
+      {view === 'google-maps-review' && <GoogleMapsReviewOrderForm onBack={handleBack} />}
       {view === 'reddit-comment' && (
         <ForumCommentOrderForm
           onBack={handleBack}
@@ -2925,6 +2943,464 @@ function TrustpilotOrderForm({ onBack }: { onBack: () => void }) {
                 className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-semibold transition"
               >
                 {isCreatingTrustpilotOrder ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" /> Placing order...
+                  </>
+                ) : (
+                  <>
+                    Confirm & pay {formatUSD(cost)} <ArrowRight size={18} />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// View: Google Maps Review Order Form
+// ============================================================
+function GoogleMapsReviewOrderForm({ onBack }: { onBack: () => void }) {
+  const navigate = useNavigate();
+  const { balance } = useRedditCredits();
+  const pricing = useStraightPricing();
+  const { createGoogleMapsReviewOrder, isCreatingGoogleMapsReviewOrder } = useRedditOrders();
+
+  const [targetUrl, setTargetUrl] = useState('');
+  const [hasSpecificLocation, setHasSpecificLocation] = useState(false);
+  const [targetLocation, setTargetLocation] = useState('');
+  const [quantity, setQuantity] = useState(5);
+  const [notes, setNotes] = useState('');
+  const [reviewMode, setReviewMode] = useState<'brief' | 'custom'>('brief');
+  const [reviewBrief, setReviewBrief] = useState('');
+  const [customDrafts, setCustomDrafts] = useState<string[]>(() => Array(5).fill(''));
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const priceGlobal = straightPrice(pricing, 'google_maps_review', 500);
+  const priceLocation = straightPrice(pricing, 'google_maps_review_location', 600);
+  const unitCents = hasSpecificLocation ? priceLocation : priceGlobal;
+  const enabled = straightEnabled(pricing, 'google_maps_review', true);
+  const cost = unitCents * quantity;
+
+  const handleQuantityChange = (newQty: number) => {
+    const clamped = Math.min(20, Math.max(1, newQty));
+    setQuantity(clamped);
+    setCustomDrafts((prev) => {
+      const next = [...prev];
+      while (next.length < clamped) next.push('');
+      return next.slice(0, clamped);
+    });
+  };
+
+  const isValidUrl = /^https?:\/\/[^\s.]+\.[^\s]+/i.test(targetUrl.trim());
+  const isValidLocation = !hasSpecificLocation || targetLocation.trim().length >= 2;
+  const isValidQuantity = quantity >= 1 && quantity <= 20;
+  const hasEnoughCredit = balance >= cost;
+
+  const isValidReview = reviewMode === 'brief'
+    ? reviewBrief.trim().length >= 10
+    : customDrafts.slice(0, quantity).every((d) => d.trim().length >= 10);
+
+  const canSubmit = isValidUrl && isValidLocation && isValidQuantity && isValidReview && hasEnoughCredit && enabled && !isCreatingGoogleMapsReviewOrder;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!enabled) {
+      toast.error('Google Maps Reviews are paused right now.');
+      return;
+    }
+    if (!isValidUrl) {
+      toast.error('Please enter a valid Google Maps Place/Business URL (e.g. https://maps.app.goo.gl/... or https://google.com/maps/place/...)');
+      return;
+    }
+    if (hasSpecificLocation && targetLocation.trim().length < 2) {
+      toast.error('Please specify the target location / area (e.g. Los Angeles, CA or Jakarta, Indonesia)');
+      return;
+    }
+    if (!isValidQuantity) {
+      toast.error('Quantity must be between 1 and 20');
+      return;
+    }
+    if (reviewMode === 'brief' && reviewBrief.trim().length < 10) {
+      toast.error('Please provide review guidelines (at least 10 characters)');
+      return;
+    }
+    if (reviewMode === 'custom' && !customDrafts.slice(0, quantity).every((d) => d.trim().length >= 10)) {
+      toast.error(`Please provide all ${quantity} custom reviews (at least 10 characters each)`);
+      return;
+    }
+    if (!hasEnoughCredit) {
+      toast.error('Insufficient credit. Top up to continue.');
+      return;
+    }
+    setShowConfirm(true);
+  };
+
+  const handleConfirm = () => {
+    const drafts = reviewMode === 'custom'
+      ? customDrafts.slice(0, quantity).map((d) => ({ comment_text: d.trim() }))
+      : null;
+
+    createGoogleMapsReviewOrder(
+      {
+        targetUrl: targetUrl.trim(),
+        quantity,
+        location: hasSpecificLocation ? targetLocation.trim() : null,
+        notes: notes.trim() || null,
+        reviewMode,
+        reviewBrief: reviewMode === 'brief' ? reviewBrief.trim() : null,
+        reviewDrafts: drafts,
+      },
+      {
+        onSuccess: (order: { id?: number } | null) => {
+          toast.success(`Google Maps order placed — ${quantity} review${quantity === 1 ? '' : 's'}. ${formatUSD(cost)} deducted.`);
+          setShowConfirm(false);
+          navigate(order?.id ? `/orders/${order.id}` : spath('/orders'));
+        },
+        onError: (err: Error) => {
+          toast.error(err.message || 'Failed to create order');
+          setShowConfirm(false);
+        },
+      }
+    );
+  };
+
+  return (
+    <div className="p-6 md:p-10 max-w-3xl mx-auto">
+      <button
+        onClick={onBack}
+        className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 mb-4"
+      >
+        <ArrowLeft size={14} /> Choose different service
+      </button>
+
+      <div className="mb-8">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600">
+            <MapPin size={20} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Google Maps Reviews</h1>
+            <p className="text-sm text-slate-500">
+              {formatUSD(priceGlobal)}/review (global) · {formatUSD(priceLocation)}/review (specific location) · Real 5-star ratings
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-6 p-4 rounded-xl bg-slate-900 text-white flex items-center justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-widest text-slate-400 font-semibold">Available credit</p>
+          <p className="text-2xl font-bold mt-0.5">{formatUSD(balance)}</p>
+        </div>
+        <button
+          onClick={() => navigate(spath('/topup'))}
+          className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-semibold flex items-center gap-2"
+        >
+          <Wallet size={14} />
+          Top up
+        </button>
+      </div>
+
+      {!enabled && (
+        <div className="mb-6 p-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 text-sm text-amber-900 flex items-start gap-2">
+          <AlertCircle size={16} className="shrink-0 mt-0.5 text-amber-500" />
+          <p><span className="font-semibold">Google Maps reviews are paused right now.</span> This service is temporarily unavailable — please check back soon.</p>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl ring-1 ring-slate-200 p-8 space-y-8">
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
+            <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+            Google Maps Business URL
+          </label>
+          <input
+            type="url"
+            value={targetUrl}
+            onChange={(e) => setTargetUrl(e.target.value)}
+            placeholder="https://maps.app.goo.gl/... or https://www.google.com/maps/place/..."
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-slate-900"
+            required
+          />
+          <p className="mt-2 text-xs text-slate-500">
+            Link to your Google Maps business location. Open Google Maps, find your place, click "Share", and paste the link here.
+          </p>
+        </div>
+
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
+            <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">2</span>
+            Location Requirement
+          </label>
+          <div className="grid grid-cols-2 gap-3 mb-3">
+            <button
+              type="button"
+              onClick={() => {
+                setHasSpecificLocation(false);
+                setTargetLocation('');
+              }}
+              className={`p-3.5 rounded-xl border text-left text-sm font-medium transition ${
+                !hasSpecificLocation
+                  ? 'border-emerald-600 bg-emerald-50 text-emerald-900'
+                  : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+              }`}
+            >
+              <div className="font-bold mb-0.5 flex items-center justify-between">
+                <span>Any Location (Global)</span>
+                <span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold">{formatUSD(priceGlobal)}/review</span>
+              </div>
+              <div className="text-xs text-slate-500 leading-snug">Reviews from real active accounts without location constraint. No proxy/VPN required.</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setHasSpecificLocation(true)}
+              className={`p-3.5 rounded-xl border text-left text-sm font-medium transition ${
+                hasSpecificLocation
+                  ? 'border-emerald-600 bg-emerald-50 text-emerald-900'
+                  : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+              }`}
+            >
+              <div className="font-bold mb-0.5 flex items-center justify-between">
+                <span>Specific Location</span>
+                <span className="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 font-bold">{formatUSD(priceLocation)}/review</span>
+              </div>
+              <div className="text-xs text-slate-500 leading-snug">Target reviews from a designated city, state, or country. Workers match requested area.</div>
+            </button>
+          </div>
+
+          {hasSpecificLocation && (
+            <div className="mt-3 p-4 rounded-xl bg-slate-50 border border-slate-200">
+              <label className="block text-xs font-semibold text-slate-800 mb-1.5">
+                Target Location / Area <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={targetLocation}
+                onChange={(e) => setTargetLocation(e.target.value)}
+                placeholder="E.g. Los Angeles, CA or London, UK or Jakarta, Indonesia"
+                className="w-full px-4 py-2.5 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 text-sm"
+                required={hasSpecificLocation}
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Workers will review matching this geographic origin so Google rating remains sticky.
+              </p>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
+            <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">3</span>
+            How many reviews?
+          </label>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => handleQuantityChange(quantity - 1)}
+              className="w-11 h-11 rounded-xl ring-1 ring-slate-300 text-slate-700 text-xl font-bold hover:bg-slate-50"
+            >
+              −
+            </button>
+            <input
+              type="number"
+              min={1}
+              max={20}
+              value={quantity}
+              onChange={(e) => handleQuantityChange(parseInt(e.target.value) || 1)}
+              className="w-24 text-center px-3 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-slate-900 font-bold"
+            />
+            <button
+              type="button"
+              onClick={() => handleQuantityChange(quantity + 1)}
+              className="w-11 h-11 rounded-xl ring-1 ring-slate-300 text-slate-700 text-xl font-bold hover:bg-slate-50"
+            >
+              +
+            </button>
+            <span className="text-sm text-slate-500">reviews (1–20 per order)</span>
+          </div>
+          <p className="mt-2 text-xs text-slate-500">
+            Each review is posted by a unique, aged Google account. Spaced naturally to avoid Google anti-spam detection. 1 worker = 1 review max per place.
+          </p>
+        </div>
+
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
+            <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">4</span>
+            Review content style
+          </label>
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <button
+              type="button"
+              onClick={() => setReviewMode('brief')}
+              className={`p-3.5 rounded-xl border text-left text-sm font-medium transition ${
+                reviewMode === 'brief'
+                  ? 'border-emerald-600 bg-emerald-50 text-emerald-900'
+                  : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+              }`}
+            >
+              <div className="font-bold mb-0.5">Worker writes from brief</div>
+              <div className="text-xs text-slate-500 leading-snug">Workers write authentic, natural 5-star reviews following your instructions</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setReviewMode('custom')}
+              className={`p-3.5 rounded-xl border text-left text-sm font-medium transition ${
+                reviewMode === 'custom'
+                  ? 'border-emerald-600 bg-emerald-50 text-emerald-900'
+                  : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+              }`}
+            >
+              <div className="font-bold mb-0.5">Provide custom reviews</div>
+              <div className="text-xs text-slate-500 leading-snug">You supply exact review texts; each worker posts one unique review</div>
+            </button>
+          </div>
+
+          {reviewMode === 'brief' ? (
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Review Guidelines / Experience Highlights <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                value={reviewBrief}
+                onChange={(e) => setReviewBrief(e.target.value)}
+                placeholder="Example: Highlight the warm ambiance, quick service, and signature espresso. Tone should be friendly and authentic."
+                rows={3}
+                className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none text-slate-900 text-sm"
+                required
+              />
+              <p className="mt-1 text-xs text-slate-500">Provide business details or specific products/services for reviewers to mention.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <label className="block text-xs font-semibold text-slate-700">
+                Provide {quantity} unique review texts <span className="text-red-500">*</span>
+              </label>
+              {customDrafts.slice(0, quantity).map((d, i) => (
+                <div key={i}>
+                  <span className="text-[11px] font-semibold text-slate-500">Review #{i + 1}</span>
+                  <textarea
+                    value={d}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCustomDrafts((prev) => {
+                        const next = [...prev];
+                        next[i] = val;
+                        return next;
+                      });
+                    }}
+                    placeholder={`Custom review text #${i + 1} (2-4 sentences)...`}
+                    rows={2}
+                    className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 text-slate-900 text-sm resize-none"
+                    required
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-slate-900 mb-2">
+            Extra instructions <span className="text-slate-400 font-normal">(optional)</span>
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Pacing preferences, specific staff mentions, or delivery notes..."
+            rows={2}
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 resize-none text-slate-900 text-sm"
+          />
+        </div>
+
+        <div className="p-5 rounded-xl bg-slate-50 ring-1 ring-slate-200">
+          <div className="flex justify-between text-sm mb-2">
+            <span className="text-slate-600">Google Maps Reviews ({hasSpecificLocation ? 'Specific Location' : 'Global'})</span>
+            <span className="text-slate-900 font-semibold">{quantity} × {formatUSD(unitCents)}</span>
+          </div>
+          <div className="flex justify-between pt-3 mt-3 border-t border-slate-200">
+            <span className="text-slate-900 font-bold">Total</span>
+            <span className="text-2xl font-bold text-emerald-600">{formatUSD(cost)}</span>
+          </div>
+          {!hasEnoughCredit && (
+            <div className="mt-3 p-3 rounded-lg bg-rose-50 text-sm text-rose-700 flex items-start gap-2">
+              <AlertCircle size={16} className="shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">Insufficient credit</p>
+                <p>You need {formatUSD(cost - balance)} more. <button type="button" onClick={() => navigate(spath('/topup'))} className="underline font-semibold">Top up now</button>.</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-semibold transition shadow-lg shadow-emerald-600/20"
+        >
+          {enabled ? 'Review order' : 'Service paused'}
+          {enabled && <ArrowRight size={18} />}
+        </button>
+      </form>
+
+      {/* Confirmation modal */}
+      {showConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+            onClick={() => !isCreatingGoogleMapsReviewOrder && setShowConfirm(false)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="px-6 pt-6 pb-2 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-900">Confirm Google Maps Order</h3>
+              <button
+                onClick={() => !isCreatingGoogleMapsReviewOrder && setShowConfirm(false)}
+                className="p-1 rounded hover:bg-slate-100"
+                disabled={isCreatingGoogleMapsReviewOrder}
+              >
+                <X size={18} className="text-slate-500" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="rounded-xl bg-slate-50 divide-y divide-slate-100 text-sm">
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Service</p>
+                  <p className="text-sm font-semibold text-slate-900 mt-0.5">Google Maps Reviews</p>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Location</p>
+                  <p className="text-sm text-slate-900 mt-0.5 font-medium">
+                    {hasSpecificLocation ? `Specific: ${targetLocation}` : 'Any Location (Global)'}
+                  </p>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Target URL</p>
+                  <p className="text-xs text-slate-700 font-mono break-all mt-0.5">{targetUrl}</p>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Reviews</p>
+                  <p className="text-sm font-semibold text-slate-900 mt-0.5">{quantity} reviews ({formatUSD(unitCents)} each)</p>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Review mode</p>
+                  <p className="text-sm text-slate-900 mt-0.5">
+                    {reviewMode === 'brief' ? 'Worker writes from brief' : `${quantity} custom reviews provided`}
+                  </p>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Total</p>
+                  <p className="text-sm font-bold text-slate-900 mt-0.5">{formatUSD(cost)}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleConfirm}
+                disabled={isCreatingGoogleMapsReviewOrder}
+                className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-semibold transition"
+              >
+                {isCreatingGoogleMapsReviewOrder ? (
                   <>
                     <Loader2 size={18} className="animate-spin" /> Placing order...
                   </>
