@@ -58,11 +58,11 @@ const emailResetCode = fs.readFileSync(emailResetPath, 'utf8');
 const waResetCode = fs.readFileSync(waResetPath, 'utf8');
 
 assert.ok(emailResetCode.includes('ALLOWED_ORIGINS'), 'Email reset must have ALLOWED_ORIGINS allowlist');
-assert.ok(emailResetCode.includes('penghasilantambahan.com'), 'Email reset allowlist must include official domain');
+assert.ok(emailResetCode.includes('https://www.penghasilantambahan.com'), 'Email reset allowlist must include canonical www domain to prevent apex redirect drop');
 assert.ok(!emailResetCode.includes('${base_url || '), 'Email reset must not inject raw base_url directly into URL');
 
 assert.ok(waResetCode.includes('ALLOWED_ORIGINS'), 'WA reset must have ALLOWED_ORIGINS allowlist');
-assert.ok(waResetCode.includes('penghasilantambahan.com'), 'WA reset allowlist must include official domain');
+assert.ok(waResetCode.includes('https://www.penghasilantambahan.com'), 'WA reset allowlist must include canonical www domain to prevent apex redirect drop');
 assert.ok(!waResetCode.includes('${base_url || '), 'WA reset must not inject raw base_url directly into URL');
 console.log('  ✓ B10 password reset origin allowlists verified.');
 
@@ -222,9 +222,18 @@ assert.ok(redditNewOrderCode.includes('!wantsSuggestion ? 1'), 'RedditNewOrder m
 		assert.ok(taskDetailCodeLatest.includes('approvedYtAccount'), 'TaskDetail must verify approved YouTube account');
 
 		const ytAdminPagePath = path.join(rootDir, 'src', 'pages', 'admin', 'YouTubeAccounts.tsx');
-		assert.ok(fs.existsSync(ytAdminPagePath), 'YouTubeAccounts.tsx admin page must exist');
-		console.log('  ✓ YouTube 3-Step Verification & Gating verified.');
+			assert.ok(fs.existsSync(ytAdminPagePath), 'YouTubeAccounts.tsx admin page must exist');
+			console.log('  ✓ YouTube 3-Step Verification & Gating verified.');
 
-		console.log('===================================================');
-		console.log('ALL SECURITY AND QA REGRESSION CHECKS PASSED (100%)');
-		console.log('===================================================');
+			// 13. Verify Forum Comment Credit Deduction via Credit Transactions
+			console.log('13. Checking Forum Comment Credit Deduction & Invariants...');
+			const forumCreditMigrationPath = path.join(rootDir, 'supabase', 'migrations', '20261012100000_fix_forum_comment_credit_transactions.sql');
+			assert.ok(fs.existsSync(forumCreditMigrationPath), 'Migration 20261012100000 must exist');
+			const forumCreditSql = fs.readFileSync(forumCreditMigrationPath, 'utf8');
+			assert.ok(forumCreditSql.includes('INSERT INTO public.credit_transactions'), 'Must deduct credits via credit_transactions ledger');
+			assert.ok(!forumCreditSql.includes('UPDATE public.users SET credit_balance'), 'Must never directly UPDATE users.credit_balance');
+			console.log('  ✓ Forum comment credit deduction & invariants verified.');
+
+			console.log('===================================================');
+			console.log('ALL SECURITY AND QA REGRESSION CHECKS PASSED (100%)');
+			console.log('===================================================');
