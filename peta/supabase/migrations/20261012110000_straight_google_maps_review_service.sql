@@ -20,6 +20,7 @@ ALTER TABLE public.tasks ADD CONSTRAINT tasks_task_category_check
   CHECK (task_category IN (
     'reddit_upvote', 'reddit_comment', 'reddit_post_thread',
     'forum_comment', 'youtube_upload', 'preferred_source',
+    'reddit_challenge',
     'linkedin_like', 'linkedin_follow', 'linkedin_comment',
     'trustpilot_review', 'google_maps_review'
   ));
