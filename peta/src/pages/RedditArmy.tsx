@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  ArrowLeft, Trophy, Flame, Lock, Sparkles, Clock,
+  ArrowLeft, Trophy, Flame, Sparkles, Clock,
   CheckCircle2, XCircle, AlertTriangle, Wallet, RefreshCw, Hourglass,
   Camera, Plus, Trash2, ImagePlus, X, RotateCcw,
 } from 'lucide-react';
@@ -488,7 +488,6 @@ export function RedditArmy() {
             profile={profile!}
             summary={profileQuery.data!}
             redditUsername={profileQuery.data?.redditUsername ?? null}
-            onResign={() => setShowResignConfirm(true)}
           />
         )}
 
@@ -596,10 +595,10 @@ function InvitedState({
         <Card>
           <h3 className="font-bold mb-2">Tentang program ini</h3>
           <ul className="space-y-2 text-sm text-gray-700">
-            <li>🏆 Bonus Rp100K setelah selesai 5 level challenge</li>
-            <li>💰 Bonus harian Rp2.500 selama aktif (≈Rp75K/bulan)</li>
-            <li>🔒 Tabungan retensi yang cair saat pamit berhenti</li>
-            <li>⏰ Challenge min 30 hari (warmup account — anti bot detection)</li>
+            <li>🏆 Bonus Rp100K saat lulus 5 level warmup (akun matang)</li>
+            <li>💰 Bonus harian Rp2.500 selama aktif di Fase 2</li>
+            <li>🔒 Reward level di-hold selama ujian &amp; cair 100% saat akun matang</li>
+            <li>⏰ Warming up akun Reddit agar kuat &amp; natural untuk komentar</li>
           </ul>
         </Card>
       </>
@@ -961,7 +960,7 @@ function Phase1ActiveState({
 
         <div className="mt-3 flex gap-2 text-xs text-gray-600">
           <Sparkles size={14} className="text-yellow-500" />
-          <span>Bonus selesai Phase 1: <strong>Rp100K</strong> (50% langsung cair + 50% ditahan 30 hari)</span>
+          <span>Bonus selesai Phase 1: <strong>Rp100K</strong> (cair 100% saat akun matang &amp; lulus Level 5 bersama seluruh reward level)</span>
         </div>
       </Card>
 
@@ -1023,7 +1022,7 @@ function Phase1ActiveState({
                     )}
                     <div className="mt-2 flex items-center gap-2 text-xs text-gray-500">
                       <Trophy size={12} className="text-yellow-500" />
-                      <span>Reward level: {formatRupiah(task.reward_amount)} (locked)</span>
+                      <span>Reward level: {formatRupiah(task.reward_amount)} (cair saat lulus Level 5)</span>
                     </div>
 
                     {/* Proof instructions — shown when claimed.
@@ -1115,12 +1114,10 @@ function Phase2ActiveState({
   profile,
   summary,
   redditUsername,
-  onResign,
 }: {
   profile: any;
   summary: any;
   redditUsername: string | null;
-  onResign: () => void;
 }) {
   const [showCheckin, setShowCheckin] = useState(false);
   const queryClient = useQueryClient();
@@ -1128,7 +1125,7 @@ function Phase2ActiveState({
   const checkinMut = useMutation({
     mutationFn: selfReportDailyActivity,
     onSuccess: () => {
-      toast.success('Check-in tercatat! Bonus Rp2.500 masuk antrian (½ cair Sabtu dua mingguan, ½ tabungan). 🔥');
+      toast.success('Check-in tercatat! Bonus harian Rp2.500 berhasil didapatkan. 🔥');
       setShowCheckin(false);
       queryClient.invalidateQueries({ queryKey: ['reddit-army-profile'] });
     },
@@ -1199,7 +1196,7 @@ function Phase2ActiveState({
             <div className="text-sm">
               <div className="font-semibold text-success">Check-in kelar!</div>
               <div className="text-xs text-gray-600">
-                {todayCredited ? '+Rp2.500 tercatat (½ cair Sabtu dua mingguan, ½ tabungan)' : 'Aktif hari ini, bonus menyusul'}
+                {todayCredited ? '+Rp2.500 tercatat (masuk antrian cair dua mingguan)' : 'Aktif hari ini, bonus menyusul'}
               </div>
             </div>
           </div>
@@ -1220,27 +1217,23 @@ function Phase2ActiveState({
         </p>
       </Card>
 
-      {/* Retention savings */}
-      <Card className="mb-4 bg-gradient-to-br from-yellow-50 to-orange-50 border border-yellow-200">
-        <div className="flex items-center gap-2 mb-2">
-          <Lock size={18} className="text-yellow-600" />
-          <h3 className="font-bold text-sm">💰 Tabungan Retensi</h3>
-        </div>
-        <div className="text-2xl font-bold text-yellow-700 mb-1">
-          {formatRupiah(summary.retentionHeld)}
-        </div>
-        <p className="text-xs text-gray-600">
-          Saldo ini <strong>di-lock</strong> & cuma cair saat kamu pamit berhenti (H-30 + aktif 20 hari). Kalau kabur/ghosting, hangus.
-        </p>
-        {summary.pendingCashable > 0 && (
-          <div className="mt-3 pt-3 border-t border-yellow-200">
-            <div className="flex justify-between text-xs">
-              <span className="text-gray-600">Pending (cair Sabtu depan):</span>
-              <span className="font-semibold">{formatRupiah(summary.pendingCashable)}</span>
+      {/* Pending cashable bonus */}
+      {summary.pendingCashable > 0 && (
+        <Card className="mb-4 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex items-center gap-2">
+              <Clock size={18} className="text-blue-600" />
+              <h3 className="font-bold text-sm text-blue-900">Bonus Harian Pending</h3>
+            </div>
+            <div className="text-xl font-bold text-blue-700">
+              {formatRupiah(summary.pendingCashable)}
             </div>
           </div>
-        )}
-      </Card>
+          <p className="text-xs text-blue-600">
+            Akumulasi bonus harian Rp2.500/hari otomatis cair ke saldo utama tiap 2 minggu.
+          </p>
+        </Card>
+      )}
 
       {/* Recent activity */}
       <Card className="mb-4">
@@ -1277,10 +1270,6 @@ function Phase2ActiveState({
           onClose={() => setShowCheckin(false)}
         />
       )}
-
-      <Button variant="ghost" fullWidth onClick={onResign}>
-        Mau Berhenti? Lihat Syarat →
-      </Button>
     </>
   );
 }
