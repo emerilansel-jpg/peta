@@ -450,7 +450,7 @@ export function Tasks() {
                       🔒 Wajib Verifikasi YouTube Step 3
                     </span>
                     <p className="text-muted leading-relaxed">
-                      Task upload video YouTube bernilai Rp25.000/task. Supaya link di deskripsi bisa diklik penonton, daftarkan channel kamu yang sudah aktif <b>Fitur Lanjutan (Advanced Features)</b> terlebih dahulu.
+                      Task upload video YouTube bernilai Rp10.000/task. Supaya link di deskripsi bisa diklik penonton, daftarkan channel kamu yang sudah aktif <b>Fitur Lanjutan (Advanced Features)</b> terlebih dahulu.
                     </p>
                   </div>
                   <Link

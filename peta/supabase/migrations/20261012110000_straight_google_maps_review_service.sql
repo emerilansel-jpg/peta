@@ -302,15 +302,15 @@ BEGIN
   v_domain := lower((regexp_match(p_order.thread_url, 'https?://(?:www\.)?([^/:?#]+)'))[1]);
 
   v_reward := CASE
-    WHEN v_is_gmaps            THEN CASE WHEN v_location IS NOT NULL THEN 30000 ELSE 25000 END
-    WHEN v_is_trustpilot       THEN 25000
+    WHEN v_is_gmaps            THEN CASE WHEN v_location IS NOT NULL THEN 6000 ELSE 5000 END
+    WHEN v_is_trustpilot       THEN 5000
     WHEN v_is_linkedin_like    THEN 1000
     WHEN v_is_linkedin_follow  THEN 1500
-    WHEN v_is_linkedin_comment THEN 4000
+    WHEN v_is_linkedin_comment THEN 3000
     WHEN v_is_preferred        THEN 2500
-    WHEN v_is_youtube_upload   THEN 25000
+    WHEN v_is_youtube_upload   THEN 10000
     WHEN v_task_type = 'upvote' THEN 500
-    ELSE 5000
+    ELSE 3000
   END;
 
   v_title := CASE

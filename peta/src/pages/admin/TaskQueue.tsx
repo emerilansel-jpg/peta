@@ -39,11 +39,11 @@ type TaskStatus = 'draft' | 'active' | 'paused' | 'completed';
 type TaskCategory = 'reddit_upvote' | 'reddit_comment' | 'reddit_post_thread' | 'forum_comment' | 'youtube_upload';
 
 const TASK_CATEGORY_OPTIONS: Array<[TaskCategory, string, string, number]> = [
-  ['reddit_upvote', 'Upvote', 'Rp500-2K', 1000],
-  ['reddit_comment', 'Reddit comment', 'Rp5K-20K', 8000],
-  ['forum_comment', 'Forum comment', 'Rp5K-20K', 5000],
-  ['reddit_post_thread', 'Post thread', 'Rp10K-25K', 15000],
-  ['youtube_upload', 'YouTube upload', 'Rp25K', 25000],
+  ['reddit_upvote', 'Upvote', 'Rp500-1K', 500],
+  ['reddit_comment', 'Reddit comment', 'Rp3K-5K', 3000],
+  ['forum_comment', 'Forum comment', 'Rp3K-5K', 3000],
+  ['reddit_post_thread', 'Post thread', 'Rp5K-10K', 5000],
+  ['youtube_upload', 'YouTube upload', 'Rp10K', 10000],
 ];
 
 type TaskRow = {
