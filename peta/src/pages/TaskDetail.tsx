@@ -106,12 +106,13 @@ export function TaskDetail() {
   const isLinkedIn = isLinkedInLike || isLinkedInFollow || isLinkedInComment;
   const isTrustpilotReview = category === 'trustpilot_review';
   const isGoogleMapsReview = category === 'google_maps_review';
-  const isUpvote = (category === 'reddit_upvote' || task?.task_type === 'upvote') && !isLinkedIn && !isTrustpilotReview && !isGoogleMapsReview;
+  const isQuoraUpvote = category === 'quora_upvote';
+  const isUpvote = (category === 'reddit_upvote' || isQuoraUpvote || task?.task_type === 'upvote') && !isLinkedIn && !isTrustpilotReview && !isGoogleMapsReview;
   const isForumComment = category === 'forum_comment';
   const isYouTubeUpload = category === 'youtube_upload';
   const isPreferredSource = category === 'preferred_source';
   const isComment = isForumComment || category === 'reddit_comment' || isLinkedInComment || isTrustpilotReview || isGoogleMapsReview || task?.task_type === 'comment';
-  const isNoAccountNeeded = isForumComment || isYouTubeUpload || isPreferredSource || isLinkedIn || isTrustpilotReview || isGoogleMapsReview;
+  const isNoAccountNeeded = isForumComment || isYouTubeUpload || isPreferredSource || isLinkedIn || isTrustpilotReview || isGoogleMapsReview || isQuoraUpvote;
   const platformLabel = task ? platformForTask(task) : 'Forum';
 
   const { data: myYtAccounts = [] } = useQuery({
@@ -402,7 +403,7 @@ export function TaskDetail() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className="text-[10px] font-bold uppercase tracking-wide bg-primary/15 text-primary px-2 py-0.5 rounded-full">
-                    {isUpvote ? 'Upvote' : isPreferredSource ? 'Preferred Source' : isTrustpilotReview ? 'Trustpilot Review' : isGoogleMapsReview ? 'Google Maps Review' : isComment ? `${platformLabel} Comment` : isYouTubeUpload ? 'YouTube Upload' : `${platformLabel} Task`}
+                    {isQuoraUpvote ? 'Quora Upvote' : isUpvote ? 'Upvote' : isPreferredSource ? 'Preferred Source' : isTrustpilotReview ? 'Trustpilot Review' : isGoogleMapsReview ? 'Google Maps Review' : isComment ? `${platformLabel} Comment` : isYouTubeUpload ? 'YouTube Upload' : `${platformLabel} Task`}
                   </span>
                 </div>
                 <h1 className="text-xl sm:text-2xl font-extrabold mb-2 leading-tight">{task.title}</h1>
@@ -606,7 +607,7 @@ export function TaskDetail() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <span className="text-[10px] font-bold uppercase tracking-wide bg-primary/15 text-primary px-2 py-0.5 rounded-full">
-                  {isUpvote ? 'Upvote' : isPreferredSource ? 'Preferred Source' : isTrustpilotReview ? 'Trustpilot Review' : isGoogleMapsReview ? 'Google Maps Review' : isComment ? `${platformLabel} Comment` : isYouTubeUpload ? 'YouTube Upload' : `${platformLabel} Task`}
+                  {isQuoraUpvote ? 'Quora Upvote' : isUpvote ? 'Upvote' : isPreferredSource ? 'Preferred Source' : isTrustpilotReview ? 'Trustpilot Review' : isGoogleMapsReview ? 'Google Maps Review' : isComment ? `${platformLabel} Comment` : isYouTubeUpload ? 'YouTube Upload' : `${platformLabel} Task`}
                 </span>
               </div>
               <h1 className="text-xl sm:text-2xl font-extrabold mb-2 leading-tight">{task.title}</h1>
@@ -683,6 +684,8 @@ export function TaskDetail() {
             ? 'Tulis review di Trustpilot'
             : isGoogleMapsReview
             ? 'Tulis review di Google Maps (⭐⭐⭐⭐⭐)'
+            : isQuoraUpvote
+            ? 'Klik tombol Upvote (▲) di Quora'
             : isLinkedInLike
             ? 'Beri Like pada post LinkedIn'
             : isLinkedInFollow
@@ -700,6 +703,8 @@ export function TaskDetail() {
             ? 'Beri rating bintang 5 dan tulis ulasan sesuai brief atau draft di bawah.'
             : isGoogleMapsReview
             ? 'Beri rating bintang 5 dan tulis ulasan natural sesuai brief atau draft di bawah.'
+            : isQuoraUpvote
+            ? 'Pastikan panah upvote berubah jadi warna merah/aktif. Itu tanda upvote sukses.'
             : isLinkedInLike
             ? 'Pastikan tombol Like berubah jadi warna biru aktif. Itu tanda Like sukses.'
             : isLinkedInFollow
@@ -1402,6 +1407,7 @@ function StepCard({
 function platformForTask(task: any) {
   const category = task.task_category || task.task_type;
   if (category === 'youtube_upload' || task.task_category === 'youtube_upload') return 'YouTube';
+  if (category === 'quora_upvote' || (category && String(category).startsWith('quora'))) return 'Quora';
   if (category === 'google_maps_review' || (category && String(category).startsWith('google_maps'))) return 'Google Maps';
   if (category === 'preferred_source' || task.task_category === 'preferred_source') return 'Google';
   if (category && String(category).startsWith('linkedin')) return 'LinkedIn';
@@ -1468,6 +1474,7 @@ function ExampleScreenshot({ category }: { category: string }) {
   const isLI = category.startsWith('linkedin');
   const isTP = category.startsWith('trustpilot');
   const isGM = category.startsWith('google_maps');
+  const isQuora = category === 'quora_upvote';
 
   return (
     <div className="bg-light/60 rounded-xl p-3 ring-1 ring-black/5">
@@ -1475,7 +1482,15 @@ function ExampleScreenshot({ category }: { category: string }) {
         Contoh bukti yang valid
       </p>
       <div className="bg-white rounded-lg p-3 ring-1 ring-black/10 shadow-inner max-w-[280px] mx-auto">
-        {isGM ? (
+        {isQuora ? (
+          <div className="flex items-center gap-2 py-1">
+            <div className="w-5 h-5 rounded bg-red-600 text-white text-[9px] grid place-items-center font-bold">▲</div>
+            <div className="flex-1">
+              <div className="text-[10px] font-bold text-dark">Upvote Aktif di Quora</div>
+              <div className="text-[8px] text-gray-400">Tombol panah Upvote menyala</div>
+            </div>
+          </div>
+        ) : isGM ? (
           <div className="flex items-center gap-2 py-1">
             <div className="w-5 h-5 rounded bg-blue-600 text-white text-[9px] grid place-items-center font-bold">📍</div>
             <div className="flex-1">

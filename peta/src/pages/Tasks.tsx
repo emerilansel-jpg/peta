@@ -96,7 +96,7 @@ export function Tasks() {
   const queryClient = useQueryClient();
   const [user, setUser] = React.useState<any>(null);
   const [taskSearch, setTaskSearch] = React.useState('');
-  const [taskPlatformFilter, setTaskPlatformFilter] = React.useState<'all' | 'reddit' | 'forum' | 'youtube' | 'google' | 'linkedin' | 'trustpilot'>('all');
+  const [taskPlatformFilter, setTaskPlatformFilter] = React.useState<'all' | 'reddit' | 'forum' | 'youtube' | 'google' | 'linkedin' | 'trustpilot' | 'quora'>('all');
 
   React.useEffect(() => {
     (async () => {
@@ -427,7 +427,7 @@ export function Tasks() {
                 />
               </div>
               <div className="flex gap-2 overflow-x-auto pb-1">
-                {(['all', 'reddit', 'forum', 'youtube', 'google', 'linkedin', 'trustpilot'] as const).map((f) => (
+                {(['all', 'reddit', 'forum', 'youtube', 'google', 'linkedin', 'trustpilot', 'quora'] as const).map((f) => (
                   <button
                     key={f}
                     onClick={() => setTaskPlatformFilter(f)}
@@ -437,7 +437,7 @@ export function Tasks() {
                         : 'bg-light text-muted ring-1 ring-border hover:ring-primary/40'
                     }`}
                   >
-                    {f === 'all' ? 'Semua' : f === 'reddit' ? 'Reddit' : f === 'forum' ? 'Forum' : f === 'youtube' ? 'YouTube' : f === 'google' ? 'Google' : f === 'linkedin' ? 'LinkedIn' : 'Trustpilot'}
+                    {f === 'all' ? 'Semua' : f === 'reddit' ? 'Reddit' : f === 'forum' ? 'Forum' : f === 'youtube' ? 'YouTube' : f === 'google' ? 'Google' : f === 'linkedin' ? 'LinkedIn' : f === 'trustpilot' ? 'Trustpilot' : 'Quora'}
                   </button>
                 ))}
               </div>
@@ -474,7 +474,8 @@ export function Tasks() {
                   (taskPlatformFilter === 'youtube' && cat === 'youtube_upload') ||
                   (taskPlatformFilter === 'google' && (cat === 'preferred_source' || cat === 'google_maps_review')) ||
                   (taskPlatformFilter === 'linkedin' && cat.startsWith('linkedin')) ||
-                  (taskPlatformFilter === 'trustpilot' && cat.startsWith('trustpilot'));
+                  (taskPlatformFilter === 'trustpilot' && cat.startsWith('trustpilot')) ||
+                  (taskPlatformFilter === 'quora' && cat === 'quora_upvote');
                 return matchSearch && matchPlatform;
               });
 
@@ -496,6 +497,7 @@ export function Tasks() {
                   t.task_category === 'youtube_upload' ? 'YouTube Upload' :
                   t.task_category === 'preferred_source' ? 'Google Preferred Source' :
                   t.task_category === 'google_maps_review' ? 'Google Maps Review' :
+                  t.task_category === 'quora_upvote' ? 'Quora Upvote' :
                   t.task_category === 'linkedin_like' ? 'LinkedIn Like' :
                   t.task_category === 'linkedin_follow' ? 'LinkedIn Follow' :
                   t.task_category === 'linkedin_comment' ? 'LinkedIn Comment' :

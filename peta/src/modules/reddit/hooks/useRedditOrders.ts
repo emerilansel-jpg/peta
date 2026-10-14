@@ -9,9 +9,11 @@ import {
   createLinkedInOrder,
   createTrustpilotOrder,
   createGoogleMapsReviewOrder,
+  createQuoraUpvoteOrder,
   type LinkedInOrderInput,
   type TrustpilotOrderInput,
   type GoogleMapsReviewOrderInput,
+  type QuoraUpvoteOrderInput,
 } from '../lib/api';
 import type { ForumCommentOrderInput } from '../lib/api';
 
@@ -104,6 +106,14 @@ export function useRedditOrders() {
     },
   });
 
+  const createQuoraUpvoteOrderMutation = useMutation({
+    mutationFn: (input: QuoraUpvoteOrderInput) => createQuoraUpvoteOrder(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reddit', 'orders'] });
+      queryClient.invalidateQueries({ queryKey: ['reddit', 'credits'] });
+    },
+  });
+
   return {
     orders: orders || [],
     isLoading,
@@ -129,6 +139,9 @@ export function useRedditOrders() {
     createGoogleMapsReviewOrder: createGoogleMapsReviewOrderMutation.mutate,
     createGoogleMapsReviewOrderAsync: createGoogleMapsReviewOrderMutation.mutateAsync,
     isCreatingGoogleMapsReviewOrder: createGoogleMapsReviewOrderMutation.isPending,
+    createQuoraUpvoteOrder: createQuoraUpvoteOrderMutation.mutate,
+    createQuoraUpvoteOrderAsync: createQuoraUpvoteOrderMutation.mutateAsync,
+    isCreatingQuoraUpvoteOrder: createQuoraUpvoteOrderMutation.isPending,
     error: createOrderMutation.error,
   };
 }

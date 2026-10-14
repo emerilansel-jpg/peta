@@ -253,9 +253,25 @@ assert.ok(redditNewOrderCode.includes('!wantsSuggestion ? 1'), 'RedditNewOrder m
 				const redditHooksCode = fs.readFileSync(redditHooksPath, 'utf8');
 				assert.ok(redditHooksCode.includes('createGoogleMapsReviewOrder'), 'useRedditOrders must export createGoogleMapsReviewOrder');
 
-				assert.ok(redditNewOrderCode.includes('GoogleMapsReviewOrderForm'), 'RedditNewOrder must contain GoogleMapsReviewOrderForm');
-				console.log('  ✓ Google Maps Review service & Anti-Drop contracts verified.');
+					assert.ok(redditNewOrderCode.includes('GoogleMapsReviewOrderForm'), 'RedditNewOrder must contain GoogleMapsReviewOrderForm');
+					console.log('  ✓ Google Maps Review service & Anti-Drop contracts verified.');
 
-				console.log('===================================================');
-				console.log('ALL SECURITY AND QA REGRESSION CHECKS PASSED (100%)');
-				console.log('===================================================');
+					// 15. Verify Quora Upvote Service Contracts ($0.20, Rp 1.000)
+					console.log('15. Checking Quora Upvote Service Contracts ($0.20 / Rp 1.000)...');
+					const quoraMigrationPath = path.join(rootDir, 'supabase', 'migrations', '20261012120000_straight_quora_upvote_service.sql');
+					assert.ok(fs.existsSync(quoraMigrationPath), 'Migration 20261012120000 must exist');
+					const quoraSql = fs.readFileSync(quoraMigrationPath, 'utf8');
+					assert.ok(quoraSql.includes("'quora_upvote'"), 'Must add quora_upvote to constraints');
+					assert.ok(quoraSql.includes("('quora_upvote', 'quora', 'upvote'"), 'Must seed quora_upvote in straight_pricing');
+					assert.ok(quoraSql.includes('fn_create_quora_upvote_order'), 'Must create fn_create_quora_upvote_order RPC');
+					assert.ok(quoraSql.includes('v_is_quora_upvote'), 'fn_ensure_order_task must handle quora_upvote');
+					assert.ok(quoraSql.includes('1000'), 'Reward for quora upvote must be 1000');
+
+					assert.ok(redditApiCode.includes('createQuoraUpvoteOrder'), 'api.ts must export createQuoraUpvoteOrder');
+					assert.ok(redditHooksCode.includes('createQuoraUpvoteOrder'), 'useRedditOrders must export createQuoraUpvoteOrder');
+					assert.ok(redditNewOrderCode.includes('QuoraUpvoteOrderForm'), 'RedditNewOrder must contain QuoraUpvoteOrderForm');
+					console.log('  ✓ Quora Upvote service contracts verified.');
+
+					console.log('===================================================');
+					console.log('ALL SECURITY AND QA REGRESSION CHECKS PASSED (100%)');
+					console.log('===================================================');

@@ -145,6 +145,17 @@ const SERVICES: Service[] = [
     iconColor: 'text-emerald-700',
   },
   {
+    id: 'quora-upvote',
+    platform: 'Quora',
+    name: 'Answer Upvotes',
+    icon: ArrowUp,
+    description: 'Real people upvote your Quora answer ($0.20/upvote)',
+    status: 'active',
+    badge: 'New',
+    iconBg: 'bg-red-100',
+    iconColor: 'text-red-700',
+  },
+  {
     id: 'reddit-comment',
     platform: 'Forums',
     name: 'Comments',
@@ -211,6 +222,7 @@ type ViewMode =
   | 'linkedin-comment'
   | 'trustpilot-review'
   | 'google-maps-review'
+  | 'quora-upvote'
   | 'coming-soon'
   | 'feature-request';
 
@@ -288,6 +300,10 @@ export function RedditNewOrder() {
       const on = straightEnabled(pricing, 'google_maps_review', true);
       return { ...s, status: on ? s.status : 'paused' as const };
     }
+    if (s.id === 'quora-upvote') {
+      const on = straightEnabled(pricing, 'quora_upvote', true);
+      return { ...s, status: on ? s.status : 'paused' as const };
+    }
     return s;
   }), [pricing]);
 
@@ -322,6 +338,7 @@ export function RedditNewOrder() {
       {view === 'linkedin-comment' && <LinkedInOrderForm serviceType="linkedin_comment" onBack={handleBack} />}
       {view === 'trustpilot-review' && <TrustpilotOrderForm onBack={handleBack} />}
       {view === 'google-maps-review' && <GoogleMapsReviewOrderForm onBack={handleBack} />}
+      {view === 'quora-upvote' && <QuoraUpvoteOrderForm onBack={handleBack} />}
       {view === 'reddit-comment' && (
         <ForumCommentOrderForm
           onBack={handleBack}
@@ -350,6 +367,7 @@ function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect
   const googleServices = visible.filter((s) => s.platform === 'Google');
   const linkedinServices = visible.filter((s) => s.platform === 'LinkedIn');
   const trustpilotServices = visible.filter((s) => s.platform === 'Trustpilot');
+  const quoraServices = visible.filter((s) => s.platform === 'Quora');
   const forumServices = visible.filter((s) => s.platform === 'Forums' || s.platform === 'Facebook');
   const customServices = visible.filter((s) => s.platform === 'Custom');
 
@@ -429,6 +447,21 @@ function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {trustpilotServices.map((s) => (
+              <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Platform: Quora */}
+      {quoraServices.length > 0 && (
+        <div className="mb-10">
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Quora</h2>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800 font-semibold">Active</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {quoraServices.map((s) => (
               <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
             ))}
           </div>
@@ -3401,6 +3434,283 @@ function GoogleMapsReviewOrderForm({ onBack }: { onBack: () => void }) {
                 className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-semibold transition"
               >
                 {isCreatingGoogleMapsReviewOrder ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" /> Placing order...
+                  </>
+                ) : (
+                  <>
+                    Confirm & pay {formatUSD(cost)} <ArrowRight size={18} />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// View: Quora Upvote Order Form ($0.20 / upvote)
+// ============================================================
+function QuoraUpvoteOrderForm({ onBack }: { onBack: () => void }) {
+  const navigate = useNavigate();
+  const { balance } = useRedditCredits();
+  const pricing = useStraightPricing();
+  const { createQuoraUpvoteOrder, isCreatingQuoraUpvoteOrder } = useRedditOrders();
+
+  const [targetUrl, setTargetUrl] = useState('');
+  const [upvotes, setUpvotes] = useState(25);
+  const [notes, setNotes] = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const unitCents = straightPrice(pricing, 'quora_upvote', 20);
+  const enabled = straightEnabled(pricing, 'quora_upvote', true);
+  const cost = upvotes * unitCents;
+
+  const isValidUrl = /^https?:\/\/(?:[a-z0-9-]+\.)*quora\.com\/[^\s]+/i.test(targetUrl.trim());
+  const isValidQuantity = upvotes >= 5 && upvotes <= 1000;
+  const hasEnoughCredit = balance >= cost;
+
+  const canSubmit = isValidUrl && isValidQuantity && hasEnoughCredit && enabled && !isCreatingQuoraUpvoteOrder;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!enabled) {
+      toast.error('Quora upvotes are paused right now.');
+      return;
+    }
+    if (!isValidUrl) {
+      toast.error('Please enter a valid Quora answer or question URL (https://www.quora.com/...)');
+      return;
+    }
+    if (!isValidQuantity) {
+      toast.error('Quantity must be between 5 and 1,000 upvotes');
+      return;
+    }
+    if (!hasEnoughCredit) {
+      toast.error('Insufficient credit. Top up to continue.');
+      return;
+    }
+    setShowConfirm(true);
+  };
+
+  const handleConfirm = () => {
+    createQuoraUpvoteOrder(
+      {
+        targetUrl: targetUrl.trim(),
+        quantity: upvotes,
+        notes: notes.trim() || null,
+      },
+      {
+        onSuccess: (order: { id?: number } | null) => {
+          toast.success(`Quora order placed — ${upvotes} upvotes. ${formatUSD(cost)} deducted.`);
+          setShowConfirm(false);
+          navigate(order?.id ? `/orders/${order.id}` : spath('/orders'));
+        },
+        onError: (err: Error) => {
+          toast.error(err.message || 'Failed to create order');
+          setShowConfirm(false);
+        },
+      }
+    );
+  };
+
+  return (
+    <div className="p-6 md:p-10 max-w-3xl mx-auto">
+      <button
+        onClick={onBack}
+        className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 mb-4"
+      >
+        <ArrowLeft size={14} /> Choose different service
+      </button>
+
+      <div className="mb-8">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center text-red-600">
+            <ArrowUp size={20} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Quora Answer Upvotes</h1>
+            <p className="text-sm text-slate-500">
+              {formatUSD(unitCents)} per upvote · Upvoted naturally by real active Quora accounts
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-6 p-4 rounded-xl bg-slate-900 text-white flex items-center justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-widest text-slate-400 font-semibold">Available credit</p>
+          <p className="text-2xl font-bold mt-0.5">{formatUSD(balance)}</p>
+        </div>
+        <button
+          onClick={() => navigate(spath('/topup'))}
+          className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-semibold flex items-center gap-2"
+        >
+          <Wallet size={14} />
+          Top up
+        </button>
+      </div>
+
+      {!enabled && (
+        <div className="mb-6 p-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 text-sm text-amber-900 flex items-start gap-2">
+          <AlertCircle size={16} className="shrink-0 mt-0.5 text-amber-500" />
+          <p><span className="font-semibold">Quora upvotes are paused right now.</span> This service is temporarily unavailable — please check back soon.</p>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl ring-1 ring-slate-200 p-8 space-y-8">
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
+            <span className="w-6 h-6 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+            Quora Answer / Post URL
+          </label>
+          <input
+            type="url"
+            value={targetUrl}
+            onChange={(e) => setTargetUrl(e.target.value)}
+            placeholder="https://www.quora.com/..."
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 text-slate-900"
+            required
+          />
+          <p className="mt-2 text-xs text-slate-500">
+            Paste the direct link to the Quora answer or question where you want upvotes delivered.
+          </p>
+        </div>
+
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
+            <span className="w-6 h-6 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center">2</span>
+            How many upvotes?
+          </label>
+          <div className="grid grid-cols-5 gap-2 mb-4">
+            {[10, 25, 50, 100, 250].map((q) => (
+              <button
+                key={q}
+                type="button"
+                onClick={() => setUpvotes(q)}
+                className={`py-3 rounded-lg text-sm font-semibold border-2 transition ${
+                  upvotes === q
+                    ? 'border-red-600 bg-red-50 text-red-700'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                }`}
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-4">
+            <input
+              type="range"
+              min="5"
+              max="500"
+              step="5"
+              value={Math.min(500, upvotes)}
+              onChange={(e) => setUpvotes(parseInt(e.target.value) || 5)}
+              className="flex-1 accent-red-600"
+            />
+            <input
+              type="number"
+              value={upvotes}
+              onChange={(e) => setUpvotes(Math.max(5, Math.min(1000, parseInt(e.target.value) || 5)))}
+              min="5"
+              max="1000"
+              className="w-24 px-3 py-2 border border-slate-300 rounded-lg text-center font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-red-500"
+            />
+          </div>
+          <p className="mt-2 text-xs text-slate-500">
+            {formatUSD(unitCents)} per upvote · 5 to 1,000 per order · 1 person = 1 upvote max
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-slate-900 mb-2">
+            Delivery notes <span className="text-slate-400 font-normal">(optional)</span>
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Pacing preferences or target timing..."
+            rows={2}
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 resize-none text-slate-900 text-sm"
+          />
+        </div>
+
+        <div className="p-5 rounded-xl bg-slate-50 ring-1 ring-slate-200">
+          <div className="flex justify-between text-sm mb-2">
+            <span className="text-slate-600">Quora Upvotes</span>
+            <span className="text-slate-900 font-semibold">{upvotes.toLocaleString()} × {formatUSD(unitCents)}</span>
+          </div>
+          <div className="flex justify-between pt-3 mt-3 border-t border-slate-200">
+            <span className="text-slate-900 font-bold">Total</span>
+            <span className="text-2xl font-bold text-red-600">{formatUSD(cost)}</span>
+          </div>
+          {!hasEnoughCredit && (
+            <div className="mt-3 p-3 rounded-lg bg-rose-50 text-sm text-rose-700 flex items-start gap-2">
+              <AlertCircle size={16} className="shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">Insufficient credit</p>
+                <p>You need {formatUSD(cost - balance)} more. <button type="button" onClick={() => navigate(spath('/topup'))} className="underline font-semibold">Top up now</button>.</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-red-600 hover:bg-red-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-semibold transition shadow-lg shadow-red-600/20"
+        >
+          {enabled ? 'Review order' : 'Service paused'}
+          {enabled && <ArrowRight size={18} />}
+        </button>
+      </form>
+
+      {/* Confirmation modal */}
+      {showConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+            onClick={() => !isCreatingQuoraUpvoteOrder && setShowConfirm(false)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="px-6 pt-6 pb-2 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-900">Confirm Quora Upvotes Order</h3>
+              <button
+                onClick={() => !isCreatingQuoraUpvoteOrder && setShowConfirm(false)}
+                className="p-1 rounded hover:bg-slate-100"
+                disabled={isCreatingQuoraUpvoteOrder}
+              >
+                <X size={18} className="text-slate-500" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="rounded-xl bg-slate-50 divide-y divide-slate-100 text-sm">
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Service</p>
+                  <p className="text-sm font-semibold text-slate-900 mt-0.5">Quora Answer Upvotes</p>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Target URL</p>
+                  <p className="text-xs text-slate-700 font-mono break-all mt-0.5">{targetUrl}</p>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Quantity</p>
+                  <p className="text-sm font-semibold text-slate-900 mt-0.5">{upvotes.toLocaleString()} upvotes ({formatUSD(unitCents)} each)</p>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Total</p>
+                  <p className="text-sm font-bold text-slate-900 mt-0.5">{formatUSD(cost)}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleConfirm}
+                disabled={isCreatingQuoraUpvoteOrder}
+                className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-red-600 hover:bg-red-700 disabled:bg-slate-300 text-white font-semibold transition"
+              >
+                {isCreatingQuoraUpvoteOrder ? (
                   <>
                     <Loader2 size={18} className="animate-spin" /> Placing order...
                   </>

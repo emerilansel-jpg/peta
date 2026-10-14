@@ -1591,6 +1591,7 @@ function formatTaskCategory(t: TaskRow) {
   if (category === 'preferred_source') return 'Google Preferred Source';
   if (category === 'trustpilot_review') return 'Trustpilot review';
   if (category === 'google_maps_review') return 'Google Maps review';
+  if (category === 'quora_upvote') return 'Quora upvote';
   return 'Comment';
 }
 

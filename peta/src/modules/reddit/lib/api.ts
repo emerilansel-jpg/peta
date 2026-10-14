@@ -271,6 +271,39 @@ export async function createGoogleMapsReviewOrder(input: GoogleMapsReviewOrderIn
   return data;
 }
 
+export interface QuoraUpvoteOrderInput {
+  targetUrl: string;
+  quantity: number;
+  notes?: string | null;
+  requestId?: string | null;
+}
+
+// Create a Quora upvote order via RPC ($0.20 per upvote).
+export async function createQuoraUpvoteOrder(input: QuoraUpvoteOrderInput) {
+  const { data, error } = await supabase.rpc('fn_create_quora_upvote_order', {
+    p_target_url: input.targetUrl,
+    p_quantity: input.quantity,
+    p_notes: input.notes || null,
+    p_request_id: input.requestId || null,
+  });
+
+  if (error) {
+    console.error('[createQuoraUpvoteOrder] RPC error:', error);
+    if (error.message?.includes('insufficient_credits')) {
+      throw new Error('Insufficient credits. Please top up your account.');
+    }
+    if (error.message?.includes('URL Quora tidak valid')) {
+      throw new Error('Please enter a valid Quora answer or question URL.');
+    }
+    if (error.message?.includes('quantity')) {
+      throw new Error(error.message);
+    }
+    throw error;
+  }
+
+  return data;
+}
+
 export interface ForumCommentOrderInput {
   targetUrl: string;
   platform: string | null;
