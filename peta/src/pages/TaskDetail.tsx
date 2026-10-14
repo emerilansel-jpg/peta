@@ -403,7 +403,7 @@ export function TaskDetail() {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
                   <span className="text-[10px] font-bold uppercase tracking-wide bg-primary/15 text-primary px-2 py-0.5 rounded-full">
-                    {isQuoraUpvote ? 'Quora Upvote' : isUpvote ? 'Upvote' : isPreferredSource ? 'Preferred Source' : isTrustpilotReview ? 'Trustpilot Review' : isGoogleMapsReview ? 'Google Maps Review' : isComment ? `${platformLabel} Comment` : isYouTubeUpload ? 'YouTube Upload' : `${platformLabel} Task`}
+                    {isQuoraUpvote ? 'Quora Up Vote' : isUpvote ? 'Upvote' : isPreferredSource ? 'Preferred Source' : isTrustpilotReview ? 'Trustpilot Review' : isGoogleMapsReview ? 'Google Maps Review' : isComment ? `${platformLabel} Comment` : isYouTubeUpload ? 'YouTube Upload' : `${platformLabel} Task`}
                   </span>
                 </div>
                 <h1 className="text-xl sm:text-2xl font-extrabold mb-2 leading-tight">{task.title}</h1>
@@ -607,7 +607,7 @@ export function TaskDetail() {
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <span className="text-[10px] font-bold uppercase tracking-wide bg-primary/15 text-primary px-2 py-0.5 rounded-full">
-                  {isQuoraUpvote ? 'Quora Upvote' : isUpvote ? 'Upvote' : isPreferredSource ? 'Preferred Source' : isTrustpilotReview ? 'Trustpilot Review' : isGoogleMapsReview ? 'Google Maps Review' : isComment ? `${platformLabel} Comment` : isYouTubeUpload ? 'YouTube Upload' : `${platformLabel} Task`}
+                  {isQuoraUpvote ? 'Quora Up Vote' : isUpvote ? 'Upvote' : isPreferredSource ? 'Preferred Source' : isTrustpilotReview ? 'Trustpilot Review' : isGoogleMapsReview ? 'Google Maps Review' : isComment ? `${platformLabel} Comment` : isYouTubeUpload ? 'YouTube Upload' : `${platformLabel} Task`}
                 </span>
               </div>
               <h1 className="text-xl sm:text-2xl font-extrabold mb-2 leading-tight">{task.title}</h1>

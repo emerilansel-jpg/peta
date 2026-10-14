@@ -147,9 +147,9 @@ const SERVICES: Service[] = [
   {
     id: 'quora-upvote',
     platform: 'Quora',
-    name: 'Answer Upvotes',
+    name: 'Quora Up Votes',
     icon: ArrowUp,
-    description: 'Real people upvote your Quora answer ($0.20/upvote)',
+    description: 'Real people upvote your Quora post ($0.20/upvote)',
     status: 'active',
     badge: 'New',
     iconBg: 'bg-red-100',
@@ -3532,7 +3532,7 @@ function QuoraUpvoteOrderForm({ onBack }: { onBack: () => void }) {
             <ArrowUp size={20} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Quora Answer Upvotes</h1>
+            <h1 className="text-2xl font-bold text-slate-900">Quora Up Votes</h1>
             <p className="text-sm text-slate-500">
               {formatUSD(unitCents)} per upvote · Upvoted naturally by real active Quora accounts
             </p>
@@ -3565,7 +3565,7 @@ function QuoraUpvoteOrderForm({ onBack }: { onBack: () => void }) {
         <div>
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
             <span className="w-6 h-6 rounded-full bg-red-600 text-white text-xs font-bold flex items-center justify-center">1</span>
-            Quora Answer / Post URL
+            Quora URL
           </label>
           <input
             type="url"
@@ -3576,7 +3576,7 @@ function QuoraUpvoteOrderForm({ onBack }: { onBack: () => void }) {
             required
           />
           <p className="mt-2 text-xs text-slate-500">
-            Paste the direct link to the Quora answer or question where you want upvotes delivered.
+            Paste the direct link to the Quora post or answer where you want upvotes delivered.
           </p>
         </div>
 
@@ -3677,7 +3677,7 @@ function QuoraUpvoteOrderForm({ onBack }: { onBack: () => void }) {
           />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
             <div className="px-6 pt-6 pb-2 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900">Confirm Quora Upvotes Order</h3>
+              <h3 className="text-lg font-bold text-slate-900">Confirm Quora Up Votes Order</h3>
               <button
                 onClick={() => !isCreatingQuoraUpvoteOrder && setShowConfirm(false)}
                 className="p-1 rounded hover:bg-slate-100"
@@ -3690,7 +3690,7 @@ function QuoraUpvoteOrderForm({ onBack }: { onBack: () => void }) {
               <div className="rounded-xl bg-slate-50 divide-y divide-slate-100 text-sm">
                 <div className="px-4 py-3">
                   <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Service</p>
-                  <p className="text-sm font-semibold text-slate-900 mt-0.5">Quora Answer Upvotes</p>
+                  <p className="text-sm font-semibold text-slate-900 mt-0.5">Quora Up Votes</p>
                 </div>
                 <div className="px-4 py-3">
                   <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Target URL</p>

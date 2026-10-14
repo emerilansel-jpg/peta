@@ -266,13 +266,13 @@ function serviceMeta(order: RedditOrderRecord) {
   }
   if ((order.target_type || 'upvote') === 'quora_upvote') {
     return {
-      name: 'Quora upvotes',
-      targetLabel: 'Quora answer URL',
+      name: 'Quora up votes',
+      targetLabel: 'Quora URL',
       quantityLabel: 'Upvotes',
       progress: `${order.delivered_upvotes || 0} / ${order.requested_upvotes} upvotes`,
       statusDesc: {
-        pending: 'Queuing your Quora answer for upvotes.',
-        processing: 'Real people are upvoting your Quora answer.',
+        pending: 'Queuing your Quora post for upvotes.',
+        processing: 'Real people are upvoting your Quora post.',
         completed: 'All upvotes delivered. Check details below.',
         cancelled: 'Order was cancelled; unfulfilled credits refunded.',
       } as Record<string, string>,

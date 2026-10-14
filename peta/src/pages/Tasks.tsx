@@ -497,7 +497,7 @@ export function Tasks() {
                   t.task_category === 'youtube_upload' ? 'YouTube Upload' :
                   t.task_category === 'preferred_source' ? 'Google Preferred Source' :
                   t.task_category === 'google_maps_review' ? 'Google Maps Review' :
-                  t.task_category === 'quora_upvote' ? 'Quora Upvote' :
+                  t.task_category === 'quora_upvote' ? 'Quora Up Vote' :
                   t.task_category === 'linkedin_like' ? 'LinkedIn Like' :
                   t.task_category === 'linkedin_follow' ? 'LinkedIn Follow' :
                   t.task_category === 'linkedin_comment' ? 'LinkedIn Comment' :

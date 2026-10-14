@@ -36,7 +36,7 @@ ALTER TABLE public.straight_pricing ADD CONSTRAINT straight_pricing_platform_che
 INSERT INTO public.straight_pricing (
   key, platform, service, mention_mode, label, price_cents, enabled, sort_order
 ) VALUES
-  ('quora_upvote', 'quora', 'upvote', 'none', 'Quora — Upvotes', 20, true, 25)
+  ('quora_upvote', 'quora', 'upvote', 'none', 'Quora — Up Votes', 20, true, 25)
 ON CONFLICT (key) DO UPDATE SET
   platform = EXCLUDED.platform,
   service = EXCLUDED.service,
@@ -297,7 +297,7 @@ BEGIN
 
   v_title := CASE
     WHEN v_is_quora_upvote THEN
-      'Upvote jawaban di Quora'
+      'Upvote di Quora'
     WHEN v_is_gmaps THEN
       CASE
         WHEN v_location IS NOT NULL THEN format('Tulis review Google Maps (%s): Bisnis Klien', v_location)
@@ -326,17 +326,17 @@ BEGIN
   END;
 
   IF v_is_quora_upvote THEN
-    v_description := 'Buka jawaban Quora di link target, klik tombol Upvote (▲) dengan akun Quora kamu, lalu kirim screenshot bukti.';
+    v_description := 'Buka link Quora di target, klik tombol Upvote (▲) dengan akun Quora kamu, lalu kirim screenshot bukti.';
     v_brief := format(
-      E'🔺 Misi: Upvote jawaban di Quora.\n\n' ||
+      E'🔺 Misi: Upvote di Quora.\n\n' ||
       E'Langkah pengerjaan:\n' ||
-      E'1. Buka link jawaban Quora di atas\n' ||
+      E'1. Buka link Quora di atas\n' ||
       E'2. Pastikan kamu sudah login ke akun Quora aktif kamu\n' ||
-      E'3. Klik tombol Upvote (▲) pada jawaban tersebut\n' ||
+      E'3. Klik tombol Upvote (▲) pada postingan target\n' ||
       E'4. Pastikan panah Upvote aktif / berwarna menyala\n' ||
       E'5. Ambil screenshot bukti bahwa tombol Upvote sudah aktif\n' ||
       E'6. Upload screenshot sebagai bukti pengerjaan.\n\n' ||
-      E'Catatan: 1 orang hanya boleh 1x meng-upvote jawaban ini.'
+      E'Catatan: 1 orang hanya boleh 1x meng-upvote link ini.'
     );
   ELSIF v_is_gmaps THEN
     v_description := CASE
