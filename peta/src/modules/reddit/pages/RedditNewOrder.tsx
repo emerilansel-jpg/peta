@@ -33,7 +33,7 @@ import { EmailWhitelistNotice } from '../components/EmailWhitelistNotice';
 import { useRedditCredits } from '../hooks/useRedditCredits';
 import { useRedditOrders } from '../hooks/useRedditOrders';
 import { formatUSD, generateForumComment, submitFeatureRequest, straightPrice, straightEnabled, straightPlatformKey } from '../lib/api';
-import { useStraightPricing } from '../hooks/useStraightPricing';
+import { useStraightPricing, useStraightRedditServiceEnabled } from '../hooks/useStraightPricing';
 
 const PRESET_QUANTITIES = [25, 50, 100, 250, 500];
 // Legacy fallbacks — only used until the pricing matrix loads (or before the
@@ -61,7 +61,7 @@ const SERVICES: Service[] = [
     platform: 'Reddit',
     name: 'Upvotes',
     icon: ArrowUp,
-    description: 'Layanan paid upvote dihentikan demi kepatuhan platform',
+    description: 'Paid Reddit upvotes are discontinued for platform compliance',
     status: 'paused',
     badge: 'Discontinued',
     iconBg: 'bg-slate-100',
@@ -255,17 +255,17 @@ export function RedditNewOrder() {
   });
 
   const pricing = useStraightPricing();
+  const redditServiceEnabled = useStraightRedditServiceEnabled();
   // Reflect admin on/off toggles: an "active" service whose matrix rows are all
   // OFF shows as paused (and can't be opened). The order RPCs enforce this too.
   const services = useMemo(() => SERVICES.map((s) => {
+    // If Reddit master switch is disabled, pause all Reddit-platform cards
+    if (s.platform === 'Reddit' && !redditServiceEnabled) {
+      return { ...s, status: 'paused' as const };
+    }
     if (s.id === 'reddit-upvote') {
-      // QA3 FIX 6 — per-platform status, no more contradiction between the
-      // card ("ACTIVE") and the order form ("Reddit upvotes are paused").
-      const redditOn = straightEnabled(pricing, 'reddit_upvote', true);
-      const forumOn = straightEnabled(pricing, 'forum_upvote', true);
-      if (!redditOn && !forumOn) return { ...s, status: 'paused' as const };
-      if (!redditOn && forumOn) return { ...s, status: 'active' as const, badge: 'Forum only' };
-      return { ...s, status: s.status };
+      const redditOn = redditServiceEnabled && straightEnabled(pricing, 'reddit_upvote', false);
+      return { ...s, status: redditOn ? ('active' as const) : ('paused' as const) };
     }
     if (s.id === 'reddit-comment') {
       const on = ['reddit_comment_plain', 'reddit_comment_link', 'forum_comment_plain', 'forum_comment_link']
