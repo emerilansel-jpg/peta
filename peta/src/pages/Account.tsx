@@ -607,6 +607,13 @@ export function Account() {
             </div>
 
             <div className="space-y-3.5 text-xs">
+              <div className="p-3 bg-blue-50/70 rounded-xl border border-blue-200 text-blue-950 leading-relaxed text-[11px]">
+                <p className="font-bold mb-0.5">ℹ️ Informasi Penting:</p>
+                <p className="text-blue-900">
+                  Pendaftaran channel ini adalah verifikasi syarat kelayakan akun, <b>bukan tugas berbayar</b>. Reward Rp10.000/task didapatkan saat kamu mengerjakan task upload video yang aktif.
+                </p>
+              </div>
+
               <div className="p-3 bg-red-50/70 rounded-xl border border-red-200 text-red-950 leading-relaxed text-[11px]">
                 <p className="font-bold mb-1">Panduan Screenshot YouTube Studio:</p>
                 <ol className="list-decimal ml-4 space-y-1">

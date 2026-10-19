@@ -602,12 +602,12 @@ BEGIN
     IF NOT EXISTS (
       SELECT 1 FROM public.youtube_accounts ya
       WHERE ya.user_id = v_uid
-        AND ya.step3_approved_at IS NOT NULL
-        AND ya.status = 'approved'
+        AND ya.verified_at IS NOT NULL
+        AND ya.verification_status = 'approved'
     ) THEN
       DELETE FROM public.assignment_write_capabilities
       WHERE transaction_id = txid_current() AND backend_id = pg_backend_pid() AND operation = 'claim';
-      RAISE EXCEPTION 'Wajib verifikasi akun YouTube Step 3 (upload video bukti) dan disetujui admin sebelum mengambil task YouTube.' USING ERRCODE = 'P0001';
+      RAISE EXCEPTION 'Wajib verifikasi akun YouTube (Advanced Features) dan disetujui admin sebelum mengambil task YouTube.' USING ERRCODE = 'P0001';
     END IF;
 
     INSERT INTO public.task_assignments (task_id, user_id, reddit_account_id, status, expires_at)
@@ -761,7 +761,7 @@ BEGIN
 
   SELECT (
     v_is_admin
-    OR COALESCE(u.reddit_army_invited, false)
+    OR EXISTS (SELECT 1 FROM public.reddit_army_profiles rap WHERE rap.user_id = v_user)
     OR COALESCE(u.role, '') IN ('admin', 'army', 'worker')
   ) INTO v_invited
   FROM public.users u
@@ -770,8 +770,8 @@ BEGIN
   SELECT EXISTS (
     SELECT 1 FROM public.youtube_accounts ya
     WHERE ya.user_id = v_user
-      AND ya.step3_approved_at IS NOT NULL
-      AND ya.status = 'approved'
+      AND ya.verified_at IS NOT NULL
+      AND ya.verification_status = 'approved'
   ) INTO v_yt_verified;
 
   -- 1. Accountless tasks: forum_comment, youtube_upload, preferred_source, linkedin, trustpilot, google_maps_review

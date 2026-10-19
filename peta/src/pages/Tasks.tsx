@@ -5,7 +5,7 @@ import {
   Lock, Flame, Bell, Users, MessageCircle,
   Sparkles, TrendingUp, Trophy, Clock, Gift,
   Target, ArrowRight, Copy, ChevronDown, ChevronUp, X,
-  HelpCircle, Lightbulb, Award, Zap, Search,
+  HelpCircle, Lightbulb, Award, Zap, Search, CheckCircle2,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
@@ -442,23 +442,34 @@ export function Tasks() {
                 ))}
               </div>
 
-              {/* Notice jika filter YouTube dipilih tapi akun belum terverifikasi */}
+              {/* Notice jika filter YouTube dipilih */}
               {taskPlatformFilter === 'youtube' && !hasApprovedYt && (
-                <div className="mt-3 p-3.5 rounded-2xl bg-red-50/80 border border-red-200 text-xs flex items-start justify-between gap-3">
+                <div className="mt-3 p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-xs flex items-start justify-between gap-3">
                   <div>
-                    <span className="font-extrabold text-red-950 flex items-center gap-1.5 mb-1">
-                      🔒 Wajib Verifikasi YouTube Step 3
+                    <span className="font-extrabold text-amber-950 flex items-center gap-1.5 mb-1">
+                      🔒 Syarat Akun: Verifikasi Channel YouTube
                     </span>
                     <p className="text-muted leading-relaxed">
-                      Task upload video YouTube bernilai Rp10.000/task. Supaya link di deskripsi bisa diklik penonton, daftarkan channel kamu yang sudah aktif <b>Fitur Lanjutan (Advanced Features)</b> terlebih dahulu.
+                      Ini bukan tugas berbayar, melainkan verifikasi kelayakan channel agar bisa mengambil task upload video YouTube (Rp10.000/task) saat tersedia. Pastikan channel sudah aktif <b>Fitur Lanjutan (Advanced Features)</b>.
                     </p>
                   </div>
                   <Link
                     to="/account"
-                    className="tap-shrink px-3 py-1.5 rounded-xl bg-red-600 text-white font-bold text-xs shrink-0 whitespace-nowrap hover:bg-red-700"
+                    className="tap-shrink px-3 py-1.5 rounded-xl bg-amber-600 text-white font-bold text-xs shrink-0 whitespace-nowrap hover:bg-amber-700"
                   >
                     Verifikasi Channel
                   </Link>
+                </div>
+              )}
+              {taskPlatformFilter === 'youtube' && hasApprovedYt && (
+                <div className="mt-3 p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs flex items-center gap-2.5 text-emerald-900">
+                  <CheckCircle2 size={18} className="text-emerald-600 shrink-0" />
+                  <div>
+                    <span className="font-extrabold text-emerald-950">Channel YouTube Terverifikasi ✓</span>
+                    <p className="text-emerald-800 text-[11px] mt-0.5 leading-relaxed">
+                      Channel kamu sudah memenuhi syarat. Task upload video baru (Rp10.000/task) akan otomatis muncul di sini saat tersedia.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
