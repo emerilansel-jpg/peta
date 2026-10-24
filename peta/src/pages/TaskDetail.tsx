@@ -559,6 +559,11 @@ export function TaskDetail() {
               </div>
             ) : null}
 
+            <div className="mb-3 p-2.5 bg-amber-50/70 rounded-xl border border-amber-200/80 text-[11px] text-amber-900 flex items-center justify-between">
+              <span>⏱️ Batas waktu pengerjaan:</span>
+              <span className="font-bold">{isYouTubeUpload ? '4 Jam' : '1 Jam'}</span>
+            </div>
+
             <Button
               onClick={() => startMutation.mutate()}
               variant="primary"
@@ -625,6 +630,16 @@ export function TaskDetail() {
             </div>
           </div>
         </Card>
+
+        {/* Batas waktu pengerjaan banner */}
+        <div className="mb-4 p-3 bg-amber-50/80 rounded-2xl border border-amber-200 text-xs flex items-center justify-between gap-2 text-amber-950">
+          <span className="flex items-center gap-1.5 font-bold">
+            ⏱️ Batas Waktu: {isYouTubeUpload ? '4 Jam' : '1 Jam'}
+          </span>
+          <span className="text-[11px] text-amber-800">
+            Submit bukti sebelum slot otomatis dilepas ke member lain.
+          </span>
+        </div>
 
         {/* ============ STEP 1 — BUKA TARGET ============ */}
         <StepCard
