@@ -1581,6 +1581,15 @@ export async function adminRejectAssignment(assignmentId: string, reason: string
   if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
 }
 
+// Admin: cancel an in_progress assignment and immediately free the slot
+export async function adminCancelInProgressAssignment(assignmentId: string, reason?: string): Promise<void> {
+  const { error } = await supabase.rpc('admin_cancel_in_progress_assignment', {
+    p_assignment_id: assignmentId,
+    p_reason: reason || 'Dibatalkan admin: pengerjaan idle / dilepas kembali ke antrean',
+  });
+  if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
+}
+
 // Admin: revert an approved or rejected assignment back to submitted.
 // Approved → reverses the user_credits reward (negative row), decrements task slots.
 // Rejected → no balance change, just resets status.

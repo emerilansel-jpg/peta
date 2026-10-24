@@ -12,7 +12,7 @@ import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
 import { toast } from '../../components/Toast';
-import { listPendingRedditOrders, importRedditOrder, adminUpdateTask, adminCreateTask, adminUpdateTaskStatus, adminDeleteTask, adminReviewTaskEligibility } from '../../lib/api';
+import { listPendingRedditOrders, importRedditOrder, adminUpdateTask, adminCreateTask, adminUpdateTaskStatus, adminDeleteTask, adminReviewTaskEligibility, adminCancelInProgressAssignment } from '../../lib/api';
 import { cleanInternalText } from '../../lib/internalText';
 
 // Convert ISO timestamp to local-datetime input format (YYYY-MM-DDTHH:mm).
@@ -91,6 +91,7 @@ function SortableTaskItem({
   onToggleHidden,
   onDelete,
   onReviewEligibility,
+  onCancelInProgress,
 }: {
   task: TaskRow;
   onEdit: (t: TaskRow) => void;
@@ -98,6 +99,7 @@ function SortableTaskItem({
   onToggleHidden: (t: TaskRow) => void;
   onDelete: (t: TaskRow) => void;
   onReviewEligibility?: (t: TaskRow, decision: 'approved' | 'revision' | 'rejected', reason?: string) => void;
+  onCancelInProgress?: (t: TaskRow) => void;
 }) {
   const {
     attributes,
@@ -233,8 +235,23 @@ function SortableTaskItem({
                   {approvedCount}/{task.max_assignments} selesai
                 </span>
                 {workingCount > 0 && (
-                  <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold">
+                  <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded-full font-semibold flex items-center gap-1">
                     {workingCount} dikerjakan
+                    {onCancelInProgress && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (window.confirm('Lepas slot pengerjaan task ini agar bisa langsung diambil oleh member lain?')) {
+                            onCancelInProgress(task);
+                          }
+                        }}
+                        className="text-[9px] text-danger hover:underline font-bold ml-0.5 cursor-pointer"
+                        title="Lepas slot dan kembalikan ke antrean publik"
+                      >
+                        [Lepas Slot]
+                      </button>
+                    )}
                   </span>
                 )}
                 {waitingCount > 0 && (
@@ -364,8 +381,23 @@ export function AdminTaskQueue() {
   const { data: tasks = [], isLoading, refetch } = useQuery({
     queryKey: ['adminTasks'],
     queryFn: async () => {
-      const { data } = await supabase.from('tasks').select('*, task_assignments(status)').order('display_order', { ascending: true }).order('created_at', { ascending: false });
+      const { data } = await supabase.from('tasks').select('*, task_assignments(id, status)').order('display_order', { ascending: true }).order('created_at', { ascending: false });
       return (data || []) as TaskRow[];
+    },
+  });
+
+  const cancelInProgressMutation = useMutation({
+    mutationFn: async (task: TaskRow) => {
+      const inProg = (task as any).task_assignments?.find((a: any) => a.status === 'in_progress');
+      if (!inProg?.id) throw new Error('Tidak ada assignment in_progress');
+      await adminCancelInProgressAssignment(inProg.id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminTasks'] });
+      toast.success('Slot pengerjaan berhasil dilepas ke publik.');
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Gagal melepas slot');
     },
   });
 
@@ -797,6 +829,7 @@ export function AdminTaskQueue() {
                   }}
                   onToggleHidden={(task) => toggleHidden.mutate({ id: task.id, hidden: !task.is_hidden })}
                   onDelete={(task) => setDeleteTarget(task)}
+                  onCancelInProgress={(task) => cancelInProgressMutation.mutate(task)}
                 />
               ))}
             </div>
