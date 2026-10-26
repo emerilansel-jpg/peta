@@ -10,10 +10,12 @@ import {
   createTrustpilotOrder,
   createGoogleMapsReviewOrder,
   createQuoraUpvoteOrder,
+  createResellerOrder,
   type LinkedInOrderInput,
   type TrustpilotOrderInput,
   type GoogleMapsReviewOrderInput,
   type QuoraUpvoteOrderInput,
+  type ResellerOrderInput,
 } from '../lib/api';
 import type { ForumCommentOrderInput } from '../lib/api';
 
@@ -114,6 +116,14 @@ export function useRedditOrders() {
     },
   });
 
+  const createResellerOrderMutation = useMutation({
+    mutationFn: (input: ResellerOrderInput) => createResellerOrder(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reddit', 'orders'] });
+      queryClient.invalidateQueries({ queryKey: ['reddit', 'credits'] });
+    },
+  });
+
   return {
     orders: orders || [],
     isLoading,
@@ -142,6 +152,9 @@ export function useRedditOrders() {
     createQuoraUpvoteOrder: createQuoraUpvoteOrderMutation.mutate,
     createQuoraUpvoteOrderAsync: createQuoraUpvoteOrderMutation.mutateAsync,
     isCreatingQuoraUpvoteOrder: createQuoraUpvoteOrderMutation.isPending,
+    createResellerOrder: createResellerOrderMutation.mutate,
+    createResellerOrderAsync: createResellerOrderMutation.mutateAsync,
+    isCreatingResellerOrder: createResellerOrderMutation.isPending,
     error: createOrderMutation.error,
   };
 }

@@ -26,6 +26,12 @@ import {
   ThumbsUp,
   UserPlus,
   MapPin,
+  Gift,
+  FileText,
+  CheckSquare,
+  TrendingUp,
+  Users,
+  MessageCircle,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { RedditLayout } from '../components/RedditLayout';
@@ -53,6 +59,7 @@ interface Service {
   badge?: string;
   iconBg: string;
   iconColor: string;
+  serviceKey?: string;
 }
 
 const SERVICES: Service[] = [
@@ -199,6 +206,151 @@ const SERVICES: Service[] = [
     iconBg: 'bg-blue-100',
     iconColor: 'text-blue-700',
   },
+  // Reseller Services (Partner network fulfillment, 2x markup)
+  {
+    id: 'sms-social-likes',
+    platform: 'Social',
+    name: 'Organic Likes & Shares',
+    icon: ThumbsUp,
+    description: 'Real people like and share your social media post (from $3.12 / 10 likes)',
+    status: 'active',
+    badge: 'Popular',
+    iconBg: 'bg-rose-100',
+    iconColor: 'text-rose-600',
+    serviceKey: 'sms_social_likes',
+  },
+  {
+    id: 'sms-comment-likes',
+    platform: 'Social',
+    name: 'Top Comment Likes',
+    icon: ArrowUp,
+    description: 'Boost your comment to top position with real upvotes (from $7.50 / 20 likes)',
+    status: 'active',
+    badge: 'New',
+    iconBg: 'bg-amber-100',
+    iconColor: 'text-amber-600',
+    serviceKey: 'sms_comment_likes',
+  },
+  {
+    id: 'sms-real-followers',
+    platform: 'Social',
+    name: 'Real Human Followers',
+    icon: Users,
+    description: 'Authentic human followers for branding and social proof (from $12.50 / 50 followers)',
+    status: 'active',
+    badge: 'New',
+    iconBg: 'bg-indigo-100',
+    iconColor: 'text-indigo-600',
+    serviceKey: 'sms_real_followers',
+  },
+  {
+    id: 'sms-giveaway-followers',
+    platform: 'Growth',
+    name: 'Giveaway Audience Growth',
+    icon: Gift,
+    description: 'Rapid audience expansion via managed giveaway campaigns (from $37.38 / 2k followers)',
+    status: 'active',
+    badge: 'High Volume',
+    iconBg: 'bg-emerald-100',
+    iconColor: 'text-emerald-600',
+    serviceKey: 'sms_giveaway_followers',
+  },
+  {
+    id: 'sms-real-comments',
+    platform: 'Social',
+    name: 'Custom Real Comments',
+    icon: MessageSquare,
+    description: 'Authentic, contextual comments from active human profiles (from $10.00 / 20 comments)',
+    status: 'active',
+    badge: 'New',
+    iconBg: 'bg-blue-100',
+    iconColor: 'text-blue-600',
+    serviceKey: 'sms_real_comments',
+  },
+  {
+    id: 'sms-reply-comments',
+    platform: 'Social',
+    name: 'Discussion Thread Replies',
+    icon: MessageCircle,
+    description: 'Natural reply comments to stimulate discussions and engagement (from $11.25 / 20 replies)',
+    status: 'active',
+    badge: 'New',
+    iconBg: 'bg-sky-100',
+    iconColor: 'text-sky-600',
+    serviceKey: 'sms_reply_comments',
+  },
+  {
+    id: 'sms-engagement-combo',
+    platform: 'Social',
+    name: 'Comment + Like Combo',
+    icon: Sparkles,
+    description: 'Balanced package of custom comments and post likes (from $12.50 / 20 pairs)',
+    status: 'active',
+    badge: 'Value Pack',
+    iconBg: 'bg-violet-100',
+    iconColor: 'text-violet-600',
+    serviceKey: 'sms_engagement_combo',
+  },
+  {
+    id: 'sms-video-views',
+    platform: 'Short-Form Video',
+    name: 'TikTok & Reels Views',
+    icon: PlayCircle,
+    description: 'High retention video views for TikTok and Instagram Reels (from $6.88 / 1k views)',
+    status: 'active',
+    badge: 'New',
+    iconBg: 'bg-red-100',
+    iconColor: 'text-red-600',
+    serviceKey: 'sms_video_views',
+  },
+  {
+    id: 'sms-survey-respondents',
+    platform: 'Research',
+    name: 'Survey & Form Respondents',
+    icon: FileText,
+    description: 'Real people fill out your questionnaire or survey form (from $17.50 / 20 responses)',
+    status: 'active',
+    badge: 'New',
+    iconBg: 'bg-teal-100',
+    iconColor: 'text-teal-600',
+    serviceKey: 'sms_survey_respondents',
+  },
+  {
+    id: 'sms-public-votes',
+    platform: 'Competitions',
+    name: 'Public Contest Votes & Polls',
+    icon: CheckSquare,
+    description: 'Real unique votes for public competitions, contests, and polls (from $12.50 / 20 votes)',
+    status: 'active',
+    badge: 'New',
+    iconBg: 'bg-orange-100',
+    iconColor: 'text-orange-600',
+    serviceKey: 'sms_public_votes',
+  },
+  {
+    id: 'sms-campaign-posts',
+    platform: 'Amplification',
+    name: 'Campaign Post Amplification',
+    icon: Share2,
+    description: 'Real users publish your ready-to-post material on their accounts (from $25.00 / 20 posts)',
+    status: 'active',
+    badge: 'New',
+    iconBg: 'bg-cyan-100',
+    iconColor: 'text-cyan-600',
+    serviceKey: 'sms_campaign_posts',
+  },
+  {
+    id: 'sms-twitter-trending',
+    platform: 'X (Twitter)',
+    name: 'Trending Topic Campaign',
+    icon: TrendingUp,
+    description: 'Guaranteed organic trending topic on X (Twitter) (from $1,000.00 / 1 hour)',
+    status: 'active',
+    badge: 'High Impact',
+    iconBg: 'bg-slate-900',
+    iconColor: 'text-slate-100',
+    serviceKey: 'sms_twitter_trending',
+  },
   {
     id: 'custom',
     platform: 'Custom',
@@ -223,6 +375,7 @@ type ViewMode =
   | 'trustpilot-review'
   | 'google-maps-review'
   | 'quora-upvote'
+  | 'reseller-order'
   | 'coming-soon'
   | 'feature-request';
 
@@ -313,6 +466,10 @@ export function RedditNewOrder() {
       return;
     }
     setActiveService(service);
+    if (service.serviceKey) {
+      setView('reseller-order');
+      return;
+    }
     if (service.status === 'active') {
       setView(service.id as ViewMode);
     } else if (service.status === 'coming_soon') {
@@ -339,6 +496,9 @@ export function RedditNewOrder() {
       {view === 'trustpilot-review' && <TrustpilotOrderForm onBack={handleBack} />}
       {view === 'google-maps-review' && <GoogleMapsReviewOrderForm onBack={handleBack} />}
       {view === 'quora-upvote' && <QuoraUpvoteOrderForm onBack={handleBack} />}
+      {view === 'reseller-order' && activeService && (
+        <ResellerOrderForm service={activeService} onBack={handleBack} />
+      )}
       {view === 'reddit-comment' && (
         <ForumCommentOrderForm
           onBack={handleBack}
@@ -368,6 +528,10 @@ function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect
   const linkedinServices = visible.filter((s) => s.platform === 'LinkedIn');
   const trustpilotServices = visible.filter((s) => s.platform === 'Trustpilot');
   const quoraServices = visible.filter((s) => s.platform === 'Quora');
+  const socialServices = visible.filter((s) => s.platform === 'Social');
+  const videoServices = visible.filter((s) => s.platform === 'Short-Form Video');
+  const growthServices = visible.filter((s) => s.platform === 'Growth' || s.platform === 'Research' || s.platform === 'Competitions' || s.platform === 'Amplification');
+  const twitterServices = visible.filter((s) => s.platform === 'X (Twitter)');
   const forumServices = visible.filter((s) => s.platform === 'Forums' || s.platform === 'Facebook');
   const customServices = visible.filter((s) => s.platform === 'Custom');
 
@@ -462,6 +626,66 @@ function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {quoraServices.map((s) => (
+              <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Category: Social Engagement */}
+      {socialServices.length > 0 && (
+        <div className="mb-10">
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Social Engagement & Community</h2>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 font-semibold">100% Real People</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {socialServices.map((s) => (
+              <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Category: Short-Form Video */}
+      {videoServices.length > 0 && (
+        <div className="mb-10">
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Short-Form Video (TikTok & Reels)</h2>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-800 font-semibold">Instant Start</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {videoServices.map((s) => (
+              <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Category: Growth, Surveys & Contests */}
+      {growthServices.length > 0 && (
+        <div className="mb-10">
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Growth, Surveys & Contests</h2>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-teal-100 text-teal-800 font-semibold">High Volume</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {growthServices.map((s) => (
+              <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Category: X (Twitter) */}
+      {twitterServices.length > 0 && (
+        <div className="mb-10">
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">X (Twitter) Campaigns</h2>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-slate-900 text-white font-semibold">Premium</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {twitterServices.map((s) => (
               <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
             ))}
           </div>
@@ -3711,6 +3935,353 @@ function QuoraUpvoteOrderForm({ onBack }: { onBack: () => void }) {
                 className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-red-600 hover:bg-red-700 disabled:bg-slate-300 text-white font-semibold transition"
               >
                 {isCreatingQuoraUpvoteOrder ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" /> Placing order...
+                  </>
+                ) : (
+                  <>
+                    Confirm & pay {formatUSD(cost)} <ArrowRight size={18} />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// View: Reseller Order Form (Social Engagement, 2x Markup)
+// ============================================================
+
+const RESELLER_SERVICE_PACKAGES: Record<string, { key: string; label: string; qty: number; cents: number }[]> = {
+  sms_social_likes: [
+    { key: 'like_10', label: '10 Likes / Shares', qty: 10, cents: 313 },
+    { key: 'like_50', label: '50 Likes / Shares', qty: 50, cents: 1250 },
+    { key: 'like_100', label: '100 Likes / Shares', qty: 100, cents: 2375 },
+    { key: 'like_200', label: '200 Likes / Shares', qty: 200, cents: 4688 },
+    { key: 'like_500', label: '500 Likes / Shares', qty: 500, cents: 11250 },
+  ],
+  sms_comment_likes: [
+    { key: 'comlike_20', label: '20 Comment Likes', qty: 20, cents: 750 },
+    { key: 'comlike_50', label: '50 Comment Likes', qty: 50, cents: 1625 },
+    { key: 'comlike_100', label: '100 Comment Likes', qty: 100, cents: 3125 },
+    { key: 'comlike_500', label: '500 Comment Likes', qty: 500, cents: 15000 },
+  ],
+  sms_real_followers: [
+    { key: 'follow_50', label: '50 Real Followers', qty: 50, cents: 1250 },
+    { key: 'follow_100', label: '100 Real Followers', qty: 100, cents: 2500 },
+    { key: 'follow_500', label: '500 Real Followers', qty: 500, cents: 11875 },
+    { key: 'follow_1k', label: '1,000 Real Followers', qty: 1000, cents: 23125 },
+    { key: 'follow_2k', label: '2,000 Real Followers', qty: 2000, cents: 45000 },
+    { key: 'follow_5k', label: '5,000 Real Followers', qty: 5000, cents: 100000 },
+  ],
+  sms_giveaway_followers: [
+    { key: 'giveaway_2k', label: '2,000 Giveaway Followers', qty: 2000, cents: 3738 },
+    { key: 'giveaway_5k', label: '5,000 Giveaway Followers', qty: 5000, cents: 6238 },
+    { key: 'giveaway_10k', label: '10,000 Giveaway Followers', qty: 10000, cents: 11238 },
+    { key: 'giveaway_20k', label: '20,000 Giveaway Followers', qty: 20000, cents: 16238 },
+  ],
+  sms_real_comments: [
+    { key: 'comm_20', label: '20 Real Comments', qty: 20, cents: 1000 },
+    { key: 'comm_50', label: '50 Real Comments', qty: 50, cents: 2500 },
+    { key: 'comm_100', label: '100 Real Comments', qty: 100, cents: 4688 },
+    { key: 'comm_500', label: '500 Real Comments', qty: 500, cents: 23125 },
+    { key: 'comm_1k', label: '1,000 Real Comments', qty: 1000, cents: 45000 },
+  ],
+  sms_reply_comments: [
+    { key: 'reply_20', label: '20 Discussion Replies', qty: 20, cents: 1125 },
+    { key: 'reply_50', label: '50 Discussion Replies', qty: 50, cents: 2875 },
+    { key: 'reply_100', label: '100 Discussion Replies', qty: 100, cents: 5625 },
+    { key: 'reply_500', label: '500 Discussion Replies', qty: 500, cents: 28125 },
+  ],
+  sms_engagement_combo: [
+    { key: 'combo_20', label: '20 Comments + 20 Likes', qty: 20, cents: 1250 },
+    { key: 'combo_50', label: '50 Comments + 50 Likes', qty: 50, cents: 3125 },
+    { key: 'combo_100', label: '100 Comments + 100 Likes', qty: 100, cents: 6250 },
+    { key: 'combo_500', label: '500 Comments + 500 Likes', qty: 500, cents: 31250 },
+  ],
+  sms_video_views: [
+    { key: 'view_1k', label: '1,000 Views', qty: 1000, cents: 688 },
+    { key: 'view_2k', label: '2,000 Views', qty: 2000, cents: 938 },
+    { key: 'view_5k', label: '5,000 Views', qty: 5000, cents: 1875 },
+    { key: 'view_10k', label: '10,000 Views', qty: 10000, cents: 2500 },
+    { key: 'view_50k', label: '50,000 Views', qty: 50000, cents: 6250 },
+    { key: 'view_100k', label: '100,000 Views', qty: 100000, cents: 9375 },
+  ],
+  sms_survey_respondents: [
+    { key: 'survey_20', label: '20 Survey Responses', qty: 20, cents: 1750 },
+    { key: 'survey_50', label: '50 Survey Responses', qty: 50, cents: 4250 },
+    { key: 'survey_100', label: '100 Survey Responses', qty: 100, cents: 8125 },
+    { key: 'survey_500', label: '500 Survey Responses', qty: 500, cents: 37500 },
+  ],
+  sms_public_votes: [
+    { key: 'poll_20', label: '20 Poll Votes', qty: 20, cents: 1250 },
+    { key: 'poll_50', label: '50 Poll Votes', qty: 50, cents: 2500 },
+    { key: 'poll_100', label: '100 Poll Votes', qty: 100, cents: 5000 },
+    { key: 'poll_500', label: '500 Poll Votes', qty: 500, cents: 25000 },
+    { key: 'poll_1k', label: '1,000 Poll Votes', qty: 1000, cents: 47500 },
+  ],
+  sms_campaign_posts: [
+    { key: 'post_20', label: '20 Campaign Posts', qty: 20, cents: 2500 },
+    { key: 'post_50', label: '50 Campaign Posts', qty: 50, cents: 6250 },
+    { key: 'post_100', label: '100 Campaign Posts', qty: 100, cents: 12500 },
+  ],
+  sms_twitter_trending: [
+    { key: 'trend_1h', label: '1 Hour Trending', qty: 1, cents: 100000 },
+    { key: 'trend_2h', label: '2 Hours Trending', qty: 2, cents: 156250 },
+    { key: 'trend_3h', label: '3 Hours Trending', qty: 3, cents: 225000 },
+  ],
+};
+
+function ResellerOrderForm({ service, onBack }: { service: Service; onBack: () => void }) {
+  const navigate = useNavigate();
+  const { balance } = useRedditCredits();
+  const { createResellerOrderAsync, isCreatingResellerOrder } = useRedditOrders();
+
+  const serviceKey = service.serviceKey || 'sms_social_likes';
+  const availablePackages = RESELLER_SERVICE_PACKAGES[serviceKey] || [];
+  const [selectedPkg, setSelectedPkg] = useState(availablePackages[0] || { key: '', label: '', qty: 0, cents: 0 });
+  const [targetUrl, setTargetUrl] = useState('');
+  const [notes, setNotes] = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const cost = selectedPkg.cents;
+  const isValidUrl = /^https?:\/\/[^\s/$.?#].[^\s]*/i.test(targetUrl.trim());
+  const hasEnoughCredit = balance >= cost;
+  const canSubmit = isValidUrl && Boolean(selectedPkg.key) && hasEnoughCredit && !isCreatingResellerOrder;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isValidUrl) {
+      toast.error('Please enter a valid target URL (e.g. post, profile, or video link)');
+      return;
+    }
+    if (!hasEnoughCredit) {
+      toast.error('Insufficient credit. Top up to continue.');
+      return;
+    }
+    setShowConfirm(true);
+  };
+
+  const handleConfirm = async () => {
+    try {
+      const order = await createResellerOrderAsync({
+        serviceKey,
+        packageKey: selectedPkg.key,
+        targetUrl: targetUrl.trim(),
+        platform: service.platform,
+        notes: notes.trim() || null,
+      });
+      toast.success(`Order placed — ${selectedPkg.label}. ${formatUSD(cost)} deducted.`);
+      setShowConfirm(false);
+      navigate(order?.id ? `/orders/${order.id}` : spath('/orders'));
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to create order');
+      setShowConfirm(false);
+    }
+  };
+
+  const Icon = service.icon;
+
+  return (
+    <div className="p-6 md:p-10 max-w-3xl mx-auto">
+      <button
+        onClick={onBack}
+        className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 mb-4"
+      >
+        <ArrowLeft size={14} /> Choose different service
+      </button>
+
+      <div className="mb-8">
+        <div className="flex items-center gap-3">
+          <div className={`w-10 h-10 rounded-xl ${service.iconBg} flex items-center justify-center ${service.iconColor}`}>
+            <Icon size={20} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h1 className="text-2xl font-bold text-slate-900">{service.name}</h1>
+              {service.badge && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 font-semibold">
+                  {service.badge}
+                </span>
+              )}
+            </div>
+            <p className="text-sm text-slate-500 mt-0.5">{service.description}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-6 p-4 rounded-xl bg-slate-900 text-white flex items-center justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-widest text-slate-400 font-semibold">Available credit</p>
+          <p className="text-2xl font-bold mt-0.5">{formatUSD(balance)}</p>
+        </div>
+        <button
+          onClick={() => navigate(spath('/topup'))}
+          className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-semibold flex items-center gap-2"
+        >
+          <Wallet size={14} />
+          Top up
+        </button>
+      </div>
+
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl ring-1 ring-slate-200 p-8 space-y-8">
+        {/* Package selector */}
+        <div>
+          <label className="block text-sm font-semibold text-slate-900 mb-3">
+            Select package <span className="text-red-500">*</span>
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {availablePackages.map((pkg) => {
+              const isSelected = selectedPkg.key === pkg.key;
+              return (
+                <button
+                  type="button"
+                  key={pkg.key}
+                  onClick={() => setSelectedPkg(pkg)}
+                  className={`p-4 rounded-xl border text-left transition flex items-center justify-between ${
+                    isSelected
+                      ? 'border-indigo-600 bg-indigo-50/50 ring-2 ring-indigo-600/20'
+                      : 'border-slate-200 hover:border-slate-300 bg-white'
+                  }`}
+                >
+                  <div>
+                    <p className={`font-semibold text-sm ${isSelected ? 'text-indigo-950' : 'text-slate-900'}`}>
+                      {pkg.label}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-0.5">{pkg.qty.toLocaleString()} units</p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`font-bold text-base ${isSelected ? 'text-indigo-700' : 'text-slate-900'}`}>
+                      {formatUSD(pkg.cents)}
+                    </p>
+                    {isSelected && (
+                      <span className="inline-flex items-center text-[11px] font-semibold text-indigo-700 mt-0.5">
+                        <Check size={12} className="mr-0.5" /> Selected
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Target URL */}
+        <div>
+          <label className="block text-sm font-semibold text-slate-900 mb-2">
+            Target URL <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="url"
+            value={targetUrl}
+            onChange={(e) => setTargetUrl(e.target.value)}
+            placeholder="https://..."
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 text-sm font-mono"
+            required
+          />
+          <p className="mt-1.5 text-xs text-slate-500">
+            Paste the public link to the target post, video, profile, questionnaire, or poll.
+          </p>
+        </div>
+
+        {/* Delivery notes */}
+        <div>
+          <label className="block text-sm font-semibold text-slate-900 mb-2">
+            Delivery instructions <span className="text-slate-400 font-normal">(optional)</span>
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Optional context, preferred topics, pacing notes, or specific guidelines..."
+            rows={2}
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none text-slate-900 text-sm"
+          />
+        </div>
+
+        {/* Order Summary */}
+        <div className="p-5 rounded-xl bg-slate-50 ring-1 ring-slate-200">
+          <div className="flex justify-between text-sm mb-2">
+            <span className="text-slate-600">{service.name}</span>
+            <span className="text-slate-900 font-semibold">{selectedPkg.label}</span>
+          </div>
+          <div className="flex justify-between pt-3 mt-3 border-t border-slate-200">
+            <span className="text-slate-900 font-bold">Total cost</span>
+            <span className="text-2xl font-bold text-indigo-600">{formatUSD(cost)}</span>
+          </div>
+          {!hasEnoughCredit && (
+            <div className="mt-3 p-3 rounded-lg bg-rose-50 text-sm text-rose-700 flex items-start gap-2">
+              <AlertCircle size={16} className="shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">Insufficient credit</p>
+                <p>
+                  You need {formatUSD(cost - balance)} more.{' '}
+                  <button type="button" onClick={() => navigate(spath('/topup'))} className="underline font-semibold">
+                    Top up now
+                  </button>
+                  .
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-semibold transition shadow-lg shadow-indigo-600/20"
+        >
+          Review order
+          <ArrowRight size={18} />
+        </button>
+      </form>
+
+      {/* Confirmation modal */}
+      {showConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+            onClick={() => !isCreatingResellerOrder && setShowConfirm(false)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="px-6 pt-6 pb-2 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-900">Confirm Order</h3>
+              <button
+                onClick={() => !isCreatingResellerOrder && setShowConfirm(false)}
+                className="p-1 rounded hover:bg-slate-100"
+                disabled={isCreatingResellerOrder}
+              >
+                <X size={18} className="text-slate-500" />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="rounded-xl bg-slate-50 divide-y divide-slate-100 text-sm">
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Service</p>
+                  <p className="text-sm font-semibold text-slate-900 mt-0.5">{service.name}</p>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Package</p>
+                  <p className="text-sm font-semibold text-slate-900 mt-0.5">{selectedPkg.label}</p>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Target URL</p>
+                  <p className="text-xs text-slate-700 font-mono break-all mt-0.5">{targetUrl}</p>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Total</p>
+                  <p className="text-sm font-bold text-indigo-700 mt-0.5">{formatUSD(cost)}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleConfirm}
+                disabled={isCreatingResellerOrder}
+                className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white font-semibold transition"
+              >
+                {isCreatingResellerOrder ? (
                   <>
                     <Loader2 size={18} className="animate-spin" /> Placing order...
                   </>

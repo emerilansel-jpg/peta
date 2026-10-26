@@ -278,6 +278,20 @@ function serviceMeta(order: RedditOrderRecord) {
       } as Record<string, string>,
     };
   }
+  if ((order.target_type || 'upvote') === 'reseller_order') {
+    return {
+      name: order.subreddit ? `${order.subreddit} Service` : 'Social Engagement',
+      targetLabel: 'Target URL',
+      quantityLabel: 'Units',
+      progress: `${order.delivered_upvotes || 0} / ${order.requested_upvotes} units`,
+      statusDesc: {
+        pending: 'Reviewing your target and queuing authentic human delivery.',
+        processing: 'Real engagement is actively being delivered to your target link.',
+        completed: 'All requested units delivered. Check details below.',
+        cancelled: 'Order was cancelled; unfulfilled credits refunded.',
+      } as Record<string, string>,
+    };
+  }
   return {
     name: 'Reddit upvotes',
     targetLabel: 'Target thread',

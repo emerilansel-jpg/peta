@@ -21,6 +21,9 @@ import {
   adminUploadDeliveryProof,
   formatUSD,
   getTicketByOrderId,
+  getAdminSupplierFulfillment,
+  adminUpdateSupplierFulfillment,
+  type AdminSupplierFulfillment,
 } from '../../lib/api';
 import { ImageUploadWithPaste } from '../../components/ImageUploadWithPaste';
 import { useRealtimeRefresh } from '../../hooks/useRealtimeRefresh';
@@ -45,6 +48,7 @@ const SERVICE_CONFIG: Record<string, { label: string; emoji: string; color: stri
   trustpilot_review: { label: 'Trustpilot Review', emoji: '⭐', color: 'bg-emerald-100 text-emerald-700' },
   google_maps_review: { label: 'Google Maps Review', emoji: '📍', color: 'bg-emerald-100 text-emerald-700' },
   quora_upvote: { label: 'Quora Up Votes', emoji: '🔺', color: 'bg-red-100 text-red-700' },
+  reseller_order: { label: 'Social Engagement', emoji: '🌐', color: 'bg-indigo-100 text-indigo-700' },
 };
 
 type AdminOrderRecord = {
@@ -114,6 +118,13 @@ function serviceMetric(order: AdminOrderRecord) {
   }
   if ((order.target_type || 'upvote') === 'youtube_upload') {
     return { label: 'YouTube Upload', value: '1', deliveredLabel: 'uploaded' };
+  }
+  if ((order.target_type || '') === 'reseller_order') {
+    return {
+      label: order.subreddit || 'Units',
+      value: String(order.requested_upvotes || 0),
+      deliveredLabel: 'delivered',
+    };
   }
   return {
     label: 'Upvotes',
@@ -459,10 +470,22 @@ function OrderEditModal({
   );
   const [saving, setSaving] = useState(false);
   const [ticketId, setTicketId] = useState<number | null>(null);
+  const [fulfillment, setFulfillment] = useState<AdminSupplierFulfillment | null>(null);
+  const [fulfillmentStatus, setFulfillmentStatus] = useState<string>('pending');
+  const [supplierRef, setSupplierRef] = useState<string>('');
+  const [supplierNotes, setSupplierNotes] = useState<string>('');
 
   useEffect(() => {
     getTicketByOrderId(order.id).then((t) => {
       if (t) setTicketId(t.id);
+    });
+    getAdminSupplierFulfillment(order.id).then((f) => {
+      if (f) {
+        setFulfillment(f);
+        setFulfillmentStatus(f.fulfillment_status || 'pending');
+        setSupplierRef(f.supplier_order_ref || '');
+        setSupplierNotes(f.supplier_notes || '');
+      }
     });
   }, [order.id]);
 
@@ -491,6 +514,16 @@ function OrderEditModal({
       }
 
       await updateOrderDetail(order.id, updates);
+
+      if (fulfillment) {
+        await adminUpdateSupplierFulfillment(
+          order.id,
+          fulfillmentStatus,
+          supplierRef.trim() || null,
+          supplierNotes.trim() || null
+        );
+      }
+
       toast.success('Order updated' + (status === 'completed' ? ' · client will be notified' : status === 'cancelled' ? ' · refund processed automatically' : ''));
       onSaved();
     } catch (err: unknown) {
@@ -590,6 +623,96 @@ function OrderEditModal({
               </div>
             )}
           </div>
+
+          {/* Supplier Fulfillment Box (Admin Only - SolusiMedsos) */}
+          {fulfillment && (
+            <div className="rounded-xl border border-indigo-200 bg-indigo-50/50 p-4 space-y-3">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-indigo-100 text-indigo-800">
+                    Supplier: {fulfillment.supplier}
+                  </span>
+                  <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-white border border-indigo-200 text-indigo-900">
+                    {fulfillment.supplier_code}
+                  </span>
+                </div>
+                <a
+                  href={`https://wa.me/${fulfillment.supplier_wa}?text=${encodeURIComponent(
+                    `Halo Admin SolusiMedsos, saya mau order:\n- Layanan: ${fulfillment.supplier_service_name}\n- Paket: ${fulfillment.supplier_package} (Kode: ${fulfillment.supplier_code})\n- Target URL: ${order.thread_url}\n- Catatan: ${parsedNotes.clientNote || '-'}\nRef Order: #${order.id}\nMohon info total & rekening pembayarannya. Terima kasih!`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-sm transition"
+                >
+                  <MessageSquare size={13} />
+                  Forward to SolusiMedsos (WhatsApp)
+                </a>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                <div className="bg-white p-2.5 rounded-lg border border-indigo-100">
+                  <p className="text-slate-500 text-[10px] uppercase font-semibold">Supplier Cost</p>
+                  <p className="font-bold text-slate-900 mt-0.5">Rp {fulfillment.supplier_cost_idr.toLocaleString('id-ID')}</p>
+                </div>
+                <div className="bg-white p-2.5 rounded-lg border border-indigo-100">
+                  <p className="text-slate-500 text-[10px] uppercase font-semibold">Selling Price (2x)</p>
+                  <p className="font-bold text-emerald-700 mt-0.5">
+                    Rp {fulfillment.selling_price_idr.toLocaleString('id-ID')} ({formatUSD(fulfillment.selling_price_cents)})
+                  </p>
+                </div>
+                <div className="bg-white p-2.5 rounded-lg border border-indigo-100">
+                  <p className="text-slate-500 text-[10px] uppercase font-semibold">Net Profit Margin</p>
+                  <p className="font-bold text-emerald-600 mt-0.5">
+                    Rp {(fulfillment.selling_price_idr - fulfillment.supplier_cost_idr).toLocaleString('id-ID')} (50%)
+                  </p>
+                </div>
+                <div className="bg-white p-2.5 rounded-lg border border-indigo-100">
+                  <p className="text-slate-500 text-[10px] uppercase font-semibold">Fulfillment Status</p>
+                  <p className="font-bold text-indigo-700 mt-0.5 capitalize">{fulfillmentStatus.replace('_', ' ')}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Update Fulfillment Status</label>
+                  <select
+                    value={fulfillmentStatus}
+                    onChange={(e) => setFulfillmentStatus(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg text-xs border border-indigo-200 bg-white text-slate-900 font-medium focus:ring-1 focus:ring-indigo-500"
+                  >
+                    <option value="pending">Pending</option>
+                    <option value="awaiting_payment">Awaiting Supplier Payment</option>
+                    <option value="submitted">Submitted to Supplier</option>
+                    <option value="processing">Processing</option>
+                    <option value="completed">Completed</option>
+                    <option value="failed">Failed</option>
+                    <option value="refunded">Refunded</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Supplier Ref / Order #</label>
+                  <input
+                    type="text"
+                    value={supplierRef}
+                    onChange={(e) => setSupplierRef(e.target.value)}
+                    placeholder="e.g. WA-12345 or Transfer Ref"
+                    className="w-full px-3 py-2 rounded-lg text-xs border border-indigo-200 bg-white text-slate-900 focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">Internal Fulfillment Notes</label>
+                <input
+                  type="text"
+                  value={supplierNotes}
+                  onChange={(e) => setSupplierNotes(e.target.value)}
+                  placeholder="Notes for fulfillment team..."
+                  className="w-full px-3 py-2 rounded-lg text-xs border border-indigo-200 bg-white text-slate-900 focus:ring-1 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Editable fields */}
           <div>

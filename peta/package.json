@@ -10,7 +10,7 @@
     "deploy:straight": "wrangler pages deploy dist-straight --project-name=straight --branch=main --commit-dirty=true",
     "deploy:all": "npm run build && npm run deploy:peta && npm run deploy:straight",
     "lint": "eslint .",
-    "test": "node scripts/test-contributor-backend.mjs && node scripts/test-reddit-replacement.mjs && node scripts/test-straight-screening.mjs && node scripts/test-security-and-regression.mjs",
+    "test": "node scripts/test-contributor-backend.mjs && node scripts/test-reddit-replacement.mjs && node scripts/test-straight-screening.mjs && node scripts/test-security-and-regression.mjs && node scripts/test-solusimedsos-integration.mjs",
     "test:parity": "node scripts/check-schema-parity.mjs",
     "preview": "vite preview",
     "og": "node scripts/og.mjs",

@@ -304,6 +304,107 @@ export async function createQuoraUpvoteOrder(input: QuoraUpvoteOrderInput) {
   return data;
 }
 
+export interface ResellerOrderInput {
+  serviceKey: string;
+  packageKey: string;
+  targetUrl: string;
+  platform?: string;
+  notes?: string | null;
+  requestId?: string | null;
+}
+
+export interface PublicResellerPackage {
+  public_service_key: string;
+  public_package_key: string;
+  package_label: string;
+  quantity: number;
+  selling_price_cents: number;
+  status: 'active' | 'paused' | 'quote_only';
+}
+
+export interface AdminSupplierFulfillment {
+  id: number;
+  order_id: number;
+  supplier: string;
+  supplier_code: string;
+  supplier_service_name: string;
+  supplier_package: string;
+  supplier_cost_idr: number;
+  selling_price_idr: number;
+  selling_price_cents: number;
+  supplier_wa: string;
+  supplier_url: string;
+  fulfillment_status: 'pending' | 'awaiting_payment' | 'submitted' | 'processing' | 'completed' | 'failed' | 'refunded';
+  supplier_order_ref?: string | null;
+  supplier_notes?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// Create a Reseller order via RPC (2x markup, admin-only supplier tracking)
+export async function createResellerOrder(input: ResellerOrderInput) {
+  const { data, error } = await supabase.rpc('fn_create_reseller_order', {
+    p_service_key: input.serviceKey,
+    p_package_key: input.packageKey,
+    p_target_url: input.targetUrl,
+    p_platform: input.platform || 'Social',
+    p_notes: input.notes || null,
+    p_request_id: input.requestId || null,
+  });
+
+  if (error) {
+    console.error('[createResellerOrder] RPC error:', error);
+    if (error.message?.includes('insufficient_credits')) {
+      throw new Error('Insufficient credits. Please top up your account.');
+    }
+    throw error;
+  }
+
+  return data;
+}
+
+// Get public safe reseller packages (excludes confidential supplier data)
+export async function getPublicResellerPackages(serviceKey?: string): Promise<PublicResellerPackage[]> {
+  try {
+    const { data, error } = await supabase.rpc('public_get_reseller_packages', {
+      p_service_key: serviceKey || null,
+    });
+    if (error) throw error;
+    return (data as PublicResellerPackage[]) || [];
+  } catch {
+    return [];
+  }
+}
+
+// Admin only: Get supplier fulfillment details
+export async function getAdminSupplierFulfillment(orderId: number): Promise<AdminSupplierFulfillment | null> {
+  const { data, error } = await supabase.rpc('admin_get_supplier_fulfillment', {
+    p_order_id: orderId,
+  });
+  if (error) {
+    console.warn('[getAdminSupplierFulfillment] error:', error);
+    return null;
+  }
+  return (data && (data as AdminSupplierFulfillment[])[0]) || null;
+}
+
+// Admin only: Update supplier fulfillment status
+export async function adminUpdateSupplierFulfillment(
+  orderId: number,
+  status: string,
+  supplierOrderRef?: string | null,
+  supplierNotes?: string | null
+) {
+  const { data, error } = await supabase.rpc('admin_update_supplier_fulfillment', {
+    p_order_id: orderId,
+    p_fulfillment_status: status,
+    p_supplier_order_ref: supplierOrderRef || null,
+    p_supplier_notes: supplierNotes || null,
+  });
+  if (error) throw error;
+  return data;
+}
+
 export interface ForumCommentOrderInput {
   targetUrl: string;
   platform: string | null;
