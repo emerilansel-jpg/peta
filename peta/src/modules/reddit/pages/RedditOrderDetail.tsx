@@ -278,6 +278,20 @@ function serviceMeta(order: RedditOrderRecord) {
       } as Record<string, string>,
     };
   }
+  if ((order.target_type || 'upvote') === 'yelp_review') {
+    return {
+      name: 'Yelp reviews',
+      targetLabel: 'Yelp business URL',
+      quantityLabel: 'Reviews',
+      progress: `${order.delivered_upvotes || 0} / ${order.requested_upvotes} reviews`,
+      statusDesc: {
+        pending: 'Reviewing your Yelp business page and guidelines.',
+        processing: 'Real people are submitting 5-star reviews on your Yelp page.',
+        completed: 'All reviews delivered. Check review details and screenshots below.',
+        cancelled: 'Order was cancelled; unfulfilled credits refunded.',
+      } as Record<string, string>,
+    };
+  }
   if ((order.target_type || 'upvote') === 'reseller_order') {
     return {
       name: order.subreddit ? `${order.subreddit} Service` : 'Social Engagement',

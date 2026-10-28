@@ -66,6 +66,9 @@ function serviceLabel(order: RedditOrderListItem) {
   if (targetType === 'google_maps_review') {
     return { label: 'Google Maps Reviews', metric: 'Reviews', value: Number(order.requested_upvotes || 0).toLocaleString(), icon: '📍' };
   }
+  if (targetType === 'yelp_review') {
+    return { label: 'Yelp Reviews', metric: 'Reviews', value: Number(order.requested_upvotes || 0).toLocaleString(), icon: '⭐' };
+  }
   if (targetType === 'reseller_order') {
     return {
       label: order.subreddit || 'Social Engagement',
@@ -203,7 +206,7 @@ export function RedditOrders() {
                               <p className="font-semibold text-slate-900">
                                 <span className="mr-1">{service.icon}</span>#{order.id} {order.subreddit && (
                                   <span className="text-slate-500 font-normal">
-                                    · {order.target_type === 'youtube_upload' ? 'YouTube' : order.target_type === 'quora_upvote' ? 'Quora' : order.target_type === 'reseller_order' ? (order.subreddit || 'Social') : (order.target_type || 'upvote') === 'comment' ? order.subreddit : `r/${order.subreddit}`}
+                                    · {order.target_type === 'youtube_upload' ? 'YouTube' : order.target_type === 'quora_upvote' ? 'Quora' : order.target_type === 'yelp_review' ? 'Yelp' : order.target_type === 'reseller_order' ? (order.subreddit || 'Social') : (order.target_type || 'upvote') === 'comment' ? order.subreddit : `r/${order.subreddit}`}
                                   </span>
                                 )}
                               </p>

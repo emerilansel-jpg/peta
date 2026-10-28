@@ -267,11 +267,30 @@ assert.ok(redditNewOrderCode.includes('!wantsSuggestion ? 1'), 'RedditNewOrder m
 					assert.ok(quoraSql.includes('v_is_quora_upvote'), 'fn_ensure_order_task must handle quora_upvote');
 					assert.ok(quoraSql.includes('1000'), 'Reward for quora upvote must be 1000');
 
-					assert.ok(redditApiCode.includes('createQuoraUpvoteOrder'), 'api.ts must export createQuoraUpvoteOrder');
-					assert.ok(redditHooksCode.includes('createQuoraUpvoteOrder'), 'useRedditOrders must export createQuoraUpvoteOrder');
-					assert.ok(redditNewOrderCode.includes('QuoraUpvoteOrderForm'), 'RedditNewOrder must contain QuoraUpvoteOrderForm');
-					console.log('  ✓ Quora Upvote service contracts verified.');
+						assert.ok(redditApiCode.includes('createQuoraUpvoteOrder'), 'api.ts must export createQuoraUpvoteOrder');
+						assert.ok(redditHooksCode.includes('createQuoraUpvoteOrder'), 'useRedditOrders must export createQuoraUpvoteOrder');
+						assert.ok(redditNewOrderCode.includes('QuoraUpvoteOrderForm'), 'RedditNewOrder must contain QuoraUpvoteOrderForm');
+						console.log('  ✓ Quora Upvote service contracts verified.');
 
-					console.log('===================================================');
-					console.log('ALL SECURITY AND QA REGRESSION CHECKS PASSED (100%)');
-					console.log('===================================================');
+						// 16. Verify Yelp Review Service Contracts ($5.00, Rp 5.000)
+						console.log('16. Checking Yelp Review Service Contracts ($5.00 / Rp 5.000)...');
+						const yelpMigrationPath = path.join(rootDir, 'supabase', 'migrations', '20261026000000_straight_yelp_review_service.sql');
+						assert.ok(fs.existsSync(yelpMigrationPath), 'Migration 20261026000000 must exist');
+						const yelpSql = fs.readFileSync(yelpMigrationPath, 'utf8');
+						assert.ok(yelpSql.includes("'yelp_review'"), 'Must add yelp_review to constraints');
+						assert.ok(yelpSql.includes("'yelp_review', 'yelp', 'review'"), 'Must seed yelp_review in straight_pricing');
+						assert.ok(yelpSql.includes('fn_create_yelp_review_order'), 'Must create fn_create_yelp_review_order RPC');
+						assert.ok(yelpSql.includes('v_is_yelp'), 'fn_ensure_order_task must handle yelp_review');
+						assert.ok(yelpSql.includes('v_is_yelp             THEN 5000'), 'Reward for yelp review must be 5000');
+
+						const reloadedRedditApiCode = fs.readFileSync(redditApiPath, 'utf8');
+						assert.ok(reloadedRedditApiCode.includes('createYelpReviewOrder'), 'api.ts must export createYelpReviewOrder');
+						const reloadedRedditHooksCode = fs.readFileSync(redditHooksPath, 'utf8');
+						assert.ok(reloadedRedditHooksCode.includes('createYelpReviewOrder'), 'useRedditOrders must export createYelpReviewOrder');
+						const reloadedRedditNewOrderCode = fs.readFileSync(redditNewOrderPath, 'utf8');
+						assert.ok(reloadedRedditNewOrderCode.includes('YelpReviewOrderForm'), 'RedditNewOrder must contain YelpReviewOrderForm');
+						console.log('  ✓ Yelp Review service contracts verified.');
+
+						console.log('===================================================');
+						console.log('ALL SECURITY AND QA REGRESSION CHECKS PASSED (100%)');
+						console.log('===================================================');

@@ -1323,7 +1323,8 @@ export type TaskCategory =
   | 'linkedin_comment'
   | 'trustpilot_review'
   | 'google_maps_review'
-  | 'quora_upvote';
+  | 'quora_upvote'
+  | 'yelp_review';
 export type TaskStatus = 'draft' | 'active' | 'paused' | 'completed';
 
 export type AdminTaskUpdate = {

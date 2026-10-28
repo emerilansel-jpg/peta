@@ -35,6 +35,7 @@ export function TaskDetail() {
   const [confetti, setConfetti] = React.useState(false);
   const [checkingExistingAssignment, setCheckingExistingAssignment] = React.useState(true);
   const [trustpilotConfirmed, setTrustpilotConfirmed] = React.useState(false);
+  const [yelpConfirmed, setYelpConfirmed] = React.useState(false);
 
   React.useEffect(() => {
     (async () => {
@@ -106,13 +107,14 @@ export function TaskDetail() {
   const isLinkedIn = isLinkedInLike || isLinkedInFollow || isLinkedInComment;
   const isTrustpilotReview = category === 'trustpilot_review';
   const isGoogleMapsReview = category === 'google_maps_review';
+  const isYelpReview = category === 'yelp_review';
   const isQuoraUpvote = category === 'quora_upvote';
-  const isUpvote = (category === 'reddit_upvote' || isQuoraUpvote || task?.task_type === 'upvote') && !isLinkedIn && !isTrustpilotReview && !isGoogleMapsReview;
+  const isUpvote = (category === 'reddit_upvote' || isQuoraUpvote || task?.task_type === 'upvote') && !isLinkedIn && !isTrustpilotReview && !isGoogleMapsReview && !isYelpReview;
   const isForumComment = category === 'forum_comment';
   const isYouTubeUpload = category === 'youtube_upload';
   const isPreferredSource = category === 'preferred_source';
-  const isComment = isForumComment || category === 'reddit_comment' || isLinkedInComment || isTrustpilotReview || isGoogleMapsReview || task?.task_type === 'comment';
-  const isNoAccountNeeded = isForumComment || isYouTubeUpload || isPreferredSource || isLinkedIn || isTrustpilotReview || isGoogleMapsReview || isQuoraUpvote;
+  const isComment = isForumComment || category === 'reddit_comment' || isLinkedInComment || isTrustpilotReview || isGoogleMapsReview || isYelpReview || task?.task_type === 'comment';
+  const isNoAccountNeeded = isForumComment || isYouTubeUpload || isPreferredSource || isLinkedIn || isTrustpilotReview || isGoogleMapsReview || isQuoraUpvote || isYelpReview;
   const platformLabel = task ? platformForTask(task) : 'Forum';
 
   const { data: myYtAccounts = [] } = useQuery({
@@ -223,6 +225,8 @@ export function TaskDetail() {
     ? !!proofImageUrl && !!submittedUsername.trim() && !!assignmentId
     : isTrustpilotReview
     ? !!proofImageUrl && !!submittedUsername.trim() && trustpilotConfirmed && !!assignmentId
+    : isYelpReview
+    ? !!proofImageUrl && !!submittedUsername.trim() && yelpConfirmed && !!assignmentId
     : (isLinkedInLike || isLinkedInFollow)
     ? !!proofImageUrl && !!submittedUsername.trim() && !!assignmentId
     : isLinkedInComment
@@ -649,13 +653,13 @@ export function TaskDetail() {
           title={`Buka halaman ${platformLabel}`}
           subtitle="Klik tombol di bawah. Target akan terbuka di tab baru."
         >
-          {isTrustpilotReview && (
+          {(isTrustpilotReview || isYelpReview) && (
             <div className="p-3 mb-2 rounded-xl bg-emerald-50 ring-1 ring-emerald-300 text-xs text-emerald-950 flex items-start gap-2.5">
               <span className="text-base shrink-0">🛡️</span>
               <div className="flex-1">
                 <p className="font-extrabold text-emerald-900 mb-0.5">Wajib Aktifkan VPN US / UK Terlebih Dahulu!</p>
                 <p className="leading-relaxed mb-1.5">
-                  Sebelum klik tombol Buka di bawah, pastikan kamu sudah mengaktifkan <b>VPN ke lokasi Amerika Serikat (US) atau UK</b> agar review tidak diblokir atau disaring oleh Trustpilot.
+                  Sebelum klik tombol Buka di bawah, pastikan kamu sudah mengaktifkan <b>VPN ke lokasi Amerika Serikat (US) atau UK</b> agar review tidak diblokir atau disaring oleh {isTrustpilotReview ? 'Trustpilot' : 'Yelp'}.
                 </p>
                 <a
                   href="https://windscribe.com/id"
@@ -739,8 +743,9 @@ export function TaskDetail() {
               New model: comment lives in task.brief, instructions in task.description.
               Legacy tasks packed both into brief — splitForumBrief() still handles them. */}
           {(() => {
-            // Trustpilot review tasks: show draft or guidelines
-            if (isTrustpilotReview) {
+            // Trustpilot and Yelp review tasks: show draft or guidelines
+            if (isTrustpilotReview || isYelpReview) {
+              const platformName = isTrustpilotReview ? 'Trustpilot' : 'Yelp';
               const comment = draftComment?.trim();
               const guide = (task.brief || task.description || '').trim();
               return (
@@ -750,9 +755,9 @@ export function TaskDetail() {
                       🚨 ATURAN MUTLAK VPN, NAMA AKUN & BAHASA REVIEW
                     </p>
                     <ul className="text-xs text-rose-950 space-y-1.5 font-medium list-disc pl-4 leading-relaxed">
-                      <li><b>WAJIB AKTIFKAN VPN US / UK</b>: Sebelum membuka link Trustpilot dan menulis review, kamu wajib mengaktifkan VPN lokasi Amerika Serikat (US) atau UK (Gunakan <a href="https://windscribe.com/id" target="_blank" rel="noopener noreferrer" className="font-bold underline text-rose-900">Windscribe</a> gratis). Dilarang keras submit dengan IP Indonesia!</li>
+                      <li><b>WAJIB AKTIFKAN VPN US / UK</b>: Sebelum membuka link {platformName} dan menulis review, kamu wajib mengaktifkan VPN lokasi Amerika Serikat (US) atau UK (Gunakan <a href="https://windscribe.com/id" target="_blank" rel="noopener noreferrer" className="font-bold underline text-rose-900">Windscribe</a> gratis). Dilarang keras submit dengan IP Indonesia!</li>
                       <li><b>WAJIB MENGGUNAKAN NAMA BULE / AMERIKA / ENGLISH</b> (Contoh: Alex Miller, Sarah Jenkins, David Clark, Emily Watson, Michael Brown). <b>DILARANG KERAS</b> memakai nama Indonesia / lokal!</li>
-                      <li>Jika akun Trustpilot kamu saat ini masih nama Indonesia, buka profil Trustpilot kamu lalu <b>ganti Display Name menjadi nama Bule</b> sebelum menulis review.</li>
+                      <li>Jika akun {platformName} kamu saat ini masih nama Indonesia, buka profil {platformName} kamu lalu <b>ganti Display Name menjadi nama Bule</b> sebelum menulis review.{isYelpReview ? ' Pasang juga foto profil avatar di akun Yelp kamu.' : ''}</li>
                       <li>Ulasan / review <b>WAJIB 100% dalam BAHASA INGGRIS</b> (English only).</li>
                       <li>Review dengan nama Indonesia atau tanpa VPN akan <b>LANGSUNG DI-REJECT</b> tanpa bayaran!</li>
                     </ul>
@@ -769,7 +774,7 @@ export function TaskDetail() {
                           onClick={async () => {
                             try {
                               await navigator.clipboard.writeText(comment);
-                              toast.success('Review disalin! Tinggal paste di Trustpilot.');
+                              toast.success(`Review disalin! Tinggal paste di ${platformName}.`);
                             } catch {
                               toast.error('Gagal menyalin otomatis. Copy manual ya.');
                             }
@@ -785,19 +790,19 @@ export function TaskDetail() {
                       </p>
                     </div>
                   )}
-                      {guide && (
-                        <div className="bg-sky-50 ring-1 ring-sky-300 rounded-xl p-3">
-                          <p className="text-[10px] uppercase font-bold tracking-wide text-sky-900 mb-1">
-                            Petunjuk review Trustpilot
-                          </p>
-                          <p className="text-sm text-sky-950 whitespace-pre-line leading-relaxed">
-                            {guide}
-                          </p>
-                        </div>
-                      )}
+                  {guide && (
+                    <div className="bg-sky-50 ring-1 ring-sky-300 rounded-xl p-3">
+                      <p className="text-[10px] uppercase font-bold tracking-wide text-sky-900 mb-1">
+                        Petunjuk review {platformName}
+                      </p>
+                      <p className="text-sm text-sky-950 whitespace-pre-line leading-relaxed">
+                        {guide}
+                      </p>
                     </div>
-                  );
-                }
+                  )}
+                </div>
+              );
+            }
 
                 // Google Maps review tasks: show draft or guidelines with Anti-Drop rules
                 if (isGoogleMapsReview) {
@@ -1197,6 +1202,76 @@ export function TaskDetail() {
                 Trustpilot task: <b>screenshot bukti ulasan terbit & rating bintang 5 wajib</b> di-upload di atas.
               </p>
             </div>
+          ) : isYelpReview ? (
+            <div className="mt-3">
+              <div className="p-3.5 mb-3 rounded-xl bg-rose-50 ring-2 ring-rose-400 text-xs text-rose-950">
+                <p className="font-extrabold text-rose-900 mb-1 flex items-center gap-1">
+                  🚨 WAJIB NAMA BULE / ENGLISH & FOTO AVATAR
+                </p>
+                <p className="leading-relaxed">
+                  Yelp menerapkan filter ulasan yang sangat ketat. <b>Wajib aktifkan VPN US / UK (Windscribe)</b> sebelum membuka Yelp. Akun Yelp kamu <b>wajib nama Western/English</b> dan <b>memiliki foto profil avatar</b>. Ulasan dengan nama lokal atau tanpa foto akan langsung di-reject!
+                </p>
+              </div>
+
+              <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
+                Nama Akun Yelp Kamu (Wajib Nama Bule / English) <span className="text-danger">*</span>
+              </p>
+              <div className="relative mb-3">
+                <LinkIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                <input
+                  type="text"
+                  value={submittedUsername}
+                  onChange={(e) => setSubmittedUsername(e.target.value)}
+                  placeholder="Contoh: Alex Miller / Sarah Jenkins"
+                  className="w-full pl-10 pr-3 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm font-medium"
+                  required
+                />
+              </div>
+              <p className="text-[11px] text-muted mb-3 -mt-2">
+                Nama display akun Yelp kamu yang terlihat pada review. Wajib nama Western/English dan ada foto profil.
+              </p>
+
+              <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
+                Link ulasan kamu di Yelp (opsional)
+              </p>
+              <div className="relative mb-3">
+                <LinkIcon size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                <input
+                  type="url"
+                  value={proofUrl}
+                  onChange={(e) => setProofUrl(e.target.value)}
+                  placeholder="https://www.yelp.com/biz/..."
+                  className="w-full pl-10 pr-3 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm"
+                />
+              </div>
+
+              <label className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 ring-1 ring-amber-300 cursor-pointer mb-3 select-none">
+                <input
+                  type="checkbox"
+                  checked={yelpConfirmed}
+                  onChange={(e) => setYelpConfirmed(e.target.checked)}
+                  className="mt-0.5 rounded border-amber-400 text-primary focus:ring-primary h-4 w-4 shrink-0"
+                />
+                <span className="text-xs text-amber-950 font-semibold leading-snug">
+                  Saya menyatakan bahwa saya sudah mengaktifkan <b>VPN US / UK (Windscribe)</b>, akun Yelp saya menggunakan <b>nama Bule / English dengan foto avatar</b>, dan review ditulis dalam <b>Bahasa Inggris minimal 3 kalimat</b>.
+                </span>
+              </label>
+
+              <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
+                Catatan untuk admin (opsional)
+              </p>
+              <textarea
+                value={userNote}
+                onChange={(e) => setUserNote(e.target.value)}
+                placeholder="Catatan tambahan (opsional)..."
+                className="w-full px-4 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition resize-none text-sm mb-3"
+                rows={2}
+              />
+
+              <p className="text-xs text-primary bg-primary/10 px-3 py-2 rounded-lg mt-2">
+                Yelp task: <b>screenshot bukti ulasan terbit & rating bintang 5 wajib</b> di-upload di atas.
+              </p>
+            </div>
           ) : isLinkedIn ? (
             <div className="mt-3">
               <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
@@ -1427,6 +1502,7 @@ function platformForTask(task: any) {
   if (category === 'preferred_source' || task.task_category === 'preferred_source') return 'Google';
   if (category && String(category).startsWith('linkedin')) return 'LinkedIn';
   if (category === 'trustpilot_review' || (category && String(category).startsWith('trustpilot'))) return 'Trustpilot';
+  if (category === 'yelp_review' || (category && String(category).startsWith('yelp'))) return 'Yelp';
   if (category === 'reddit_upvote' || category === 'reddit_comment' || task.task_type === 'upvote') return 'Reddit';
   const text = `${task.title || ''} ${task.description || ''} ${task.target_url || ''}`.toLowerCase();
   if (text.includes('hubspot')) return 'HubSpot';
@@ -1488,6 +1564,7 @@ function ExampleScreenshot({ category }: { category: string }) {
   const isYT = category === 'youtube_upload';
   const isLI = category.startsWith('linkedin');
   const isTP = category.startsWith('trustpilot');
+  const isYelp = category.startsWith('yelp');
   const isGM = category.startsWith('google_maps');
   const isQuora = category === 'quora_upvote';
 
@@ -1519,6 +1596,14 @@ function ExampleScreenshot({ category }: { category: string }) {
             <div className="flex-1">
               <div className="text-[10px] font-bold text-dark">Review 5 Bintang di Trustpilot</div>
               <div className="text-[8px] text-gray-400">Ulasan & username terbit</div>
+            </div>
+          </div>
+        ) : isYelp ? (
+          <div className="flex items-center gap-2 py-1">
+            <div className="w-5 h-5 rounded bg-red-600 text-white text-[9px] grid place-items-center font-bold">Y!</div>
+            <div className="flex-1">
+              <div className="text-[10px] font-bold text-dark">Review 5 Bintang di Yelp</div>
+              <div className="text-[8px] text-gray-400">Ulasan publik & foto profil</div>
             </div>
           </div>
         ) : isPref ? (

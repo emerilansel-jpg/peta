@@ -48,6 +48,7 @@ const SERVICE_CONFIG: Record<string, { label: string; emoji: string; color: stri
   trustpilot_review: { label: 'Trustpilot Review', emoji: '⭐', color: 'bg-emerald-100 text-emerald-700' },
   google_maps_review: { label: 'Google Maps Review', emoji: '📍', color: 'bg-emerald-100 text-emerald-700' },
   quora_upvote: { label: 'Quora Up Votes', emoji: '🔺', color: 'bg-red-100 text-red-700' },
+  yelp_review: { label: 'Yelp Review', emoji: '⭐', color: 'bg-red-100 text-red-700' },
   reseller_order: { label: 'Social Engagement', emoji: '🌐', color: 'bg-indigo-100 text-indigo-700' },
 };
 
