@@ -400,11 +400,26 @@ type BulkForumTarget = {
 
 export function RedditNewOrder() {
   const [searchParams] = useSearchParams();
-  const startsInComments = searchParams.get('service') === 'comments';
-  const [view, setView] = useState<ViewMode>(startsInComments ? 'reddit-comment' : 'select');
-  const [activeService, setActiveService] = useState<Service | null>(
-    startsInComments ? (SERVICES.find((s) => s.id === 'reddit-comment') || null) : null
-  );
+  const serviceParam = searchParams.get('service');
+  const startsInComments = serviceParam === 'comments';
+  const startsInYelp = serviceParam === 'yelp' || serviceParam === 'yelp-review';
+  const startsInTrustpilot = serviceParam === 'trustpilot' || serviceParam === 'trustpilot-review';
+  const startsInGoogleMaps = serviceParam === 'gmaps' || serviceParam === 'google-maps';
+
+  const [view, setView] = useState<ViewMode>(() => {
+    if (startsInComments) return 'reddit-comment';
+    if (startsInYelp) return 'yelp-review';
+    if (startsInTrustpilot) return 'trustpilot-review';
+    if (startsInGoogleMaps) return 'google-maps-review';
+    return 'select';
+  });
+  const [activeService, setActiveService] = useState<Service | null>(() => {
+    if (startsInComments) return SERVICES.find((s) => s.id === 'reddit-comment') || null;
+    if (startsInYelp) return SERVICES.find((s) => s.id === 'yelp-review') || null;
+    if (startsInTrustpilot) return SERVICES.find((s) => s.id === 'trustpilot-review') || null;
+    if (startsInGoogleMaps) return SERVICES.find((s) => s.id === 'google-maps-review') || null;
+    return null;
+  });
   const sourceKeyword = searchParams.get('keyword') || '';
   const prefillUrl = searchParams.get('url') || '';
   const startsInBulk = searchParams.get('bulk') === 'ranking-forum';
@@ -536,9 +551,35 @@ export function RedditNewOrder() {
 // View 1: Service Selector
 // ============================================================
 function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect: (s: Service) => void }) {
+  const [activeFilter, setActiveFilter] = useState<'all' | 'reviews' | 'yelp' | 'google' | 'linkedin' | 'social' | 'video' | 'twitter'>('all');
+
   // Hide paused services entirely — admin turned them off.
   // Reddit cards show when pricing matrix has them enabled.
-  const visible = services.filter((s) => s.status !== 'paused');
+  const visible = services.filter((s) => {
+    if (s.status === 'paused') return false;
+    if (activeFilter === 'reviews') {
+      return s.id === 'google-maps-review' || s.id === 'trustpilot-review' || s.id === 'yelp-review';
+    }
+    if (activeFilter === 'yelp') {
+      return s.platform === 'Yelp';
+    }
+    if (activeFilter === 'google') {
+      return s.platform === 'Google';
+    }
+    if (activeFilter === 'linkedin') {
+      return s.platform === 'LinkedIn';
+    }
+    if (activeFilter === 'social') {
+      return s.platform === 'Social' || s.platform === 'Growth' || s.platform === 'Research' || s.platform === 'Competitions' || s.platform === 'Amplification';
+    }
+    if (activeFilter === 'video') {
+      return s.platform === 'Short-Form Video' || s.platform === 'YouTube';
+    }
+    if (activeFilter === 'twitter') {
+      return s.platform === 'X (Twitter)';
+    }
+    return true;
+  });
   const redditServices = visible.filter((s) => s.platform === 'Reddit');
   const youtubeServices = visible.filter((s) => s.platform === 'YouTube');
   const googleServices = visible.filter((s) => s.platform === 'Google');
@@ -555,9 +596,36 @@ function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect
 
   return (
     <div className="p-6 md:p-10 max-w-6xl mx-auto">
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-3xl font-bold text-slate-900">New order</h1>
         <p className="text-slate-600 mt-1">Choose a service to start. Or request something we don't yet offer.</p>
+      </div>
+
+      {/* Category Quick Filter Pills */}
+      <div className="flex flex-wrap items-center gap-2 mb-8 pb-3 border-b border-slate-200">
+        {[
+          { id: 'all', label: 'All Services' },
+          { id: 'reviews', label: '⭐ Reviews (Maps, Trustpilot, Yelp)' },
+          { id: 'yelp', label: 'Yelp' },
+          { id: 'google', label: 'Google' },
+          { id: 'linkedin', label: 'LinkedIn' },
+          { id: 'social', label: 'Social & Followers' },
+          { id: 'video', label: 'Video (TikTok/YouTube)' },
+          { id: 'twitter', label: 'X (Twitter)' },
+        ].map((f) => (
+          <button
+            key={f.id}
+            type="button"
+            onClick={() => setActiveFilter(f.id as any)}
+            className={`px-3.5 py-1.5 rounded-full text-xs font-bold transition ${
+              activeFilter === f.id
+                ? 'bg-slate-900 text-white shadow-sm'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+            }`}
+          >
+            {f.label}
+          </button>
+        ))}
       </div>
 
       {/* Platform: Reddit */}
