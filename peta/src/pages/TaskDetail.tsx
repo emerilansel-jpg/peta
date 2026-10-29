@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import {
   ArrowLeft, ExternalLink, Check, Camera, Link as LinkIcon, X,
-  ArrowRight, MessageCircle, Target, Sparkles, Copy, Image as ImageIcon, Video,
+  ArrowRight, MessageCircle, Target, Sparkles, Copy, Image as ImageIcon, Video, User,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
@@ -36,6 +36,7 @@ export function TaskDetail() {
   const [checkingExistingAssignment, setCheckingExistingAssignment] = React.useState(true);
   const [trustpilotConfirmed, setTrustpilotConfirmed] = React.useState(false);
   const [yelpConfirmed, setYelpConfirmed] = React.useState(false);
+  const [clutchConfirmed, setClutchConfirmed] = React.useState(false);
 
   React.useEffect(() => {
     (async () => {
@@ -108,13 +109,14 @@ export function TaskDetail() {
   const isTrustpilotReview = category === 'trustpilot_review';
   const isGoogleMapsReview = category === 'google_maps_review';
   const isYelpReview = category === 'yelp_review';
+  const isClutchReview = category === 'clutch_review';
   const isQuoraUpvote = category === 'quora_upvote';
-  const isUpvote = (category === 'reddit_upvote' || isQuoraUpvote || task?.task_type === 'upvote') && !isLinkedIn && !isTrustpilotReview && !isGoogleMapsReview && !isYelpReview;
+  const isUpvote = (category === 'reddit_upvote' || isQuoraUpvote || task?.task_type === 'upvote') && !isLinkedIn && !isTrustpilotReview && !isGoogleMapsReview && !isYelpReview && !isClutchReview;
   const isForumComment = category === 'forum_comment';
   const isYouTubeUpload = category === 'youtube_upload';
   const isPreferredSource = category === 'preferred_source';
-  const isComment = isForumComment || category === 'reddit_comment' || isLinkedInComment || isTrustpilotReview || isGoogleMapsReview || isYelpReview || task?.task_type === 'comment';
-  const isNoAccountNeeded = isForumComment || isYouTubeUpload || isPreferredSource || isLinkedIn || isTrustpilotReview || isGoogleMapsReview || isQuoraUpvote || isYelpReview;
+  const isComment = isForumComment || category === 'reddit_comment' || isLinkedInComment || isTrustpilotReview || isGoogleMapsReview || isYelpReview || isClutchReview || task?.task_type === 'comment';
+  const isNoAccountNeeded = isForumComment || isYouTubeUpload || isPreferredSource || isLinkedIn || isTrustpilotReview || isGoogleMapsReview || isQuoraUpvote || isYelpReview || isClutchReview;
   const platformLabel = task ? platformForTask(task) : 'Forum';
 
   const { data: myYtAccounts = [] } = useQuery({
@@ -227,6 +229,8 @@ export function TaskDetail() {
     ? !!proofImageUrl && !!submittedUsername.trim() && trustpilotConfirmed && !!assignmentId
     : isYelpReview
     ? !!proofImageUrl && !!submittedUsername.trim() && yelpConfirmed && !!assignmentId
+    : isClutchReview
+    ? !!proofImageUrl && !!submittedUsername.trim() && clutchConfirmed && !!assignmentId
     : (isLinkedInLike || isLinkedInFollow)
     ? !!proofImageUrl && !!submittedUsername.trim() && !!assignmentId
     : isLinkedInComment
@@ -672,6 +676,17 @@ export function TaskDetail() {
               </div>
             </div>
           )}
+          {isClutchReview && (
+            <div className="p-3 mb-2 rounded-xl bg-indigo-50 ring-1 ring-indigo-300 text-xs text-indigo-950 flex items-start gap-2.5">
+              <span className="text-base shrink-0">💼</span>
+              <div className="flex-1">
+                <p className="font-extrabold text-indigo-900 mb-0.5">Wajib Login Akun LinkedIn / Google Profesional</p>
+                <p className="leading-relaxed">
+                  Clutch.co memverifikasi ulasan lewat akun LinkedIn atau email kerja. Pastikan kamu sudah login sebelum membuka link review Clutch perusahaan klien.
+                </p>
+              </div>
+            </div>
+          )}
           <a
             href={task.target_url}
             target="_blank"
@@ -794,6 +809,66 @@ export function TaskDetail() {
                     <div className="bg-sky-50 ring-1 ring-sky-300 rounded-xl p-3">
                       <p className="text-[10px] uppercase font-bold tracking-wide text-sky-900 mb-1">
                         Petunjuk review {platformName}
+                      </p>
+                      <p className="text-sm text-sky-950 whitespace-pre-line leading-relaxed">
+                        {guide}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            // Clutch review tasks: show draft or guidelines with B2B verification rules
+            if (isClutchReview) {
+              const comment = draftComment?.trim();
+              const guide = (task.brief || task.description || '').trim();
+              return (
+                <div className="space-y-3 mb-3">
+                  <div className="bg-indigo-50 ring-2 ring-indigo-400 rounded-xl p-4 border-l-4 border-indigo-600 shadow-sm">
+                    <p className="text-xs uppercase font-extrabold tracking-wide text-indigo-900 flex items-center gap-1.5 mb-1.5">
+                      💼 SOP REVIEW CLUTCH.CO AGAR LOLOS VERIFIKASI
+                    </p>
+                    <ul className="text-xs text-indigo-950 space-y-1.5 font-medium list-disc pl-4 leading-relaxed">
+                      <li><b>LOGIN LINKEDIN ATAU GOOGLE</b>: Buka form review Clutch dan login menggunakan akun LinkedIn atau Google profesional kamu. Clutch memverifikasi profil reviewer lewat akun ini.</li>
+                      <li><b>PILIH "REMAIN ANONYMOUS"</b>: Di form review Clutch, pilih opsi <b>Remain Anonymous</b> agar namamu tidak dipublikasikan secara umum di halaman profil klien.</li>
+                      <li><b>LENGKAPI 5 BAGIAN FORMULIR</b>: Isi Background, Challenge, Solution, Results, dan Ratings dalam <b>Bahasa Inggris</b> secara realistis sesuai brief di bawah.</li>
+                      <li><b>RATING 5 BINTANG PENUH</b>: Berikan bintang 5 di seluruh kriteria penilaian Clutch.</li>
+                      <li><b>UPLOAD BUKTI SUBMIT</b>: Ambil screenshot halaman sukses konfirmasi review Clutch telah disubmit.</li>
+                    </ul>
+                  </div>
+
+                  {comment && (
+                    <div className="bg-indigo-50 ring-1 ring-indigo-300 rounded-xl p-3">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <p className="text-[10px] uppercase font-bold tracking-wide text-indigo-900">
+                          Draft review yang harus disubmit di Clutch
+                        </p>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(comment);
+                              toast.success('Review disalin! Tinggal paste di Clutch.');
+                            } catch {
+                              toast.error('Gagal menyalin otomatis. Copy manual ya.');
+                            }
+                          }}
+                          className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-800 hover:text-indigo-950 underline"
+                        >
+                          <Copy size={11} /> Salin teks
+                        </button>
+                      </div>
+                      <p className="text-xs text-indigo-950 whitespace-pre-line leading-relaxed font-mono">
+                        {comment}
+                      </p>
+                    </div>
+                  )}
+
+                  {guide && (
+                    <div className="bg-sky-50 ring-1 ring-sky-300 rounded-xl p-3">
+                      <p className="text-[10px] uppercase font-bold tracking-wide text-sky-900 mb-1">
+                        Scope Proyek & Petunjuk Review Clutch
                       </p>
                       <p className="text-sm text-sky-950 whitespace-pre-line leading-relaxed">
                         {guide}
@@ -1272,6 +1347,59 @@ export function TaskDetail() {
                 Yelp task: <b>screenshot bukti ulasan terbit & rating bintang 5 wajib</b> di-upload di atas.
               </p>
             </div>
+          ) : isClutchReview ? (
+            <div className="mt-3">
+              <div className="p-3.5 mb-3 rounded-xl bg-indigo-50 ring-2 ring-indigo-400 text-xs text-indigo-950">
+                <p className="font-extrabold text-indigo-900 mb-1 flex items-center gap-1">
+                  💼 FORM SUBMISSI REVIEW CLUTCH.CO
+                </p>
+                <p className="leading-relaxed">
+                  Masukkan <b>URL Profil LinkedIn</b> atau <b>Nama Akun Reviewer</b> yang kamu gunakan saat login di Clutch. Upload screenshot bukti sukses konfirmasi submit review di atas.
+                </p>
+              </div>
+
+              <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
+                Nama Akun / URL LinkedIn Reviewer Kamu <span className="text-danger">*</span>
+              </p>
+              <div className="relative mb-3">
+                <User size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" />
+                <input
+                  type="text"
+                  value={submittedUsername}
+                  onChange={(e) => setSubmittedUsername(e.target.value)}
+                  placeholder="https://linkedin.com/in/... atau Nama Profil LinkedIn"
+                  className="w-full pl-10 pr-3 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm font-medium"
+                  required
+                />
+              </div>
+
+              <label className="flex items-start gap-2.5 p-3 rounded-xl bg-indigo-50 ring-1 ring-indigo-300 cursor-pointer mb-3 select-none">
+                <input
+                  type="checkbox"
+                  checked={clutchConfirmed}
+                  onChange={(e) => setClutchConfirmed(e.target.checked)}
+                  className="mt-0.5 rounded border-indigo-400 text-indigo-600 focus:ring-indigo-500 h-4 w-4 shrink-0"
+                />
+                <span className="text-xs text-indigo-950 font-semibold leading-snug">
+                  Saya menyatakan bahwa saya sudah login dengan <b>akun LinkedIn / Google</b>, mengisi kuesioner review Clutch dalam <b>Bahasa Inggris secara lengkap</b>, dan mengupload screenshot bukti submit.
+                </span>
+              </label>
+
+              <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
+                Catatan untuk admin (opsional)
+              </p>
+              <textarea
+                value={userNote}
+                onChange={(e) => setUserNote(e.target.value)}
+                placeholder="Catatan tambahan seputar review Clutch (opsional)..."
+                className="w-full px-4 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition resize-none text-sm mb-3"
+                rows={2}
+              />
+
+              <p className="text-xs text-primary bg-primary/10 px-3 py-2 rounded-lg mt-2">
+                Clutch task: <b>screenshot bukti konfirmasi submit ulasan bintang 5 wajib</b> di-upload di atas.
+              </p>
+            </div>
           ) : isLinkedIn ? (
             <div className="mt-3">
               <p className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide">
@@ -1418,6 +1546,10 @@ export function TaskDetail() {
                   ? 'Masukkan nama akun Google reviewer kamu dulu.'
                   : isTrustpilotReview && !trustpilotConfirmed
                   ? 'Centang konfirmasi nama bule/English untuk submit.'
+                  : isClutchReview && !clutchConfirmed
+                  ? 'Centang konfirmasi akun LinkedIn & form review Clutch.'
+                  : isClutchReview && !submittedUsername.trim()
+                  ? 'Masukkan nama atau link akun LinkedIn kamu dulu.'
                   : isUpvote
                   ? 'Upload screenshot dulu untuk submit.'
                   : isYouTubeUpload
@@ -1503,6 +1635,7 @@ function platformForTask(task: any) {
   if (category && String(category).startsWith('linkedin')) return 'LinkedIn';
   if (category === 'trustpilot_review' || (category && String(category).startsWith('trustpilot'))) return 'Trustpilot';
   if (category === 'yelp_review' || (category && String(category).startsWith('yelp'))) return 'Yelp';
+  if (category === 'clutch_review' || (category && String(category).startsWith('clutch'))) return 'Clutch';
   if (category === 'reddit_upvote' || category === 'reddit_comment' || task.task_type === 'upvote') return 'Reddit';
   const text = `${task.title || ''} ${task.description || ''} ${task.target_url || ''}`.toLowerCase();
   if (text.includes('hubspot')) return 'HubSpot';

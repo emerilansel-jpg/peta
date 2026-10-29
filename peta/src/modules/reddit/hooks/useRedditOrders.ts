@@ -12,12 +12,14 @@ import {
   createQuoraUpvoteOrder,
   createResellerOrder,
   createYelpReviewOrder,
+  createClutchReviewOrder,
   type LinkedInOrderInput,
   type TrustpilotOrderInput,
   type GoogleMapsReviewOrderInput,
   type QuoraUpvoteOrderInput,
   type ResellerOrderInput,
   type YelpReviewOrderInput,
+  type ClutchReviewOrderInput,
 } from '../lib/api';
 import type { ForumCommentOrderInput } from '../lib/api';
 
@@ -134,6 +136,14 @@ export function useRedditOrders() {
     },
   });
 
+  const createClutchReviewOrderMutation = useMutation({
+    mutationFn: (input: ClutchReviewOrderInput) => createClutchReviewOrder(input),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['reddit', 'orders'] });
+      queryClient.invalidateQueries({ queryKey: ['reddit', 'credits'] });
+    },
+  });
+
   return {
     orders: orders || [],
     isLoading,
@@ -168,6 +178,9 @@ export function useRedditOrders() {
     createYelpReviewOrder: createYelpReviewOrderMutation.mutate,
     createYelpReviewOrderAsync: createYelpReviewOrderMutation.mutateAsync,
     isCreatingYelpReviewOrder: createYelpReviewOrderMutation.isPending,
+    createClutchReviewOrder: createClutchReviewOrderMutation.mutate,
+    createClutchReviewOrderAsync: createClutchReviewOrderMutation.mutateAsync,
+    isCreatingClutchReviewOrder: createClutchReviewOrderMutation.isPending,
     error: createOrderMutation.error,
   };
 }

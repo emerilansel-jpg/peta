@@ -288,9 +288,26 @@ assert.ok(redditNewOrderCode.includes('!wantsSuggestion ? 1'), 'RedditNewOrder m
 						const reloadedRedditHooksCode = fs.readFileSync(redditHooksPath, 'utf8');
 						assert.ok(reloadedRedditHooksCode.includes('createYelpReviewOrder'), 'useRedditOrders must export createYelpReviewOrder');
 						const reloadedRedditNewOrderCode = fs.readFileSync(redditNewOrderPath, 'utf8');
-						assert.ok(reloadedRedditNewOrderCode.includes('YelpReviewOrderForm'), 'RedditNewOrder must contain YelpReviewOrderForm');
-						console.log('  ✓ Yelp Review service contracts verified.');
+							assert.ok(reloadedRedditNewOrderCode.includes('YelpReviewOrderForm'), 'RedditNewOrder must contain YelpReviewOrderForm');
+							console.log('  ✓ Yelp Review service contracts verified.');
 
-						console.log('===================================================');
-						console.log('ALL SECURITY AND QA REGRESSION CHECKS PASSED (100%)');
-						console.log('===================================================');
+							// 17. Verify Clutch.co Review Service Contracts & Risk Disclaimer
+							console.log('17. Checking Clutch Review Contracts & Risk Disclaimer ($5.00 / Rp 5.000)...');
+							const clutchMigrationPath = path.join(rootDir, 'supabase', 'migrations', '20261027000000_straight_clutch_review_service.sql');
+							assert.ok(fs.existsSync(clutchMigrationPath), 'Migration 20261027000000 must exist');
+							const clutchSql = fs.readFileSync(clutchMigrationPath, 'utf8');
+							assert.ok(clutchSql.includes("'clutch_review'"), 'Must add clutch_review to constraints');
+							assert.ok(clutchSql.includes("'clutch_review', 'clutch', 'review'"), 'Must seed clutch_review in straight_pricing');
+							assert.ok(clutchSql.includes('fn_create_clutch_review_order'), 'Must create fn_create_clutch_review_order RPC');
+							assert.ok(clutchSql.includes('v_is_clutch'), 'fn_ensure_order_task must handle clutch_review');
+							assert.ok(clutchSql.includes('v_is_clutch           THEN 5000'), 'Reward for clutch review must be 5000');
+
+							assert.ok(reloadedRedditApiCode.includes('createClutchReviewOrder'), 'api.ts must export createClutchReviewOrder');
+							assert.ok(reloadedRedditHooksCode.includes('createClutchReviewOrder'), 'useRedditOrders must export createClutchReviewOrder');
+							assert.ok(reloadedRedditNewOrderCode.includes('ClutchReviewOrderForm'), 'RedditNewOrder must contain ClutchReviewOrderForm');
+							assert.ok(reloadedRedditNewOrderCode.includes('PlatformRiskDisclaimer'), 'RedditNewOrder must contain PlatformRiskDisclaimer');
+							console.log('  ✓ Clutch Review service contracts & Platform Risk Disclaimer verified.');
+
+							console.log('===================================================');
+							console.log('ALL SECURITY AND QA REGRESSION CHECKS PASSED (100%)');
+							console.log('===================================================');

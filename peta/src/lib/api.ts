@@ -1324,7 +1324,8 @@ export type TaskCategory =
   | 'trustpilot_review'
   | 'google_maps_review'
   | 'quora_upvote'
-  | 'yelp_review';
+  | 'yelp_review'
+  | 'clutch_review';
 export type TaskStatus = 'draft' | 'active' | 'paused' | 'completed';
 
 export type AdminTaskUpdate = {

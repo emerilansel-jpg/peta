@@ -292,6 +292,20 @@ function serviceMeta(order: RedditOrderRecord) {
       } as Record<string, string>,
     };
   }
+  if ((order.target_type || 'upvote') === 'clutch_review') {
+    return {
+      name: 'Clutch.co B2B reviews',
+      targetLabel: 'Clutch company URL',
+      quantityLabel: 'Reviews',
+      progress: `${order.delivered_upvotes || 0} / ${order.requested_upvotes} reviews`,
+      statusDesc: {
+        pending: 'Reviewing your Clutch profile and project scope.',
+        processing: 'Verified reviewers are submitting structured 5-star B2B reviews on Clutch.',
+        completed: 'All reviews submitted. Check verification details below.',
+        cancelled: 'Order was cancelled; unfulfilled credits refunded.',
+      } as Record<string, string>,
+    };
+  }
   if ((order.target_type || 'upvote') === 'reseller_order') {
     return {
       name: order.subreddit ? `${order.subreddit} Service` : 'Social Engagement',

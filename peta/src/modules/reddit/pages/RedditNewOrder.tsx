@@ -32,6 +32,7 @@ import {
   TrendingUp,
   Users,
   MessageCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { RedditLayout } from '../components/RedditLayout';
@@ -48,6 +49,17 @@ const FALLBACK_UPVOTE_CENTS = 50;
 const FALLBACK_COMMENT_PLAIN_CENTS = 500;
 const FALLBACK_COMMENT_LINK_CENTS = 550;
 const BULK_COMMENT_DRAFT_KEY = 'straight:forum-comment-bulk:v1';
+
+function PlatformRiskDisclaimer({ platform = 'Third-party platforms' }: { platform?: string }) {
+  return (
+    <div className="p-3.5 rounded-xl bg-amber-50/90 border border-amber-200 text-xs text-amber-950 flex items-start gap-2.5">
+      <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+      <div className="leading-relaxed">
+        <span className="font-bold text-amber-950">Platform Risk Notice:</span> Third-party platforms ({platform}) strictly regulate reviews, comments, and engagement. While all tasks are completed by real independent human accounts, platforms may moderate, filter content, or sanction accounts at their discretion. Straight Ltd does not bear responsibility for any platform enforcement, review filtering, or account suspensions.
+      </div>
+    </div>
+  );
+}
 
 interface Service {
   id: string;
@@ -161,6 +173,17 @@ const SERVICES: Service[] = [
     badge: 'New',
     iconBg: 'bg-red-100',
     iconColor: 'text-red-700',
+  },
+  {
+    id: 'clutch-review',
+    platform: 'Clutch',
+    name: 'B2B Client Review',
+    icon: Star,
+    description: 'Verified B2B reviews on your Clutch.co agency/company profile ($5.00/review)',
+    status: 'active',
+    badge: 'New',
+    iconBg: 'bg-indigo-100',
+    iconColor: 'text-indigo-700',
   },
   {
     id: 'quora-upvote',
@@ -386,6 +409,7 @@ type ViewMode =
   | 'trustpilot-review'
   | 'google-maps-review'
   | 'yelp-review'
+  | 'clutch-review'
   | 'quora-upvote'
   | 'reseller-order'
   | 'coming-soon'
@@ -403,12 +427,14 @@ export function RedditNewOrder() {
   const serviceParam = searchParams.get('service');
   const startsInComments = serviceParam === 'comments';
   const startsInYelp = serviceParam === 'yelp' || serviceParam === 'yelp-review';
+  const startsInClutch = serviceParam === 'clutch' || serviceParam === 'clutch-review';
   const startsInTrustpilot = serviceParam === 'trustpilot' || serviceParam === 'trustpilot-review';
   const startsInGoogleMaps = serviceParam === 'gmaps' || serviceParam === 'google-maps';
 
   const [view, setView] = useState<ViewMode>(() => {
     if (startsInComments) return 'reddit-comment';
     if (startsInYelp) return 'yelp-review';
+    if (startsInClutch) return 'clutch-review';
     if (startsInTrustpilot) return 'trustpilot-review';
     if (startsInGoogleMaps) return 'google-maps-review';
     return 'select';
@@ -416,6 +442,7 @@ export function RedditNewOrder() {
   const [activeService, setActiveService] = useState<Service | null>(() => {
     if (startsInComments) return SERVICES.find((s) => s.id === 'reddit-comment') || null;
     if (startsInYelp) return SERVICES.find((s) => s.id === 'yelp-review') || null;
+    if (startsInClutch) return SERVICES.find((s) => s.id === 'clutch-review') || null;
     if (startsInTrustpilot) return SERVICES.find((s) => s.id === 'trustpilot-review') || null;
     if (startsInGoogleMaps) return SERVICES.find((s) => s.id === 'google-maps-review') || null;
     return null;
@@ -484,6 +511,10 @@ export function RedditNewOrder() {
       const on = straightEnabled(pricing, 'yelp_review', true);
       return { ...s, status: on ? s.status : 'paused' as const };
     }
+    if (s.id === 'clutch-review') {
+      const on = straightEnabled(pricing, 'clutch_review', true);
+      return { ...s, status: on ? s.status : 'paused' as const };
+    }
     if (s.id === 'quora-upvote') {
       const on = straightEnabled(pricing, 'quora_upvote', true);
       return { ...s, status: on ? s.status : 'paused' as const };
@@ -528,6 +559,7 @@ export function RedditNewOrder() {
       {view === 'google-maps-review' && <GoogleMapsReviewOrderForm onBack={handleBack} />}
       {view === 'quora-upvote' && <QuoraUpvoteOrderForm onBack={handleBack} />}
       {view === 'yelp-review' && <YelpReviewOrderForm onBack={handleBack} />}
+      {view === 'clutch-review' && <ClutchReviewOrderForm onBack={handleBack} />}
       {view === 'reseller-order' && activeService && (
         <ResellerOrderForm service={activeService} onBack={handleBack} />
       )}
@@ -551,17 +583,20 @@ export function RedditNewOrder() {
 // View 1: Service Selector
 // ============================================================
 function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect: (s: Service) => void }) {
-  const [activeFilter, setActiveFilter] = useState<'all' | 'reviews' | 'yelp' | 'google' | 'linkedin' | 'social' | 'video' | 'twitter'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'reviews' | 'yelp' | 'clutch' | 'google' | 'linkedin' | 'social' | 'video' | 'twitter'>('all');
 
   // Hide paused services entirely — admin turned them off.
   // Reddit cards show when pricing matrix has them enabled.
   const visible = services.filter((s) => {
     if (s.status === 'paused') return false;
     if (activeFilter === 'reviews') {
-      return s.id === 'google-maps-review' || s.id === 'trustpilot-review' || s.id === 'yelp-review';
+      return s.id === 'google-maps-review' || s.id === 'trustpilot-review' || s.id === 'yelp-review' || s.id === 'clutch-review';
     }
     if (activeFilter === 'yelp') {
       return s.platform === 'Yelp';
+    }
+    if (activeFilter === 'clutch') {
+      return s.platform === 'Clutch';
     }
     if (activeFilter === 'google') {
       return s.platform === 'Google';
@@ -586,6 +621,7 @@ function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect
   const linkedinServices = visible.filter((s) => s.platform === 'LinkedIn');
   const trustpilotServices = visible.filter((s) => s.platform === 'Trustpilot');
   const yelpServices = visible.filter((s) => s.platform === 'Yelp');
+  const clutchServices = visible.filter((s) => s.platform === 'Clutch');
   const quoraServices = visible.filter((s) => s.platform === 'Quora');
   const socialServices = visible.filter((s) => s.platform === 'Social');
   const videoServices = visible.filter((s) => s.platform === 'Short-Form Video');
@@ -605,7 +641,8 @@ function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect
       <div className="flex flex-wrap items-center gap-2 mb-8 pb-3 border-b border-slate-200">
         {[
           { id: 'all', label: 'All Services' },
-          { id: 'reviews', label: '⭐ Reviews (Maps, Trustpilot, Yelp)' },
+          { id: 'reviews', label: '⭐ Reviews (Maps, Trustpilot, Yelp, Clutch)' },
+          { id: 'clutch', label: 'Clutch' },
           { id: 'yelp', label: 'Yelp' },
           { id: 'google', label: 'Google' },
           { id: 'linkedin', label: 'LinkedIn' },
@@ -715,6 +752,24 @@ function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {yelpServices.map((s) => (
+              <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Platform: Clutch.co */}
+      {clutchServices.length > 0 && (
+        <div className="mb-10">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center text-white font-black text-xs shadow-sm">
+              C!
+            </div>
+            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Clutch.co</h2>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 font-semibold">Active</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {clutchServices.map((s) => (
               <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
             ))}
           </div>
@@ -1155,6 +1210,8 @@ function RedditUpvoteOrderForm({ onBack }: { onBack: () => void }) {
             <p className="text-blue-700 text-xs mt-0.5">Cancelled orders are refunded automatically.</p>
           </div>
         </div>
+
+        <PlatformRiskDisclaimer platform={platform === 'reddit' ? 'Reddit' : 'this platform'} />
 
         <button
           type="submit"
@@ -1917,6 +1974,8 @@ function ForumCommentOrderForm({
             </div>
           )}
         </div>
+
+        <PlatformRiskDisclaimer platform={platform || 'Reddit / Online Forums'} />
 
         <button
           type="submit"
@@ -2864,6 +2923,8 @@ function LinkedInOrderForm({
           )}
         </div>
 
+        <PlatformRiskDisclaimer platform="LinkedIn" />
+
         <button
           type="submit"
           disabled={!canSubmit}
@@ -3245,6 +3306,8 @@ function TrustpilotOrderForm({ onBack }: { onBack: () => void }) {
             </div>
           )}
         </div>
+
+        <PlatformRiskDisclaimer platform="Trustpilot" />
 
         <button
           type="submit"
@@ -3697,6 +3760,8 @@ function GoogleMapsReviewOrderForm({ onBack }: { onBack: () => void }) {
           )}
         </div>
 
+        <PlatformRiskDisclaimer platform="Google Maps" />
+
         <button
           type="submit"
           disabled={!canSubmit}
@@ -3985,6 +4050,8 @@ function QuoraUpvoteOrderForm({ onBack }: { onBack: () => void }) {
             </div>
           )}
         </div>
+
+        <PlatformRiskDisclaimer platform="Quora" />
 
         <button
           type="submit"
@@ -4353,6 +4420,8 @@ function YelpReviewOrderForm({ onBack }: { onBack: () => void }) {
           )}
         </div>
 
+        <PlatformRiskDisclaimer platform="Yelp" />
+
         <button
           type="submit"
           disabled={!canSubmit}
@@ -4412,6 +4481,366 @@ function YelpReviewOrderForm({ onBack }: { onBack: () => void }) {
                 className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-red-600 hover:bg-red-700 disabled:bg-slate-300 text-white font-semibold transition"
               >
                 {isCreatingYelpReviewOrder ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin" /> Placing order...
+                  </>
+                ) : (
+                  <>
+                    Confirm & pay {formatUSD(cost)} <ArrowRight size={18} />
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// View: Clutch.co B2B Review Order Form ($5.00/review)
+// ============================================================
+function ClutchReviewOrderForm({ onBack }: { onBack: () => void }) {
+  const navigate = useNavigate();
+  const { balance } = useRedditCredits();
+  const { createClutchReviewOrder, isCreatingClutchReviewOrder } = useRedditOrders();
+  const pricing = useStraightPricing();
+
+  const [targetUrl, setTargetUrl] = useState('');
+  const [quantity, setQuantity] = useState(1);
+  const [notes, setNotes] = useState('');
+  const [reviewMode, setReviewMode] = useState<'brief' | 'custom'>('brief');
+  const [reviewBrief, setReviewBrief] = useState('');
+  const [customDrafts, setCustomDrafts] = useState<string[]>(Array(20).fill(''));
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const unitCents = straightPrice(pricing, 'clutch_review', 500);
+  const cost = unitCents * quantity;
+  const hasEnoughCredit = balance >= cost;
+  const enabled = straightEnabled(pricing, 'clutch_review', true);
+
+  const isValidUrl =
+    /^https?:\/\/(?:[a-z0-9-]+\.)*(?:clutch\.co|review\.clutch\.co)\/[^\s]+/i.test(targetUrl.trim());
+
+  const canSubmit =
+    isValidUrl &&
+    hasEnoughCredit &&
+    enabled &&
+    (reviewMode === 'brief'
+      ? true
+      : customDrafts.slice(0, quantity).every((d) => d && d.trim().length >= 30));
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!isValidUrl) {
+      toast.error('Enter a valid Clutch profile or review URL (e.g. https://clutch.co/profile/...)');
+      return;
+    }
+    if (!hasEnoughCredit) {
+      toast.error('Insufficient credit. Top up to continue.');
+      return;
+    }
+    if (reviewMode === 'custom') {
+      const emptyIdx = customDrafts.slice(0, quantity).findIndex((d) => !d || d.trim().length < 30);
+      if (emptyIdx !== -1) {
+        toast.error(`Please provide review text #${emptyIdx + 1} (minimum 30 characters)`);
+        return;
+      }
+    }
+    setShowConfirm(true);
+  };
+
+  const handleConfirm = () => {
+    const formattedDrafts =
+      reviewMode === 'custom'
+        ? customDrafts.slice(0, quantity).map((d) => ({ comment_text: d.trim() }))
+        : null;
+
+    createClutchReviewOrder(
+      {
+        targetUrl: targetUrl.trim(),
+        quantity,
+        notes: notes.trim() || null,
+        reviewMode,
+        reviewBrief: reviewBrief.trim() || null,
+        reviewDrafts: formattedDrafts,
+        requestId: `clutch-order-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      },
+      {
+        onSuccess: (order: any) => {
+          setShowConfirm(false);
+          toast.success('Clutch review order placed! Workers will be dispatched.');
+          navigate(spath(`/orders/${order.id}`));
+        },
+        onError: (err: any) => {
+          toast.error(err.message || 'Failed to place order');
+        },
+      }
+    );
+  };
+
+  return (
+    <div className="p-6 md:p-10 max-w-3xl mx-auto">
+      <button
+        type="button"
+        onClick={onBack}
+        className="inline-flex items-center gap-1 text-sm text-slate-600 hover:text-slate-900 mb-4"
+      >
+        <ArrowLeft size={14} /> Choose different service
+      </button>
+
+      <div className="mb-8">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-indigo-100 flex items-center justify-center text-indigo-600">
+            <Star size={20} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Clutch.co B2B Reviews</h1>
+            <p className="text-sm text-slate-500">
+              {formatUSD(unitCents)} per review · Verified 5-star B2B review on your Clutch profile
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="mb-6 p-4 rounded-xl bg-slate-900 text-white flex items-center justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-widest text-slate-400 font-semibold">Available credit</p>
+          <p className="text-2xl font-bold mt-0.5">{formatUSD(balance)}</p>
+        </div>
+        <button
+          onClick={() => navigate(spath('/topup'))}
+          className="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-semibold flex items-center gap-2"
+        >
+          <Wallet size={14} />
+          Top up
+        </button>
+      </div>
+
+      {!enabled && (
+        <div className="mb-6 p-4 rounded-xl bg-amber-50 ring-1 ring-amber-200 text-sm text-amber-900 flex items-start gap-2">
+          <AlertCircle size={16} className="shrink-0 mt-0.5 text-amber-500" />
+          <p><span className="font-semibold">Clutch reviews are paused right now.</span> This service is temporarily unavailable — please check back soon.</p>
+        </div>
+      )}
+
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl ring-1 ring-slate-200 p-8 space-y-8">
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
+            <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">1</span>
+            Clutch Company Profile URL
+          </label>
+          <input
+            type="url"
+            value={targetUrl}
+            onChange={(e) => setTargetUrl(e.target.value)}
+            placeholder="https://clutch.co/profile/your-company-name"
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900"
+            required
+          />
+          <p className="mt-2 text-xs text-slate-500">
+            The Clutch profile where reviews should be submitted. Workers will sign in via LinkedIn/Google and fill out Clutch's verified review questionnaire.
+          </p>
+        </div>
+
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
+            <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">2</span>
+            Number of reviews
+          </label>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+              disabled={quantity <= 1}
+              className="w-10 h-10 rounded-lg border border-slate-300 flex items-center justify-center text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-bold"
+            >
+              -
+            </button>
+            <span className="w-16 text-center font-bold text-xl text-slate-900">{quantity}</span>
+            <button
+              type="button"
+              onClick={() => setQuantity((q) => Math.min(20, q + 1))}
+              disabled={quantity >= 20}
+              className="w-10 h-10 rounded-lg border border-slate-300 flex items-center justify-center text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed font-bold"
+            >
+              +
+            </button>
+            <span className="text-xs text-slate-500 ml-2">1 to 20 reviews per order</span>
+          </div>
+        </div>
+
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-3">
+            <span className="w-6 h-6 rounded-full bg-indigo-600 text-white text-xs font-bold flex items-center justify-center">3</span>
+            Review Content Mode
+          </label>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+            <button
+              type="button"
+              onClick={() => setReviewMode('brief')}
+              className={`p-3.5 rounded-xl border text-left text-sm font-medium transition ${
+                reviewMode === 'brief'
+                  ? 'border-indigo-600 bg-indigo-50 text-indigo-900'
+                  : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+              }`}
+            >
+              <div className="font-bold mb-0.5">Worker writes from project brief</div>
+              <div className="text-xs text-slate-500 leading-snug">Workers answer Clutch's 5 structured sections based on your project scope</div>
+            </button>
+            <button
+              type="button"
+              onClick={() => setReviewMode('custom')}
+              className={`p-3.5 rounded-xl border text-left text-sm font-medium transition ${
+                reviewMode === 'custom'
+                  ? 'border-indigo-600 bg-indigo-50 text-indigo-900'
+                  : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+              }`}
+            >
+              <div className="font-bold mb-0.5">Provide custom review texts</div>
+              <div className="text-xs text-slate-500 leading-snug">You supply complete review texts; each worker posts one unique submission</div>
+            </button>
+          </div>
+
+          {reviewMode === 'brief' ? (
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
+                Project Scope & Results Brief
+              </label>
+              <textarea
+                value={reviewBrief}
+                onChange={(e) => setReviewBrief(e.target.value)}
+                placeholder="Mention service category (e.g. Web Development, SEO, Mobile App), project budget range (e.g. $5k - $10k), timeline, and measurable success metrics..."
+                rows={3}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 text-sm resize-none"
+              />
+              <p className="mt-1 text-xs text-slate-500">
+                Clutch requires structured details: Challenge, Solution, and Results. Providing project scope ensures authentic responses.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <label className="block text-xs font-semibold text-slate-700">
+                Provide {quantity} unique review texts <span className="text-red-500">*</span>
+              </label>
+              {customDrafts.slice(0, quantity).map((d, i) => (
+                <div key={i}>
+                  <span className="text-[11px] font-semibold text-slate-500">Review #{i + 1}</span>
+                  <textarea
+                    value={d}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setCustomDrafts((prev) => {
+                        const next = [...prev];
+                        next[i] = val;
+                        return next;
+                      });
+                    }}
+                    placeholder={`Detailed review text #${i + 1} (Background, Solution, Results)...`}
+                    rows={2}
+                    className="w-full mt-1 px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 text-slate-900 text-sm resize-none"
+                    required
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-semibold text-slate-900 mb-2">
+            Extra instructions <span className="text-slate-400 font-normal">(optional)</span>
+          </label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Pacing requests, industry emphasis, or specific reviewer guidelines..."
+            rows={2}
+            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none text-slate-900 text-sm"
+          />
+        </div>
+
+        <div className="p-5 rounded-xl bg-slate-50 ring-1 ring-slate-200">
+          <div className="flex justify-between text-sm mb-2">
+            <span className="text-slate-600">Clutch.co Reviews</span>
+            <span className="text-slate-900 font-semibold">{quantity} × {formatUSD(unitCents)}</span>
+          </div>
+          <div className="flex justify-between pt-3 mt-3 border-t border-slate-200">
+            <span className="text-slate-900 font-bold">Total</span>
+            <span className="text-2xl font-bold text-indigo-600">{formatUSD(cost)}</span>
+          </div>
+          {!hasEnoughCredit && (
+            <div className="mt-3 p-3 rounded-lg bg-rose-50 text-sm text-rose-700 flex items-start gap-2">
+              <AlertCircle size={16} className="shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold">Insufficient credit</p>
+                <p>You need {formatUSD(cost - balance)} more. <button type="button" onClick={() => navigate(spath('/topup'))} className="underline font-semibold">Top up now</button>.</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <PlatformRiskDisclaimer platform="Clutch.co" />
+
+        <button
+          type="submit"
+          disabled={!canSubmit}
+          className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-semibold transition shadow-lg shadow-indigo-600/20"
+        >
+          {enabled ? 'Review order' : 'Service paused'}
+          {enabled && <ArrowRight size={18} />}
+        </button>
+      </form>
+
+      {/* Confirmation modal */}
+      {showConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
+            onClick={() => !isCreatingClutchReviewOrder && setShowConfirm(false)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div className="px-6 pt-6 pb-2 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-slate-900">Confirm Clutch.co Order</h3>
+              <button
+                onClick={() => !isCreatingClutchReviewOrder && setShowConfirm(false)}
+                className="p-1 rounded hover:bg-slate-100"
+                disabled={isCreatingClutchReviewOrder}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-slate-600">
+                Review your order details. <span className="font-semibold text-slate-900">{formatUSD(cost)}</span> will be deducted from your credit balance.
+              </p>
+              <div className="rounded-xl bg-slate-50 ring-1 ring-slate-200 divide-y divide-slate-200">
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Target URL</p>
+                  <p className="text-xs text-slate-700 font-mono break-all mt-0.5">{targetUrl}</p>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Reviews</p>
+                  <p className="text-sm font-semibold text-slate-900 mt-0.5">{quantity} reviews ({formatUSD(unitCents)} each)</p>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Review mode</p>
+                  <p className="text-sm text-slate-900 mt-0.5">
+                    {reviewMode === 'brief' ? 'Worker writes from project brief' : `${quantity} custom reviews provided`}
+                  </p>
+                </div>
+                <div className="px-4 py-3">
+                  <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Total</p>
+                  <p className="text-sm font-bold text-slate-900 mt-0.5">{formatUSD(cost)}</p>
+                </div>
+              </div>
+              <button
+                onClick={handleConfirm}
+                disabled={isCreatingClutchReviewOrder}
+                className="w-full inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-300 text-white font-semibold transition"
+              >
+                {isCreatingClutchReviewOrder ? (
                   <>
                     <Loader2 size={18} className="animate-spin" /> Placing order...
                   </>
