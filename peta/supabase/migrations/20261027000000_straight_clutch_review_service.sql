@@ -420,7 +420,7 @@ BEGIN
                   OR v_is_yelp
                   OR v_is_clutch;
 
-  v_initial_status := CASE WHEN v_auto_activate THEN 'active' ELSE 'pending_review' END;
+  v_initial_status := CASE WHEN v_auto_activate THEN 'active' ELSE 'paused' END;
 
   INSERT INTO tasks (
     title, description, brief, target_url, task_type, task_category,
