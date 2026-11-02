@@ -2865,6 +2865,14 @@ export async function updateCampaign(id: string, payload: Partial<CampaignRow>):
   if (error) throw new Error(error.message || 'Gagal memperbarui campaign.');
 }
 
+export async function deleteCampaign(id: string): Promise<void> {
+  const { error } = await supabase
+    .from('invitation_campaigns')
+    .delete()
+    .eq('id', id);
+  if (error) throw new Error(error.message || 'Gagal menghapus campaign.');
+}
+
 export async function getInvitations(filters?: {
   campaignId?: string;
   recruiterId?: string;

@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   TrendingUp, Users, UserPlus, Filter, Download, Search, CheckCircle2,
   Copy, Plus, RefreshCw, BarChart2, Eye, Check, X, Phone,
-  ChevronRight, Layers, MessageSquare, Award
+  ChevronRight, Layers, MessageSquare, Award, Trash2
 } from 'lucide-react';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
@@ -12,7 +12,7 @@ import { CardSkeleton } from '../../components/Skeleton';
 import { toast } from '../../components/Toast';
 import {
   getGrowthOverview, getUserActivityMonitoring, getRecruiterPerformance,
-  getCampaigns, createCampaign, getInvitations, createInvitation,
+  getCampaigns, createCampaign, deleteCampaign, getInvitations, createInvitation,
   updateInvitation, getFollowupQueue, createFollowup, updateFollowup, getUserGrowthDetail,
   type InvitationRow
 } from '../../lib/api';
@@ -194,6 +194,16 @@ export function AdminGrowth() {
       });
     },
     onError: (e: any) => toast.error(e?.message || 'Gagal membuat campaign'),
+  });
+
+  const deleteCampaignMutation = useMutation({
+    mutationFn: (id: string) => deleteCampaign(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['growthCampaigns'] });
+      queryClient.invalidateQueries({ queryKey: ['growthOverview'] });
+      toast.success('Campaign berhasil dihapus');
+    },
+    onError: (e: any) => toast.error(e?.message || 'Gagal menghapus campaign'),
   });
 
   const createInviteMutation = useMutation({
@@ -657,6 +667,18 @@ export function AdminGrowth() {
                       >
                         Lihat Data →
                       </Button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (window.confirm(`Hapus campaign ${c.campaign_code} - ${c.campaign_name}?`)) {
+                            deleteCampaignMutation.mutate(c.id);
+                          }
+                        }}
+                        className="p-1.5 rounded-lg text-muted hover:text-danger hover:bg-danger/10 transition-colors"
+                        title="Hapus campaign"
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </div>
                   </Card>
                 ))}
