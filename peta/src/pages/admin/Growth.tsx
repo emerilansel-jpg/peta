@@ -365,15 +365,99 @@ export function AdminGrowth() {
               <Plus size={14} className="mr-1.5" /> Campaign Baru
             </Button>
             <Button
-              variant="primary"
+              variant="outline"
               size="sm"
               onClick={() => setShowInviteModal(true)}
-              className="text-xs shadow-md"
+              className="text-xs"
             >
-              <UserPlus size={14} className="mr-1.5" /> Buat Undangan
+              <UserPlus size={14} className="mr-1.5" /> Undangan Khusus (VIP)
             </Button>
           </div>
         </div>
+
+        {/* FAST RECRUITMENT CODES & BROADCAST SHARE */}
+        <Card className="mb-6 p-4 bg-gradient-to-r from-purple-950 via-indigo-950 to-slate-900 text-white border-0 shadow-xl relative overflow-hidden rounded-3xl">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 relative z-10">
+            <div>
+              <div className="flex items-center gap-2 mb-1.5">
+                <span className="px-2.5 py-0.5 rounded-full bg-purple-500/30 text-purple-200 text-[10px] font-black uppercase tracking-wider border border-purple-400/30">
+                  ⚡ Rekrutmen Cepat (Tanpa Input Satu-Satu)
+                </span>
+              </div>
+              <h3 className="text-base sm:text-lg font-black tracking-tight text-white">
+                Bagikan Kode atau Link Undangan
+              </h3>
+              <p className="text-xs text-purple-200/80 max-w-xl mt-1 leading-relaxed">
+                Ghina cukup bagikan kode <b>GHINA</b> atau link di bawah ke grup WhatsApp / medsos. Siapapun yang mendaftar dengan kode ini otomatis tercatat di dashboard rekrutmen Ghina!
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* Ghina Code Card */}
+              <div className="bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/20 flex items-center gap-3 shadow-md">
+                <div>
+                  <span className="text-[10px] font-bold text-purple-200 uppercase block tracking-wider">Kode Undangan</span>
+                  <span className="text-base font-mono font-black tracking-wider text-yellow-300">GHINA</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText('GHINA');
+                      toast.success('Kode "GHINA" disalin!');
+                    }}
+                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all"
+                    title="Salin Kode"
+                  >
+                    <Copy size={14} />
+                  </button>
+                  <button
+                    onClick={() => {
+                      const link = `${typeof window !== 'undefined' ? window.location.origin : 'https://penghasilantambahan.com'}/register?ref=GHINA`;
+                      navigator.clipboard.writeText(link);
+                      toast.success('Link undangan Ghina disalin ke clipboard!');
+                    }}
+                    className="px-3 py-2 rounded-xl bg-white text-dark hover:bg-light text-xs font-extrabold flex items-center gap-1.5 shadow-sm transition-all"
+                    title="Salin Link"
+                  >
+                    <Copy size={13} /> Salin Link
+                  </button>
+                  <button
+                    onClick={() => {
+                      const link = `${typeof window !== 'undefined' ? window.location.origin : 'https://penghasilantambahan.com'}/register?ref=GHINA`;
+                      const msg = encodeURIComponent(
+                        `Halo teman-teman! 👋\n\nMau penghasilan tambahan modal HP? Yuk gabung ke *PeTa (PenghasilanTambahan.com)* untuk ngerjain tugas review & komentar berbayar.\n\nReward langsung cair ke saldo kamu!\n\nDaftar gratis lewat link khusus ini:\n${link}\n(atau masukkan Kode Undangan: *GHINA* saat daftar).\n\nAda bonus saldo pendaftaran langsung masuk! 💰`
+                      );
+                      window.open(`https://wa.me/?text=${msg}`, '_blank');
+                    }}
+                    className="px-3 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-extrabold flex items-center gap-1.5 shadow-sm transition-all"
+                    title="Share ke WhatsApp"
+                  >
+                    <Phone size={13} /> Share WA
+                  </button>
+                </div>
+              </div>
+
+              {/* Admin Code Card */}
+              <div className="bg-white/5 p-3 rounded-2xl border border-white/10 flex items-center gap-2.5 text-xs">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-300 uppercase block">Kode Admin</span>
+                  <span className="text-sm font-mono font-bold text-white">PETA</span>
+                </div>
+                <button
+                  onClick={() => {
+                    const link = `${typeof window !== 'undefined' ? window.location.origin : 'https://penghasilantambahan.com'}/register?ref=PETA`;
+                    navigator.clipboard.writeText(link);
+                    toast.success('Link undangan Admin (PETA) disalin!');
+                  }}
+                  className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold transition-all"
+                  title="Salin Link Admin"
+                >
+                  <Copy size={13} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </Card>
 
         {/* Global Filter Bar */}
         <Card className="mb-6 p-3 bg-white border border-border shadow-sm">
@@ -644,41 +728,46 @@ export function AdminGrowth() {
                       </div>
                     </div>
 
-                    <div className="mt-4 pt-3 border-t border-light flex items-center justify-end gap-2">
+                    <div className="mt-4 pt-3 border-t border-light flex items-center justify-between gap-2">
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => {
-                          setInviteForm((prev) => ({ ...prev, campaignId: c.id, recruiterId: c.assigned_recruiter_id || '' }));
-                          setShowInviteModal(true);
+                          const link = `${typeof window !== 'undefined' ? window.location.origin : 'https://penghasilantambahan.com'}/register?ref=${c.campaign_code}`;
+                          navigator.clipboard.writeText(link);
+                          toast.success(`Link Campaign ${c.campaign_code} disalin!`);
                         }}
                         className="!text-[11px] !py-1"
+                        title="Salin Link Pendaftaran untuk Campaign Ini"
                       >
-                        <UserPlus size={12} className="mr-1" /> Undangan Baru
+                        <Copy size={12} className="mr-1" /> Salin Link
                       </Button>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={() => {
-                          setSelectedCampaign(c.id);
-                          setActiveTab('invitations');
-                        }}
-                        className="!text-[11px] !py-1"
-                      >
-                        Lihat Data →
-                      </Button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (window.confirm(`Hapus campaign ${c.campaign_code} - ${c.campaign_name}?`)) {
-                            deleteCampaignMutation.mutate(c.id);
-                          }
-                        }}
-                        className="p-1.5 rounded-lg text-muted hover:text-danger hover:bg-danger/10 transition-colors"
-                        title="Hapus campaign"
-                      >
-                        <Trash2 size={13} />
-                      </button>
+
+                      <div className="flex items-center gap-1.5">
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => {
+                            setSelectedCampaign(c.id);
+                            setActiveTab('invitations');
+                          }}
+                          className="!text-[11px] !py-1"
+                        >
+                          Lihat Data →
+                        </Button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (window.confirm(`Hapus campaign ${c.campaign_code} - ${c.campaign_name}?`)) {
+                              deleteCampaignMutation.mutate(c.id);
+                            }
+                          }}
+                          className="p-1.5 rounded-lg text-muted hover:text-danger hover:bg-danger/10 transition-colors"
+                          title="Hapus campaign"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </div>
                   </Card>
                 ))}
@@ -692,8 +781,8 @@ export function AdminGrowth() {
           <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
-                <h3 className="text-sm font-extrabold text-dark">Individual Invitation Tracking</h3>
-                <p className="text-xs text-muted">Setiap undangan memiliki Invitation ID unik dan token pelacakan aman.</p>
+                <h3 className="text-sm font-extrabold text-dark">Data Pengguna Terundang (Invitations)</h3>
+                <p className="text-xs text-muted">Daftar calon member yang diundang atau mendaftar menggunakan kode Ghina / Admin.</p>
               </div>
 
               <div className="flex items-center gap-2">
@@ -714,10 +803,30 @@ export function AdminGrowth() {
                 >
                   <Download size={13} className="mr-1.5" /> Export CSV
                 </Button>
-                <Button size="sm" variant="primary" onClick={() => setShowInviteModal(true)} className="text-xs">
-                  <UserPlus size={13} className="mr-1.5" /> Buat Undangan
+                <Button size="sm" variant="outline" onClick={() => setShowInviteModal(true)} className="text-xs">
+                  <UserPlus size={13} className="mr-1.5" /> Input Manual (VIP)
                 </Button>
               </div>
+            </div>
+
+            {/* Tip rekrutmen via kode */}
+            <div className="p-3 bg-purple-50 rounded-2xl border border-purple-200 text-xs flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-purple-950">
+              <div className="flex items-center gap-2">
+                <span className="text-base shrink-0">💡</span>
+                <span>
+                  <b>Tanpa Repot Input Satu-Satu:</b> Cukup bagikan kode <b>GHINA</b> atau link undangan. Siapapun yang mendaftar otomatis langsung muncul di tabel ini dan terhubung ke akun Ghina!
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  const link = `${typeof window !== 'undefined' ? window.location.origin : 'https://penghasilantambahan.com'}/register?ref=GHINA`;
+                  navigator.clipboard.writeText(link);
+                  toast.success('Link Ghina disalin!');
+                }}
+                className="px-3 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-[11px] shrink-0"
+              >
+                Salin Link Ghina
+              </button>
             </div>
 
             {/* Filter & Search Bar */}

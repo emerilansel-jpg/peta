@@ -27,19 +27,21 @@ export function Register() {
   const navigate = useNavigate();
 
   React.useEffect(() => {
-    const rawRef = params.get('ref') || params.get('inv') || sessionStorage.getItem('peta_invitation_token');
+    const rawRef = params.get('ref') || params.get('inv') || params.get('code') || sessionStorage.getItem('peta_invitation_token');
     if (!rawRef) return;
 
-    // Check if this ref matches an invitation token
+    // Check if this ref matches an invitation token, recruiter code (e.g. GHINA), or campaign code
     trackInvitationClick(rawRef).then((res) => {
       if (res.valid) {
         setInvitationToken(rawRef);
         sessionStorage.setItem('peta_invitation_token', rawRef);
+        setReferralCode(res.code || rawRef);
+        setShowRefField(true);
         setInvitationInfo({
           fullName: res.full_name,
           campaignName: res.campaign_name,
           recruiterName: res.recruiter_name,
-          code: res.invitation_code,
+          code: res.code || res.invitation_code || rawRef,
         });
         if (res.full_name) setFullName((prev) => prev || res.full_name || '');
         if (res.email) setEmail((prev) => prev || res.email || '');
@@ -312,22 +314,36 @@ export function Register() {
               )}
             </div>
 
-            {/* Referral code (collapsible) */}
+            {/* Referral / Invitation code */}
             {showRefField ? (
               <div>
-                <label className="block text-xs font-bold text-dark mb-1.5 uppercase tracking-wide flex items-center gap-1">
-                  <Tag size={12} /> Kode Referral
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-dark uppercase tracking-wide flex items-center gap-1">
+                    <Tag size={12} /> Kode Undangan / Referral
+                  </label>
+                  {referralCode.trim().toUpperCase() === 'GHINA' && (
+                    <span className="text-[10px] font-extrabold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
+                      ✓ Undangan Ghina
+                    </span>
+                  )}
+                  {referralCode.trim().toUpperCase() === 'PETA' && (
+                    <span className="text-[10px] font-extrabold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                      ✓ Undangan Resmi Admin
+                    </span>
+                  )}
+                </div>
                 <input
                   type="text"
                   value={referralCode}
-                  onChange={(e) => setReferralCode(e.target.value.trim())}
-                  placeholder="kode dari teman kamu"
-                  className="w-full min-h-[48px] px-4 py-3 text-base bg-light border-2 border-transparent rounded-xl focus:outline-none focus:border-primary focus:bg-white transition-all uppercase"
+                  onChange={(e) => setReferralCode(e.target.value.trim().toUpperCase())}
+                  placeholder="Contoh: GHINA"
+                  className="w-full min-h-[48px] px-4 py-3 text-base bg-light border-2 border-transparent rounded-xl focus:outline-none focus:border-primary focus:bg-white transition-all uppercase font-mono font-bold tracking-wider"
                 />
                 {referralCode.trim() && (
-                  <p className="text-xs text-success mt-1.5 font-semibold">
-                    ✨ +Rp20.000 bonus referral aktif
+                  <p className="text-xs text-success mt-1.5 font-semibold flex items-center gap-1">
+                    ✨ +Rp20.000 bonus pendaftaran aktif
+                    {referralCode.trim().toUpperCase() === 'GHINA' && ' (Terhubung ke Ghina)'}
+                    {referralCode.trim().toUpperCase() === 'PETA' && ' (Terhubung ke Admin PeTa)'}
                   </p>
                 )}
               </div>
@@ -335,9 +351,9 @@ export function Register() {
               <button
                 type="button"
                 onClick={() => setShowRefField(true)}
-                className="text-xs text-primary font-semibold hover:underline flex items-center gap-1"
+                className="text-xs text-primary font-bold hover:underline flex items-center gap-1"
               >
-                <Tag size={12} /> Punya kode referral? Klik sini
+                <Tag size={12} /> Punya kode undangan atau referral? Masukkan di sini
               </button>
             )}
 

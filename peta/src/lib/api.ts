@@ -2938,6 +2938,7 @@ export async function updateInvitation(id: string, payload: Partial<InvitationRo
 
 export async function trackInvitationClick(token: string): Promise<{
   valid: boolean;
+  type?: 'individual' | 'recruiter_code' | 'campaign_code';
   invitation_id?: string;
   invitation_code?: string;
   full_name?: string;
@@ -2945,6 +2946,7 @@ export async function trackInvitationClick(token: string): Promise<{
   phone?: string;
   campaign_name?: string;
   recruiter_name?: string;
+  code?: string;
   error?: string;
 }> {
   const { data, error } = await supabase.rpc('track_invitation_click', {
