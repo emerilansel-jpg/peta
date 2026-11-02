@@ -4,6 +4,7 @@ import { Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
 import { toast } from '../components/Toast';
+import { recordLoginEvent } from '../lib/api';
 
 export function Login() {
   const [email, setEmail] = React.useState('');
@@ -34,9 +35,10 @@ export function Login() {
       const { error } = await supabase.auth.signInWithPassword({ email: loginEmail, password });
       if (error) throw error;
       toast.success('Login berhasil! 🎉');
+      recordLoginEvent('password').catch(() => {});
 
       // QA3 FIX 5 — redirect by role instead of always /tasks:
-      // admin → /admin, client → /reddit/dashboard, army → /tasks.
+      // admin/recruiter → /admin, client → /reddit/dashboard, army → /tasks.
       // Honor RequireAuth's location.state.from when present.
       const from = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname;
       if (from) {
@@ -54,7 +56,7 @@ export function Login() {
       } catch {
         // Role lookup failed — keep army default rather than blocking login.
       }
-      if (role === 'admin') navigate('/admin', { replace: true });
+      if (role === 'admin' || role === 'recruiter') navigate('/admin', { replace: true });
       else if (role === 'client') navigate('/reddit/dashboard', { replace: true });
       else navigate('/tasks', { replace: true });
     } catch (error: any) {

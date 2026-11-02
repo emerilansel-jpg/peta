@@ -39,7 +39,7 @@ export function AdminGuard({ children }: { children: React.ReactNode }) {
         .eq('id', session.user.id)
         .maybeSingle();
       if (cancelled) return;
-      if (profile?.role === 'admin') {
+      if (profile?.role === 'admin' || profile?.role === 'recruiter') {
         setState('allowed');
       } else {
         toast.error(accessDeniedMsg);

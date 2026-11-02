@@ -1,10 +1,10 @@
 import React from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { Eye, EyeOff, ArrowLeft, Check, Gift, Tag, MessageCircle, User } from 'lucide-react';
+import { Eye, EyeOff, ArrowLeft, Check, Gift, Tag, MessageCircle, User, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/Button';
 import { toast } from '../components/Toast';
-import { sendWelcomeEmail } from '../lib/api';
+import { sendWelcomeEmail, trackInvitationClick, recordLoginEvent } from '../lib/api';
 
 export function Register() {
   const [params] = useSearchParams();
@@ -12,12 +12,48 @@ export function Register() {
   const [email, setEmail] = React.useState('');
   const [password, setPassword] = React.useState('');
   const [whatsapp, setWhatsapp] = React.useState('');
-  const [referralCode, setReferralCode] = React.useState(params.get('ref') || '');
-  const [showRefField, setShowRefField] = React.useState(!!params.get('ref'));
+  const [referralCode, setReferralCode] = React.useState('');
+  const [showRefField, setShowRefField] = React.useState(false);
   const [showPwd, setShowPwd] = React.useState(false);
   const [optInReactivation, setOptInReactivation] = React.useState(true);
   const [loading, setLoading] = React.useState(false);
+  const [invitationToken, setInvitationToken] = React.useState<string | null>(null);
+  const [invitationInfo, setInvitationInfo] = React.useState<{
+    fullName?: string;
+    campaignName?: string;
+    recruiterName?: string;
+    code?: string;
+  } | null>(null);
   const navigate = useNavigate();
+
+  React.useEffect(() => {
+    const rawRef = params.get('ref') || params.get('inv') || sessionStorage.getItem('peta_invitation_token');
+    if (!rawRef) return;
+
+    // Check if this ref matches an invitation token
+    trackInvitationClick(rawRef).then((res) => {
+      if (res.valid) {
+        setInvitationToken(rawRef);
+        sessionStorage.setItem('peta_invitation_token', rawRef);
+        setInvitationInfo({
+          fullName: res.full_name,
+          campaignName: res.campaign_name,
+          recruiterName: res.recruiter_name,
+          code: res.invitation_code,
+        });
+        if (res.full_name) setFullName((prev) => prev || res.full_name || '');
+        if (res.email) setEmail((prev) => prev || res.email || '');
+        if (res.phone) setWhatsapp((prev) => prev || res.phone || '');
+      } else {
+        // Standard user-to-user referral code
+        setReferralCode(rawRef);
+        setShowRefField(true);
+      }
+    }).catch(() => {
+      setReferralCode(rawRef);
+      setShowRefField(true);
+    });
+  }, [params]);
 
   const pwdScore = React.useMemo(() => {
     if (!password) return { score: 0, label: '', color: 'bg-gray-200' };
@@ -62,6 +98,7 @@ export function Register() {
         whatsapp: cleanedWa,
       };
       if (referralCode.trim()) meta.referral_code = referralCode.trim().toLowerCase();
+      if (invitationToken) meta.invitation_token = invitationToken;
 
       // First-touch attribution from URL params or sessionStorage
       const utmSource = params.get('utm_source') || sessionStorage.getItem('peta_utm_source');
@@ -86,6 +123,8 @@ export function Register() {
       });
       if (error) throw error;
       if (!data.user) throw new Error('Registrasi gagal — coba lagi');
+
+      recordLoginEvent('signup').catch(() => {});
 
       const successMsg = referralCode.trim()
         ? 'Daftar berhasil! +Rp20K bonus referral 🎉'
@@ -140,20 +179,40 @@ export function Register() {
           </div>
 
           <div className="bg-white rounded-3xl shadow-2xl p-6 sm:p-8">
-          {/* Bonus banner */}
-          <div className="bg-yellow-100 ring-2 ring-yellow-300 rounded-xl p-3 mb-5 flex items-start gap-3">
-            <Gift size={22} className="text-yellow-700 shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-extrabold text-yellow-900">
-                {referralCode ? 'Bonus Referral Rp20.000 Menunggu' : 'Cuan Komentar & Bonus Referral Rp20K'}
-              </p>
-              <p className="text-yellow-800/80">
-                {referralCode
-                  ? 'Daftar dengan kode referral, dapatkan Rp20.000 langsung masuk saldo kamu.'
-                  : 'Daftar gratis dalam 30 detik. Kerjakan tugas & dapatkan Rp20.000 tiap undang teman.'}
-              </p>
+          {/* Bonus or Invitation banner */}
+          {invitationInfo ? (
+            <div className="bg-emerald-50 ring-2 ring-emerald-400 rounded-2xl p-4 mb-5 flex items-start gap-3">
+              <Sparkles size={22} className="text-emerald-700 shrink-0 mt-0.5" />
+              <div className="text-xs text-emerald-950">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-extrabold text-xs uppercase tracking-wide bg-emerald-600 text-white px-2 py-0.5 rounded-full">
+                    Undangan Resmi
+                  </span>
+                  <span className="text-[11px] font-mono font-bold text-emerald-800">
+                    {invitationInfo.code}
+                  </span>
+                </div>
+                <p className="leading-relaxed">
+                  Kamu diundang khusus oleh <b>{invitationInfo.recruiterName || 'Tim Recruitment'}</b>
+                  {invitationInfo.campaignName ? ` melalui program ${invitationInfo.campaignName}` : ''}.
+                </p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="bg-yellow-100 ring-2 ring-yellow-300 rounded-xl p-3 mb-5 flex items-start gap-3">
+              <Gift size={22} className="text-yellow-700 shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-extrabold text-yellow-900">
+                  {referralCode ? 'Bonus Referral Rp20.000 Menunggu' : 'Cuan Komentar & Bonus Referral Rp20K'}
+                </p>
+                <p className="text-yellow-800/80">
+                  {referralCode
+                    ? 'Daftar dengan kode referral, dapatkan Rp20.000 langsung masuk saldo kamu.'
+                    : 'Daftar gratis dalam 30 detik. Kerjakan tugas & dapatkan Rp20.000 tiap undang teman.'}
+                </p>
+              </div>
+            </div>
+          )}
 
           <img
             src="/logo-horizontal.png"

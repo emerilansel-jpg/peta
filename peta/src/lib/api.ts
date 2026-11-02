@@ -2644,3 +2644,428 @@ export async function adminReviewYouTubeAccount(
   if (error) throw new Error(error.message || 'Gagal memproses verifikasi channel YouTube.');
   return data;
 }
+
+// ============================================================
+// GROWTH & RECRUITMENT MANAGEMENT
+// ============================================================
+
+export type GrowthOverviewData = {
+  users: {
+    total: number;
+    legacy: number;
+    invitation: number;
+    organic: number;
+    active: number;
+    at_risk: number;
+    inactive: number;
+    never_logged_in: number;
+    never_submitted_task: number;
+  };
+  recruitment: {
+    created: number;
+    sent: number;
+    clicked: number;
+    registered: number;
+    first_task: number;
+    active: number;
+    inactive: number;
+  };
+  funnel: Array<{ step: string; count: number }>;
+};
+
+export type UserActivityMonitoringRow = {
+  id: string;
+  full_name: string;
+  email: string;
+  whatsapp: string | null;
+  acquisition_type: 'legacy' | 'invitation' | 'organic';
+  created_at: string;
+  last_login_at: string | null;
+  first_login_at: string | null;
+  last_task_activity_at: string | null;
+  first_task_submitted_at: string | null;
+  invitation_code: string | null;
+  campaign_name: string | null;
+  recruiter_name: string | null;
+  activity_status: 'not_started' | 'logged_in_no_task' | 'active' | 'at_risk' | 'inactive';
+  tasks_7d: number;
+  total_tasks_submitted: number;
+  total_approved: number;
+  total_rejected: number;
+  total_reward: number;
+};
+
+export type RecruiterPerformanceRow = {
+  recruiter_id: string;
+  recruiter_name: string;
+  email: string;
+  role: string;
+  invitations_created: number;
+  invitations_sent: number;
+  link_clicks: number;
+  registrations: number;
+  first_task_submissions: number;
+  active_users: number;
+  at_risk_users: number;
+  inactive_users: number;
+  reg_conversion_rate: number | null;
+  activation_rate: number | null;
+  active_user_rate: number | null;
+};
+
+export type CampaignRow = {
+  id: string;
+  campaign_code: string;
+  campaign_name: string;
+  description: string | null;
+  target_audience: string | null;
+  created_by: string | null;
+  assigned_recruiter_id: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  status: 'draft' | 'active' | 'paused' | 'completed';
+  created_at: string;
+  updated_at: string;
+  assigned_recruiter?: { full_name: string } | null;
+};
+
+export type InvitationRow = {
+  id: string;
+  invitation_code: string;
+  campaign_id: string | null;
+  recruiter_id: string | null;
+  created_by: string | null;
+  full_name: string;
+  email: string | null;
+  phone: string | null;
+  source: string | null;
+  channel: 'whatsapp' | 'email' | 'telegram' | 'linkedin' | 'direct' | 'other';
+  secure_token: string;
+  expires_at: string | null;
+  sent_at: string | null;
+  clicked_at: string | null;
+  click_count: number;
+  registered_user_id: string | null;
+  registered_at: string | null;
+  first_login_at: string | null;
+  first_task_submitted_at: string | null;
+  status: 'created' | 'sent' | 'clicked' | 'registered' | 'first_login' | 'first_task_submitted' | 'active' | 'inactive' | 'declined' | 'expired';
+  internal_notes: string | null;
+  created_at: string;
+  updated_at: string;
+  campaign?: { campaign_name: string } | null;
+  recruiter?: { full_name: string } | null;
+};
+
+export type FollowupRow = {
+  id: string;
+  user_id: string | null;
+  invitation_id: string | null;
+  assigned_to: string;
+  category: 'not_started' | 'logged_in_no_task' | 'at_risk' | 'inactive' | 'new_registration' | 'custom';
+  followup_status: 'pending' | 'contacted' | 'resolved' | 'ignored';
+  notes: string | null;
+  contacted_at: string | null;
+  next_followup_at: string | null;
+  created_at: string;
+  updated_at: string;
+  user?: { full_name: string; email: string; whatsapp: string | null; last_login_at: string | null; last_task_activity_at: string | null } | null;
+  invitation?: { full_name: string; phone: string | null; invitation_code: string } | null;
+  assignee?: { full_name: string } | null;
+};
+
+export async function getGrowthOverview(filters?: {
+  startDate?: string;
+  endDate?: string;
+  campaignId?: string;
+  recruiterId?: string;
+}): Promise<GrowthOverviewData> {
+  const { data, error } = await supabase.rpc('get_growth_overview', {
+    p_start_date: filters?.startDate ? new Date(filters.startDate).toISOString() : null,
+    p_end_date: filters?.endDate ? new Date(filters.endDate).toISOString() : null,
+    p_campaign_id: filters?.campaignId || null,
+    p_recruiter_id: filters?.recruiterId || null,
+  });
+  if (error) throw new Error(error.message || 'Gagal memuat ringkasan growth.');
+  return data as GrowthOverviewData;
+}
+
+export async function getUserActivityMonitoring(filters?: {
+  search?: string;
+  acquisitionType?: string;
+  activityStatus?: string;
+  campaignId?: string;
+  recruiterId?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<{ total: number; users: UserActivityMonitoringRow[] }> {
+  const { data, error } = await supabase.rpc('get_user_activity_monitoring', {
+    p_search: filters?.search?.trim() || null,
+    p_acquisition_type: filters?.acquisitionType || null,
+    p_activity_status: filters?.activityStatus || null,
+    p_campaign_id: filters?.campaignId || null,
+    p_recruiter_id: filters?.recruiterId || null,
+    p_limit: filters?.limit ?? 50,
+    p_offset: filters?.offset ?? 0,
+  });
+  if (error) throw new Error(error.message || 'Gagal memuat monitoring aktivitas user.');
+  return (data || { total: 0, users: [] }) as { total: number; users: UserActivityMonitoringRow[] };
+}
+
+export async function getRecruiterPerformance(): Promise<RecruiterPerformanceRow[]> {
+  const { data, error } = await supabase.rpc('get_recruiter_performance');
+  if (error) throw new Error(error.message || 'Gagal memuat performa recruiter.');
+  return (data || []) as RecruiterPerformanceRow[];
+}
+
+export async function getCampaigns(): Promise<CampaignRow[]> {
+  const { data, error } = await supabase
+    .from('invitation_campaigns')
+    .select('*, assigned_recruiter:assigned_recruiter_id(full_name)')
+    .order('created_at', { ascending: false });
+  if (error) throw new Error(error.message || 'Gagal memuat daftar campaign.');
+  return (data || []) as CampaignRow[];
+}
+
+export async function createCampaign(payload: {
+  campaignCode: string;
+  campaignName: string;
+  description?: string;
+  targetAudience?: string;
+  assignedRecruiterId?: string;
+  startDate?: string;
+  endDate?: string;
+  status?: 'draft' | 'active' | 'paused' | 'completed';
+}): Promise<CampaignRow> {
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data, error } = await supabase
+    .from('invitation_campaigns')
+    .insert({
+      campaign_code: payload.campaignCode.trim(),
+      campaign_name: payload.campaignName.trim(),
+      description: payload.description?.trim() || null,
+      target_audience: payload.targetAudience?.trim() || null,
+      assigned_recruiter_id: payload.assignedRecruiterId || null,
+      created_by: user?.id || null,
+      start_date: payload.startDate || null,
+      end_date: payload.endDate || null,
+      status: payload.status || 'active',
+    })
+    .select('*')
+    .single();
+  if (error) throw new Error(error.message || 'Gagal membuat campaign.');
+  return data as CampaignRow;
+}
+
+export async function updateCampaign(id: string, payload: Partial<CampaignRow>): Promise<void> {
+  const { error } = await supabase
+    .from('invitation_campaigns')
+    .update({ ...payload, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw new Error(error.message || 'Gagal memperbarui campaign.');
+}
+
+export async function getInvitations(filters?: {
+  campaignId?: string;
+  recruiterId?: string;
+  status?: string;
+  search?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<{ total: number; data: InvitationRow[] }> {
+  let q = supabase
+    .from('invitations')
+    .select('*, campaign:campaign_id(campaign_name), recruiter:recruiter_id(full_name)', { count: 'exact' });
+
+  if (filters?.campaignId) q = q.eq('campaign_id', filters.campaignId);
+  if (filters?.recruiterId) q = q.eq('recruiter_id', filters.recruiterId);
+  if (filters?.status && filters.status !== 'all') q = q.eq('status', filters.status);
+  if (filters?.search?.trim()) {
+    const s = filters.search.trim();
+    q = q.or(`full_name.ilike.%${s}%,invitation_code.ilike.%${s}%,email.ilike.%${s}%,phone.ilike.%${s}%`);
+  }
+
+  const limit = filters?.limit ?? 50;
+  const offset = filters?.offset ?? 0;
+  q = q.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+
+  const { data, count, error } = await q;
+  if (error) throw new Error(error.message || 'Gagal memuat daftar undangan.');
+  return { total: count ?? 0, data: (data || []) as InvitationRow[] };
+}
+
+export async function createInvitation(payload: {
+  fullName: string;
+  email?: string;
+  phone?: string;
+  campaignId?: string;
+  recruiterId?: string;
+  channel?: string;
+  source?: string;
+  notes?: string;
+  expiresInDays?: number;
+}): Promise<InvitationRow> {
+  const { data, error } = await supabase.rpc('admin_create_invitation', {
+    p_full_name: payload.fullName.trim(),
+    p_email: payload.email?.trim() || null,
+    p_phone: payload.phone?.trim() || null,
+    p_campaign_id: payload.campaignId || null,
+    p_recruiter_id: payload.recruiterId || null,
+    p_channel: payload.channel || 'whatsapp',
+    p_source: payload.source?.trim() || null,
+    p_notes: payload.notes?.trim() || null,
+    p_expires_in_days: payload.expiresInDays || 30,
+  });
+  if (error) throw new Error(error.message || 'Gagal membuat invitation.');
+  return data as InvitationRow;
+}
+
+export async function updateInvitation(id: string, payload: Partial<InvitationRow>): Promise<void> {
+  const { error } = await supabase
+    .from('invitations')
+    .update({ ...payload, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw new Error(error.message || 'Gagal memperbarui invitation.');
+}
+
+export async function trackInvitationClick(token: string): Promise<{
+  valid: boolean;
+  invitation_id?: string;
+  invitation_code?: string;
+  full_name?: string;
+  email?: string;
+  phone?: string;
+  campaign_name?: string;
+  recruiter_name?: string;
+  error?: string;
+}> {
+  const { data, error } = await supabase.rpc('track_invitation_click', {
+    p_token: token.trim(),
+  });
+  if (error) return { valid: false, error: error.message };
+  return (data || { valid: false }) as any;
+}
+
+export async function recordLoginEvent(method = 'password'): Promise<void> {
+  try {
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(ua);
+    const deviceType = isMobile ? 'mobile' : 'desktop';
+    let browser = 'Other';
+    if (ua.includes('Chrome') && !ua.includes('Edg')) browser = 'Chrome';
+    else if (ua.includes('Safari') && !ua.includes('Chrome')) browser = 'Safari';
+    else if (ua.includes('Firefox')) browser = 'Firefox';
+    else if (ua.includes('Edg')) browser = 'Edge';
+
+    let os = 'Other';
+    if (ua.includes('Win')) os = 'Windows';
+    else if (ua.includes('Mac')) os = 'macOS';
+    else if (ua.includes('Android')) os = 'Android';
+    else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
+    else if (ua.includes('Linux')) os = 'Linux';
+
+    await supabase.rpc('record_user_login', {
+      p_device_type: deviceType,
+      p_browser: browser,
+      p_os: os,
+      p_method: method,
+    });
+  } catch (err) {
+    console.debug('Failed to record user login:', err);
+  }
+}
+
+export async function getFollowupQueue(filters?: {
+  category?: string;
+  status?: string;
+  assignedTo?: string;
+}): Promise<FollowupRow[]> {
+  let q = supabase
+    .from('invitation_followups')
+    .select(`
+      *,
+      user:user_id(full_name, email, whatsapp, last_login_at, last_task_activity_at),
+      invitation:invitation_id(full_name, phone, invitation_code),
+      assignee:assigned_to(full_name)
+    `);
+
+  if (filters?.category && filters.category !== 'all') q = q.eq('category', filters.category);
+  if (filters?.status && filters.status !== 'all') q = q.eq('followup_status', filters.status);
+  if (filters?.assignedTo) q = q.eq('assigned_to', filters.assignedTo);
+
+  const { data, error } = await q.order('created_at', { ascending: false });
+  if (error) throw new Error(error.message || 'Gagal memuat antrean follow-up.');
+  return (data || []) as FollowupRow[];
+}
+
+export async function createFollowup(payload: {
+  userId?: string;
+  invitationId?: string;
+  assignedTo: string;
+  category: 'not_started' | 'logged_in_no_task' | 'at_risk' | 'inactive' | 'new_registration' | 'custom';
+  notes?: string;
+  nextFollowupAt?: string;
+}): Promise<FollowupRow> {
+  const { data, error } = await supabase
+    .from('invitation_followups')
+    .insert({
+      user_id: payload.userId || null,
+      invitation_id: payload.invitationId || null,
+      assigned_to: payload.assignedTo,
+      category: payload.category,
+      notes: payload.notes?.trim() || null,
+      next_followup_at: payload.nextFollowupAt || null,
+    })
+    .select('*')
+    .single();
+  if (error) throw new Error(error.message || 'Gagal menambahkan follow-up.');
+  return data as FollowupRow;
+}
+
+export async function updateFollowup(id: string, payload: Partial<FollowupRow>): Promise<void> {
+  const { error } = await supabase
+    .from('invitation_followups')
+    .update({ ...payload, updated_at: new Date().toISOString() })
+    .eq('id', id);
+  if (error) throw new Error(error.message || 'Gagal memperbarui status follow-up.');
+}
+
+export async function getUserGrowthDetail(userId: string): Promise<{
+  profile: any;
+  loginLogs: any[];
+  taskLogs: any[];
+  assignments: any[];
+}> {
+  const [profileRes, loginRes, taskLogRes, assignRes] = await Promise.all([
+    supabase
+      .from('users')
+      .select('*, campaign:campaign_id(campaign_name), recruiter:recruiter_id(full_name), invitation:invitation_id(*)')
+      .eq('id', userId)
+      .single(),
+    supabase
+      .from('user_login_logs')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(30),
+    supabase
+      .from('task_activity_logs')
+      .select('*, task:task_id(title, reward_amount)')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(30),
+    supabase
+      .from('task_assignments')
+      .select('*, task:task_id(title, reward_amount)')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(30),
+  ]);
+
+  return {
+    profile: profileRes.data || null,
+    loginLogs: loginRes.data || [],
+    taskLogs: taskLogRes.data || [],
+    assignments: assignRes.data || [],
+  };
+}

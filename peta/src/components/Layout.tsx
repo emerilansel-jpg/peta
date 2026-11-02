@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { LogOut, Home, Wallet, User as UserIcon, Menu, X, BarChart3, Users, ListChecks, ClipboardCheck, Coins, Link as LinkIcon, ShieldCheck, Megaphone, Inbox, Key, Radio, Trophy, Bell, Video } from 'lucide-react';
+import { LogOut, Home, Wallet, User as UserIcon, Menu, X, BarChart3, Users, ListChecks, ClipboardCheck, Coins, Link as LinkIcon, ShieldCheck, Megaphone, Inbox, Key, Radio, Trophy, Bell, Video, TrendingUp } from 'lucide-react';
 import { getMyPendingAssignments } from '../lib/api';
 import { supabase } from '../lib/supabase';
 
@@ -32,6 +32,7 @@ const armyTabs = [
 
 const adminLinks = [
   { href: '/admin',           label: 'Dashboard',   icon: BarChart3 },
+  { href: '/admin/growth',    label: 'Growth & Rekrutmen', icon: TrendingUp },
   { href: '/admin/tasks',     label: 'Task Queue',  icon: ListChecks },
   { href: '/admin/approval',  label: 'Approval',    icon: ClipboardCheck },
   { href: '/admin/accounts',  label: 'Akun Reddit', icon: LinkIcon },
@@ -65,7 +66,7 @@ export function Layout({ children, userRole = 'army' }: LayoutProps) {
           .select('role')
           .eq('id', user.id)
           .maybeSingle();
-        if (mounted && data?.role === 'admin') setIsAdminUser(true);
+        if (mounted && (data?.role === 'admin' || data?.role === 'recruiter')) setIsAdminUser(true);
       })();
     }
     return () => { mounted = false; };

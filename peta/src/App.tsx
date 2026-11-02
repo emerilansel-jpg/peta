@@ -59,6 +59,7 @@ import { AdminWaitlist } from './modules/reddit/pages/admin/AdminWaitlist';
 
 // Admin Pages
 import { AdminDashboard } from './pages/admin/Dashboard';
+import { AdminGrowth } from './pages/admin/Growth';
 import { AdminRedditAccounts } from './pages/admin/RedditAccounts';
 import { AdminTaskQueue } from './pages/admin/TaskQueue';
 import { AdminApprovalQueue } from './pages/admin/ApprovalQueue';
@@ -232,8 +233,9 @@ function App() {
           <Route path="/reddit/admin/retention" element={<LegacyRedditRedirect fallback={<AdminGuard><RedditAdminRetention /></AdminGuard>} />} />
           <Route path="/reddit/admin/waitlist" element={<LegacyRedditRedirect fallback={<AdminGuard><AdminWaitlist /></AdminGuard>} />} />
 
-	          {/* Admin Routes (guarded) */}
-	          <Route path="/admin/accounts" element={<AdminRouteWrapper><AdminGuard><AdminRedditAccounts /></AdminGuard></AdminRouteWrapper>} />
+		          {/* Admin Routes (guarded) */}
+		          <Route path="/admin/growth" element={<AdminRouteWrapper><AdminGuard><AdminGrowth /></AdminGuard></AdminRouteWrapper>} />
+		          <Route path="/admin/accounts" element={<AdminRouteWrapper><AdminGuard><AdminRedditAccounts /></AdminGuard></AdminRouteWrapper>} />
 	          <Route path="/admin/youtube-accounts" element={<AdminRouteWrapper><AdminGuard><AdminYouTubeAccounts /></AdminGuard></AdminRouteWrapper>} />
 	          <Route path="/admin/tasks" element={<AdminRouteWrapper><AdminGuard><AdminTaskQueue /></AdminGuard></AdminRouteWrapper>} />
           <Route path="/admin/approval" element={<AdminRouteWrapper><AdminGuard><AdminApprovalQueue /></AdminGuard></AdminRouteWrapper>} />
