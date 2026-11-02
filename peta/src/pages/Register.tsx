@@ -57,6 +57,29 @@ export function Register() {
     });
   }, [params]);
 
+  // Dynamically resolve recruiter name when user types an invite/referral code
+  React.useEffect(() => {
+    if (!referralCode.trim() || referralCode.trim().length < 3) {
+      if (!params.get('ref') && !sessionStorage.getItem('peta_invitation_token')) {
+        setInvitationInfo(null);
+      }
+      return;
+    }
+    const timer = setTimeout(() => {
+      trackInvitationClick(referralCode.trim()).then((res) => {
+        if (res.valid) {
+          setInvitationInfo({
+            fullName: res.full_name,
+            campaignName: res.campaign_name,
+            recruiterName: res.recruiter_name,
+            code: res.code || res.invitation_code || referralCode.trim(),
+          });
+        }
+      }).catch(() => {});
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [referralCode]);
+
   const pwdScore = React.useMemo(() => {
     if (!password) return { score: 0, label: '', color: 'bg-gray-200' };
     if (password.length < 6) return { score: 1, label: 'Lemah', color: 'bg-danger' };
@@ -321,14 +344,9 @@ export function Register() {
                   <label className="text-xs font-bold text-dark uppercase tracking-wide flex items-center gap-1">
                     <Tag size={12} /> Kode Undangan / Referral
                   </label>
-                  {referralCode.trim().toUpperCase() === 'GHINA' && (
+                  {invitationInfo?.recruiterName && (
                     <span className="text-[10px] font-extrabold text-purple-700 bg-purple-100 px-2 py-0.5 rounded-full">
-                      ✓ Undangan Ghina
-                    </span>
-                  )}
-                  {referralCode.trim().toUpperCase() === 'PETA' && (
-                    <span className="text-[10px] font-extrabold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
-                      ✓ Undangan Resmi Admin
+                      ✓ Undangan {invitationInfo.recruiterName}
                     </span>
                   )}
                 </div>
@@ -342,8 +360,7 @@ export function Register() {
                 {referralCode.trim() && (
                   <p className="text-xs text-success mt-1.5 font-semibold flex items-center gap-1">
                     ✨ +Rp20.000 bonus pendaftaran aktif
-                    {referralCode.trim().toUpperCase() === 'GHINA' && ' (Terhubung ke Ghina)'}
-                    {referralCode.trim().toUpperCase() === 'PETA' && ' (Terhubung ke Admin PeTa)'}
+                    {invitationInfo?.recruiterName && ` (Terhubung ke ${invitationInfo.recruiterName})`}
                   </p>
                 )}
               </div>

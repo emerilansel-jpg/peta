@@ -2700,6 +2700,7 @@ export type RecruiterPerformanceRow = {
   recruiter_name: string;
   email: string;
   role: string;
+  recruiter_code?: string;
   invitations_created: number;
   invitations_sent: number;
   link_clicks: number;
@@ -2816,6 +2817,16 @@ export async function getRecruiterPerformance(): Promise<RecruiterPerformanceRow
   const { data, error } = await supabase.rpc('get_recruiter_performance');
   if (error) throw new Error(error.message || 'Gagal memuat performa recruiter.');
   return (data || []) as RecruiterPerformanceRow[];
+}
+
+export async function updateRecruiterInviteCode(recruiterId: string, newCode: string): Promise<{ ok: boolean; new_code?: string; message?: string; error?: string }> {
+  const { data, error } = await supabase.rpc('update_recruiter_invite_code', {
+    p_recruiter_id: recruiterId,
+    p_new_code: newCode.trim(),
+  });
+  if (error) throw new Error(error.message || 'Gagal mengubah kode undangan.');
+  if (data && !data.ok) throw new Error(data.error || 'Gagal mengubah kode undangan.');
+  return data;
 }
 
 export async function getCampaigns(): Promise<CampaignRow[]> {

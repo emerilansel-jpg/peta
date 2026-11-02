@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   TrendingUp, Users, UserPlus, Filter, Download, Search, CheckCircle2,
   Copy, Plus, RefreshCw, BarChart2, Eye, Check, X, Phone,
-  ChevronRight, Layers, MessageSquare, Award, Trash2
+  ChevronRight, Layers, MessageSquare, Award, Trash2, Pencil
 } from 'lucide-react';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
@@ -14,6 +14,7 @@ import {
   getGrowthOverview, getUserActivityMonitoring, getRecruiterPerformance,
   getCampaigns, createCampaign, deleteCampaign, getInvitations, createInvitation,
   updateInvitation, getFollowupQueue, createFollowup, updateFollowup, getUserGrowthDetail,
+  updateRecruiterInviteCode,
   type InvitationRow
 } from '../../lib/api';
 
@@ -87,6 +88,8 @@ export function AdminGrowth() {
   const [showFollowupModal, setShowFollowupModal] = useState(false);
   const [selectedUserDetailId, setSelectedUserDetailId] = useState<string | null>(null);
   const [selectedInvitationDetail, setSelectedInvitationDetail] = useState<InvitationRow | null>(null);
+  const [editingRecruiter, setEditingRecruiter] = useState<{ id: string; name: string; currentCode: string } | null>(null);
+  const [newCodeInput, setNewCodeInput] = useState('');
 
   // Forms state
   const [campaignForm, setCampaignForm] = useState({
@@ -278,6 +281,37 @@ export function AdminGrowth() {
     onError: (e: any) => toast.error(e?.message || 'Gagal update follow-up'),
   });
 
+  const updateCodeMutation = useMutation({
+    mutationFn: ({ recruiterId, newCode }: { recruiterId: string; newCode: string }) =>
+      updateRecruiterInviteCode(recruiterId, newCode),
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['growthRecruiters'] });
+      queryClient.invalidateQueries({ queryKey: ['growthOverview'] });
+      toast.success(res.message || 'Kode undangan berhasil diubah!');
+      setEditingRecruiter(null);
+    },
+    onError: (err: any) => {
+      toast.error(err.message || 'Gagal mengubah kode undangan');
+    },
+  });
+
+  const ghinaRecruiter = useMemo(() => {
+    return recruiters.find((r) =>
+      (r.recruiter_name || '').toLowerCase().includes('ghina') ||
+      (r.email || '').toLowerCase().includes('ghina')
+    );
+  }, [recruiters]);
+
+  const adminRecruiter = useMemo(() => {
+    return recruiters.find((r) =>
+      r.role === 'admin' ||
+      (r.recruiter_name || '').toLowerCase().includes('admin')
+    );
+  }, [recruiters]);
+
+  const ghinaCode = ghinaRecruiter?.recruiter_code || 'GHINA';
+  const adminCode = adminRecruiter?.recruiter_code || 'PETA';
+
   // Helpers
   const copyInviteLink = (token: string) => {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://penghasilantambahan.com';
@@ -388,7 +422,7 @@ export function AdminGrowth() {
                 Bagikan Kode atau Link Undangan
               </h3>
               <p className="text-xs text-purple-200/80 max-w-xl mt-1 leading-relaxed">
-                Ghina cukup bagikan kode <b>GHINA</b> atau link di bawah ke grup WhatsApp / medsos. Siapapun yang mendaftar dengan kode ini otomatis tercatat di dashboard rekrutmen Ghina!
+                Bagikan kode <b>{ghinaCode}</b> atau link di bawah ke grup WhatsApp / medsos. Siapapun yang mendaftar dengan kode ini otomatis tercatat di dashboard rekrutmen Ghina!
               </p>
             </div>
 
@@ -396,14 +430,28 @@ export function AdminGrowth() {
               {/* Ghina Code Card */}
               <div className="bg-white/10 backdrop-blur-md p-3 rounded-2xl border border-white/20 flex items-center gap-3 shadow-md">
                 <div>
-                  <span className="text-[10px] font-bold text-purple-200 uppercase block tracking-wider">Kode Undangan</span>
-                  <span className="text-base font-mono font-black tracking-wider text-yellow-300">GHINA</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold text-purple-200 uppercase block tracking-wider">Kode Ghina</span>
+                    {ghinaRecruiter && (
+                      <button
+                        onClick={() => {
+                          setEditingRecruiter({ id: ghinaRecruiter.recruiter_id, name: 'Ghina', currentCode: ghinaCode });
+                          setNewCodeInput(ghinaCode);
+                        }}
+                        className="text-purple-300 hover:text-white p-0.5 rounded hover:bg-white/10 transition-colors"
+                        title="Ganti Kode Undangan Ghina"
+                      >
+                        <Pencil size={11} />
+                      </button>
+                    )}
+                  </div>
+                  <span className="text-base font-mono font-black tracking-wider text-yellow-300">{ghinaCode}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <button
                     onClick={() => {
-                      navigator.clipboard.writeText('GHINA');
-                      toast.success('Kode "GHINA" disalin!');
+                      navigator.clipboard.writeText(ghinaCode);
+                      toast.success(`Kode "${ghinaCode}" disalin!`);
                     }}
                     className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition-all"
                     title="Salin Kode"
@@ -412,7 +460,7 @@ export function AdminGrowth() {
                   </button>
                   <button
                     onClick={() => {
-                      const link = `${typeof window !== 'undefined' ? window.location.origin : 'https://penghasilantambahan.com'}/register?ref=GHINA`;
+                      const link = `${typeof window !== 'undefined' ? window.location.origin : 'https://penghasilantambahan.com'}/register?ref=${ghinaCode}`;
                       navigator.clipboard.writeText(link);
                       toast.success('Link undangan Ghina disalin ke clipboard!');
                     }}
@@ -423,9 +471,9 @@ export function AdminGrowth() {
                   </button>
                   <button
                     onClick={() => {
-                      const link = `${typeof window !== 'undefined' ? window.location.origin : 'https://penghasilantambahan.com'}/register?ref=GHINA`;
+                      const link = `${typeof window !== 'undefined' ? window.location.origin : 'https://penghasilantambahan.com'}/register?ref=${ghinaCode}`;
                       const msg = encodeURIComponent(
-                        `Halo teman-teman! 👋\n\nMau penghasilan tambahan modal HP? Yuk gabung ke *PeTa (PenghasilanTambahan.com)* untuk ngerjain tugas review & komentar berbayar.\n\nReward langsung cair ke saldo kamu!\n\nDaftar gratis lewat link khusus ini:\n${link}\n(atau masukkan Kode Undangan: *GHINA* saat daftar).\n\nAda bonus saldo pendaftaran langsung masuk! 💰`
+                        `Halo teman-teman! 👋\n\nMau penghasilan tambahan modal HP? Yuk gabung ke *PeTa (PenghasilanTambahan.com)* untuk ngerjain tugas review & komentar berbayar.\n\nReward langsung cair ke saldo kamu!\n\nDaftar gratis lewat link khusus ini:\n${link}\n(atau masukkan Kode Undangan: *${ghinaCode}* saat daftar).\n\nAda bonus saldo pendaftaran langsung masuk! 💰`
                       );
                       window.open(`https://wa.me/?text=${msg}`, '_blank');
                     }}
@@ -440,14 +488,28 @@ export function AdminGrowth() {
               {/* Admin Code Card */}
               <div className="bg-white/5 p-3 rounded-2xl border border-white/10 flex items-center gap-2.5 text-xs">
                 <div>
-                  <span className="text-[10px] font-bold text-slate-300 uppercase block">Kode Admin</span>
-                  <span className="text-sm font-mono font-bold text-white">PETA</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[10px] font-bold text-slate-300 uppercase block">Kode Admin</span>
+                    {adminRecruiter && (
+                      <button
+                        onClick={() => {
+                          setEditingRecruiter({ id: adminRecruiter.recruiter_id, name: 'Admin', currentCode: adminCode });
+                          setNewCodeInput(adminCode);
+                        }}
+                        className="text-slate-400 hover:text-white p-0.5 rounded hover:bg-white/10 transition-colors"
+                        title="Ganti Kode Undangan Admin"
+                      >
+                        <Pencil size={11} />
+                      </button>
+                    )}
+                  </div>
+                  <span className="text-sm font-mono font-bold text-white">{adminCode}</span>
                 </div>
                 <button
                   onClick={() => {
-                    const link = `${typeof window !== 'undefined' ? window.location.origin : 'https://penghasilantambahan.com'}/register?ref=PETA`;
+                    const link = `${typeof window !== 'undefined' ? window.location.origin : 'https://penghasilantambahan.com'}/register?ref=${adminCode}`;
                     navigator.clipboard.writeText(link);
-                    toast.success('Link undangan Admin (PETA) disalin!');
+                    toast.success('Link undangan Admin disalin!');
                   }}
                   className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold transition-all"
                   title="Salin Link Admin"
@@ -1287,7 +1349,24 @@ export function AdminGrowth() {
                       {recruiters.map((r) => (
                         <tr key={r.recruiter_id} className="hover:bg-light/30">
                           <td className="py-3 px-4">
-                            <span className="font-extrabold text-dark block">{r.recruiter_name}</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-extrabold text-dark block">{r.recruiter_name}</span>
+                              {r.recruiter_code && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-800">
+                                  {r.recruiter_code}
+                                  <button
+                                    onClick={() => {
+                                      setEditingRecruiter({ id: r.recruiter_id, name: r.recruiter_name, currentCode: r.recruiter_code || '' });
+                                      setNewCodeInput(r.recruiter_code || '');
+                                    }}
+                                    className="text-purple-600 hover:text-purple-950 p-0.5"
+                                    title="Ganti kode undangan"
+                                  >
+                                    <Pencil size={10} />
+                                  </button>
+                                </span>
+                              )}
+                            </div>
                             <span className="text-[10px] text-muted">{r.email} ({r.role})</span>
                           </td>
                           <td className="py-3 px-4 text-center font-bold text-dark">{r.invitations_created}</td>
@@ -1961,6 +2040,71 @@ export function AdminGrowth() {
                   </Button>
                   <Button variant="primary" size="sm" type="submit" loading={createFollowupMutation.isPending}>
                     Tugaskan Follow-up
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL: EDIT INVITATION CODE */}
+        {editingRecruiter && (
+          <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl animate-scale-in">
+              <div className="flex items-center justify-between pb-3 border-b border-light mb-4">
+                <div>
+                  <h3 className="font-extrabold text-base text-dark">Ganti Kode Undangan</h3>
+                  <p className="text-xs text-muted">Untuk recruiter: <b className="text-dark">{editingRecruiter.name}</b></p>
+                </div>
+                <button onClick={() => setEditingRecruiter(null)} className="text-muted hover:text-dark">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const clean = newCodeInput.trim().toUpperCase();
+                  if (clean.length < 3) {
+                    toast.error('Kode minimal 3 karakter');
+                    return;
+                  }
+                  updateCodeMutation.mutate({
+                    recruiterId: editingRecruiter.id,
+                    newCode: clean,
+                  });
+                }}
+                className="space-y-4 text-xs"
+              >
+                <div>
+                  <label className="block font-bold text-dark mb-1.5">Kode Undangan Baru</label>
+                  <input
+                    type="text"
+                    value={newCodeInput}
+                    onChange={(e) => setNewCodeInput(e.target.value.replace(/[^A-Za-z0-9_-]/g, '').toUpperCase())}
+                    placeholder="Contoh: GHINA-SF"
+                    className="w-full bg-light border-2 border-transparent focus:border-primary focus:bg-white rounded-xl px-3 py-2.5 outline-none font-mono font-bold text-base tracking-wider uppercase text-dark transition-all"
+                    maxLength={24}
+                    autoFocus
+                  />
+                  <p className="text-[11px] text-muted mt-1">
+                    Huruf kapital, angka, strip (-), atau underscore (_). Min 3 karakter, maks 24 karakter.
+                  </p>
+                </div>
+
+                <div className="bg-light p-3 rounded-2xl border border-border">
+                  <span className="text-[10px] font-bold text-muted uppercase block mb-1">Preview Link Undangan</span>
+                  <p className="font-mono text-xs text-primary font-bold break-all">
+                    {typeof window !== 'undefined' ? window.location.origin : 'https://penghasilantambahan.com'}/register?ref={newCodeInput.trim() || editingRecruiter.currentCode}
+                  </p>
+                </div>
+
+                <div className="pt-2 flex justify-end gap-2 border-t border-light">
+                  <Button variant="outline" size="sm" type="button" onClick={() => setEditingRecruiter(null)}>
+                    Batal
+                  </Button>
+                  <Button variant="primary" size="sm" type="submit" loading={updateCodeMutation.isPending}>
+                    Simpan Kode Baru
                   </Button>
                 </div>
               </form>
