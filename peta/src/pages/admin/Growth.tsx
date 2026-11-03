@@ -3,7 +3,8 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   TrendingUp, Users, UserPlus, Filter, Download, Search, CheckCircle2,
   Copy, Plus, RefreshCw, BarChart2, Eye, Check, X, Phone,
-  ChevronRight, Layers, MessageSquare, Award, Trash2, Pencil
+  ChevronRight, Layers, MessageSquare, Award, Trash2, Pencil,
+  ShieldCheck, Settings, Play
 } from 'lucide-react';
 import { Layout } from '../../components/Layout';
 import { Card } from '../../components/Card';
@@ -15,10 +16,13 @@ import {
   getCampaigns, createCampaign, deleteCampaign, getInvitations, createInvitation,
   updateInvitation, getFollowupQueue, createFollowup, updateFollowup, getUserGrowthDetail,
   updateRecruiterInviteCode,
+  getMonthlyGuaranteeConfig, updateMonthlyGuaranteeConfig,
+  getMonthlyGuaranteeHistory, processMonthlyGuarantee,
+  type MonthlyGuaranteeExecutionResult,
   type InvitationRow
 } from '../../lib/api';
 
-type TabKey = 'overview' | 'campaigns' | 'invitations' | 'users' | 'followups' | 'reports';
+type TabKey = 'overview' | 'campaigns' | 'invitations' | 'users' | 'guarantee' | 'followups' | 'reports';
 
 const formatDateTime = (iso: string | null | undefined) => {
   if (!iso) return '-';
@@ -90,6 +94,21 @@ export function AdminGrowth() {
   const [selectedInvitationDetail, setSelectedInvitationDetail] = useState<InvitationRow | null>(null);
   const [editingRecruiter, setEditingRecruiter] = useState<{ id: string; name: string; currentCode: string } | null>(null);
   const [newCodeInput, setNewCodeInput] = useState('');
+
+  // Jaminan Bulanan state
+  const defaultPrevPeriod = useMemo(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+  }, []);
+  const [guaranteePeriod, setGuaranteePeriod] = useState(defaultPrevPeriod);
+  const [guaranteeResult, setGuaranteeResult] = useState<MonthlyGuaranteeExecutionResult | null>(null);
+  const [showGuaranteeConfigModal, setShowGuaranteeConfigModal] = useState(false);
+  const [guaranteeConfigForm, setGuaranteeConfigForm] = useState({
+    amount: 20000,
+    referralCode: 'INTERN',
+    isActive: true,
+  });
 
   // Forms state
   const [campaignForm, setCampaignForm] = useState({
@@ -295,6 +314,43 @@ export function AdminGrowth() {
     },
   });
 
+  const { data: guaranteeConfig, refetch: refetchGuaranteeConfig } = useQuery({
+    queryKey: ['monthlyGuaranteeConfig'],
+    queryFn: getMonthlyGuaranteeConfig,
+  });
+
+  const { data: guaranteeHistory, isLoading: guaranteeHistoryLoading, refetch: refetchGuaranteeHistory } = useQuery({
+    queryKey: ['monthlyGuaranteeHistory', guaranteePeriod],
+    queryFn: () => getMonthlyGuaranteeHistory(guaranteePeriod),
+  });
+
+  const executeGuaranteeMutation = useMutation({
+    mutationFn: ({ period, dryRun }: { period: string; dryRun: boolean }) =>
+      processMonthlyGuarantee(period, dryRun),
+    onSuccess: (res, vars) => {
+      setGuaranteeResult(res);
+      queryClient.invalidateQueries({ queryKey: ['monthlyGuaranteeHistory'] });
+      queryClient.invalidateQueries({ queryKey: ['growthOverview'] });
+      if (vars.dryRun) {
+        toast.success(`Simulasi Dry-Run periode ${res.period} selesai!`);
+      } else {
+        toast.success(`Jaminan Bulanan periode ${res.period} berhasil dieksekusi! ${res.summary.recipients_count} member menerima top-up.`);
+      }
+    },
+    onError: (err: any) => toast.error(err.message || 'Gagal memproses jaminan bulanan'),
+  });
+
+  const updateGuaranteeConfigMutation = useMutation({
+    mutationFn: (payload: { amount: number; referralCode: string; isActive: boolean }) =>
+      updateMonthlyGuaranteeConfig(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['monthlyGuaranteeConfig'] });
+      toast.success('Konfigurasi Jaminan Bulanan berhasil diperbarui!');
+      setShowGuaranteeConfigModal(false);
+    },
+    onError: (err: any) => toast.error(err.message || 'Gagal memperbarui konfigurasi'),
+  });
+
   const ghinaRecruiter = useMemo(() => {
     return recruiters.find((r) =>
       (r.recruiter_name || '').toLowerCase().includes('ghina') ||
@@ -385,6 +441,8 @@ export function AdminGrowth() {
                 refetchUsers();
                 refetchInvitations();
                 refetchFollowups();
+                refetchGuaranteeConfig();
+                refetchGuaranteeHistory();
               }}
               className="text-xs"
             >
@@ -580,6 +638,7 @@ export function AdminGrowth() {
             { key: 'campaigns', label: `Campaigns (${campaigns.length})`, icon: Layers },
             { key: 'invitations', label: `Invitations (${invitationsData?.total ?? 0})`, icon: UserPlus },
             { key: 'users', label: `User Monitoring (${userMonitoring?.total ?? overview?.users.total ?? 0})`, icon: Users },
+            { key: 'guarantee', label: 'Jaminan Bulanan', icon: ShieldCheck },
             { key: 'followups', label: `Follow-up Queue (${followups.filter((f) => f.followup_status === 'pending').length})`, icon: MessageSquare },
             { key: 'reports', label: 'Recruitment & Cohorts', icon: Award },
           ].map((tab) => {
@@ -1199,6 +1258,334 @@ export function AdminGrowth() {
                   </div>
                 </div>
               </Card>
+            )}
+          </div>
+        )}
+
+        {/* TAB: JAMINAN BULANAN (MONTHLY GUARANTEE) */}
+        {activeTab === 'guarantee' && (
+          <div className="space-y-6">
+            {/* Header Card */}
+            <Card className="p-5 bg-gradient-to-r from-emerald-950 via-teal-950 to-slate-900 text-white border-0 shadow-xl rounded-3xl relative overflow-hidden">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 relative z-10">
+                <div>
+                  <div className="flex items-center gap-2 mb-2 flex-wrap">
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-black uppercase tracking-wider border border-emerald-400/30 flex items-center gap-1">
+                      <ShieldCheck size={11} /> Program Jaminan Bulanan
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-white/10 text-slate-300 text-[10px] font-bold">
+                      ⚡ Otomatis: Tgl 1, 00.05 WIB
+                    </span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                      guaranteeConfig?.is_active ? 'bg-emerald-500 text-white' : 'bg-rose-500 text-white'
+                    }`}>
+                      {guaranteeConfig?.is_active ? 'Status: Aktif' : 'Status: Non-Aktif'}
+                    </span>
+                  </div>
+
+                  <h3 className="text-lg font-black text-white tracking-tight">
+                    Jaminan Penghasilan Bulanan Member (ref={guaranteeConfig?.referral_code || 'INTERN'})
+                  </h3>
+                  <p className="text-xs text-emerald-100/80 max-w-2xl mt-1 leading-relaxed">
+                    Member aktif yang terdaftar dengan kode <b>{guaranteeConfig?.referral_code || 'INTERN'}</b> dan telah menyelesaikan onboarding dijamin memperoleh penghasilan minimal <b>Rp{(guaranteeConfig?.guarantee_amount || 20000).toLocaleString('id-ID')}</b> dari task. Jika penghasilan task di bawah target, sistem otomatis mentop-up selisihnya ke saldo.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setGuaranteeConfigForm({
+                        amount: guaranteeConfig?.guarantee_amount || 20000,
+                        referralCode: guaranteeConfig?.referral_code || 'INTERN',
+                        isActive: guaranteeConfig?.is_active ?? true,
+                      });
+                      setShowGuaranteeConfigModal(true);
+                    }}
+                    className="!bg-white/10 hover:!bg-white/20 !text-white !border-white/20 text-xs font-bold"
+                  >
+                    <Settings size={13} className="mr-1.5" /> Konfigurasi
+                  </Button>
+                </div>
+              </div>
+            </Card>
+
+            {/* Action Bar & Controls */}
+            <Card className="p-4 bg-white border border-border shadow-sm">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-xs font-bold text-dark flex items-center gap-1.5">
+                    <Filter size={13} className="text-muted" /> Periode Evaluasi:
+                  </span>
+                  <input
+                    type="month"
+                    value={guaranteePeriod}
+                    onChange={(e) => {
+                      if (e.target.value) {
+                        setGuaranteePeriod(e.target.value);
+                        setGuaranteeResult(null);
+                      }
+                    }}
+                    className="bg-light border border-border rounded-xl px-3 py-1.5 text-xs font-bold text-dark focus:ring-1 focus:ring-primary outline-none"
+                  />
+                  <span className="text-[11px] text-muted">
+                    (Default: Bulan lalu. Task dihitung dari tgl 1 s/d akhir bulan periode ini)
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => executeGuaranteeMutation.mutate({ period: guaranteePeriod, dryRun: true })}
+                    loading={executeGuaranteeMutation.isPending && executeGuaranteeMutation.variables?.dryRun}
+                    className="text-xs font-bold"
+                    title="Jalankan kalkulasi tanpa mengubah saldo member"
+                  >
+                    <Search size={13} className="mr-1.5" /> Jalankan Simulasi (Dry-Run)
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      if (window.confirm(`YAKIN jalankan Jaminan Bulanan untuk periode ${guaranteePeriod}?\n\nSaldo member eligible akan langsung di-top up secara live.`)) {
+                        executeGuaranteeMutation.mutate({ period: guaranteePeriod, dryRun: false });
+                      }
+                    }}
+                    loading={executeGuaranteeMutation.isPending && !executeGuaranteeMutation.variables?.dryRun}
+                    className="text-xs font-extrabold bg-emerald-600 hover:bg-emerald-700 !border-0 text-white shadow-md"
+                  >
+                    <Play size={13} className="mr-1.5" /> Eksekusi Jaminan Sekarang
+                  </Button>
+                </div>
+              </div>
+            </Card>
+
+            {/* Execution / Dry Run Result Box */}
+            {guaranteeResult && (
+              <Card className={`p-4 border-2 ${
+                guaranteeResult.dry_run ? 'border-amber-400 bg-amber-50/40' : 'border-emerald-500 bg-emerald-50/40'
+              } shadow-md`}>
+                <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider ${
+                      guaranteeResult.dry_run ? 'bg-amber-200 text-amber-900' : 'bg-emerald-200 text-emerald-950'
+                    }`}>
+                      {guaranteeResult.dry_run ? '🔍 Hasil Simulasi (Dry Run)' : '✅ Hasil Eksekusi Live Berhasil'}
+                    </span>
+                    <span className="text-xs font-bold text-dark">
+                      Periode: {guaranteeResult.period} (Target: Rp{guaranteeResult.guarantee_amount.toLocaleString('id-ID')})
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setGuaranteeResult(null)}
+                    className="text-muted hover:text-dark text-xs font-bold"
+                  >
+                    ✕ Tutup Hasil
+                  </button>
+                </div>
+
+                {/* 4 Stat Boxes */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                  <div className="bg-white p-3 rounded-2xl border border-border shadow-xs">
+                    <span className="text-[10px] font-bold text-muted uppercase block">Total Eligible</span>
+                    <span className="text-lg font-black text-dark">{guaranteeResult.summary.total_eligible_members}</span>
+                  </div>
+                  <div className="bg-white p-3 rounded-2xl border border-border shadow-xs">
+                    <span className="text-[10px] font-bold text-muted uppercase block">Diproses</span>
+                    <span className="text-lg font-black text-dark">{guaranteeResult.summary.members_processed}</span>
+                  </div>
+                  <div className="bg-white p-3 rounded-2xl border border-border shadow-xs">
+                    <span className="text-[10px] font-bold text-muted uppercase block">Penerima Top-Up</span>
+                    <span className="text-lg font-black text-emerald-700">{guaranteeResult.summary.recipients_count}</span>
+                  </div>
+                  <div className="bg-white p-3 rounded-2xl border border-border shadow-xs">
+                    <span className="text-[10px] font-bold text-muted uppercase block">Total Biaya Top-Up</span>
+                    <span className="text-lg font-black text-emerald-600">
+                      Rp{guaranteeResult.summary.total_topup_amount.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Detail Table */}
+                <div className="bg-white rounded-2xl border border-border overflow-hidden">
+                  <div className="overflow-x-auto max-h-72">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-light/70 border-b border-border text-[11px] font-extrabold uppercase text-muted sticky top-0">
+                        <tr>
+                          <th className="py-2.5 px-3">Member</th>
+                          <th className="py-2.5 px-3 text-right">Penghasilan Task Bulan Lalu</th>
+                          <th className="py-2.5 px-3 text-right">Nominal Top-Up</th>
+                          <th className="py-2.5 px-3 text-center">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {guaranteeResult.details.map((d, i) => (
+                          <tr key={i} className="hover:bg-light/40">
+                            <td className="py-2.5 px-3">
+                              <span className="font-bold text-dark block">{d.full_name}</span>
+                              <span className="text-[10px] text-muted">{d.email}</span>
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-mono font-bold text-dark">
+                              Rp{(d.previous_task_earnings || 0).toLocaleString('id-ID')}
+                            </td>
+                            <td className="py-2.5 px-3 text-right font-mono font-extrabold text-emerald-600">
+                              {d.top_up_amount > 0 ? `+Rp${d.top_up_amount.toLocaleString('id-ID')}` : 'Rp0'}
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              {d.status === 'already_processed' ? (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                                  Sudah Diproses
+                                </span>
+                              ) : d.top_up_amount > 0 ? (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                                  ✓ Top-Up {guaranteeResult.dry_run ? 'Layak' : 'Berhasil'}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                                  Target Terpenuhi
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* Recapitulation of Past Months */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className="text-sm font-extrabold text-dark">Rekapitulasi Riwayat Bulanan</h3>
+                  <p className="text-xs text-muted">Daftar periode jaminan bulanan yang telah dieksekusi oleh sistem atau admin.</p>
+                </div>
+              </div>
+
+              {guaranteeHistoryLoading ? (
+                <CardSkeleton />
+              ) : (guaranteeHistory?.periods || []).length === 0 ? (
+                <Card className="p-8 text-center text-muted border border-border">
+                  <ShieldCheck size={36} className="mx-auto mb-2 text-emerald-500 opacity-60" />
+                  <p className="text-sm font-bold text-dark">Belum Ada Riwayat Eksekusi</p>
+                  <p className="text-xs mt-1">Sistem akan otomatis mengeksekusi jaminan pada tanggal 1 setiap bulan jam 00.05 WIB.</p>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+                  {guaranteeHistory?.periods.map((p) => (
+                    <Card
+                      key={p.period}
+                      onClick={() => setGuaranteePeriod(p.period)}
+                      className={`p-4 border transition-all cursor-pointer ${
+                        guaranteePeriod === p.period ? 'border-primary ring-2 ring-primary/20 bg-primary/5' : 'border-border hover:border-dark'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-mono font-black text-dark tracking-wide">{p.period}</span>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                          {p.recipients_count} Penerima
+                        </span>
+                      </div>
+                      <div className="space-y-1 text-xs text-muted">
+                        <div className="flex justify-between">
+                          <span>Total Biaya:</span>
+                          <span className="font-extrabold text-emerald-700">Rp{p.total_cost.toLocaleString('id-ID')}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Total Evaluasi:</span>
+                          <span className="font-bold text-dark">{p.total_members} Member</span>
+                        </div>
+                        <div className="flex justify-between text-[11px]">
+                          <span>Terakhir Dijalankan:</span>
+                          <span>{formatDateTime(p.last_run_at)}</span>
+                        </div>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Recipient Details Table for Selected Period */}
+            {(guaranteeHistory?.records || []).length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h3 className="text-sm font-extrabold text-dark">
+                      Daftar Penerima Jaminan — Periode {guaranteePeriod}
+                    </h3>
+                    <p className="text-xs text-muted">Detail member yang diproses pada periode ini.</p>
+                  </div>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const rows = (guaranteeHistory?.records || []).map((r) => [
+                        r.period, r.full_name, r.email, r.whatsapp || '',
+                        r.previous_task_earnings, r.top_up_amount, r.guarantee_target,
+                        r.status, r.created_at
+                      ]);
+                      exportToCsv(`jaminan-bulanan-${guaranteePeriod}.csv`, [
+                        'Periode', 'Nama', 'Email', 'WhatsApp', 'Penghasilan Task', 'Top-up', 'Target', 'Status', 'Waktu'
+                      ], rows);
+                    }}
+                    className="text-xs"
+                  >
+                    <Download size={13} className="mr-1.5" /> Export CSV
+                  </Button>
+                </div>
+
+                <Card className="p-0 overflow-hidden border border-border">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-light/60 border-b border-border text-[11px] font-extrabold uppercase text-muted">
+                        <tr>
+                          <th className="py-3 px-4">Member</th>
+                          <th className="py-3 px-4">WhatsApp</th>
+                          <th className="py-3 px-4 text-right">Penghasilan Task</th>
+                          <th className="py-3 px-4 text-right">Top-up Jaminan</th>
+                          <th className="py-3 px-4 text-center">Status</th>
+                          <th className="py-3 px-4 text-right">Waktu Eksekusi</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {guaranteeHistory?.records.map((r) => (
+                          <tr key={r.id} className="hover:bg-light/30">
+                            <td className="py-3 px-4">
+                              <span className="font-extrabold text-dark block">{r.full_name}</span>
+                              <span className="text-[10px] text-muted">{r.email}</span>
+                            </td>
+                            <td className="py-3 px-4 text-muted font-mono">{r.whatsapp || '-'}</td>
+                            <td className="py-3 px-4 text-right font-mono font-bold text-dark">
+                              Rp{r.previous_task_earnings.toLocaleString('id-ID')}
+                            </td>
+                            <td className="py-3 px-4 text-right font-mono font-extrabold text-emerald-600">
+                              {r.top_up_amount > 0 ? `+Rp${r.top_up_amount.toLocaleString('id-ID')}` : 'Rp0'}
+                            </td>
+                            <td className="py-3 px-4 text-center">
+                              {r.top_up_amount > 0 ? (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                                  ✓ Top-up Diterima
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800">
+                                  Target Terpenuhi
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3 px-4 text-right text-muted">{formatDateTime(r.created_at)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </Card>
+              </div>
             )}
           </div>
         )}
@@ -2105,6 +2492,79 @@ export function AdminGrowth() {
                   </Button>
                   <Button variant="primary" size="sm" type="submit" loading={updateCodeMutation.isPending}>
                     Simpan Kode Baru
+                  </Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* MODAL: GUARANTEE CONFIG */}
+        {showGuaranteeConfigModal && (
+          <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 animate-fade-in">
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl animate-scale-in">
+              <div className="flex items-center justify-between pb-3 border-b border-light mb-4">
+                <div>
+                  <h3 className="font-extrabold text-base text-dark">Konfigurasi Jaminan Bulanan</h3>
+                  <p className="text-xs text-muted">Sesuaikan target nominal dan kode referral yang dijamin.</p>
+                </div>
+                <button onClick={() => setShowGuaranteeConfigModal(false)} className="text-muted hover:text-dark">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  updateGuaranteeConfigMutation.mutate(guaranteeConfigForm);
+                }}
+                className="space-y-4 text-xs"
+              >
+                <div>
+                  <label className="block font-bold text-dark mb-1">Target Nominal Jaminan (Rp)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step={1000}
+                    value={guaranteeConfigForm.amount}
+                    onChange={(e) => setGuaranteeConfigForm({ ...guaranteeConfigForm, amount: parseInt(e.target.value) || 0 })}
+                    className="w-full bg-light border border-border rounded-xl px-3 py-2 outline-none font-mono font-bold text-sm"
+                    required
+                  />
+                  <p className="text-[11px] text-muted mt-1">Default: Rp20.000. Member akan di-top up jika penghasilan task di bawah angka ini.</p>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-dark mb-1">Kode Referral yang Dijamin</label>
+                  <input
+                    type="text"
+                    value={guaranteeConfigForm.referralCode}
+                    onChange={(e) => setGuaranteeConfigForm({ ...guaranteeConfigForm, referralCode: e.target.value.toUpperCase() })}
+                    className="w-full bg-light border border-border rounded-xl px-3 py-2 outline-none font-mono font-bold text-sm uppercase"
+                    required
+                  />
+                  <p className="text-[11px] text-muted mt-1">Default: INTERN. Berlaku untuk member yang mendaftar via kode ini.</p>
+                </div>
+
+                <div className="flex items-center gap-2 pt-2">
+                  <input
+                    type="checkbox"
+                    id="cfgActive"
+                    checked={guaranteeConfigForm.isActive}
+                    onChange={(e) => setGuaranteeConfigForm({ ...guaranteeConfigForm, isActive: e.target.checked })}
+                    className="rounded text-primary focus:ring-primary h-4 w-4"
+                  />
+                  <label htmlFor="cfgActive" className="font-bold text-dark cursor-pointer select-none">
+                    Aktifkan Program Jaminan Bulanan Otomatis
+                  </label>
+                </div>
+
+                <div className="pt-3 border-t border-light flex justify-end gap-2">
+                  <Button variant="outline" size="sm" type="button" onClick={() => setShowGuaranteeConfigModal(false)}>
+                    Batal
+                  </Button>
+                  <Button variant="primary" size="sm" type="submit" loading={updateGuaranteeConfigMutation.isPending}>
+                    Simpan Konfigurasi
                   </Button>
                 </div>
               </form>

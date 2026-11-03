@@ -3090,3 +3090,97 @@ export async function getUserGrowthDetail(userId: string): Promise<{
     assignments: assignRes.data || [],
   };
 }
+
+export type MonthlyGuaranteeConfig = {
+  guarantee_amount: number;
+  referral_code: string;
+  is_active: boolean;
+  updated_at?: string;
+};
+
+export type MonthlyGuaranteePeriodSummary = {
+  period: string;
+  total_members: number;
+  recipients_count: number;
+  total_cost: number;
+  last_run_at: string;
+};
+
+export type MonthlyGuaranteeRecord = {
+  id: string;
+  period: string;
+  user_id: string;
+  full_name: string;
+  email: string;
+  whatsapp: string | null;
+  previous_task_earnings: number;
+  top_up_amount: number;
+  guarantee_target: number;
+  status: string;
+  created_at: string;
+};
+
+export type MonthlyGuaranteeExecutionResult = {
+  ok: boolean;
+  period: string;
+  dry_run: boolean;
+  guarantee_amount: number;
+  referral_code: string;
+  summary: {
+    total_eligible_members: number;
+    members_processed: number;
+    members_already_processed_skipped: number;
+    recipients_count: number;
+    total_topup_amount: number;
+  };
+  details: Array<{
+    user_id: string;
+    full_name: string;
+    email: string;
+    previous_task_earnings: number;
+    top_up_amount: number;
+    status: string;
+  }>;
+};
+
+export async function getMonthlyGuaranteeConfig(): Promise<MonthlyGuaranteeConfig> {
+  const { data, error } = await supabase.rpc('get_monthly_guarantee_config');
+  if (error) throw new Error(error.message || 'Gagal memuat config jaminan bulanan.');
+  return data as MonthlyGuaranteeConfig;
+}
+
+export async function updateMonthlyGuaranteeConfig(payload: {
+  amount: number;
+  referralCode: string;
+  isActive: boolean;
+}): Promise<void> {
+  const { error } = await supabase.rpc('update_monthly_guarantee_config', {
+    p_guarantee_amount: payload.amount,
+    p_referral_code: payload.referralCode,
+    p_is_active: payload.isActive,
+  });
+  if (error) throw new Error(error.message || 'Gagal menyimpan config jaminan bulanan.');
+}
+
+export async function getMonthlyGuaranteeHistory(period?: string): Promise<{
+  periods: MonthlyGuaranteePeriodSummary[];
+  records: MonthlyGuaranteeRecord[];
+}> {
+  const { data, error } = await supabase.rpc('get_monthly_guarantee_history', {
+    p_period: period || null,
+  });
+  if (error) throw new Error(error.message || 'Gagal memuat riwayat jaminan bulanan.');
+  return (data || { periods: [], records: [] }) as any;
+}
+
+export async function processMonthlyGuarantee(
+  period?: string,
+  dryRun = false
+): Promise<MonthlyGuaranteeExecutionResult> {
+  const { data, error } = await supabase.rpc('process_monthly_guarantee', {
+    p_period: period || null,
+    p_dry_run: dryRun,
+  });
+  if (error) throw new Error(error.message || 'Gagal memproses jaminan bulanan.');
+  return data as MonthlyGuaranteeExecutionResult;
+}
