@@ -77,6 +77,7 @@ type RedditOrderRecord = {
   notes: string | null;
   delivery_proof_text?: string | null;
   delivery_proof_url?: string | null;
+  drip_interval_hours?: number | null;
 };
 
 type TicketRecord = {
@@ -648,6 +649,24 @@ export function RedditOrderDetail() {
 
           {/* Order details sidebar */}
           <div className="space-y-4">
+            {order.drip_interval_hours && order.drip_interval_hours > 0 ? (
+              <div className="bg-indigo-50/80 rounded-2xl ring-1 ring-indigo-200 p-5">
+                <div className="flex items-center gap-2 mb-2">
+                  <Clock size={16} className="text-indigo-600" />
+                  <h3 className="font-bold text-indigo-950 text-sm">Drip Feed Active</h3>
+                </div>
+                <p className="text-xs text-indigo-900 leading-relaxed">
+                  Pacing: <strong>1 review every {order.drip_interval_hours} hours</strong>. Workers are dispatched on a gradual schedule to keep your profile natural and prevent platform review filters.
+                </p>
+                <div className="mt-3 pt-3 border-t border-indigo-200/60 flex items-center justify-between text-xs">
+                  <span className="text-indigo-700 font-medium">Delivered</span>
+                  <span className="font-bold text-indigo-950">
+                    {order.delivered_upvotes} of {order.requested_upvotes} reviews
+                  </span>
+                </div>
+              </div>
+            ) : null}
+
             <div className="bg-white rounded-2xl ring-1 ring-slate-200 p-5">
               <h3 className="font-bold text-slate-900 mb-3">Order summary</h3>
               <div className="space-y-3 text-sm">

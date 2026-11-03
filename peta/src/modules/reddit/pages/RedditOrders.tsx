@@ -42,6 +42,7 @@ type RedditOrderListItem = {
   subreddit?: string | null;
   cost_credits: number;
   created_at: string;
+  drip_interval_hours?: number | null;
 };
 
 function serviceLabel(order: RedditOrderListItem) {
@@ -212,6 +213,11 @@ export function RedditOrders() {
                                     · {order.target_type === 'youtube_upload' ? 'YouTube' : order.target_type === 'quora_upvote' ? 'Quora' : order.target_type === 'yelp_review' ? 'Yelp' : order.target_type === 'clutch_review' ? 'Clutch' : order.target_type === 'reseller_order' ? (order.subreddit || 'Social') : (order.target_type || 'upvote') === 'comment' ? order.subreddit : `r/${order.subreddit}`}
                                   </span>
                                 )}
+                                {order.drip_interval_hours && order.drip_interval_hours > 0 ? (
+                                  <span className="ml-2 inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200">
+                                    ⏱️ {order.drip_interval_hours}h drip
+                                  </span>
+                                ) : null}
                               </p>
                               <p className="text-xs text-slate-500 truncate max-w-md mt-0.5">
                                 {order.thread_url.substring(0, 50)}...
@@ -270,7 +276,14 @@ export function RedditOrders() {
                   >
                     <div className="flex items-start justify-between mb-2">
                       <div>
-                        <p className="font-semibold text-slate-900"><span className="mr-1">{service.icon}</span>#{order.id}</p>
+                        <p className="font-semibold text-slate-900">
+                          <span className="mr-1">{service.icon}</span>#{order.id}
+                          {order.drip_interval_hours && order.drip_interval_hours > 0 ? (
+                            <span className="ml-2 inline-flex items-center text-[10px] font-bold px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 ring-1 ring-indigo-200">
+                              ⏱️ {order.drip_interval_hours}h
+                            </span>
+                          ) : null}
+                        </p>
                         {order.subreddit && (
                           <p className="text-xs text-slate-500">
                             {order.target_type === 'youtube_upload' ? 'YouTube' : (order.target_type || 'upvote') === 'comment' ? order.subreddit : `r/${order.subreddit}`}

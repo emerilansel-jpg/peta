@@ -305,9 +305,25 @@ assert.ok(redditNewOrderCode.includes('!wantsSuggestion ? 1'), 'RedditNewOrder m
 							assert.ok(reloadedRedditApiCode.includes('createClutchReviewOrder'), 'api.ts must export createClutchReviewOrder');
 							assert.ok(reloadedRedditHooksCode.includes('createClutchReviewOrder'), 'useRedditOrders must export createClutchReviewOrder');
 							assert.ok(reloadedRedditNewOrderCode.includes('ClutchReviewOrderForm'), 'RedditNewOrder must contain ClutchReviewOrderForm');
-							assert.ok(reloadedRedditNewOrderCode.includes('PlatformRiskDisclaimer'), 'RedditNewOrder must contain PlatformRiskDisclaimer');
-							console.log('  ✓ Clutch Review service contracts & Platform Risk Disclaimer verified.');
+								assert.ok(reloadedRedditNewOrderCode.includes('PlatformRiskDisclaimer'), 'RedditNewOrder must contain PlatformRiskDisclaimer');
+								console.log('  ✓ Clutch Review service contracts & Platform Risk Disclaimer verified.');
 
-							console.log('===================================================');
-							console.log('ALL SECURITY AND QA REGRESSION CHECKS PASSED (100%)');
-							console.log('===================================================');
+								// 18. Verify Drip Feed Delivery Architecture & Safeguards
+								console.log('18. Checking Drip Feed Architecture & Automated Release Engine...');
+								const dripMigrationPath = path.join(rootDir, 'supabase', 'migrations', '20261103010000_straight_peta_drip_feed_system.sql');
+								assert.ok(fs.existsSync(dripMigrationPath), 'Migration 20261103010000 must exist');
+								const dripSql = fs.readFileSync(dripMigrationPath, 'utf8');
+								assert.ok(dripSql.includes('drip_interval_hours INT DEFAULT 0'), 'Must add drip_interval_hours column');
+								assert.ok(dripSql.includes('drip_total_target INT DEFAULT 0'), 'Must add drip_total_target column');
+								assert.ok(dripSql.includes('drip_next_release_at TIMESTAMPTZ'), 'Must add drip_next_release_at column');
+								assert.ok(dripSql.includes('process_drip_feed_tasks'), 'Must create process_drip_feed_tasks function');
+								assert.ok(dripSql.includes('v_approved >= v_target_total'), 'sync_task_slot_count must check drip_total_target before completing');
+								assert.ok(dripSql.includes('v_initial_max := 1'), 'fn_ensure_order_task must start at 1 slot for drip orders');
+
+								assert.ok(reloadedRedditApiCode.includes('dripIntervalHours?: number'), 'api.ts must define dripIntervalHours in review order inputs');
+								assert.ok(reloadedRedditNewOrderCode.includes('function DripFeedSelector'), 'RedditNewOrder must contain DripFeedSelector');
+								console.log('  ✓ Drip Feed architecture, SQL safeguards, and UI contracts verified.');
+
+								console.log('===================================================');
+								console.log('ALL SECURITY AND QA REGRESSION CHECKS PASSED (100%)');
+								console.log('===================================================');

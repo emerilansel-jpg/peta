@@ -193,6 +193,7 @@ export interface TrustpilotOrderInput {
   reviewBrief?: string | null;
   reviewDrafts?: { comment_text: string }[] | null;
   requestId?: string | null;
+  dripIntervalHours?: number;
 }
 
 // Create a Trustpilot review order via RPC ($5.00 per review).
@@ -205,6 +206,7 @@ export async function createTrustpilotOrder(input: TrustpilotOrderInput) {
     p_review_brief: input.reviewBrief || null,
     p_review_drafts: input.reviewDrafts && input.reviewDrafts.length > 0 ? input.reviewDrafts : null,
     p_request_id: input.requestId || null,
+    p_drip_interval_hours: input.dripIntervalHours || 0,
   });
 
   if (error) {
@@ -235,6 +237,7 @@ export interface YelpReviewOrderInput {
   reviewBrief?: string | null;
   reviewDrafts?: { comment_text: string }[] | null;
   requestId?: string | null;
+  dripIntervalHours?: number;
 }
 
 // Create a Yelp review order via RPC ($5.00 per review).
@@ -247,6 +250,7 @@ export async function createYelpReviewOrder(input: YelpReviewOrderInput) {
     p_review_brief: input.reviewBrief || null,
     p_review_drafts: input.reviewDrafts && input.reviewDrafts.length > 0 ? input.reviewDrafts : null,
     p_request_id: input.requestId || null,
+    p_drip_interval_hours: input.dripIntervalHours || 0,
   });
 
   if (error) {
@@ -277,6 +281,7 @@ export interface ClutchReviewOrderInput {
   reviewBrief?: string | null;
   reviewDrafts?: { comment_text: string }[] | null;
   requestId?: string | null;
+  dripIntervalHours?: number;
 }
 
 // Create a Clutch.co review order via RPC ($5.00 per review).
@@ -289,6 +294,7 @@ export async function createClutchReviewOrder(input: ClutchReviewOrderInput) {
     p_review_brief: input.reviewBrief || null,
     p_review_drafts: input.reviewDrafts && input.reviewDrafts.length > 0 ? input.reviewDrafts : null,
     p_request_id: input.requestId || null,
+    p_drip_interval_hours: input.dripIntervalHours || 0,
   });
 
   if (error) {
@@ -320,6 +326,7 @@ export interface GoogleMapsReviewOrderInput {
   reviewBrief?: string | null;
   reviewDrafts?: { comment_text: string }[] | null;
   requestId?: string | null;
+  dripIntervalHours?: number;
 }
 
 // Create a Google Maps review order via RPC ($5.00 global / $6.00 specific location).
@@ -333,6 +340,7 @@ export async function createGoogleMapsReviewOrder(input: GoogleMapsReviewOrderIn
     p_review_brief: input.reviewBrief || null,
     p_review_drafts: input.reviewDrafts && input.reviewDrafts.length > 0 ? input.reviewDrafts : null,
     p_request_id: input.requestId || null,
+    p_drip_interval_hours: input.dripIntervalHours || 0,
   });
 
   if (error) {

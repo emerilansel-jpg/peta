@@ -33,6 +33,7 @@ import {
   Users,
   MessageCircle,
   AlertTriangle,
+  Clock,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { RedditLayout } from '../components/RedditLayout';
@@ -57,6 +58,107 @@ function PlatformRiskDisclaimer({ platform = 'Third-party platforms' }: { platfo
       <div className="leading-relaxed">
         <span className="font-bold text-amber-950">Platform Risk Notice:</span> Third-party platforms ({platform}) strictly regulate reviews, comments, and engagement. While all tasks are completed by real independent human accounts, platforms may moderate, filter content, or sanction accounts at their discretion. Straight Ltd does not bear responsibility for any platform enforcement, review filtering, or account suspensions.
       </div>
+    </div>
+  );
+}
+
+function DripFeedSelector({
+  value,
+  onChange,
+  quantity,
+  platform = 'reviews',
+  themeColor = 'indigo',
+}: {
+  value: number;
+  onChange: (hours: number) => void;
+  quantity: number;
+  platform?: string;
+  themeColor?: 'red' | 'indigo' | 'emerald';
+}) {
+  const activeClass =
+    themeColor === 'red'
+      ? 'border-red-600 bg-red-50 text-red-950 ring-1 ring-red-500'
+      : themeColor === 'emerald'
+      ? 'border-emerald-600 bg-emerald-50 text-emerald-950 ring-1 ring-emerald-500'
+      : 'border-indigo-600 bg-indigo-50 text-indigo-950 ring-1 ring-indigo-500';
+
+  const badgeClass =
+    themeColor === 'red'
+      ? 'bg-red-600 text-white'
+      : themeColor === 'emerald'
+      ? 'bg-emerald-600 text-white'
+      : 'bg-indigo-600 text-white';
+
+  const options = [
+    {
+      hours: 0,
+      label: '⚡ Instant / All at once',
+      sub: 'All slots open immediately in worker queue',
+      recommended: false,
+    },
+    {
+      hours: 24,
+      label: '🛡️ 1 per 24 hours',
+      sub: 'Safest pacing. Avoids platform spam triggers',
+      recommended: true,
+    },
+    {
+      hours: 48,
+      label: '🐢 1 per 48 hours',
+      sub: 'Ultra-gradual pacing for organic long-term growth',
+      recommended: false,
+    },
+  ];
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <label className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+          <Clock size={16} className="text-slate-500" />
+          Delivery Pacing (Drip Feed)
+        </label>
+        {quantity > 1 && value > 0 && (
+          <span className="text-[11px] font-semibold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full">
+            ~{Math.ceil((quantity * value) / 24)} days total schedule
+          </span>
+        )}
+      </div>
+
+      {quantity <= 1 ? (
+        <p className="text-xs text-slate-500 bg-slate-50 p-3 rounded-xl border border-slate-200">
+          Drip feed pacing applies when ordering 2 or more {platform}. Single {platform} order will dispatch immediately.
+        </p>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+          {options.map((opt) => {
+            const isSelected = value === opt.hours;
+            return (
+              <button
+                key={opt.hours}
+                type="button"
+                onClick={() => onChange(opt.hours)}
+                className={`p-3 rounded-xl border text-left transition relative flex flex-col justify-between ${
+                  isSelected
+                    ? activeClass
+                    : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-1 mb-1">
+                    <span className="text-xs font-bold">{opt.label}</span>
+                    {opt.recommended && (
+                      <span className={`text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded ${badgeClass}`}>
+                        Recommended
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-snug">{opt.sub}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -3013,6 +3115,7 @@ function TrustpilotOrderForm({ onBack }: { onBack: () => void }) {
 
   const [targetUrl, setTargetUrl] = useState('');
   const [quantity, setQuantity] = useState(5);
+  const [dripHours, setDripHours] = useState(24);
   const [notes, setNotes] = useState('');
   const [reviewMode, setReviewMode] = useState<'brief' | 'custom'>('brief');
   const [reviewBrief, setReviewBrief] = useState('');
@@ -3085,6 +3188,7 @@ function TrustpilotOrderForm({ onBack }: { onBack: () => void }) {
         reviewMode,
         reviewBrief: reviewMode === 'brief' ? reviewBrief.trim() : null,
         reviewDrafts: drafts,
+        dripIntervalHours: dripHours,
       },
       {
         onSuccess: (order: { id?: number } | null) => {
@@ -3197,6 +3301,14 @@ function TrustpilotOrderForm({ onBack }: { onBack: () => void }) {
             Each review is written by a unique real person using an English/Western display name. Reviews are 100% in English. 1 worker = 1 review max per business.
           </p>
         </div>
+
+        <DripFeedSelector
+          value={dripHours}
+          onChange={setDripHours}
+          quantity={quantity}
+          platform="reviews"
+          themeColor="emerald"
+        />
 
         <div>
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
@@ -3356,6 +3468,14 @@ function TrustpilotOrderForm({ onBack }: { onBack: () => void }) {
                     {reviewMode === 'brief' ? 'Worker writes from brief' : `${quantity} custom reviews provided`}
                   </p>
                 </div>
+                {quantity > 1 && (
+                  <div className="px-4 py-3">
+                    <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Delivery Pacing</p>
+                    <p className="text-sm font-semibold text-emerald-700 mt-1">
+                      {dripHours === 0 ? 'Instant (all slots active)' : `1 review every ${dripHours} hours`}
+                    </p>
+                  </div>
+                )}
                 <div className="px-4 py-3">
                   <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Total</p>
                   <p className="text-sm font-bold text-slate-900 mt-1">{formatUSD(cost)}</p>
@@ -3397,6 +3517,7 @@ function GoogleMapsReviewOrderForm({ onBack }: { onBack: () => void }) {
   const [hasSpecificLocation, setHasSpecificLocation] = useState(false);
   const [targetLocation, setTargetLocation] = useState('');
   const [quantity, setQuantity] = useState(5);
+  const [dripHours, setDripHours] = useState(24);
   const [notes, setNotes] = useState('');
   const [reviewMode, setReviewMode] = useState<'brief' | 'custom'>('brief');
   const [reviewBrief, setReviewBrief] = useState('');
@@ -3477,6 +3598,7 @@ function GoogleMapsReviewOrderForm({ onBack }: { onBack: () => void }) {
         reviewMode,
         reviewBrief: reviewMode === 'brief' ? reviewBrief.trim() : null,
         reviewDrafts: drafts,
+        dripIntervalHours: dripHours,
       },
       {
         onSuccess: (order: { id?: number } | null) => {
@@ -3651,6 +3773,14 @@ function GoogleMapsReviewOrderForm({ onBack }: { onBack: () => void }) {
           </p>
         </div>
 
+        <DripFeedSelector
+          value={dripHours}
+          onChange={setDripHours}
+          quantity={quantity}
+          platform="reviews"
+          themeColor="emerald"
+        />
+
         <div>
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
             <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">4</span>
@@ -3816,6 +3946,14 @@ function GoogleMapsReviewOrderForm({ onBack }: { onBack: () => void }) {
                     {reviewMode === 'brief' ? 'Worker writes from brief' : `${quantity} custom reviews provided`}
                   </p>
                 </div>
+                {quantity > 1 && (
+                  <div className="px-4 py-3">
+                    <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Delivery Pacing</p>
+                    <p className="text-sm font-semibold text-emerald-700 mt-0.5">
+                      {dripHours === 0 ? 'Instant (all slots active)' : `1 review every ${dripHours} hours`}
+                    </p>
+                  </div>
+                )}
                 <div className="px-4 py-3">
                   <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Total</p>
                   <p className="text-sm font-bold text-slate-900 mt-0.5">{formatUSD(cost)}</p>
@@ -4134,6 +4272,7 @@ function YelpReviewOrderForm({ onBack }: { onBack: () => void }) {
 
   const [targetUrl, setTargetUrl] = useState('');
   const [quantity, setQuantity] = useState(3);
+  const [dripHours, setDripHours] = useState(24);
   const [reviewMode, setReviewMode] = useState<'brief' | 'custom'>('brief');
   const [reviewBrief, setReviewBrief] = useState('');
   const [customDrafts, setCustomDrafts] = useState<string[]>(Array(20).fill(''));
@@ -4209,6 +4348,7 @@ function YelpReviewOrderForm({ onBack }: { onBack: () => void }) {
         reviewMode,
         reviewBrief: reviewMode === 'brief' ? reviewBrief.trim() || null : null,
         reviewDrafts: drafts,
+        dripIntervalHours: dripHours,
       },
       {
         onSuccess: (order: { id?: number } | null) => {
@@ -4326,6 +4466,14 @@ function YelpReviewOrderForm({ onBack }: { onBack: () => void }) {
             Each review is written by a unique person using a Western display name with avatar profile. 1 worker = 1 review max per business.
           </p>
         </div>
+
+        <DripFeedSelector
+          value={dripHours}
+          onChange={setDripHours}
+          quantity={quantity}
+          platform="reviews"
+          themeColor="red"
+        />
 
         <div>
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
@@ -4501,6 +4649,14 @@ function YelpReviewOrderForm({ onBack }: { onBack: () => void }) {
                     {reviewMode === 'brief' ? 'Worker writes from brief' : `${quantity} custom reviews provided`}
                   </p>
                 </div>
+                {quantity > 1 && (
+                  <div className="px-4 py-3">
+                    <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Delivery Pacing</p>
+                    <p className="text-sm font-semibold text-red-700 mt-0.5">
+                      {dripHours === 0 ? 'Instant (all slots active)' : `1 review every ${dripHours} hours`}
+                    </p>
+                  </div>
+                )}
                 <div className="px-4 py-3">
                   <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Total</p>
                   <p className="text-sm font-bold text-slate-900 mt-0.5">{formatUSD(cost)}</p>
@@ -4540,6 +4696,7 @@ function ClutchReviewOrderForm({ onBack }: { onBack: () => void }) {
 
   const [targetUrl, setTargetUrl] = useState('');
   const [quantity, setQuantity] = useState(1);
+  const [dripHours, setDripHours] = useState(24);
   const [notes, setNotes] = useState('');
   const [reviewMode, setReviewMode] = useState<'brief' | 'custom'>('brief');
   const [reviewBrief, setReviewBrief] = useState('');
@@ -4605,6 +4762,7 @@ function ClutchReviewOrderForm({ onBack }: { onBack: () => void }) {
         reviewMode,
         reviewBrief: reviewBrief.trim() || null,
         reviewDrafts: formattedDrafts,
+        dripIntervalHours: dripHours,
         requestId: `clutch-order-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       },
       {
@@ -4715,6 +4873,14 @@ function ClutchReviewOrderForm({ onBack }: { onBack: () => void }) {
             <span className="text-xs text-slate-500 ml-2">1 to 20 reviews per order</span>
           </div>
         </div>
+
+        <DripFeedSelector
+          value={dripHours}
+          onChange={setDripHours}
+          quantity={quantity}
+          platform="reviews"
+          themeColor="indigo"
+        />
 
         <div>
           <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-3">
@@ -4891,6 +5057,14 @@ function ClutchReviewOrderForm({ onBack }: { onBack: () => void }) {
                     {reviewMode === 'brief' ? 'Worker writes from project brief' : `${quantity} custom reviews provided`}
                   </p>
                 </div>
+                {quantity > 1 && (
+                  <div className="px-4 py-3">
+                    <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Delivery Pacing</p>
+                    <p className="text-sm font-semibold text-indigo-700 mt-0.5">
+                      {dripHours === 0 ? 'Instant (all slots active)' : `1 review every ${dripHours} hours`}
+                    </p>
+                  </div>
+                )}
                 <div className="px-4 py-3">
                   <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Total</p>
                   <p className="text-sm font-bold text-slate-900 mt-0.5">{formatUSD(cost)}</p>
