@@ -4144,13 +4144,23 @@ function YelpReviewOrderForm({ onBack }: { onBack: () => void }) {
   const enabled = straightEnabled(pricing, 'yelp_review', true);
   const cost = quantity * unitCents;
 
-  const isValidUrl = /^https?:\/\/(?:[a-z0-9-]+\.)*yelp\.[a-z.]+\/biz\/[^\s]+/i.test(targetUrl.trim());
+  const normalizeYelpUrl = (input: string) => {
+    let u = input.trim();
+    if (u && !/^https?:\/\//i.test(u)) {
+      u = `https://${u}`;
+    }
+    return u;
+  };
+  const cleanTargetUrl = normalizeYelpUrl(targetUrl);
+  const isValidUrl = /^https?:\/\/(?:[a-z0-9-]+\.)*(?:yelp\.[a-z.]+|yelp\.to)\/(?:biz\/)?[^\s]+/i.test(cleanTargetUrl);
   const isValidQuantity = quantity >= 1 && quantity <= 20;
   const hasEnoughCredit = balance >= cost;
 
-  const hasValidCustomDrafts =
-    reviewMode === 'brief' ||
-    customDrafts.slice(0, quantity).every((d) => d && d.trim().length >= 10);
+  const firstMissingDraftIndex =
+    reviewMode === 'custom'
+      ? customDrafts.slice(0, quantity).findIndex((d) => !d || d.trim().length < 10)
+      : -1;
+  const hasValidCustomDrafts = firstMissingDraftIndex === -1;
 
   const canSubmit =
     isValidUrl && isValidQuantity && hasEnoughCredit && hasValidCustomDrafts && enabled && !isCreatingYelpReviewOrder;
@@ -4179,7 +4189,7 @@ function YelpReviewOrderForm({ onBack }: { onBack: () => void }) {
       return;
     }
     if (reviewMode === 'custom' && !hasValidCustomDrafts) {
-      toast.error(`Please provide review text for all ${quantity} reviews (minimum 10 characters each)`);
+      toast.error(`Please provide review text for Review #${firstMissingDraftIndex + 1} (minimum 10 characters)`);
       return;
     }
     setShowConfirm(true);
@@ -4193,7 +4203,7 @@ function YelpReviewOrderForm({ onBack }: { onBack: () => void }) {
 
     createYelpReviewOrder(
       {
-        targetUrl: targetUrl.trim(),
+        targetUrl: cleanTargetUrl,
         quantity,
         notes: notes.trim() || null,
         reviewMode,
@@ -4265,9 +4275,14 @@ function YelpReviewOrderForm({ onBack }: { onBack: () => void }) {
             Yelp Business Page URL
           </label>
           <input
-            type="url"
+            type="text"
             value={targetUrl}
             onChange={(e) => setTargetUrl(e.target.value)}
+            onBlur={() => {
+              if (targetUrl.trim() && !/^https?:\/\//i.test(targetUrl.trim())) {
+                setTargetUrl(normalizeYelpUrl(targetUrl));
+              }
+            }}
             placeholder="https://www.yelp.com/biz/your-business-name-city"
             className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 text-slate-900"
             required
@@ -4422,9 +4437,25 @@ function YelpReviewOrderForm({ onBack }: { onBack: () => void }) {
 
         <PlatformRiskDisclaimer platform="Yelp" />
 
+        {!canSubmit && (
+          <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900 space-y-1">
+            <p className="font-semibold text-amber-950 mb-1">Please complete the required details:</p>
+            {!targetUrl.trim() && <p>• Enter your Yelp Business Page URL above</p>}
+            {targetUrl.trim() && !isValidUrl && (
+              <p>• Check your Yelp URL (example: https://www.yelp.com/biz/...)</p>
+            )}
+            {reviewMode === 'custom' && firstMissingDraftIndex !== -1 && (
+              <p>• Fill in Review #{firstMissingDraftIndex + 1} (minimum 10 characters)</p>
+            )}
+            {!hasEnoughCredit && (
+              <p>• Insufficient credit: top up {formatUSD(cost - balance)} more to proceed</p>
+            )}
+          </div>
+        )}
+
         <button
           type="submit"
-          disabled={!canSubmit}
+          disabled={!enabled || isCreatingYelpReviewOrder}
           className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-red-600 hover:bg-red-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-semibold transition shadow-lg shadow-red-600/20"
         >
           {enabled ? 'Review order' : 'Service paused'}
@@ -4520,16 +4551,28 @@ function ClutchReviewOrderForm({ onBack }: { onBack: () => void }) {
   const hasEnoughCredit = balance >= cost;
   const enabled = straightEnabled(pricing, 'clutch_review', true);
 
+  const normalizeClutchUrl = (input: string) => {
+    let u = input.trim();
+    if (u && !/^https?:\/\//i.test(u)) {
+      u = `https://${u}`;
+    }
+    return u;
+  };
+  const cleanTargetUrl = normalizeClutchUrl(targetUrl);
   const isValidUrl =
-    /^https?:\/\/(?:[a-z0-9-]+\.)*(?:clutch\.co|review\.clutch\.co)\/[^\s]+/i.test(targetUrl.trim());
+    /^https?:\/\/(?:[a-z0-9-]+\.)*(?:clutch\.co|review\.clutch\.co)\/[^\s]+/i.test(cleanTargetUrl);
+
+  const firstMissingDraftIndex =
+    reviewMode === 'custom'
+      ? customDrafts.slice(0, quantity).findIndex((d) => !d || d.trim().length < 30)
+      : -1;
+  const hasValidCustomDrafts = reviewMode === 'brief' || firstMissingDraftIndex === -1;
 
   const canSubmit =
     isValidUrl &&
     hasEnoughCredit &&
     enabled &&
-    (reviewMode === 'brief'
-      ? true
-      : customDrafts.slice(0, quantity).every((d) => d && d.trim().length >= 30));
+    hasValidCustomDrafts;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -4541,12 +4584,9 @@ function ClutchReviewOrderForm({ onBack }: { onBack: () => void }) {
       toast.error('Insufficient credit. Top up to continue.');
       return;
     }
-    if (reviewMode === 'custom') {
-      const emptyIdx = customDrafts.slice(0, quantity).findIndex((d) => !d || d.trim().length < 30);
-      if (emptyIdx !== -1) {
-        toast.error(`Please provide review text #${emptyIdx + 1} (minimum 30 characters)`);
-        return;
-      }
+    if (reviewMode === 'custom' && !hasValidCustomDrafts) {
+      toast.error(`Please provide review text #${firstMissingDraftIndex + 1} (minimum 30 characters)`);
+      return;
     }
     setShowConfirm(true);
   };
@@ -4559,7 +4599,7 @@ function ClutchReviewOrderForm({ onBack }: { onBack: () => void }) {
 
     createClutchReviewOrder(
       {
-        targetUrl: targetUrl.trim(),
+        targetUrl: cleanTargetUrl,
         quantity,
         notes: notes.trim() || null,
         reviewMode,
@@ -4632,9 +4672,14 @@ function ClutchReviewOrderForm({ onBack }: { onBack: () => void }) {
             Clutch Company Profile URL
           </label>
           <input
-            type="url"
+            type="text"
             value={targetUrl}
             onChange={(e) => setTargetUrl(e.target.value)}
+            onBlur={() => {
+              if (targetUrl.trim() && !/^https?:\/\//i.test(targetUrl.trim())) {
+                setTargetUrl(normalizeClutchUrl(targetUrl));
+              }
+            }}
             placeholder="https://clutch.co/profile/your-company-name"
             className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 text-slate-900"
             required
@@ -4783,9 +4828,25 @@ function ClutchReviewOrderForm({ onBack }: { onBack: () => void }) {
 
         <PlatformRiskDisclaimer platform="Clutch.co" />
 
+        {!canSubmit && (
+          <div className="p-4 rounded-xl bg-indigo-50 border border-indigo-200 text-xs text-indigo-900 space-y-1">
+            <p className="font-semibold text-indigo-950 mb-1">Please complete the required details:</p>
+            {!targetUrl.trim() && <p>• Enter your Clutch company profile URL above</p>}
+            {targetUrl.trim() && !isValidUrl && (
+              <p>• Check your Clutch URL (example: https://clutch.co/profile/...)</p>
+            )}
+            {reviewMode === 'custom' && firstMissingDraftIndex !== -1 && (
+              <p>• Fill in Review #{firstMissingDraftIndex + 1} (minimum 30 characters)</p>
+            )}
+            {!hasEnoughCredit && (
+              <p>• Insufficient credit: top up {formatUSD(cost - balance)} more to proceed</p>
+            )}
+          </div>
+        )}
+
         <button
           type="submit"
-          disabled={!canSubmit}
+          disabled={!enabled || isCreatingClutchReviewOrder}
           className="w-full inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-semibold transition shadow-lg shadow-indigo-600/20"
         >
           {enabled ? 'Review order' : 'Service paused'}
