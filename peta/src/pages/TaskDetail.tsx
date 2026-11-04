@@ -102,6 +102,14 @@ export function TaskDetail() {
     enabled: !!taskId,
   });
   const category = task?.task_category || task?.task_type;
+  const isRedditTask = Boolean(
+    category === 'reddit_upvote' ||
+    category === 'reddit_comment' ||
+    category === 'reddit_post_thread' ||
+    category === 'reddit_challenge' ||
+    category?.startsWith('reddit_') ||
+    task?.platform?.toLowerCase() === 'reddit'
+  );
   const isLinkedInLike = category === 'linkedin_like';
   const isLinkedInFollow = category === 'linkedin_follow';
   const isLinkedInComment = category === 'linkedin_comment';
@@ -116,7 +124,7 @@ export function TaskDetail() {
   const isYouTubeUpload = category === 'youtube_upload';
   const isPreferredSource = category === 'preferred_source';
   const isComment = isForumComment || category === 'reddit_comment' || isLinkedInComment || isTrustpilotReview || isGoogleMapsReview || isYelpReview || isClutchReview || task?.task_type === 'comment';
-  const isNoAccountNeeded = isForumComment || isYouTubeUpload || isPreferredSource || isLinkedIn || isTrustpilotReview || isGoogleMapsReview || isQuoraUpvote || isYelpReview || isClutchReview;
+  const isNoAccountNeeded = !isRedditTask;
   const platformLabel = task ? platformForTask(task) : 'Forum';
 
   const { data: myYtAccounts = [] } = useQuery({
@@ -1636,7 +1644,7 @@ function platformForTask(task: any) {
   if (category === 'trustpilot_review' || (category && String(category).startsWith('trustpilot'))) return 'Trustpilot';
   if (category === 'yelp_review' || (category && String(category).startsWith('yelp'))) return 'Yelp';
   if (category === 'clutch_review' || (category && String(category).startsWith('clutch'))) return 'Clutch';
-  if (category === 'reddit_upvote' || category === 'reddit_comment' || task.task_type === 'upvote') return 'Reddit';
+  if (category === 'reddit_upvote' || category === 'reddit_comment' || category === 'reddit_post_thread' || String(category).startsWith('reddit')) return 'Reddit';
   const text = `${task.title || ''} ${task.description || ''} ${task.target_url || ''}`.toLowerCase();
   if (text.includes('hubspot')) return 'HubSpot';
   if (text.includes('quora')) return 'Quora';

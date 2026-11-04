@@ -897,6 +897,30 @@ export function AdminApprovalQueue() {
                     </div>
                   )}
 
+                  {a.tasks?.task_category === 'yelp_review' && (
+                    <div className="mt-2.5 p-2 rounded-lg bg-red-50 ring-1 ring-red-300 text-xs text-red-950">
+                      <p className="font-bold text-red-900 flex items-center gap-1">
+                        🔴 Yelp Review Check:
+                      </p>
+                      <p className="mt-0.5">
+                        Username Yelp: <b className="font-mono bg-white px-1.5 py-0.5 rounded border border-red-300">{a.reddit_accounts?.username || a.submitted_username}</b>.
+                        Wajib nama <b>Bule / English</b>, rating bintang 5, foto avatar akun terpasang, dan review terbit di bisnis Yelp target.
+                      </p>
+                    </div>
+                  )}
+
+                  {a.tasks?.task_category === 'clutch_review' && (
+                    <div className="mt-2.5 p-2 rounded-lg bg-sky-50 ring-1 ring-sky-300 text-xs text-sky-950">
+                      <p className="font-bold text-sky-900 flex items-center gap-1">
+                        🔷 Clutch Review Check:
+                      </p>
+                      <p className="mt-0.5">
+                        Reviewer Clutch: <b className="font-mono bg-white px-1.5 py-0.5 rounded border border-sky-300">{a.reddit_accounts?.username || a.submitted_username}</b>.
+                        Pastikan review B2B bintang 5 sesuai brief dan screenshot terverifikasi.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="flex gap-2 mt-3 items-center">
                     {a.contributor_workflow && a.visibility_status !== 'visible' && (
                       <Button
