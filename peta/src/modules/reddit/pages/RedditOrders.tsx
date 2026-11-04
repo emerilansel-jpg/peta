@@ -18,6 +18,11 @@ const STATUS_CONFIG: Record<string, { label: string; class: string; dot: string 
     class: 'bg-blue-50 text-blue-700 ring-blue-200',
     dot: 'bg-blue-500',
   },
+  paused: {
+    label: 'Paused',
+    class: 'bg-purple-50 text-purple-700 ring-purple-200',
+    dot: 'bg-purple-500',
+  },
   completed: {
     label: 'Completed',
     class: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
@@ -30,7 +35,7 @@ const STATUS_CONFIG: Record<string, { label: string; class: string; dot: string 
   },
 };
 
-const FILTERS = ['all', 'pending', 'processing', 'completed', 'cancelled'] as const;
+const FILTERS = ['all', 'pending', 'processing', 'paused', 'completed', 'cancelled'] as const;
 
 type RedditOrderListItem = {
   id: number;

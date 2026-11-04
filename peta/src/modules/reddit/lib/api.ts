@@ -1758,6 +1758,44 @@ export async function updateOrderDetail(
   return data;
 }
 
+// Pause an order (Admin)
+export async function adminPauseOrder(orderId: number, reason?: string) {
+  const { data, error } = await supabase.rpc('admin_pause_order', {
+    p_order_id: orderId,
+    p_reason: reason || null,
+  });
+  if (error) throw error;
+  return data;
+}
+
+// Resume an order (Admin)
+export async function adminResumeOrder(orderId: number) {
+  const { data, error } = await supabase.rpc('admin_resume_order', {
+    p_order_id: orderId,
+  });
+  if (error) throw error;
+  return data;
+}
+
+// Client pause their own order
+export async function clientPauseOrder(orderId: number, reason?: string) {
+  const { data, error } = await supabase.rpc('fn_client_pause_order', {
+    p_order_id: orderId,
+    p_reason: reason || null,
+  });
+  if (error) throw error;
+  return data;
+}
+
+// Client resume their own order
+export async function clientResumeOrder(orderId: number) {
+  const { data, error } = await supabase.rpc('fn_client_resume_order', {
+    p_order_id: orderId,
+  });
+  if (error) throw error;
+  return data;
+}
+
 // ADMIN: Upload delivery proof image
 export async function adminUploadDeliveryProof(orderId: number, file: File): Promise<string> {
   const ext = file.name.split('.').pop() || 'png';

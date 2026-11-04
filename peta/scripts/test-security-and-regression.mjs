@@ -321,9 +321,27 @@ assert.ok(redditNewOrderCode.includes('!wantsSuggestion ? 1'), 'RedditNewOrder m
 								assert.ok(dripSql.includes('v_initial_max := 1'), 'fn_ensure_order_task must start at 1 slot for drip orders');
 
 								assert.ok(reloadedRedditApiCode.includes('dripIntervalHours?: number'), 'api.ts must define dripIntervalHours in review order inputs');
-								assert.ok(reloadedRedditNewOrderCode.includes('function DripFeedSelector'), 'RedditNewOrder must contain DripFeedSelector');
-								console.log('  ✓ Drip Feed architecture, SQL safeguards, and UI contracts verified.');
+									assert.ok(reloadedRedditNewOrderCode.includes('function DripFeedSelector'), 'RedditNewOrder must contain DripFeedSelector');
+									console.log('  ✓ Drip Feed architecture, SQL safeguards, and UI contracts verified.');
 
-								console.log('===================================================');
-								console.log('ALL SECURITY AND QA REGRESSION CHECKS PASSED (100%)');
-								console.log('===================================================');
+									// 19. Verify Order Pause & Resume System
+									console.log('19. Checking Order Pause & Resume System...');
+									const pauseMigrationPath = path.join(rootDir, 'supabase', 'migrations', '20261104000000_straight_order_pause_resume.sql');
+									assert.ok(fs.existsSync(pauseMigrationPath), 'Migration 20261104000000 must exist');
+									const pauseSql = fs.readFileSync(pauseMigrationPath, 'utf8');
+									assert.ok(pauseSql.includes("'paused'"), 'Must allow paused status');
+									assert.ok(pauseSql.includes('admin_pause_order'), 'Must create admin_pause_order RPC');
+									assert.ok(pauseSql.includes('admin_resume_order'), 'Must create admin_resume_order RPC');
+									assert.ok(pauseSql.includes('fn_client_pause_order'), 'Must create fn_client_pause_order RPC');
+									assert.ok(pauseSql.includes('fn_client_resume_order'), 'Must create fn_client_resume_order RPC');
+
+									const freshApi = fs.readFileSync(redditApiPath, 'utf8');
+									assert.ok(freshApi.includes('adminPauseOrder'), 'api.ts must export adminPauseOrder');
+									assert.ok(freshApi.includes('adminResumeOrder'), 'api.ts must export adminResumeOrder');
+									assert.ok(freshApi.includes('clientPauseOrder'), 'api.ts must export clientPauseOrder');
+									assert.ok(freshApi.includes('clientResumeOrder'), 'api.ts must export clientResumeOrder');
+									console.log('  ✓ Order Pause & Resume architecture, RPCs, and UI methods verified.');
+
+									console.log('===================================================');
+									console.log('ALL SECURITY AND QA REGRESSION CHECKS PASSED (100%)');
+									console.log('===================================================');

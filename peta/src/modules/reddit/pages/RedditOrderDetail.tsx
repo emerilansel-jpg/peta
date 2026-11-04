@@ -14,6 +14,9 @@ import {
   Star,
   Sparkles,
   AlertOctagon,
+  PauseCircle,
+  Pause,
+  Play,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { RedditLayout } from '../components/RedditLayout';
@@ -26,6 +29,8 @@ import {
   hasReviewedOrder,
   formatUSD,
   updateOrderDetail,
+  clientPauseOrder,
+  clientResumeOrder,
 } from '../lib/api';
 import { MessageBubble } from './admin/AdminTickets';
 import { ReviewRequestModal } from '../components/ReviewRequestModal';
@@ -101,6 +106,12 @@ const STATUS_CONFIG: Record<string, { label: string; class: string; icon: Elemen
     class: 'bg-blue-50 text-blue-700 ring-blue-200',
     icon: PlayCircle,
     desc: 'We are actively delivering upvotes. You can track progress here.',
+  },
+  paused: {
+    label: 'Order paused',
+    class: 'bg-purple-50 text-purple-700 ring-purple-200',
+    icon: PauseCircle,
+    desc: 'This order is currently paused. Delivery is on hold until you or our team resume it.',
   },
   completed: {
     label: 'Completed',
@@ -348,6 +359,10 @@ export function RedditOrderDetail() {
   const [cancelReason, setCancelReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
   const [cancelCountdown, setCancelCountdown] = useState(0);
+  const [showPauseModal, setShowPauseModal] = useState(false);
+  const [pauseReason, setPauseReason] = useState('');
+  const [pausing, setPausing] = useState(false);
+  const [resuming, setResuming] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const cancelState = order ? getClientCancelState(order) : { cancelable: false, remainingMs: 0, reason: '' };
@@ -380,6 +395,36 @@ export function RedditOrderDetail() {
       toast.error(err instanceof Error ? err.message : 'Failed to cancel order');
     } finally {
       setCancelling(false);
+    }
+  };
+
+  const handlePauseOrder = async () => {
+    if (!order) return;
+    setPausing(true);
+    try {
+      await clientPauseOrder(order.id, pauseReason.trim() || 'Client requested pause');
+      toast.success('Order paused. Delivery is on hold.');
+      setShowPauseModal(false);
+      setPauseReason('');
+      await load();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to pause order');
+    } finally {
+      setPausing(false);
+    }
+  };
+
+  const handleResumeOrder = async () => {
+    if (!order) return;
+    setResuming(true);
+    try {
+      await clientResumeOrder(order.id);
+      toast.success('Order resumed! Delivery is active again.');
+      await load();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to resume order');
+    } finally {
+      setResuming(false);
     }
   };
 
@@ -501,13 +546,35 @@ export function RedditOrderDetail() {
               {service.name} · {order.subreddit && !['comment', 'preferred_source', 'linkedin_like', 'linkedin_follow', 'linkedin_comment', 'trustpilot_review', 'google_maps_review', 'quora_upvote'].includes(order.target_type || 'upvote') && order.subreddit !== 'LinkedIn' && order.subreddit !== 'Google' && order.subreddit !== 'Google Maps' && order.subreddit !== 'Trustpilot' && order.subreddit !== 'Quora' ? `r/${order.subreddit}` : order.thread_url}
             </p>
           </div>
-          <button
-            onClick={load}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg ring-1 ring-slate-300 text-slate-700 hover:bg-slate-50 text-sm"
-          >
-            <RefreshCw size={12} />
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            {order.status === 'paused' ? (
+              <button
+                type="button"
+                onClick={handleResumeOrder}
+                disabled={resuming}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition shadow-sm"
+              >
+                {resuming ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} className="fill-white" />}
+                Resume Order
+              </button>
+            ) : order.status === 'processing' || order.status === 'pending' ? (
+              <button
+                type="button"
+                onClick={() => setShowPauseModal(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 ring-1 ring-purple-200 text-sm font-semibold transition"
+              >
+                <Pause size={14} />
+                Pause Order
+              </button>
+            ) : null}
+            <button
+              onClick={load}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg ring-1 ring-slate-300 text-slate-700 hover:bg-slate-50 text-sm"
+            >
+              <RefreshCw size={12} />
+              Refresh
+            </button>
+          </div>
         </div>
 
         {/* Status banner */}
@@ -755,6 +822,45 @@ export function RedditOrderDetail() {
               </div>
             </div>
 
+            {/* Pause / Resume action card */}
+            {order.status === 'paused' && (
+              <div className="p-5 rounded-2xl bg-purple-50 ring-1 ring-purple-200">
+                <div className="flex items-center gap-2 mb-2">
+                  <PauseCircle size={18} className="text-purple-600" />
+                  <h3 className="font-semibold text-sm text-purple-950">Order is paused</h3>
+                </div>
+                <p className="text-xs text-purple-900 mb-3 leading-relaxed">
+                  Worker assignments are on hold. Whenever you are ready, click resume to continue delivery seamlessly.
+                </p>
+                <button
+                  type="button"
+                  onClick={handleResumeOrder}
+                  disabled={resuming}
+                  className="w-full px-4 py-2.5 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-semibold text-sm inline-flex items-center justify-center gap-2 transition"
+                >
+                  {resuming ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} className="fill-white" />}
+                  Resume delivery now
+                </button>
+              </div>
+            )}
+
+            {(order.status === 'pending' || order.status === 'processing') && (
+              <div className="p-5 rounded-2xl bg-slate-50 ring-1 ring-slate-200">
+                <h3 className="font-semibold text-sm text-slate-900 mb-1">Need to pause this order?</h3>
+                <p className="text-xs text-slate-600 mb-3 leading-relaxed">
+                  Temporarily hold delivery (e.g. while making site updates or waiting for listings). No credits lost.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowPauseModal(true)}
+                  className="w-full px-4 py-2 rounded-lg bg-white ring-1 ring-slate-300 text-slate-700 hover:bg-slate-100 font-semibold text-sm inline-flex items-center justify-center gap-2"
+                >
+                  <Pause size={14} />
+                  Pause order
+                </button>
+              </div>
+            )}
+
             {/* Client self-cancellation window */}
             {cancelState.cancelable && (
               <div className="p-5 rounded-2xl bg-rose-50 ring-1 ring-rose-200">
@@ -811,6 +917,54 @@ export function RedditOrderDetail() {
             setHasReviewed(true);
           }}
         />
+      )}
+
+      {showPauseModal && order && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={() => setShowPauseModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center shrink-0">
+                <PauseCircle size={20} className="text-purple-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Pause order #{order.id}?</h3>
+                <p className="text-sm text-slate-600 mt-1">
+                  Delivery will be paused immediately. No worker will be assigned until you resume.
+                </p>
+              </div>
+            </div>
+            <label className="block text-sm font-semibold text-slate-700 mb-2">
+              Reason / note <span className="text-slate-400 font-normal">(optional)</span>
+            </label>
+            <textarea
+              value={pauseReason}
+              onChange={(e) => setPauseReason(e.target.value)}
+              rows={3}
+              placeholder="e.g. Waiting for listing to reappear, site updates in progress..."
+              className="w-full px-3.5 py-2.5 rounded-lg ring-1 ring-slate-300 focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none text-slate-900 bg-white mb-4"
+            />
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={() => setShowPauseModal(false)}
+                disabled={pausing}
+                className="px-4 py-2 rounded-lg text-slate-700 hover:bg-slate-100 font-semibold text-sm"
+              >
+                Back
+              </button>
+              <button
+                type="button"
+                onClick={handlePauseOrder}
+                disabled={pausing}
+                className="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 disabled:bg-slate-300 text-white font-semibold text-sm inline-flex items-center gap-2"
+              >
+                {pausing ? <Loader2 size={14} className="animate-spin" /> : <Pause size={14} />}
+                Confirm pause
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showCancelModal && order && (

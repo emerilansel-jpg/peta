@@ -12,12 +12,16 @@ import {
   Image as ImageIcon,
   Loader2,
   Link as LinkIcon,
+  Pause,
+  Play,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { AdminLayout, AdminBreadcrumb } from '../../components/AdminLayout';
 import {
   getAdminAllOrders,
   updateOrderDetail,
+  adminPauseOrder,
+  adminResumeOrder,
   adminUploadDeliveryProof,
   formatUSD,
   getTicketByOrderId,
@@ -32,6 +36,7 @@ import { cleanInternalText } from '../../../../lib/internalText';
 const STATUS_CONFIG: Record<string, { label: string; class: string; dot: string }> = {
   pending: { label: 'Pending', class: 'bg-amber-50 text-amber-700 ring-amber-200', dot: 'bg-amber-500' },
   processing: { label: 'Processing', class: 'bg-blue-50 text-blue-700 ring-blue-200', dot: 'bg-blue-500' },
+  paused: { label: 'Paused', class: 'bg-purple-50 text-purple-700 ring-purple-200', dot: 'bg-purple-500' },
   completed: { label: 'Completed', class: 'bg-emerald-50 text-emerald-700 ring-emerald-200', dot: 'bg-emerald-500' },
   cancelled: { label: 'Cancelled', class: 'bg-rose-50 text-rose-700 ring-rose-200', dot: 'bg-rose-500' },
 };
@@ -163,6 +168,28 @@ export function AdminOrders() {
     setLoading(false);
   };
 
+  const handleQuickPause = async (orderId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await adminPauseOrder(orderId, 'Paused via admin dashboard');
+      toast.success(`Order #${orderId} paused. PeTa tasks on hold.`);
+      await loadOrders();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to pause order');
+    }
+  };
+
+  const handleQuickResume = async (orderId: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await adminResumeOrder(orderId);
+      toast.success(`Order #${orderId} resumed. PeTa tasks re-activated.`);
+      await loadOrders();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to resume order');
+    }
+  };
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadOrders();
@@ -222,7 +249,7 @@ export function AdminOrders() {
         {/* Filter + search */}
         <div className="bg-white rounded-xl ring-1 ring-slate-200 p-2 mb-6 flex flex-col md:flex-row gap-2">
           <div className="flex gap-1 overflow-x-auto">
-            {['all', 'pending', 'processing', 'completed', 'cancelled'].map((f) => {
+            {['all', 'pending', 'processing', 'paused', 'completed', 'cancelled'].map((f) => {
               const count = f === 'all' ? orders.length : orders.filter((o) => o.status === f).length;
               return (
                 <button
@@ -318,13 +345,36 @@ export function AdminOrders() {
                           {new Date(order.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                         </td>
                         <td className="px-6 py-4 text-right">
-                          <button
-                            onClick={() => setEditingOrder(order)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg ring-1 ring-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-semibold"
-                          >
-                            Manage
-                            <ChevronRight size={12} />
-                          </button>
+                          <div className="flex items-center justify-end gap-1.5">
+                            {order.status === 'paused' ? (
+                              <button
+                                type="button"
+                                onClick={(e) => handleQuickResume(order.id, e)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 ring-1 ring-emerald-200 text-xs font-semibold"
+                                title="Resume delivery"
+                              >
+                                <Play size={11} className="fill-emerald-700" />
+                                Resume
+                              </button>
+                            ) : order.status === 'processing' || order.status === 'pending' ? (
+                              <button
+                                type="button"
+                                onClick={(e) => handleQuickPause(order.id, e)}
+                                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-purple-50 text-purple-700 hover:bg-purple-100 ring-1 ring-purple-200 text-xs font-semibold"
+                                title="Pause delivery"
+                              >
+                                <Pause size={11} />
+                                Pause
+                              </button>
+                            ) : null}
+                            <button
+                              onClick={() => setEditingOrder(order)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg ring-1 ring-slate-300 text-slate-700 hover:bg-slate-50 text-xs font-semibold"
+                            >
+                              Manage
+                              <ChevronRight size={12} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -726,6 +776,7 @@ function OrderEditModal({
             >
               <option value="pending">Pending — awaiting our review</option>
               <option value="processing">Processing — delivery in progress</option>
+              <option value="paused">Paused — delivery on hold</option>
               <option value="completed">Completed — delivery done</option>
               <option value="cancelled">Cancelled — credits refunded automatically</option>
             </select>
