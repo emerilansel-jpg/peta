@@ -335,13 +335,40 @@ assert.ok(redditNewOrderCode.includes('!wantsSuggestion ? 1'), 'RedditNewOrder m
 									assert.ok(pauseSql.includes('fn_client_pause_order'), 'Must create fn_client_pause_order RPC');
 									assert.ok(pauseSql.includes('fn_client_resume_order'), 'Must create fn_client_resume_order RPC');
 
-									const freshApi = fs.readFileSync(redditApiPath, 'utf8');
-									assert.ok(freshApi.includes('adminPauseOrder'), 'api.ts must export adminPauseOrder');
-									assert.ok(freshApi.includes('adminResumeOrder'), 'api.ts must export adminResumeOrder');
-									assert.ok(freshApi.includes('clientPauseOrder'), 'api.ts must export clientPauseOrder');
-									assert.ok(freshApi.includes('clientResumeOrder'), 'api.ts must export clientResumeOrder');
-									console.log('  ✓ Order Pause & Resume architecture, RPCs, and UI methods verified.');
+										const freshApi = fs.readFileSync(redditApiPath, 'utf8');
+										assert.ok(freshApi.includes('adminPauseOrder'), 'api.ts must export adminPauseOrder');
+										assert.ok(freshApi.includes('adminResumeOrder'), 'api.ts must export adminResumeOrder');
+										assert.ok(freshApi.includes('clientPauseOrder'), 'api.ts must export clientPauseOrder');
+										assert.ok(freshApi.includes('clientResumeOrder'), 'api.ts must export clientResumeOrder');
+										console.log('  ✓ Order Pause & Resume architecture, RPCs, and UI methods verified.');
 
-									console.log('===================================================');
-									console.log('ALL SECURITY AND QA REGRESSION CHECKS PASSED (100%)');
-									console.log('===================================================');
+										// 20. Verify Dynamic Service Architecture, Live Proofs & B2B Invoicing
+										console.log('20. Checking Dynamic Service Architecture, Live Proofs & B2B Invoicing...');
+										const dynamicCatalogPath = path.join(rootDir, 'supabase', 'migrations', '20261105000000_straight_dynamic_service_catalog.sql');
+										assert.ok(fs.existsSync(dynamicCatalogPath), 'Migration 20261105000000 must exist');
+										const dynamicCatalogSql = fs.readFileSync(dynamicCatalogPath, 'utf8');
+										assert.ok(dynamicCatalogSql.includes('straight_services'), 'Must create straight_services table');
+										assert.ok(dynamicCatalogSql.includes('admin_upsert_straight_service'), 'Must create admin_upsert_straight_service');
+										assert.ok(dynamicCatalogSql.includes('admin_toggle_straight_service'), 'Must create admin_toggle_straight_service');
+										assert.ok(dynamicCatalogSql.includes('fn_create_generic_service_order'), 'Must create fn_create_generic_service_order');
+										assert.ok(dynamicCatalogSql.includes('fn_get_order_delivery_proofs'), 'Must create fn_get_order_delivery_proofs');
+
+										assert.ok(freshApi.includes('getStraightServices'), 'api.ts must export getStraightServices');
+										assert.ok(freshApi.includes('getAdminAllStraightServices'), 'api.ts must export getAdminAllStraightServices');
+										assert.ok(freshApi.includes('adminUpsertStraightService'), 'api.ts must export adminUpsertStraightService');
+										assert.ok(freshApi.includes('createGenericServiceOrder'), 'api.ts must export createGenericServiceOrder');
+										assert.ok(freshApi.includes('getOrderDeliveryProofs'), 'api.ts must export getOrderDeliveryProofs');
+
+										const adminServicesPath = path.join(rootDir, 'src', 'modules', 'reddit', 'pages', 'admin', 'AdminServices.tsx');
+										assert.ok(fs.existsSync(adminServicesPath), 'AdminServices.tsx must exist');
+
+										const dynamicFormPath = path.join(rootDir, 'src', 'modules', 'reddit', 'components', 'DynamicServiceOrderForm.tsx');
+										assert.ok(fs.existsSync(dynamicFormPath), 'DynamicServiceOrderForm.tsx must exist');
+
+										const invoiceModalPath = path.join(rootDir, 'src', 'modules', 'reddit', 'components', 'InvoiceModal.tsx');
+										assert.ok(fs.existsSync(invoiceModalPath), 'InvoiceModal.tsx must exist');
+										console.log('  ✓ Dynamic Service Architecture, Live Proofs & B2B Invoicing verified.');
+
+										console.log('===================================================');
+										console.log('ALL SECURITY AND QA REGRESSION CHECKS PASSED (100%)');
+										console.log('===================================================');

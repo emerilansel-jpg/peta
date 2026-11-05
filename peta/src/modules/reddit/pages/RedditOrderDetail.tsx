@@ -17,6 +17,11 @@ import {
   PauseCircle,
   Pause,
   Play,
+  FileText,
+  Download,
+  FileSpreadsheet,
+  Eye,
+  X,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { RedditLayout } from '../components/RedditLayout';
@@ -31,9 +36,13 @@ import {
   updateOrderDetail,
   clientPauseOrder,
   clientResumeOrder,
+  getOrderDeliveryProofs,
+  getOrderCancellationPreview,
+  type OrderDeliveryProof,
 } from '../lib/api';
 import { MessageBubble } from './admin/AdminTickets';
 import { ReviewRequestModal } from '../components/ReviewRequestModal';
+import { InvoiceModal } from '../components/InvoiceModal';
 import { EmailWhitelistNotice } from '../components/EmailWhitelistNotice';
 import { useRealtimeRefresh } from '../hooks/useRealtimeRefresh';
 import { cleanInternalText } from '../../../lib/internalText';
@@ -363,6 +372,21 @@ export function RedditOrderDetail() {
   const [pauseReason, setPauseReason] = useState('');
   const [pausing, setPausing] = useState(false);
   const [resuming, setResuming] = useState(false);
+  const [proofs, setProofs] = useState<OrderDeliveryProof[]>([]);
+  const [activeLightboxImg, setActiveLightboxImg] = useState<string | null>(null);
+  const [cancellationPreview, setCancellationPreview] = useState<{
+    ok: boolean;
+    order_id: number;
+    requested_units: number;
+    delivered_units: number;
+    locked_active_units: number;
+    total_committed: number;
+    refundable_units: number;
+    refund_amount: number;
+    can_cancel: boolean;
+  } | null>(null);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ email: string; fullName?: string }>({ email: '' });
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const cancelState = order ? getClientCancelState(order) : { cancelable: false, remainingMs: 0, reason: '' };
@@ -378,6 +402,42 @@ export function RedditOrderDetail() {
     }, 1000);
     return () => clearInterval(timer);
   }, [cancelState.cancelable, cancelState.remainingMs]);
+
+  const handleExportCSV = () => {
+    if (!order) return;
+    const rows = [
+      ['Order ID', 'Service', 'Target URL', 'Unit #', 'Live Public Link', 'Screenshot URL', 'Status', 'Verified At'],
+      ...proofs.map((p, idx) => [
+        String(order.id),
+        order.subreddit || order.target_type || 'Engagement',
+        order.thread_url,
+        String(idx + 1),
+        p.proof_url || '',
+        p.proof_image_url || '',
+        p.status,
+        p.approved_at ? new Date(p.approved_at).toISOString() : '',
+      ]),
+    ];
+
+    const csvContent =
+      'data:text/csv;charset=utf-8,' +
+      rows
+        .map((r) =>
+          r
+            .map((field) => `"${String(field).replace(/"/g, '""')}"`)
+            .join(',')
+        )
+        .join('\n');
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', `straight-order-${order.id}-report.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success('CSV delivery report downloaded!');
+  };
 
   const handleCancelOrder = async () => {
     if (!order || !cancelReason.trim()) return;
@@ -457,6 +517,20 @@ export function RedditOrderDetail() {
       // Check if user has already reviewed this order
       const reviewed = await hasReviewedOrder(parseInt(orderId), 'internal');
       setHasReviewed(reviewed);
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setCurrentUser({
+          email: user.email || '',
+          fullName: user.user_metadata?.full_name || '',
+        });
+      }
+
+      const p = await getOrderDeliveryProofs(parseInt(orderId));
+      setProofs(p);
+
+      const cancelPrev = await getOrderCancellationPreview(parseInt(orderId));
+      setCancellationPreview(cancelPrev);
     } catch {
       toast.error('Failed to load order');
     } finally {
@@ -470,7 +544,7 @@ export function RedditOrderDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId]);
 
-  // Realtime: refresh when new messages arrive or order updates
+  // Realtime: refresh when new messages arrive, order updates, or deliverables added
   useRealtimeRefresh(
     { table: 'ticket_messages', event: 'INSERT', filter: ticket ? `ticket_id=eq.${ticket.id}` : undefined },
     () => load(),
@@ -478,6 +552,11 @@ export function RedditOrderDetail() {
   );
   useRealtimeRefresh(
     { table: 'reddit_upvote_orders', event: 'UPDATE', filter: orderId ? `id=eq.${orderId}` : undefined },
+    () => load(),
+    [orderId]
+  );
+  useRealtimeRefresh(
+    { table: 'order_deliverables', event: '*', filter: orderId ? `order_id=eq.${orderId}` : undefined },
     () => load(),
     [orderId]
   );
@@ -568,6 +647,14 @@ export function RedditOrderDetail() {
               </button>
             ) : null}
             <button
+              type="button"
+              onClick={() => setShowInvoiceModal(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg ring-1 ring-slate-300 text-slate-700 hover:bg-slate-50 text-sm font-semibold transition"
+            >
+              <FileText size={14} className="text-slate-500" />
+              Receipt
+            </button>
+            <button
               onClick={load}
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg ring-1 ring-slate-300 text-slate-700 hover:bg-slate-50 text-sm"
             >
@@ -624,8 +711,104 @@ export function RedditOrderDetail() {
           </div>
         )}
 
-        {/* Delivery proof (visible when admin uploaded) */}
-        {(order.delivery_proof_text || order.delivery_proof_url) && (
+        {/* Verified Deliverables (Relational Multi-Item Delivery Proofs) */}
+        {proofs.length > 0 ? (
+          <div className="mb-6 p-5 rounded-2xl bg-white ring-1 ring-emerald-200 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-emerald-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+                  <CheckCircle2 size={18} className="text-emerald-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900 text-base">
+                    Verified Deliverables ({proofs.length} of {order.requested_upvotes})
+                  </h3>
+                  <p className="text-xs text-slate-500">Live review URLs & screenshot proofs verified by our team</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleExportCSV}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-700 text-xs font-semibold ring-1 ring-emerald-200 transition shrink-0"
+                title="Download full deliverables as spreadsheet"
+              >
+                <FileSpreadsheet size={14} />
+                Export CSV Report
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              {proofs.map((p, idx) => (
+                <div
+                  key={p.assignment_id || idx}
+                  className="p-3.5 rounded-xl bg-slate-50 ring-1 ring-slate-200/80 flex flex-col md:flex-row md:items-center justify-between gap-3 hover:bg-slate-100/60 transition"
+                >
+                  <div className="flex items-start md:items-center gap-3 min-w-0">
+                    <span className="w-7 h-7 rounded-lg bg-emerald-600 text-white font-bold text-xs flex items-center justify-center shrink-0">
+                      #{p.item_index || idx + 1}
+                    </span>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-bold text-sm text-slate-900">
+                          {p.submitted_username || 'Verified Reviewer'}
+                        </span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">
+                          Verified ✓
+                        </span>
+                      </div>
+                      {p.proof_url ? (
+                        <a
+                          href={p.proof_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="mt-0.5 text-xs text-orange-600 hover:text-orange-700 hover:underline inline-flex items-center gap-1 font-medium break-all"
+                        >
+                          {p.proof_url}
+                          <ExternalLink size={11} className="shrink-0" />
+                        </a>
+                      ) : (
+                        <p className="mt-0.5 text-xs text-slate-500 italic">Direct platform verification</p>
+                      )}
+                      {p.approved_at && (
+                        <p className="text-[11px] text-slate-400 mt-0.5">
+                          Delivered on {new Date(p.approved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Screenshot Thumbnail */}
+                  {p.proof_image_url && (
+                    <div className="flex items-center gap-2 shrink-0 self-end md:self-center">
+                      <button
+                        type="button"
+                        onClick={() => setActiveLightboxImg(p.proof_image_url)}
+                        className="group relative rounded-lg overflow-hidden ring-1 ring-slate-300 hover:ring-orange-400 transition"
+                        title="Click to view full screenshot"
+                      >
+                        <img
+                          src={p.proof_image_url}
+                          alt={`Proof #${p.item_index || idx + 1}`}
+                          className="w-16 h-12 object-cover"
+                        />
+                        <div className="absolute inset-0 bg-slate-900/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white">
+                          <Eye size={14} />
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveLightboxImg(p.proof_image_url)}
+                        className="text-xs font-semibold text-slate-600 hover:text-orange-600 inline-flex items-center gap-1"
+                      >
+                        View Proof <Eye size={12} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (order.delivery_proof_text || order.delivery_proof_url) ? (
           <div className="mb-6 p-5 rounded-2xl bg-white ring-1 ring-emerald-200 shadow-sm">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center">
@@ -660,6 +843,94 @@ export function RedditOrderDetail() {
                 <ExternalLink size={12} />
               </a>
             ) : null}
+          </div>
+        ) : null}
+
+        {/* Live Verified Delivery Proofs (Phase 4) */}
+        {proofs.length > 0 && (
+          <div className="mb-6 p-6 rounded-2xl bg-white ring-1 ring-slate-200 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600">
+                  <CheckCircle2 size={18} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900">Verified Delivery Proofs</h3>
+                  <p className="text-xs text-slate-500">
+                    {proofs.length} completed submission{proofs.length === 1 ? '' : 's'} recorded & verified
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleExportCSV}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold self-start sm:self-auto transition"
+              >
+                <Download size={13} /> Export Report (CSV)
+              </button>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-100 text-slate-400 font-semibold uppercase">
+                    <th className="py-2.5 px-3">Unit</th>
+                    <th className="py-2.5 px-3">Live Link / Public URL</th>
+                    <th className="py-2.5 px-3">Proof Screenshot</th>
+                    <th className="py-2.5 px-3">Date</th>
+                    <th className="py-2.5 px-3 text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {proofs.map((p, idx) => (
+                    <tr key={p.assignment_id || idx} className="hover:bg-slate-50/60">
+                      <td className="py-3 px-3 font-bold text-slate-900">#{idx + 1}</td>
+                      <td className="py-3 px-3 font-mono">
+                        {p.proof_url ? (
+                          <a
+                            href={p.proof_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-orange-600 hover:underline inline-flex items-center gap-1 break-all max-w-xs md:max-w-md truncate"
+                          >
+                            {p.proof_url} <ExternalLink size={10} className="shrink-0" />
+                          </a>
+                        ) : (
+                          <span className="text-slate-400">Verified in screenshot</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-3">
+                        {p.proof_image_url ? (
+                          <a
+                            href={p.proof_image_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 text-slate-600 hover:text-slate-900 font-medium"
+                          >
+                            <img
+                              src={p.proof_image_url}
+                              alt="Proof thumb"
+                              className="w-7 h-7 object-cover rounded ring-1 ring-slate-200"
+                            />
+                            <span>View proof</span>
+                          </a>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-3 text-slate-500">
+                        {p.approved_at ? new Date(p.approved_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recently'}
+                      </td>
+                      <td className="py-3 px-3 text-right">
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200">
+                          <CheckCircle2 size={10} /> Verified
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
@@ -867,20 +1138,30 @@ export function RedditOrderDetail() {
                 <h3 className="font-semibold text-sm text-slate-900 mb-1">Want to cancel this order?</h3>
                 <p className="text-xs text-slate-600 mb-3">
                   You can cancel automatically within <strong className="text-slate-900">6 hours</strong> of placing the order.
-                  {order.requested_upvotes > 1
+                  {cancellationPreview && cancellationPreview.locked_active_units > 0
+                    ? ` ${cancellationPreview.locked_active_units} unit(s) are actively in progress by our delivery team and protected from cancellation. The remaining ${cancellationPreview.refundable_units} uncommitted unit(s) will be refunded.`
+                    : order.requested_upvotes > 1
                     ? ' Unused credits will be refunded pro-rata based on what has not been delivered.'
                     : ' Your payment will be fully refunded as long as nothing has been delivered.'}
                 </p>
-                <p className="text-xs font-medium text-rose-700 mb-3">
-                  Window closes in: {formatCountdown(cancelCountdown)}
-                </p>
-                <button
-                  onClick={() => setShowCancelModal(true)}
-                  className="w-full px-4 py-2 rounded-lg bg-rose-100 text-rose-700 hover:bg-rose-200 font-semibold text-sm inline-flex items-center justify-center gap-2"
-                >
-                  <AlertOctagon size={14} />
-                  Cancel order
-                </button>
+                {cancellationPreview && !cancellationPreview.can_cancel ? (
+                  <div className="p-3 rounded-lg bg-amber-50 ring-1 ring-amber-200 text-amber-800 text-xs font-medium mb-3">
+                    All units are actively in progress or completed. Cancellation is no longer available.
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-xs font-medium text-rose-700 mb-3">
+                      Window closes in: {formatCountdown(cancelCountdown)}
+                    </p>
+                    <button
+                      onClick={() => setShowCancelModal(true)}
+                      className="w-full px-4 py-2 rounded-lg bg-rose-100 text-rose-700 hover:bg-rose-200 font-semibold text-sm inline-flex items-center justify-center gap-2"
+                    >
+                      <AlertOctagon size={14} />
+                      Cancel order
+                    </button>
+                  </>
+                )}
               </div>
             )}
             {!cancelState.cancelable && order.status !== 'cancelled' && order.status !== 'completed' && (
@@ -984,6 +1265,17 @@ export function RedditOrderDetail() {
                 </p>
               </div>
             </div>
+
+            {cancellationPreview && cancellationPreview.locked_active_units > 0 && (
+              <div className="mb-4 p-3 rounded-lg bg-amber-50 ring-1 ring-amber-200 text-xs text-amber-900">
+                <p className="font-bold">Cancellation Lock Notice:</p>
+                <p className="mt-0.5">
+                  <b>{cancellationPreview.locked_active_units} unit(s)</b> are actively in progress by our delivery team and will complete as scheduled.
+                  Your account will receive a refund of <b>{formatUSD(cancellationPreview.refund_amount)}</b> for the {cancellationPreview.refundable_units} uncommitted unit(s).
+                </p>
+              </div>
+            )}
+
             <label className="block text-sm font-semibold text-slate-700 mb-2">
               Reason for cancellation <span className="text-rose-600">*</span>
             </label>
@@ -1010,6 +1302,56 @@ export function RedditOrderDetail() {
                 {cancelling ? <Loader2 size={14} className="animate-spin" /> : <XCircle size={14} />}
                 Confirm cancellation
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showInvoiceModal && order && (
+        <InvoiceModal
+          order={order}
+          serviceName={service.name}
+          client={currentUser}
+          onClose={() => setShowInvoiceModal(false)}
+        />
+      )}
+
+      {/* Screenshot Lightbox Modal */}
+      {activeLightboxImg && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm"
+            onClick={() => setActiveLightboxImg(null)}
+          />
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-4xl max-h-[90vh] overflow-hidden flex flex-col p-4 z-10 w-full">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-200">
+              <h4 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+                <Eye size={16} className="text-orange-600" /> Screenshot Delivery Proof
+              </h4>
+              <div className="flex items-center gap-2">
+                <a
+                  href={activeLightboxImg}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 inline-flex items-center gap-1"
+                >
+                  Open Original <ExternalLink size={12} />
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setActiveLightboxImg(null)}
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            </div>
+            <div className="overflow-auto p-2 flex items-center justify-center max-h-[75vh]">
+              <img
+                src={activeLightboxImg}
+                alt="Full screenshot"
+                className="rounded-lg object-contain max-h-[72vh] w-auto max-w-full ring-1 ring-slate-200 shadow"
+              />
             </div>
           </div>
         </div>

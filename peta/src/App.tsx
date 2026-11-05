@@ -48,6 +48,7 @@ import { RedditForgotPassword } from './modules/reddit/pages/RedditForgotPasswor
 import { RedditResetPassword } from './modules/reddit/pages/RedditResetPassword';
 import { AdminOverview } from './modules/reddit/pages/admin/AdminOverview';
 import { AdminOrders as RedditAdminOrders } from './modules/reddit/pages/admin/AdminOrders';
+import { AdminServices as RedditAdminServices } from './modules/reddit/pages/admin/AdminServices';
 import { AdminTickets as RedditAdminTickets } from './modules/reddit/pages/admin/AdminTickets';
 import { AdminClients as RedditAdminClients } from './modules/reddit/pages/admin/AdminClients';
 import { AdminFinance as RedditAdminFinance } from './modules/reddit/pages/admin/AdminFinance';
@@ -180,6 +181,7 @@ function App() {
           <Route path="/contact" element={<StraightOnly><ContactPage /></StraightOnly>} />
           <Route path="/admin" element={<HostRoute straight={<AdminGuard><AdminOverview /></AdminGuard>} peta={<AdminRouteWrapper><AdminGuard><AdminDashboard /></AdminGuard></AdminRouteWrapper>} />} />
           <Route path="/admin/orders" element={<StraightOnly><AdminGuard><RedditAdminOrders /></AdminGuard></StraightOnly>} />
+          <Route path="/admin/services" element={<StraightOnly><AdminGuard><RedditAdminServices /></AdminGuard></StraightOnly>} />
           <Route path="/admin/tickets" element={<StraightOnly><AdminGuard><RedditAdminTickets /></AdminGuard></StraightOnly>} />
           <Route path="/admin/tickets/:ticketId" element={<StraightOnly><AdminGuard><RedditAdminTickets /></AdminGuard></StraightOnly>} />
           <Route path="/admin/clients" element={<StraightOnly><AdminGuard><RedditAdminClients /></AdminGuard></StraightOnly>} />
@@ -222,6 +224,7 @@ function App() {
           {/* Reddit Admin Routes */}
           <Route path="/reddit/admin" element={<LegacyRedditRedirect fallback={<AdminGuard><AdminOverview /></AdminGuard>} />} />
           <Route path="/reddit/admin/orders" element={<LegacyRedditRedirect fallback={<AdminGuard><RedditAdminOrders /></AdminGuard>} />} />
+          <Route path="/reddit/admin/services" element={<LegacyRedditRedirect fallback={<AdminGuard><RedditAdminServices /></AdminGuard>} />} />
           <Route path="/reddit/admin/tickets" element={<LegacyRedditRedirect fallback={<AdminGuard><RedditAdminTickets /></AdminGuard>} />} />
           <Route path="/reddit/admin/tickets/:ticketId" element={<LegacyRedditRedirect fallback={<AdminGuard><RedditAdminTickets /></AdminGuard>} />} />
           <Route path="/reddit/admin/clients" element={<LegacyRedditRedirect fallback={<AdminGuard><RedditAdminClients /></AdminGuard>} />} />

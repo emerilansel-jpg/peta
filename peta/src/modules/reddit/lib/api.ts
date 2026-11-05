@@ -1809,3 +1809,196 @@ export async function adminUploadDeliveryProof(orderId: number, file: File): Pro
     .getPublicUrl(path);
   return urlData.publicUrl;
 }
+
+// ============================================================
+// DYNAMIC SERVICE CATALOG & LIVE PROOFS API
+// ============================================================
+
+export interface StraightServiceRecord {
+  id: number;
+  slug: string;
+  name: string;
+  badge_text?: string | null;
+  platform: string;
+  category: string;
+  task_type: string;
+  unit_price_cents: number;
+  worker_reward_idr: number;
+  min_quantity: number;
+  max_quantity: number;
+  url_pattern?: string | null;
+  url_placeholder?: string | null;
+  form_config: {
+    requires_url?: boolean;
+    url_label?: string;
+    url_helper?: string;
+    allows_brief?: boolean;
+    allows_custom_drafts?: boolean;
+    min_draft_length?: number;
+    allows_location?: boolean;
+    requires_location?: boolean;
+    allows_drip_feed?: boolean;
+    default_drip_hours?: number;
+  };
+  worker_sop: string;
+  worker_brief_template?: string | null;
+  icon: string;
+  theme_color: string;
+  enabled: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OrderDeliveryProof {
+  assignment_id: string;
+  status: string;
+  proof_url: string;
+  proof_image_url: string;
+  submitted_username: string;
+  submitted_at: string;
+  approved_at: string;
+  item_index?: number;
+}
+
+// Fetch all active services for client
+export async function getStraightServices(): Promise<StraightServiceRecord[]> {
+  const { data, error } = await supabase
+    .from('straight_services')
+    .select('*')
+    .eq('enabled', true)
+    .order('sort_order', { ascending: true })
+    .order('id', { ascending: true });
+
+  if (error) {
+    console.error('Failed to fetch straight services:', error);
+    return [];
+  }
+  return (data || []) as StraightServiceRecord[];
+}
+
+// Fetch all services for admin
+export async function getAdminAllStraightServices(): Promise<StraightServiceRecord[]> {
+  const { data, error } = await supabase
+    .from('straight_services')
+    .select('*')
+    .order('sort_order', { ascending: true })
+    .order('id', { ascending: true });
+
+  if (error) throw error;
+  return (data || []) as StraightServiceRecord[];
+}
+
+// Admin upsert service
+export async function adminUpsertStraightService(
+  service: Partial<StraightServiceRecord> & { slug: string; name: string; platform: string; unit_price_cents: number; worker_reward_idr: number }
+): Promise<StraightServiceRecord> {
+  const { data, error } = await supabase.rpc('admin_upsert_straight_service', {
+    p_slug: service.slug,
+    p_name: service.name,
+    p_platform: service.platform,
+    p_category: service.category || 'review',
+    p_task_type: service.task_type || 'comment',
+    p_unit_price_cents: service.unit_price_cents,
+    p_worker_reward_idr: service.worker_reward_idr,
+    p_min_quantity: service.min_quantity || 1,
+    p_max_quantity: service.max_quantity || 100,
+    p_badge_text: service.badge_text || null,
+    p_url_pattern: service.url_pattern || null,
+    p_url_placeholder: service.url_placeholder || null,
+    p_form_config: service.form_config || {},
+    p_worker_sop: service.worker_sop || '',
+    p_worker_brief_template: service.worker_brief_template || null,
+    p_icon: service.icon || 'Star',
+    p_theme_color: service.theme_color || 'emerald',
+    p_enabled: service.enabled !== false,
+    p_sort_order: service.sort_order || 0,
+  });
+
+  if (error) throw error;
+  return data as StraightServiceRecord;
+}
+
+// Admin toggle service
+export async function adminToggleStraightService(slug: string, enabled: boolean): Promise<StraightServiceRecord> {
+  const { data, error } = await supabase.rpc('admin_toggle_straight_service', {
+    p_slug: slug,
+    p_enabled: enabled,
+  });
+  if (error) throw error;
+  return data as StraightServiceRecord;
+}
+
+// Admin delete service
+export async function adminDeleteStraightService(slug: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('admin_delete_straight_service', {
+    p_slug: slug,
+  });
+  if (error) throw error;
+  return !!data;
+}
+
+// Universal Service Order RPC call
+export async function createGenericServiceOrder(params: {
+  serviceSlug: string;
+  targetUrl: string;
+  quantity: number;
+  location?: string | null;
+  notes?: string | null;
+  reviewMode?: 'brief' | 'custom' | null;
+  reviewBrief?: string | null;
+  reviewDrafts?: { comment_text: string }[] | null;
+  dripIntervalHours?: number;
+  requestId?: string;
+}) {
+  const { data, error } = await supabase.rpc('fn_create_generic_service_order', {
+    p_service_slug: params.serviceSlug,
+    p_target_url: params.targetUrl,
+    p_quantity: params.quantity,
+    p_location: params.location || null,
+    p_notes: params.notes || null,
+    p_review_mode: params.reviewMode || null,
+    p_review_brief: params.reviewBrief || null,
+    p_review_drafts: params.reviewDrafts || null,
+    p_drip_interval_hours: params.dripIntervalHours || 0,
+    p_request_id: params.requestId || null,
+  });
+
+  if (error) throw error;
+  return data;
+}
+
+// Client / Admin fetch verified live delivery proofs
+export async function getOrderDeliveryProofs(orderId: number): Promise<OrderDeliveryProof[]> {
+  const { data, error } = await supabase.rpc('fn_get_order_delivery_proofs', {
+    p_order_id: orderId,
+  });
+
+  if (error) {
+    console.warn('Failed to fetch delivery proofs:', error);
+    return [];
+  }
+  return (data || []) as OrderDeliveryProof[];
+}
+
+export async function getOrderCancellationPreview(orderId: number): Promise<{
+  ok: boolean;
+  order_id: number;
+  requested_units: number;
+  delivered_units: number;
+  locked_active_units: number;
+  total_committed: number;
+  refundable_units: number;
+  refund_amount: number;
+  can_cancel: boolean;
+  error?: string;
+} | null> {
+  const { data, error } = await supabase.rpc('get_order_cancellation_preview', {
+    p_order_id: orderId,
+  });
+  if (error) {
+    console.warn('Failed to fetch cancellation preview:', error);
+    return null;
+  }
+  return data;
+}

@@ -17,6 +17,7 @@ import {
   Menu,
   X,
   ChevronRight,
+  Layers,
 } from 'lucide-react';
 import { supabase } from '../../../lib/supabase';
 import { getAdminUnreadTicketsCount } from '../lib/api';
@@ -67,6 +68,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
   const navItems = [
     { href: spath('/admin'), label: 'Overview', icon: LayoutDashboard, exact: true },
     { href: spath('/admin/orders'), label: 'Orders', icon: ShoppingCart },
+    { href: spath('/admin/services'), label: 'Services', icon: Layers },
     { href: spath('/admin/tickets'), label: 'Messages', icon: MessageSquare, badge: unreadCount },
     { href: spath('/admin/clients'), label: 'Clients', icon: Users },
     { href: spath('/admin/retention'), label: 'Retention', icon: HeartPulse },

@@ -1,7 +1,7 @@
 import { spath } from '../lib/path';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import type { ElementType } from 'react';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import {
   ArrowRight,
   AlertCircle,
@@ -38,9 +38,19 @@ import {
 import { toast } from 'react-hot-toast';
 import { RedditLayout } from '../components/RedditLayout';
 import { EmailWhitelistNotice } from '../components/EmailWhitelistNotice';
+import { DynamicServiceOrderForm } from '../components/DynamicServiceOrderForm';
 import { useRedditCredits } from '../hooks/useRedditCredits';
 import { useRedditOrders } from '../hooks/useRedditOrders';
-import { formatUSD, generateForumComment, submitFeatureRequest, straightPrice, straightEnabled, straightPlatformKey } from '../lib/api';
+import {
+  formatUSD,
+  generateForumComment,
+  submitFeatureRequest,
+  straightPrice,
+  straightEnabled,
+  straightPlatformKey,
+  getStraightServices,
+  type StraightServiceRecord,
+} from '../lib/api';
 import { useStraightPricing, useStraightRedditServiceEnabled } from '../hooks/useStraightPricing';
 
 const PRESET_QUANTITIES = [25, 50, 100, 250, 500];
@@ -515,7 +525,8 @@ type ViewMode =
   | 'quora-upvote'
   | 'reseller-order'
   | 'coming-soon'
-  | 'feature-request';
+  | 'feature-request'
+  | 'dynamic-service';
 
 type BulkForumTarget = {
   keyword: string;
@@ -525,6 +536,8 @@ type BulkForumTarget = {
 };
 
 export function RedditNewOrder() {
+  const navigate = useNavigate();
+  const { balance } = useRedditCredits();
   const [searchParams] = useSearchParams();
   const serviceParam = searchParams.get('service');
   const startsInComments = serviceParam === 'comments';
@@ -532,6 +545,9 @@ export function RedditNewOrder() {
   const startsInClutch = serviceParam === 'clutch' || serviceParam === 'clutch-review';
   const startsInTrustpilot = serviceParam === 'trustpilot' || serviceParam === 'trustpilot-review';
   const startsInGoogleMaps = serviceParam === 'gmaps' || serviceParam === 'google-maps';
+
+  const [dynamicServices, setDynamicServices] = useState<StraightServiceRecord[]>([]);
+  const [selectedDynamicService, setSelectedDynamicService] = useState<StraightServiceRecord | null>(null);
 
   const [view, setView] = useState<ViewMode>(() => {
     if (startsInComments) return 'reddit-comment';
@@ -541,6 +557,20 @@ export function RedditNewOrder() {
     if (startsInGoogleMaps) return 'google-maps-review';
     return 'select';
   });
+
+  useEffect(() => {
+    getStraightServices().then((list) => {
+      setDynamicServices(list);
+      if (serviceParam) {
+        const cleanParam = serviceParam.toLowerCase().replace(/-/g, '_');
+        const match = list.find((s) => s.slug === cleanParam || s.slug === serviceParam);
+        if (match && !['comments', 'yelp', 'yelp-review', 'clutch', 'clutch-review', 'trustpilot', 'trustpilot-review', 'gmaps', 'google-maps'].includes(serviceParam)) {
+          setSelectedDynamicService(match);
+          setView('dynamic-service');
+        }
+      }
+    });
+  }, [serviceParam]);
   const [activeService, setActiveService] = useState<Service | null>(() => {
     if (startsInComments) return SERVICES.find((s) => s.id === 'reddit-comment') || null;
     if (startsInYelp) return SERVICES.find((s) => s.id === 'yelp-review') || null;
@@ -643,14 +673,36 @@ export function RedditNewOrder() {
     }
   };
 
+  const handleSelectDynamic = (s: StraightServiceRecord) => {
+    setSelectedDynamicService(s);
+    setView('dynamic-service');
+  };
+
   const handleBack = () => {
     setView('select');
     setActiveService(null);
+    setSelectedDynamicService(null);
   };
 
   return (
     <RedditLayout>
-      {view === 'select' && <ServiceSelector services={services} onSelect={handleServiceClick} />}
+      {view === 'select' && (
+        <ServiceSelector
+          services={services}
+          dynamicServices={dynamicServices}
+          onSelect={handleServiceClick}
+          onSelectDynamic={handleSelectDynamic}
+        />
+      )}
+      {view === 'dynamic-service' && selectedDynamicService && (
+        <DynamicServiceOrderForm
+          service={selectedDynamicService}
+          onBack={handleBack}
+          onSuccess={(orderId: number) => navigate(spath(`/orders/${orderId}`))}
+          credits={balance || 0}
+          onTopup={() => navigate(spath('/topup'))}
+        />
+      )}
       {view === 'reddit-upvote' && <RedditUpvoteOrderForm onBack={handleBack} />}
       {view === 'youtube-upload' && <YouTubeUploadOrderForm onBack={handleBack} />}
       {view === 'preferred-source' && <PreferredSourceOrderForm onBack={handleBack} />}
@@ -684,7 +736,17 @@ export function RedditNewOrder() {
 // ============================================================
 // View 1: Service Selector
 // ============================================================
-function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect: (s: Service) => void }) {
+function ServiceSelector({
+  services,
+  dynamicServices = [],
+  onSelect,
+  onSelectDynamic,
+}: {
+  services: Service[];
+  dynamicServices?: StraightServiceRecord[];
+  onSelect: (s: Service) => void;
+  onSelectDynamic?: (s: StraightServiceRecord) => void;
+}) {
   const [activeFilter, setActiveFilter] = useState<'all' | 'reviews' | 'yelp' | 'clutch' | 'google' | 'linkedin' | 'social' | 'video' | 'twitter'>('all');
 
   // Hide paused services entirely — admin turned them off.
@@ -731,6 +793,10 @@ function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect
   const twitterServices = visible.filter((s) => s.platform === 'X (Twitter)');
   const forumServices = visible.filter((s) => s.platform === 'Forums' || s.platform === 'Facebook');
   const customServices = visible.filter((s) => s.platform === 'Custom');
+
+  const customDynamic = dynamicServices.filter(
+    (ds) => ds.enabled && !SERVICES.some((s) => s.id === ds.slug || s.id === ds.slug.replace(/_/g, '-'))
+  );
 
   return (
     <div className="p-6 md:p-10 max-w-6xl mx-auto">
@@ -962,6 +1028,45 @@ function ServiceSelector({ services, onSelect }: { services: Service[]; onSelect
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {forumServices.map((s) => (
               <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Dynamic & Custom Added Services from Admin Catalog */}
+      {customDynamic.length > 0 && (
+        <div className="mb-10">
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Custom & Added Services</h2>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-semibold">Live</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {customDynamic.map((ds) => (
+              <button
+                key={ds.id}
+                type="button"
+                onClick={() => onSelectDynamic && onSelectDynamic(ds)}
+                className="group text-left relative p-5 rounded-2xl border-2 transition-all border-emerald-300 bg-white hover:border-emerald-500 hover:shadow-lg ring-1 ring-emerald-100"
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 flex items-center justify-center">
+                    <Sparkles size={20} />
+                  </div>
+                  {ds.badge_text && (
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 uppercase tracking-wider">
+                      {ds.badge_text}
+                    </span>
+                  )}
+                </div>
+                <h3 className="font-bold text-slate-900 text-base mb-1">{ds.name}</h3>
+                <p className="text-xs text-slate-500 line-clamp-2 mb-3 capitalize">
+                  Platform: {ds.platform} · {formatUSD(ds.unit_price_cents)}/unit
+                </p>
+                <div className="flex items-center gap-1 text-xs font-semibold text-emerald-600 group-hover:gap-1.5 transition-all">
+                  <span>Order now</span>
+                  <ArrowRight size={12} />
+                </div>
+              </button>
             ))}
           </div>
         </div>
