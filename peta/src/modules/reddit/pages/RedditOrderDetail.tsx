@@ -33,9 +33,9 @@ import {
   markTicketRead,
   hasReviewedOrder,
   formatUSD,
-  updateOrderDetail,
   clientPauseOrder,
   clientResumeOrder,
+  clientCancelOrder,
   getOrderDeliveryProofs,
   getOrderCancellationPreview,
   type OrderDeliveryProof,
@@ -443,10 +443,7 @@ export function RedditOrderDetail() {
     if (!order || !cancelReason.trim()) return;
     setCancelling(true);
     try {
-      await updateOrderDetail(order.id, {
-        status: 'cancelled',
-        cancel_reason: cancelReason.trim(),
-      });
+      await clientCancelOrder(order.id, cancelReason.trim());
       toast.success('Order cancelled — unused credits have been refunded');
       setShowCancelModal(false);
       setCancelReason('');

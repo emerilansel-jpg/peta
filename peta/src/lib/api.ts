@@ -528,6 +528,7 @@ export interface TaskAssignment {
   draft_comment?: string | null;
   proof_url?: string | null;
   proof_image_url?: string | null;
+  proof_image_hash?: string | null;
   submitted_url?: string | null;
   submitted_username?: string | null;
   proof_urls?: string[] | null;
@@ -550,6 +551,7 @@ export type TaskAssignmentUpdate = {
   user_note?: string | null;
   proof_url?: string | null;
   proof_image_url?: string | null;
+  proof_image_hash?: string | null;
   submitted_url?: string | null;
   submitted_username?: string | null;
   status?: 'in_progress' | 'submitted' | 'approved' | 'rejected';
@@ -562,6 +564,13 @@ export type TaskAssignmentUpdate = {
   visibility_reason?: string | null;
 };
 
+export async function calculateFileSha256(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
 export async function submitAssignmentProof(
   assignmentId: string,
   data: {
@@ -572,6 +581,7 @@ export async function submitAssignmentProof(
     proof_urls?: string[];
     user_note?: string | null;
     proof_image_url?: string | null;
+    proof_image_hash?: string | null;
   }
 ): Promise<TaskAssignment> {
   const { data: assignment, error } = await supabase.rpc('submit_assignment_proof', {
@@ -583,6 +593,7 @@ export async function submitAssignmentProof(
     p_proof_urls: data.proof_urls ?? [],
     p_user_note: data.user_note ?? null,
     p_proof_image_url: data.proof_image_url ?? null,
+    p_proof_image_hash: data.proof_image_hash ?? null,
   });
   if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   return assignment as TaskAssignment;

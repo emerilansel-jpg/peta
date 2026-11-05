@@ -1796,6 +1796,16 @@ export async function clientResumeOrder(orderId: number) {
   return data;
 }
 
+// Client cancel their own order (subject to 6-hour window and cancellation lock guard)
+export async function clientCancelOrder(orderId: number, reason: string) {
+  const { data, error } = await supabase.rpc('fn_client_cancel_order', {
+    p_order_id: orderId,
+    p_reason: reason || null,
+  });
+  if (error) throw error;
+  return data;
+}
+
 // ADMIN: Upload delivery proof image
 export async function adminUploadDeliveryProof(orderId: number, file: File): Promise<string> {
   const ext = file.name.split('.').pop() || 'png';

@@ -11,7 +11,7 @@ import { Button } from '../components/Button';
 import { CardSkeleton } from '../components/Skeleton';
 import { ConfettiBurst } from '../components/Confetti';
 import { supabase } from '../lib/supabase';
-import { createTaskAssignment, submitAssignmentProof, uploadTaskProofImage, getMyYouTubeAccounts } from '../lib/api';
+import { createTaskAssignment, submitAssignmentProof, uploadTaskProofImage, getMyYouTubeAccounts, calculateFileSha256 } from '../lib/api';
 import { WHATSAPP_GROUP_URL } from '../lib/config';
 import { toast } from '../components/Toast';
 
@@ -28,6 +28,7 @@ export function TaskDetail() {
   const [proofUrl, setProofUrl] = React.useState('');
   const [submittedUsername, setSubmittedUsername] = React.useState('');
   const [proofImageUrl, setProofImageUrl] = React.useState<string | null>(null);
+  const [proofImageHash, setProofImageHash] = React.useState<string | null>(null);
   const [uploadingProof, setUploadingProof] = React.useState(false);
   const [stage, setStage] = React.useState<Stage>('preview');
   const [assignmentId, setAssignmentId] = React.useState<string>('');
@@ -59,7 +60,7 @@ export function TaskDetail() {
         : 'reddit_account_id.is.null';
       const { data: existing } = await supabase
         .from('task_assignments')
-        .select('id, status, draft_comment, user_note, proof_url, submitted_username, proof_image_url')
+        .select('id, status, draft_comment, user_note, proof_url, submitted_username, proof_image_url, proof_image_hash')
         .eq('task_id', taskId)
         .or(`user_id.eq.${data.user.id},${accountFilter}`)
         .in('status', ['in_progress', 'submitted'])
@@ -73,6 +74,7 @@ export function TaskDetail() {
         setProofUrl(existing.proof_url || '');
         setSubmittedUsername(existing.submitted_username || '');
         setProofImageUrl(existing.proof_image_url || null);
+        setProofImageHash(existing.proof_image_hash || null);
         setStage(existing.status === 'submitted' ? 'done' : 'submit');
       }
       setCheckingExistingAssignment(false);
@@ -163,6 +165,7 @@ export function TaskDetail() {
         proof_urls: proofImageUrl ? [proofImageUrl] : [],
         user_note: userNote || null,
         proof_image_url: proofImageUrl || null,
+        proof_image_hash: proofImageHash || null,
       });
     },
     onSuccess: () => {
@@ -184,6 +187,12 @@ export function TaskDetail() {
       const { data, error: authError } = await supabase.auth.getUser();
       if (authError || !data?.user) {
         throw new Error('Sesi belum aktif. Coba refresh halaman dan login ulang.');
+      }
+      try {
+        const hash = await calculateFileSha256(file);
+        setProofImageHash(hash);
+      } catch (hashErr) {
+        console.warn('Hash computation skipped/failed', hashErr);
       }
       const url = await uploadTaskProofImage({ userId: data.user.id, taskId: taskId!, file });
       setProofImageUrl(url);
