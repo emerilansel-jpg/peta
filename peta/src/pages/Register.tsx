@@ -220,6 +220,7 @@ export function Register() {
                 <p className="leading-relaxed">
                   Kamu diundang khusus oleh <b>{invitationInfo.recruiterName || 'Tim Recruitment'}</b>
                   {invitationInfo.campaignName ? ` melalui program ${invitationInfo.campaignName}` : ''}.
+                  Terproteksi program <b>Jaminan Penghasilan Bulanan Rp20.000</b>.
                 </p>
               </div>
             </div>
@@ -228,12 +229,14 @@ export function Register() {
               <Gift size={22} className="text-yellow-700 shrink-0 mt-0.5" />
               <div className="text-sm">
                 <p className="font-extrabold text-yellow-900">
-                  {referralCode ? 'Bonus Referral Rp20.000 Menunggu' : 'Cuan Komentar & Bonus Referral Rp20K'}
+                  {referralCode === 'INTERN' || referralCode === 'GHINA'
+                    ? 'Program Jaminan Penghasilan Bulanan Rp20.000'
+                    : 'Cuan Komentar & Penghasilan Tambahan'}
                 </p>
                 <p className="text-yellow-800/80">
-                  {referralCode
-                    ? 'Daftar dengan kode referral, dapatkan Rp20.000 langsung masuk saldo kamu.'
-                    : 'Daftar gratis dalam 30 detik. Kerjakan tugas & dapatkan Rp20.000 tiap undang teman.'}
+                  {referralCode === 'INTERN' || referralCode === 'GHINA'
+                    ? 'Daftar dengan kode undangan resmi dan dapatkan jaminan penghasilan minimal Rp20.000/bulan.'
+                    : 'Daftar gratis dalam 30 detik. Kerjakan tugas & dapatkan penghasilan tambahan setiap hari.'}
                 </p>
               </div>
             </div>
@@ -359,8 +362,11 @@ export function Register() {
                 />
                 {referralCode.trim() && (
                   <p className="text-xs text-success mt-1.5 font-semibold flex items-center gap-1">
-                    ✨ +Rp20.000 bonus pendaftaran aktif
-                    {invitationInfo?.recruiterName && ` (Terhubung ke ${invitationInfo.recruiterName})`}
+                    {invitationInfo?.recruiterName || referralCode.trim() === 'INTERN' || referralCode.trim() === 'GHINA' ? (
+                      <>🛡️ Terproteksi Jaminan Penghasilan Bulanan Rp20.000{invitationInfo?.recruiterName ? ` (${invitationInfo.recruiterName})` : ''}</>
+                    ) : (
+                      <>✨ Kode referral terpasang</>
+                    )}
                   </p>
                 )}
               </div>
