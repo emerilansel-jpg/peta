@@ -9,8 +9,8 @@ export const onRequest: PagesFunction = async (context) => {
   const url = new URL(request.url);
   const host = (request.headers.get('host') || '').toLowerCase();
 
-  // Pass-through for static assets + any path with a file extension.
-  const pass = /^\/(assets|favicon|manifest|icon-|apple-touch|logo|og\.|robots|sitemap|straight|_redirects|.*\.[a-z0-9]+$)/i;
+  // Pass-through for API endpoints, static assets + any path with a file extension.
+  const pass = /^\/(api|assets|favicon|manifest|icon-|apple-touch|logo|og\.|robots|sitemap|straight|_redirects|.*\.[a-z0-9]+$)/i;
   if (pass.test(url.pathname)) {
     return next();
   }
