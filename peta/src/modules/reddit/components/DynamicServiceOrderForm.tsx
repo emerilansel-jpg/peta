@@ -18,7 +18,7 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { formatUSD, createGenericServiceOrder, type StraightServiceRecord } from '../lib/api';
+import { formatUSD, createGenericServiceOrder, isInvalidOrSearchForumUrl, verifyForumThreadUrl, type StraightServiceRecord } from '../lib/api';
 
 const ICON_MAP: Record<string, React.ElementType> = {
   Star,
@@ -185,6 +185,11 @@ export function DynamicServiceOrderForm({
       return;
     }
 
+    if (fc.requires_url !== false && isInvalidOrSearchForumUrl(targetUrl)) {
+      toast.error('Search result pages are not allowed. Please enter a direct target page or thread URL.');
+      return;
+    }
+
     if (fc.requires_location && !location.trim()) {
       toast.error('Location is required for this targeted service');
       return;
@@ -208,6 +213,14 @@ export function DynamicServiceOrderForm({
 
     setSubmitting(true);
     try {
+      if (fc.requires_url !== false) {
+        const check = await verifyForumThreadUrl(targetUrl.trim());
+        if (check.broken) {
+          toast.error(check.reason || 'Target URL is unavailable (410/404) or closed.');
+          setSubmitting(false);
+          return;
+        }
+      }
       const requestId = `gen-ord-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
       const order = await createGenericServiceOrder({
         serviceSlug: service.slug,

@@ -268,8 +268,8 @@ export function TaskDetail() {
     (task.description || '').trim();
   // Comment tasks must have a non-empty comment text before submit.
   const hasCommentText = isComment
-    ? (isForumComment
-        ? !!(draftComment?.trim() || commentPost)
+    ? (isForumComment || category === 'reddit_comment'
+        ? !!(draftComment?.trim() || commentPost || userNote.trim())
         : !!draftComment?.trim())
     : true;
   const canSubmit = isGoogleMapsReview
@@ -526,7 +526,11 @@ export function TaskDetail() {
                   {draftText && (
                     <div className="bg-yellow-50 ring-1 ring-yellow-300 rounded-xl p-3 text-xs leading-relaxed text-yellow-950">
                       <p className="text-[10px] font-bold uppercase text-yellow-900 mb-1">
-                        {isComment ? 'Draft Komentar / Ulasan' : 'Panduan Tugas'}
+                        {isTrustpilotReview || isYelpReview || isClutchReview || isGoogleMapsReview
+                          ? 'Brief & Draft Ulasan'
+                          : isComment
+                          ? 'Draft Komentar'
+                          : 'Panduan Tugas'}
                       </p>
                       <p className="whitespace-pre-line">{draftText}</p>
                     </div>
@@ -777,6 +781,30 @@ export function TaskDetail() {
             Submit bukti sebelum slot otomatis dilepas ke member lain.
           </span>
         </div>
+
+        {/* Alert if task was paused/marked broken while member held an in_progress slot */}
+        {(task.status !== 'active' || (category !== 'reddit_challenge' && (isInvalidOrSearchTaskUrl(task.target_url) || ['gone_410', 'not_found_404', 'closed_topic', 'search_page', 'invalid_url'].includes(task.url_status || '')))) && (
+          <div className="mb-4 p-4 rounded-2xl bg-rose-50 ring-2 ring-rose-300 text-xs text-rose-950 flex items-start justify-between gap-3">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle size={18} className="text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-extrabold text-rose-900">Link tugas ini bermasalah atau sudah ditutup</p>
+                <p className="text-rose-800 mt-0.5 leading-relaxed">
+                  {task.url_check_error || 'Thread tidak tersedia (410/404), kolom komentar sudah ditutup, atau task sudah di-pause. Lepas slot agar kuota kamu kembali bersih.'}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              loading={reportingBroken}
+              onClick={() => handleReportBroken(task.url_status === 'closed_topic' ? 'closed_topic' : task.url_status === 'gone_410' ? 'gone_410' : 'other')}
+              className="shrink-0 !border-rose-400 !text-rose-800 hover:!bg-rose-100"
+            >
+              Lepas Slot
+            </Button>
+          </div>
+        )}
 
         {/* ============ STEP 1 — BUKA TARGET ============ */}
         <StepCard
@@ -1174,8 +1202,8 @@ export function TaskDetail() {
               );
             }
 
-            const comment = (isForumComment || isLinkedInComment)
-              ? (draftComment?.trim() || (isForumComment ? commentPost : ''))
+            const comment = (isForumComment || isLinkedInComment || category === 'reddit_comment')
+              ? (draftComment?.trim() || ((isForumComment || category === 'reddit_comment') ? commentPost : ''))
               : draftComment?.trim();
             const legacyStd = isForumComment ? splitForumBrief(stripInternalBriefMarkers(task.brief)).standardBrief : '';
             const instructions = isLinkedInComment
