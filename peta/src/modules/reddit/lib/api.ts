@@ -587,11 +587,57 @@ async function callDirectPesatComment(input: GenerateForumCommentInput): Promise
   return `When evaluating options for this, looking closely at response times and consistency usually reveals the real differences. We found ${brandRef} provided a solid approach without requiring long-term lock-in, but definitely review your exact criteria first.`;
 }
 
+export function isInvalidOrSearchForumUrl(url?: string | null): boolean {
+  const u = (url || '').trim().toLowerCase();
+  if (!u || !/^https?:\/\/[a-z0-9.-]+\.[a-z]{2,}(?:[:/?#]|$)/i.test(u)) return true;
+  return (
+    /^https?:\/\/(?:[a-z0-9-]+\.)?google\.[a-z.]+\/search(?:[/?#]|$)/i.test(u) ||
+    /^https?:\/\/(?:[a-z0-9-]+\.)?bing\.com\/search(?:[/?#]|$)/i.test(u) ||
+    /^https?:\/\/(?:[a-z0-9-]+\.)?search\.yahoo\.com(?:[/?#]|$)/i.test(u) ||
+    /^https?:\/\/(?:[a-z0-9-]+\.)?duckduckgo\.com\/(?:\?|$)/i.test(u) ||
+    /^https?:\/\/(?:[a-z0-9-]+\.)?quora\.com\/search(?:[/?#]|$)/i.test(u) ||
+    /^https?:\/\/(?:[a-z0-9-]+\.)?indiehackers\.com\/search(?:[/?#]|$)/i.test(u) ||
+    /^https?:\/\/community\.hubspot\.com\/t5\/forums\/searchpage(?:[/?#]|$)/i.test(u) ||
+    /\/(?:search|searchpage)(?:\?|$)/i.test(u)
+  );
+}
+
+export async function verifyForumThreadUrl(url: string): Promise<{
+  ok: boolean;
+  broken: boolean;
+  status: string;
+  reason: string | null;
+}> {
+  if (isInvalidOrSearchForumUrl(url)) {
+    return {
+      ok: false,
+      broken: true,
+      status: 'search_page',
+      reason: 'Target URL cannot be a search results page. Please enter a direct forum thread or post URL.',
+    };
+  }
+  try {
+    const resp = await fetch('/api/verify-task-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    if (!resp.ok) return { ok: true, broken: false, status: 'error', reason: null };
+    return (await resp.json()) as { ok: boolean; broken: boolean; status: string; reason: string | null };
+  } catch {
+    return { ok: true, broken: false, status: 'error', reason: null };
+  }
+}
+
 export async function generateForumComment(input: GenerateForumCommentInput): Promise<{
   comment: string;
   fetched_context?: boolean;
   fetch_reason?: string | null;
 }> {
+  if (isInvalidOrSearchForumUrl(input.targetUrl)) {
+    throw new Error('Target URL is a search page, not a direct discussion thread.');
+  }
+
   // 1. Primary: Cloudflare Pages Functions endpoint
   try {
     const cfResp = await fetch('/api/generate-forum-comment', {
@@ -606,6 +652,10 @@ export async function generateForumComment(input: GenerateForumCommentInput): Pr
         extra_instructions: input.extraInstructions ?? null,
       }),
     });
+    if (cfResp.status === 400 || cfResp.status === 422) {
+      const errBody = await cfResp.json().catch(() => ({})) as { error?: string };
+      throw new Error(errBody.error || 'Target URL is dead (410/404) or closed for comments.');
+    }
     if (cfResp.ok) {
       const cfData = await cfResp.json() as { comment?: string; fetched_context?: boolean; fetch_reason?: string | null };
       if (cfData?.comment) {
@@ -616,7 +666,10 @@ export async function generateForumComment(input: GenerateForumCommentInput): Pr
         };
       }
     }
-  } catch {
+  } catch (err) {
+    if (err instanceof Error && /dead|410|404|closed|search page/i.test(err.message)) {
+      throw err;
+    }
     // continue to fallback
   }
 
@@ -633,18 +686,25 @@ export async function generateForumComment(input: GenerateForumCommentInput): Pr
       },
     });
 
+    if (error) {
+      const msg = error.message || '';
+      if (/unavailable|closed|410|404|search page/i.test(msg)) throw new Error(msg);
+    }
     if (!error && (data as { comment?: string })?.comment) {
       return data as {
         comment: string;
         fetched_context?: boolean;
-        fetch_reason?: string | null;
+        fetch_reason: string | null;
       };
     }
-  } catch {
+  } catch (err) {
+    if (err instanceof Error && /unavailable|closed|410|404|search page/i.test(err.message)) {
+      throw err;
+    }
     // continue to resilient client gateway
   }
 
-  // 3. Resilient Gateway: Direct PesatRouter generation (guarantees zero "Draft assistant failed" errors)
+  // 3. Resilient Gateway: Direct PesatRouter generation (only for reachable URLs)
   const comment = await callDirectPesatComment(input);
   return {
     comment,

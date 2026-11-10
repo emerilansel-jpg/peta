@@ -238,10 +238,21 @@ function platformForUrl(url: string) {
   }
 }
 
+const SEARCH_OR_NON_THREAD_RE = /google\.[a-z.]+\/search|bing\.com\/search|search\.yahoo\.com|duckduckgo\.com\/|quora\.com\/search|indiehackers\.com\/search|community\.hubspot\.com\/t5\/forums\/searchpage|\/(?:search|searchpage)(?:[/?#]|$)/i;
+const CLOSED_THREAD_HTML_RE = /this topic was automatically closed|this topic has been closed|this topic is closed|comments are closed|commenting has been closed|this thread is closed|this thread has been locked|locked for new replies|no longer accepting (?:new )?(?:replies|comments|answers)|not open for further replies|this question has been closed|this post is archived|<i[^>]*fa-lock[^>]*><\/i>\s*closed|wpforo-topic-closed|"closed"\s*:\s*true|"archived"\s*:\s*true/i;
+
 function isForumUrl(url: string) {
   const low = url.toLowerCase();
   // Reddit is hard-excluded from all client-facing surfaces.
   if (low.includes('reddit.com')) return false;
+  // Never accept search-result pages or non-thread directories
+  if (SEARCH_OR_NON_THREAD_RE.test(low)) return false;
+  try {
+    const parsed = new URL(url);
+    if (!parsed.pathname || parsed.pathname === '/') return false;
+  } catch {
+    return false;
+  }
   if (FORUM_HOSTS.some((host) => low.includes(host))) return true;
   if (FORUM_PATH_RE.test(low)) return true;
   try {
@@ -254,26 +265,57 @@ function isForumUrl(url: string) {
   return false;
 }
 
-function fallbackTop10(keyword: string): SerpResult[] {
-  const slug = encodeURIComponent(keyword.replace(/\s+/g, '-'));
-  const q = encodeURIComponent(keyword);
-  return [
-    ['Comparison article', `https://www.google.com/search?q=${q}+review`, 'Likely editorial content, not a place to add a native comment.', false],
-    ['Quora answers', `https://www.quora.com/search?q=${q}`, 'Question-led pages usually accept helpful comparison-style answers.', true],
-    ['Vendor landing page', `https://www.google.com/search?q=${q}+official+site`, 'Owned landing page, skipped because it is not a discussion thread.', false],
-    ['HubSpot Community thread', `https://community.hubspot.com/t5/forums/searchpage/tab/message?advanced=false&allow_punctuation=false&q=${q}`, 'B2B-heavy audience with practical implementation questions.', true],
-    ['Listicle result', `https://www.google.com/search?q=${q}+tools+list`, 'Informational article, useful for research but not a comment target.', false],
-    ['Indie Hackers discussion', `https://www.indiehackers.com/search?q=${q}`, 'Operator-heavy audience, useful for SaaS and growth topics.', true],
-    ['Support documentation', `https://www.google.com/search?q=${q}+docs`, 'Documentation page, skipped because there is no public discussion context.', false],
-    ['Niche forum search page', `https://www.google.com/search?q=${q}+forum+discussion+${slug}`, 'Use this when you want a broader Google pass for smaller forums.', true],
-    ['Video result', `https://www.google.com/search?q=${q}+youtube`, 'Can be useful research, but skipped for this forum-comment workflow.', false],
-  ].map(([title, url, reason, eligible]) => ({
-    title: `${title}: ${keyword}`,
-    url: String(url),
-    platform: eligible ? platformForUrl(String(url)) : String(title).replace(/ result| page| article/i, ''),
-    reason: String(reason),
-    eligible: Boolean(eligible),
-  }));
+async function filterLiveForumResults(results: SerpResult[]): Promise<SerpResult[]> {
+  return await Promise.all(
+    results.map(async (item) => {
+      if (!item.eligible) return item;
+      const url = item.url;
+      try {
+        // Check Discourse JSON first if URL matches Discourse topic pattern
+        const discMatch = url.match(/^(https?:\/\/[^/]+\/t\/[^/?#]+\/\d+)(?:\/\d+)?(?:[?#].*)?$/i);
+        if (discMatch) {
+          const dr = await fetch(`${discMatch[1]}.json`, {
+            signal: AbortSignal.timeout(4500),
+            headers: { 'User-Agent': 'StraightSerpValidator/1.0', Accept: 'application/json' },
+          }).catch(() => null);
+          if (dr) {
+            if (dr.status === 410 || dr.status === 404) {
+              return { ...item, eligible: false, reason: `Excluded: HTTP ${dr.status} (thread removed)` };
+            }
+            if (dr.ok) {
+              const dj = await dr.json().catch(() => null) as { closed?: boolean; archived?: boolean; deleted_at?: string | null } | null;
+              if (dj && (dj.closed || dj.archived || dj.deleted_at)) {
+                return { ...item, eligible: false, reason: 'Excluded: thread is closed or archived' };
+              }
+              return item;
+            }
+          }
+        }
+
+        const r = await fetch(url, {
+          signal: AbortSignal.timeout(4500),
+          redirect: 'follow',
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/126.0.0.0 Safari/537.36',
+            Accept: 'text/html,application/xhtml+xml,*/*;q=0.8',
+          },
+        }).catch(() => null);
+        if (!r) return item;
+        if (r.status === 410 || r.status === 404) {
+          return { ...item, eligible: false, reason: `Excluded: HTTP ${r.status} (dead thread URL)` };
+        }
+        if (r.ok) {
+          const html = (await r.text().catch(() => '')).slice(0, 120_000);
+          if (CLOSED_THREAD_HTML_RE.test(html)) {
+            return { ...item, eligible: false, reason: 'Excluded: topic/comments are closed on this thread' };
+          }
+        }
+      } catch {
+        // timeout on bot probe — keep item if URL is a valid thread URL
+      }
+      return item;
+    })
+  );
 }
 
 function dataForSeoAuth() {
@@ -825,7 +867,7 @@ Deno.serve(async (req: Request) => {
     const dataForSeoResults = await dataForSeoTop10(keyword);
     if (dataForSeoResults) {
       return json({
-        serp_results: dataForSeoResults,
+        serp_results: await filterLiveForumResults(dataForSeoResults),
         provider: 'live_serp',
         keyword,
         provider_notice: null,
@@ -835,7 +877,7 @@ Deno.serve(async (req: Request) => {
     const googleResults = await googleTop10(keyword);
     if (googleResults) {
       return json({
-        serp_results: googleResults,
+        serp_results: await filterLiveForumResults(googleResults),
         provider: 'live_serp',
         keyword,
         provider_notice: null,
@@ -845,7 +887,7 @@ Deno.serve(async (req: Request) => {
     const serpApiResults = await serpApiTop10(keyword);
     if (serpApiResults) {
       return json({
-        serp_results: serpApiResults,
+        serp_results: await filterLiveForumResults(serpApiResults),
         provider: 'live_serp',
         keyword,
         provider_notice: null,
@@ -853,10 +895,10 @@ Deno.serve(async (req: Request) => {
     }
 
     return json({
-      serp_results: fallbackTop10(keyword),
-      provider: 'fallback_top10',
+      serp_results: [],
+      provider: 'unavailable',
       keyword,
-      provider_notice: 'Live Google top-10 access is unavailable right now, so this is a fallback preview rather than live SERP data.',
+      provider_notice: 'Live Google SERP access is temporarily unavailable right now. Please add direct forum thread URLs via New Order.',
     });
   } catch (e) {
     // Log the real error server-side; return a generic message (no vendor names).

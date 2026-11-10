@@ -1,3 +1,5 @@
+import { verifySingleUrl } from './verify-task-url';
+
 interface Env {
   PESAT_API_KEY?: string;
   PESAT_BASE_URL?: string;
@@ -134,6 +136,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     }
     if (!payload.brand_name && !payload.brand_domain) {
       return json({ error: 'brand_name or brand_domain required' }, 400);
+    }
+
+    const urlHealth = await verifySingleUrl(payload.target_url);
+    if (urlHealth.broken) {
+      return json(
+        {
+          error: urlHealth.reason || 'Target URL is unavailable, 410/404, or closed for comments.',
+          url_status: urlHealth.status,
+        },
+        422
+      );
     }
 
     const mentionMode = payload.mention_mode === 'link' ? 'link' : 'plain';

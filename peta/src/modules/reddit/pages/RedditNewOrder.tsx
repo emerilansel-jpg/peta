@@ -44,11 +44,13 @@ import { useRedditOrders } from '../hooks/useRedditOrders';
 import {
   formatUSD,
   generateForumComment,
+  isInvalidOrSearchForumUrl,
   submitFeatureRequest,
   straightPrice,
   straightEnabled,
   straightPlatformKey,
   getStraightServices,
+  verifyForumThreadUrl,
   type StraightServiceRecord,
 } from '../lib/api';
 import { useStraightPricing, useStraightRedditServiceEnabled } from '../hooks/useStraightPricing';
@@ -1572,7 +1574,7 @@ function ForumCommentOrderForm({
   const cardBasePrice = straightPrice(pricing, `${straightPlatformKey(repUrl)}_comment_plain`, FALLBACK_COMMENT_PLAIN_CENTS);
   const cardLinkPrice = straightPrice(pricing, `${straightPlatformKey(repUrl)}_comment_link`, FALLBACK_COMMENT_LINK_CENTS);
   const hasEnoughCredit = balance >= cost;
-  const isValidUrl = isBulk || /^https?:\/\/[^\s.]+\.[^\s]+/i.test(targetUrl.trim());
+  const isValidUrl = isBulk || (/^https?:\/\/[^\s.]+\.[^\s]+/i.test(targetUrl.trim()) && !isInvalidOrSearchForumUrl(targetUrl));
   const needsBrand = wantsSuggestion === true;
 
   const ANGLE_PROMPTS = [
@@ -1694,7 +1696,20 @@ function ForumCommentOrderForm({
       return;
     }
 
+    if (!isBulk) {
+      const check = await verifyForumThreadUrl(targetUrl.trim());
+      if (check.broken) {
+        toast.error(check.reason || 'Target URL is unavailable (410/404) or closed for comments.');
+        return;
+      }
+    }
+
     if (isBulk) {
+      const bad = bulkQueue.find((t) => isInvalidOrSearchForumUrl(t.url));
+      if (bad) {
+        toast.error(`Search-page or invalid URL cannot be ordered: ${bad.url}`);
+        return;
+      }
       setBulkSubmitting(true);
       try {
         const refreshed = await refetchBalance();

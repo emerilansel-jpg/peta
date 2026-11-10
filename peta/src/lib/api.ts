@@ -1521,6 +1521,8 @@ export type EligibleTask = {
   end_at: string | null;
   created_at: string;
   can_do_with_account_id: string | null;
+  url_status?: string | null;
+  url_check_error?: string | null;
 };
 
 export async function listEligibleTasksForUser(): Promise<EligibleTask[]> {
@@ -3194,4 +3196,105 @@ export async function processMonthlyGuarantee(
   });
   if (error) throw new Error(error.message || 'Gagal memproses jaminan bulanan.');
   return data as MonthlyGuaranteeExecutionResult;
+}
+
+// ============================================================
+// Task URL Liveness & Closed-Thread Guard
+// ============================================================
+export type TaskUrlVerifyResult = {
+  url: string;
+  ok: boolean;
+  broken: boolean;
+  status: 'ok' | 'unverified_protected' | 'gone_410' | 'not_found_404' | 'closed_topic' | 'search_page' | 'invalid_url' | 'error';
+  http_status: number | null;
+  reason: string | null;
+};
+
+export function isInvalidOrSearchTaskUrl(url?: string | null): boolean {
+  const u = (url || '').trim().toLowerCase();
+  if (!u || !/^https?:\/\/[a-z0-9.-]+\.[a-z]{2,}(?:[:/?#]|$)/i.test(u)) return true;
+  return (
+    /^https?:\/\/(?:[a-z0-9-]+\.)?google\.[a-z.]+\/search(?:[/?#]|$)/i.test(u) ||
+    /^https?:\/\/(?:[a-z0-9-]+\.)?bing\.com\/search(?:[/?#]|$)/i.test(u) ||
+    /^https?:\/\/(?:[a-z0-9-]+\.)?search\.yahoo\.com(?:[/?#]|$)/i.test(u) ||
+    /^https?:\/\/(?:[a-z0-9-]+\.)?duckduckgo\.com\/(?:\?|$)/i.test(u) ||
+    /^https?:\/\/(?:[a-z0-9-]+\.)?quora\.com\/search(?:[/?#]|$)/i.test(u) ||
+    /^https?:\/\/(?:[a-z0-9-]+\.)?indiehackers\.com\/search(?:[/?#]|$)/i.test(u) ||
+    /^https?:\/\/community\.hubspot\.com\/t5\/forums\/searchpage(?:[/?#]|$)/i.test(u) ||
+    /\/(?:search|searchpage)(?:\?|$)/i.test(u)
+  );
+}
+
+export async function verifyTaskUrl(url: string): Promise<TaskUrlVerifyResult> {
+  if (isInvalidOrSearchTaskUrl(url)) {
+    return {
+      url,
+      ok: false,
+      broken: true,
+      status: 'search_page',
+      http_status: null,
+      reason: 'URL tidak valid atau masih berupa halaman pencarian (bukan link diskusi langsung).',
+    };
+  }
+  try {
+    const resp = await fetch('/api/verify-task-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    });
+    if (!resp.ok) {
+      return { url, ok: true, broken: false, status: 'error', http_status: resp.status, reason: null };
+    }
+    return (await resp.json()) as TaskUrlVerifyResult;
+  } catch {
+    return { url, ok: true, broken: false, status: 'error', http_status: null, reason: null };
+  }
+}
+
+export async function verifyTaskUrlsBatch(urls: string[]): Promise<TaskUrlVerifyResult[]> {
+  const results: TaskUrlVerifyResult[] = [];
+  for (let i = 0; i < urls.length; i += 20) {
+    const chunk = urls.slice(i, i + 20);
+    const resp = await fetch('/api/verify-task-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ urls: chunk }),
+    });
+    if (!resp.ok) throw new Error('Gagal memverifikasi batch URL task.');
+    const data = (await resp.json()) as { results?: TaskUrlVerifyResult[] };
+    if (Array.isArray(data.results)) results.push(...data.results);
+  }
+  return results;
+}
+
+export async function reportBrokenTask(input: {
+  taskId: string;
+  reason: 'no_link' | 'gone_410' | 'not_found_404' | 'closed_topic' | 'other';
+  detail?: string;
+  verifiedBroken?: boolean;
+}): Promise<{ ok: boolean; paused: boolean; report_count: number }> {
+  const { data, error } = await supabase.rpc('fn_report_broken_task', {
+    p_task_id: input.taskId,
+    p_reason: input.reason,
+    p_detail: input.detail ?? null,
+    p_verified_broken: input.verifiedBroken ?? false,
+  });
+  if (error) throw new Error(error.message || 'Gagal melaporkan masalah link task.');
+  return (data || { ok: true, paused: false, report_count: 1 }) as { ok: boolean; paused: boolean; report_count: number };
+}
+
+export async function adminMarkTaskUrlHealth(input: {
+  taskId: string;
+  urlStatus: string;
+  error?: string | null;
+  pauseIfBroken?: boolean;
+}): Promise<{ ok: boolean; broken: boolean }> {
+  const { data, error } = await supabase.rpc('admin_mark_task_url_health', {
+    p_task_id: input.taskId,
+    p_url_status: input.urlStatus,
+    p_error: input.error ?? null,
+    p_pause_if_broken: input.pauseIfBroken ?? true,
+  });
+  if (error) throw new Error(error.message || 'Gagal memperbarui status link task.');
+  return (data || { ok: true, broken: false }) as { ok: boolean; broken: boolean };
 }

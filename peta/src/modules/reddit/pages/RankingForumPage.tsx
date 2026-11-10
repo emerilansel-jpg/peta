@@ -26,7 +26,7 @@ import { RedditLayout } from '../components/RedditLayout';
 import { EmailWhitelistNotice } from '../components/EmailWhitelistNotice';
 import { useRedditCredits } from '../hooks/useRedditCredits';
 import { useRedditOrders } from '../hooks/useRedditOrders';
-import { checkAiVisibility, formatUSD, generateForumComment, getRankingForumResults, getRankingKeywordIdeas, getStraightPricing } from '../lib/api';
+import { checkAiVisibility, formatUSD, generateForumComment, getRankingForumResults, getRankingKeywordIdeas, getStraightPricing, isInvalidOrSearchForumUrl } from '../lib/api';
 import type { AiVisibilityResult, RankingForumResult, RankingKeywordIdea, StraightPricingRow } from '../lib/api';
 
 type KeywordIdea = RankingKeywordIdea;
@@ -98,8 +98,21 @@ export function RankingForumPage() {
   const [domain, setDomain] = useState(initialDraft?.domain || '');
   const [loading, setLoading] = useState(false);
   const [serpLoading, setSerpLoading] = useState(false);
-  const [forumScans, setForumScans] = useState<KeywordForumScan[]>(() => Array.isArray(initialDraft?.forumScans) ? initialDraft.forumScans : []);
-  const [selectedForumUrls, setSelectedForumUrls] = useState<SelectedForumUrl[]>(() => Array.isArray(initialDraft?.selectedForumUrls) ? initialDraft.selectedForumUrls : []);
+  const [forumScans, setForumScans] = useState<KeywordForumScan[]>(() =>
+    Array.isArray(initialDraft?.forumScans)
+      ? initialDraft.forumScans
+          .map((scan) => ({
+            ...scan,
+            results: Array.isArray(scan.results) ? scan.results.filter((r) => !isInvalidOrSearchForumUrl(r.url)) : [],
+          }))
+          .filter((scan) => scan.results.length > 0)
+      : []
+  );
+  const [selectedForumUrls, setSelectedForumUrls] = useState<SelectedForumUrl[]>(() =>
+    Array.isArray(initialDraft?.selectedForumUrls)
+      ? initialDraft.selectedForumUrls.filter((item) => !isInvalidOrSearchForumUrl(item.url))
+      : []
+  );
   const [keywordProvider, setKeywordProvider] = useState(initialDraft?.keywordProvider || '');
   const [ideasCount, setIdeasCount] = useState(initialDraft?.ideasCount || 0);
   const [notice, setNotice] = useState('');
@@ -183,24 +196,27 @@ export function RankingForumPage() {
             volume: idea.volume,
             provider: data.provider,
             providerNotice: data.provider_notice,
-            results: data.serp_results.filter((r) => r.eligible),
+            results: data.provider === 'fallback_top10'
+              ? []
+              : data.serp_results.filter((r) => r.eligible && !isInvalidOrSearchForumUrl(r.url)),
           } as KeywordForumScan;
         } catch {
           return {
             keyword: idea.keyword,
             volume: idea.volume,
-            provider: 'local_fallback',
-            results: buildGoogleTop10Results(idea.keyword).filter((r) => r.eligible),
+            provider: 'unavailable',
+            providerNotice: 'Live SERP lookup failed for this keyword.',
+            results: [],
           } as KeywordForumScan;
         }
       }));
       const withForums = scans.filter((s) => s.results.length > 0);
       setForumScans(withForums);
-      const providerNotice = withForums.find((s) => s.providerNotice)?.providerNotice;
+      const providerNotice = scans.find((s) => s.providerNotice)?.providerNotice;
       if (!withForums.length) {
-        setNotice('No forum pages found in the top 10 for these keywords. Try a broader or more discussion-friendly seed topic.');
-      } else if (providerNotice || withForums.some((s) => s.provider === 'fallback_top10' || s.provider === 'local_fallback')) {
-        setNotice(providerNotice || 'Live Google SERP access is limited right now, so some results are clearly labeled previews. Verify before ordering.');
+        setNotice(providerNotice || 'No live open forum threads found in the top 10 for these keywords right now. Try another seed or place an order with a direct forum URL via New Order.');
+      } else if (providerNotice || withForums.some((s) => s.provider === 'fallback_top10' || s.provider === 'local_fallback' || s.provider === 'unavailable')) {
+        setNotice(providerNotice || 'Live Google SERP access is limited right now. Verify each thread URL before ordering.');
       }
     } finally {
       setSerpLoading(false);
@@ -343,6 +359,11 @@ export function RankingForumPage() {
 
   const placeOrders = async () => {
     if (!selectedForumUrls.length || !commentReady) return;
+    const badUrl = selectedForumUrls.find((t) => isInvalidOrSearchForumUrl(t.url));
+    if (badUrl) {
+      toast.error(`Search-page or invalid URL cannot be ordered: ${badUrl.url}`);
+      return;
+    }
     setSubmittingOrders(true);
     try {
       const refreshed = await refetchBalance();
@@ -966,15 +987,4 @@ function localKeywordTemplates(base: string): Array<KeywordIdea & { volume: numb
     generated.push({ keyword: angle, volume: 900 - generated.length * 3, competition: 'Low', intent: 'Forum/community modifier increases chance of discussion pages.' });
   }
   return generated.map((item) => ({ ...item, volume: Math.max(20, item.volume) }));
-}
-
-function buildGoogleTop10Results(keyword: string): ForumResult[] {
-  const slug = encodeURIComponent(keyword.replace(/\s+/g, '-'));
-  const q = encodeURIComponent(keyword);
-  return [
-    { title: `Quora answers around ${keyword}`, url: `https://www.quora.com/search?q=${q}`, platform: 'Quora', reason: 'Question-led pages usually accept helpful comparison-style answers.', eligible: true },
-    { title: `HubSpot Community thread: ${keyword}`, url: `https://community.hubspot.com/t5/forums/searchpage/tab/message?advanced=false&allow_punctuation=false&q=${q}`, platform: 'HubSpot', reason: 'B2B-heavy audience with practical implementation questions.', eligible: true },
-    { title: `Indie Hackers discussion: ${keyword}`, url: `https://www.indiehackers.com/search?q=${q}`, platform: 'Indie Hackers', reason: 'Operator-heavy audience, useful for SaaS and growth topics.', eligible: true },
-    { title: `Niche forum search page: ${keyword}`, url: `https://www.google.com/search?q=${q}+forum+discussion+${slug}`, platform: 'Forum SERP', reason: 'Use this when you want a broader Google pass for smaller forums.', eligible: true },
-  ];
 }

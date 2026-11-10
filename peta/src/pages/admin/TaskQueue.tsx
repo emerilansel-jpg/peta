@@ -1,7 +1,7 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Plus, X, Download, ExternalLink, Zap, Pencil, Calendar, ClipboardList, ShieldCheck, Clock3, Users, GripVertical, Eye, EyeOff, Trash2 } from 'lucide-react';
+import { Plus, X, Download, ExternalLink, Zap, Pencil, Calendar, ClipboardList, ShieldCheck, Clock3, Users, GripVertical, Eye, EyeOff, Trash2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, TouchSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -12,7 +12,7 @@ import { Button } from '../../components/Button';
 import { CardSkeleton } from '../../components/Skeleton';
 import { supabase } from '../../lib/supabase';
 import { toast } from '../../components/Toast';
-import { listPendingRedditOrders, importRedditOrder, adminUpdateTask, adminCreateTask, adminUpdateTaskStatus, adminDeleteTask, adminReviewTaskEligibility, adminCancelInProgressAssignment } from '../../lib/api';
+import { listPendingRedditOrders, importRedditOrder, adminUpdateTask, adminCreateTask, adminUpdateTaskStatus, adminDeleteTask, adminReviewTaskEligibility, adminCancelInProgressAssignment, isInvalidOrSearchTaskUrl, verifyTaskUrlsBatch, adminMarkTaskUrlHealth } from '../../lib/api';
 import { cleanInternalText } from '../../lib/internalText';
 
 // Convert ISO timestamp to local-datetime input format (YYYY-MM-DDTHH:mm).
@@ -72,6 +72,8 @@ type TaskRow = {
   task_assignments?: Array<{ status: string }>;
   eligibility_status?: 'legacy' | 'pending' | 'approved' | 'revision' | 'rejected' | null;
   eligibility_reason?: string | null;
+  url_status?: string | null;
+  url_check_error?: string | null;
 };
 
 const FILTERS: Array<[FilterKey, string, (tasks: TaskRow[], stats: { draft: number; active: number; paused: number; hidden: number; pending_review: number }) => number]> = [
@@ -157,6 +159,15 @@ function SortableTaskItem({
                   {task.is_hidden && (
                     <span className="text-[10px] uppercase tracking-wide font-bold bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full">
                       Hidden
+                    </span>
+                  )}
+                  {task.url_status && ['gone_410', 'not_found_404', 'closed_topic', 'search_page', 'invalid_url'].includes(task.url_status) && (
+                    <span
+                      className="text-[10px] uppercase tracking-wide font-bold bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full ring-1 ring-rose-300 inline-flex items-center gap-1"
+                      title={task.url_check_error || task.url_status}
+                    >
+                      <AlertTriangle size={10} />
+                      {task.url_status === 'gone_410' ? '410 Gone' : task.url_status === 'not_found_404' ? '404 Dead' : task.url_status === 'closed_topic' ? 'Topic Ditutup' : task.url_status === 'search_page' ? 'Halaman Search' : 'URL Invalid'}
                     </span>
                   )}
                 </div>
@@ -657,9 +668,58 @@ export function AdminTaskQueue() {
     onError: (e: any) => toast.error(e?.message || 'Gagal update status kelayakan'),
   });
 
+  const [scanningLinks, setScanningLinks] = React.useState(false);
+
+  const handleScanActiveLinks = async () => {
+    const targets = tasks.filter(
+      (t) => t.status === 'active' && (t.task_category as string) !== 'reddit_challenge' && t.target_url
+    );
+    if (!targets.length) {
+      toast('Tidak ada task aktif untuk discan.');
+      return;
+    }
+    setScanningLinks(true);
+    try {
+      const uniqueUrls = Array.from(new Set(targets.map((t) => t.target_url!.trim())));
+      const results = await verifyTaskUrlsBatch(uniqueUrls);
+      const byUrl = new Map(results.map((r) => [r.url, r]));
+      let brokenCount = 0;
+      for (const t of targets) {
+        const res = byUrl.get(t.target_url!.trim());
+        if (!res) continue;
+        if (res.broken) {
+          brokenCount++;
+          await adminMarkTaskUrlHealth({
+            taskId: t.id,
+            urlStatus: res.status,
+            error: res.reason || res.status,
+            pauseIfBroken: true,
+          });
+        } else if (res.status === 'ok' && t.url_status) {
+          await adminMarkTaskUrlHealth({
+            taskId: t.id,
+            urlStatus: 'ok',
+            error: null,
+            pauseIfBroken: false,
+          });
+        }
+      }
+      await refetch();
+      if (brokenCount > 0) {
+        toast.success(`Scan selesai: ${brokenCount} task dengan link 410/404/closed/search otomatis di-pause!`);
+      } else {
+        toast.success(`Scan selesai: semua ${targets.length} task aktif sehat.`);
+      }
+    } catch (e: any) {
+      toast.error(e?.message || 'Gagal scan link task.');
+    } finally {
+      setScanningLinks(false);
+    }
+  };
+
   return (
     <Layout userRole="admin">
-      <div className="flex items-start justify-between gap-3 mb-4">
+      <div className="flex items-start justify-between gap-3 mb-4 flex-wrap">
         <div className="min-w-0">
           <p className="text-xs uppercase tracking-wide font-bold text-primary">Operations Control</p>
           <h1 className="text-2xl sm:text-3xl font-extrabold">Task Queue</h1>
@@ -667,9 +727,14 @@ export function AdminTaskQueue() {
             Review client orders, set reward economics, and publish only tasks that are ready for PeTa members.
           </p>
         </div>
-        <Button onClick={() => setShowSheet(true)} variant="primary" size="md">
-          <Plus size={18} /> Task Baru
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button onClick={handleScanActiveLinks} loading={scanningLinks} variant="outline" size="md">
+            <RefreshCw size={16} className={scanningLinks ? 'animate-spin' : ''} /> Scan Link Rusak
+          </Button>
+          <Button onClick={() => setShowSheet(true)} variant="primary" size="md">
+            <Plus size={18} /> Task Baru
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-5">
@@ -1081,6 +1146,10 @@ export function AdminTaskQueue() {
                   <Button
                     onClick={() => {
                       if (!form.title.trim()) { toast.error('Judul wajib diisi'); return; }
+                      if (isInvalidOrSearchTaskUrl(form.target_url)) {
+                        toast.error('Target URL wajib berupa link http(s) thread langsung (tidak boleh kosong atau halaman search).');
+                        return;
+                      }
                       create.mutate('draft');
                     }}
                     variant="outline"
@@ -1093,6 +1162,10 @@ export function AdminTaskQueue() {
                   <Button
                     onClick={() => {
                       if (!form.title.trim()) { toast.error('Judul wajib diisi'); return; }
+                      if (isInvalidOrSearchTaskUrl(form.target_url)) {
+                        toast.error('Target URL wajib berupa link http(s) thread langsung (tidak boleh kosong atau halaman search).');
+                        return;
+                      }
                       if (form.task_category === 'forum_comment' && !forumTaskHasSubmittableComment(form.brief, form.description)) {
                         toast.error("Task forum butuh 'Komentar siap-posting' atau brief biar member bisa submit");
                         return;
@@ -1400,6 +1473,10 @@ export function AdminTaskQueue() {
                 <Button
                   onClick={() => {
                     if (!editForm.title.trim()) { toast.error('Judul wajib diisi'); return; }
+                    if ((editingTask.task_category as string) !== 'reddit_challenge' && (editForm.status === 'active' || editForm.target_url.trim()) && isInvalidOrSearchTaskUrl(editForm.target_url)) {
+                      toast.error('Target URL wajib berupa link http(s) thread langsung (tidak boleh kosong atau halaman search).');
+                      return;
+                    }
                     if (editForm.end_at && editForm.start_at && editForm.end_at < editForm.start_at) {
                       toast.error('End date harus setelah Start date'); return;
                     }

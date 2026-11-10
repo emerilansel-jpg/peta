@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import {
   ArrowLeft, ExternalLink, Check, Camera, Link as LinkIcon, X,
-  ArrowRight, MessageCircle, Target, Sparkles, Copy, Image as ImageIcon, Video, User,
+  ArrowRight, MessageCircle, Target, Sparkles, Copy, Image as ImageIcon, Video, User, Flag, AlertTriangle,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
@@ -11,7 +11,7 @@ import { Button } from '../components/Button';
 import { CardSkeleton } from '../components/Skeleton';
 import { ConfettiBurst } from '../components/Confetti';
 import { supabase } from '../lib/supabase';
-import { createTaskAssignment, submitAssignmentProof, uploadTaskProofImage, getMyYouTubeAccounts, calculateFileSha256 } from '../lib/api';
+import { createTaskAssignment, submitAssignmentProof, uploadTaskProofImage, getMyYouTubeAccounts, calculateFileSha256, verifyTaskUrl, reportBrokenTask, isInvalidOrSearchTaskUrl } from '../lib/api';
 import { WHATSAPP_GROUP_URL } from '../lib/config';
 import { toast } from '../components/Toast';
 
@@ -122,12 +122,42 @@ export function TaskDetail() {
   const isClutchReview = category === 'clutch_review';
   const isQuoraUpvote = category === 'quora_upvote';
   const isUpvote = (category === 'reddit_upvote' || isQuoraUpvote || task?.task_type === 'upvote') && !isLinkedIn && !isTrustpilotReview && !isGoogleMapsReview && !isYelpReview && !isClutchReview;
-  const isForumComment = category === 'forum_comment';
+  const isForumComment = category === 'forum_comment' || (category === 'comment' && !isRedditTask);
   const isYouTubeUpload = category === 'youtube_upload';
   const isPreferredSource = category === 'preferred_source';
   const isComment = isForumComment || category === 'reddit_comment' || isLinkedInComment || isTrustpilotReview || isGoogleMapsReview || isYelpReview || isClutchReview || task?.task_type === 'comment';
   const isNoAccountNeeded = !isRedditTask;
   const platformLabel = task ? platformForTask(task) : 'Forum';
+
+  const [reportingBroken, setReportingBroken] = React.useState(false);
+  const [showReportMenu, setShowReportMenu] = React.useState(false);
+
+  const handleReportBroken = async (reason: 'no_link' | 'gone_410' | 'not_found_404' | 'closed_topic' | 'other') => {
+    if (!taskId || reportingBroken) return;
+    setReportingBroken(true);
+    try {
+      const check = task?.target_url
+        ? await verifyTaskUrl(task.target_url)
+        : { broken: true, reason: 'Task tidak memiliki target URL.' };
+      const res = await reportBrokenTask({
+        taskId,
+        reason,
+        detail: check.reason || `Dilaporkan member: ${reason}`,
+        verifiedBroken: check.broken,
+      });
+      if (res.paused) {
+        toast.success('Laporan terverifikasi! Task otomatis dinonaktifkan & slot dilepas. Terima kasih 🙏');
+      } else {
+        toast.success('Laporan terkirim ke admin & slot kamu sudah dilepas. Silakan kerjakan task lain 🙏');
+      }
+      navigate('/tasks', { replace: true });
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : 'Gagal mengirim laporan');
+    } finally {
+      setReportingBroken(false);
+      setShowReportMenu(false);
+    }
+  };
 
   const { data: myYtAccounts = [] } = useQuery({
     queryKey: ['myYouTubeAccounts'],
@@ -231,8 +261,10 @@ export function TaskDetail() {
   // (QA3: empty-brief forum tasks could never be submitted — submit stayed disabled).
   // Standard-brief descriptions (marker-only) yield an empty commentPost, so the
   // final fallback is the raw description — never block the member.
+  const cleanedRawBrief = stripInternalBriefMarkers(task.brief);
+  const parsedBriefPreview = splitForumBrief(cleanedRawBrief || task.description || '');
   const commentPost =
-    splitForumBrief(task.brief || task.description || '').commentPost.trim() ||
+    parsedBriefPreview.commentPost.trim() ||
     (task.description || '').trim();
   // Comment tasks must have a non-empty comment text before submit.
   const hasCommentText = isComment
@@ -450,15 +482,64 @@ export function TaskDetail() {
           {/* Brief / Persyaratan Preview */}
           <Card className="mb-4">
             <h2 className="text-sm font-bold uppercase tracking-wide text-muted mb-2">Instruksi & Brief Tugas</h2>
+
+            {/* Target URL Preview — members can inspect the link BEFORE locking their slot */}
+            {task.target_url && !isInvalidOrSearchTaskUrl(task.target_url) ? (
+              <a
+                href={task.target_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mb-3 flex items-center justify-between bg-light/70 rounded-xl px-3.5 py-2.5 ring-1 ring-border hover:ring-primary/50 transition tap-shrink"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] text-muted uppercase font-bold tracking-wide">Target Link</p>
+                  <p className="text-xs font-bold truncate text-primary">{task.target_url}</p>
+                </div>
+                <span className="ml-2 shrink-0 inline-flex items-center gap-1 text-[11px] font-bold text-primary bg-primary/10 px-2.5 py-1 rounded-lg">
+                  Cek Link <ExternalLink size={12} />
+                </span>
+              </a>
+            ) : (
+              <div className="mb-3 p-3 rounded-xl bg-amber-50 ring-1 ring-amber-300 text-xs text-amber-950 flex items-start gap-2">
+                <AlertTriangle size={15} className="shrink-0 mt-0.5 text-amber-600" />
+                <div>
+                  <p className="font-bold">Target link tidak tersedia / belum valid</p>
+                  <p className="text-[11px] text-amber-800 mt-0.5">
+                    {category === 'reddit_challenge'
+                      ? 'Misi Reddit Army dikerjakan melalui halaman Program Reddit Army.'
+                      : 'Jika tugas ini tidak memiliki link diskusi yang bisa dibuka, laporkan agar tim langsung memperbaikinya.'}
+                  </p>
+                </div>
+              </div>
+            )}
+
             <div className="bg-light/60 p-3 rounded-xl ring-1 ring-border mb-3 text-xs leading-relaxed whitespace-pre-line text-dark">
               {task.description || 'Ikuti instruksi sesuai brief task saat pengerjaan.'}
             </div>
-            {task.brief && (
-              <div className="bg-blue-50 ring-1 ring-blue-200 rounded-xl p-3 mb-3 text-xs leading-relaxed text-blue-950">
-                <p className="text-[10px] font-bold uppercase text-blue-900 mb-1">Panduan Posting / Komentar</p>
-                <p className="whitespace-pre-line">{task.brief}</p>
-              </div>
-            )}
+            {cleanedRawBrief && (() => {
+              const parsed = splitForumBrief(cleanedRawBrief);
+              const draftText = parsed.commentPost?.trim();
+              const guideText = parsed.standardBrief?.trim();
+              if (!draftText && !guideText) return null;
+              return (
+                <div className="space-y-2 mb-3">
+                  {draftText && (
+                    <div className="bg-yellow-50 ring-1 ring-yellow-300 rounded-xl p-3 text-xs leading-relaxed text-yellow-950">
+                      <p className="text-[10px] font-bold uppercase text-yellow-900 mb-1">
+                        {isComment ? 'Draft Komentar / Ulasan' : 'Panduan Tugas'}
+                      </p>
+                      <p className="whitespace-pre-line">{draftText}</p>
+                    </div>
+                  )}
+                  {guideText && (
+                    <div className="bg-blue-50 ring-1 ring-blue-200 rounded-xl p-3 text-xs leading-relaxed text-blue-950">
+                      <p className="text-[10px] font-bold uppercase text-blue-900 mb-1">Panduan Posting</p>
+                      <p className="whitespace-pre-line">{guideText}</p>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {isYouTubeUpload ? (
               !approvedYtAccount ? (
@@ -594,11 +675,42 @@ export function TaskDetail() {
               variant="primary"
               size="lg"
               loading={startMutation.isPending}
-              disabled={(!isNoAccountNeeded && !selectedAccountId) || (isYouTubeUpload && !approvedYtAccount)}
+              disabled={(!isNoAccountNeeded && !selectedAccountId) || (isYouTubeUpload && !approvedYtAccount) || (!task.target_url && category !== 'reddit_challenge')}
               fullWidth
             >
               Mulai Kerjakan Tugas →
             </Button>
+
+            {/* Report broken link / 410 / closed topic directly from preview */}
+            <div className="mt-3 pt-3 border-t border-border/70">
+              {!showReportMenu ? (
+                <button
+                  type="button"
+                  onClick={() => setShowReportMenu(true)}
+                  className="w-full text-center text-xs font-semibold text-muted hover:text-danger inline-flex items-center justify-center gap-1.5 py-1"
+                >
+                  <Flag size={12} /> Link 410/Error atau Komentar Ditutup? Laporkan
+                </button>
+              ) : (
+                <div className="p-3 bg-rose-50 ring-1 ring-rose-200 rounded-xl space-y-2">
+                  <p className="text-[11px] font-bold text-rose-900">Pilih kendala link tugas ini:</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    <button type="button" disabled={reportingBroken} onClick={() => handleReportBroken('gone_410')} className="px-2.5 py-1.5 rounded-lg bg-white ring-1 ring-rose-300 text-[11px] font-bold text-rose-800 hover:bg-rose-100">
+                      Link 410 / 404 Mati
+                    </button>
+                    <button type="button" disabled={reportingBroken} onClick={() => handleReportBroken('closed_topic')} className="px-2.5 py-1.5 rounded-lg bg-white ring-1 ring-rose-300 text-[11px] font-bold text-rose-800 hover:bg-rose-100">
+                      Topic / Komentar Ditutup
+                    </button>
+                    <button type="button" disabled={reportingBroken} onClick={() => handleReportBroken('no_link')} className="px-2.5 py-1.5 rounded-lg bg-white ring-1 ring-rose-300 text-[11px] font-bold text-rose-800 hover:bg-rose-100">
+                      Link Tidak Ada / Halaman Search
+                    </button>
+                    <button type="button" disabled={reportingBroken} onClick={() => setShowReportMenu(false)} className="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold text-muted hover:text-dark">
+                      Batal
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </Card>
         </div>
       </Layout>
@@ -704,26 +816,61 @@ export function TaskDetail() {
               </div>
             </div>
           )}
-          <a
-            href={task.target_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={() => setThreadOpened(true)}
-            className="mt-1 flex items-center justify-between bg-white rounded-xl px-4 py-3 ring-2 ring-primary/30 hover:ring-primary/60 transition tap-shrink"
-          >
-            <div className="min-w-0">
-              <p className="text-[10px] text-muted uppercase font-bold tracking-wide">Target URL</p>
-              <p className="text-sm font-bold truncate text-primary">{task.target_url}</p>
+          {task.target_url ? (
+            <a
+              href={task.target_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setThreadOpened(true)}
+              className="mt-1 flex items-center justify-between bg-white rounded-xl px-4 py-3 ring-2 ring-primary/30 hover:ring-primary/60 transition tap-shrink"
+            >
+              <div className="min-w-0">
+                <p className="text-[10px] text-muted uppercase font-bold tracking-wide">Target URL</p>
+                <p className="text-sm font-bold truncate text-primary">{task.target_url}</p>
+              </div>
+              <div className="ml-3 shrink-0 flex items-center gap-1.5 bg-primary text-white px-3 py-2 rounded-lg font-bold text-sm">
+                Buka <ExternalLink size={14} />
+              </div>
+            </a>
+          ) : (
+            <div className="mt-1 p-3 rounded-xl bg-amber-50 ring-1 ring-amber-300 text-xs text-amber-950">
+              Task ini tidak memiliki target URL eksternal. Laporkan kendala di bawah untuk melepas slot tanpa penalti.
             </div>
-            <div className="ml-3 shrink-0 flex items-center gap-1.5 bg-primary text-white px-3 py-2 rounded-lg font-bold text-sm">
-              Buka <ExternalLink size={14} />
-            </div>
-          </a>
+          )}
           {threadOpened && (
             <p className="text-xs text-success font-semibold mt-2 flex items-center gap-1">
               <Check size={12} /> Target terbuka. Lanjut Step 2 di bawah.
             </p>
           )}
+          <div className="mt-2.5">
+            {!showReportMenu ? (
+              <button
+                type="button"
+                onClick={() => setShowReportMenu(true)}
+                className="text-[11px] font-semibold text-muted hover:text-danger inline-flex items-center gap-1"
+              >
+                <Flag size={11} /> Link 410/404 atau Komentar Ditutup? Laporkan &amp; Lepas Slot
+              </button>
+            ) : (
+              <div className="p-2.5 bg-rose-50 ring-1 ring-rose-200 rounded-xl space-y-2">
+                <p className="text-[11px] font-bold text-rose-900">Laporkan masalah link (slot otomatis dilepas):</p>
+                <div className="flex flex-wrap gap-1.5">
+                  <button type="button" disabled={reportingBroken} onClick={() => handleReportBroken('gone_410')} className="px-2.5 py-1 rounded-lg bg-white ring-1 ring-rose-300 text-[11px] font-bold text-rose-800 hover:bg-rose-100">
+                    410 / 404 Mati
+                  </button>
+                  <button type="button" disabled={reportingBroken} onClick={() => handleReportBroken('closed_topic')} className="px-2.5 py-1 rounded-lg bg-white ring-1 ring-rose-300 text-[11px] font-bold text-rose-800 hover:bg-rose-100">
+                    Komentar Ditutup
+                  </button>
+                  <button type="button" disabled={reportingBroken} onClick={() => handleReportBroken('no_link')} className="px-2.5 py-1 rounded-lg bg-white ring-1 ring-rose-300 text-[11px] font-bold text-rose-800 hover:bg-rose-100">
+                    Bukan Link Thread
+                  </button>
+                  <button type="button" disabled={reportingBroken} onClick={() => setShowReportMenu(false)} className="px-2 py-1 text-[11px] text-muted">
+                    Batal
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </StepCard>
 
         {/* ============ STEP 2 — LAKUKAN TASK + EXAMPLE SCREENSHOT ============ */}
@@ -1030,7 +1177,7 @@ export function TaskDetail() {
             const comment = (isForumComment || isLinkedInComment)
               ? (draftComment?.trim() || (isForumComment ? commentPost : ''))
               : draftComment?.trim();
-            const legacyStd = isForumComment ? splitForumBrief(task.brief).standardBrief : '';
+            const legacyStd = isForumComment ? splitForumBrief(stripInternalBriefMarkers(task.brief)).standardBrief : '';
             const instructions = isLinkedInComment
               ? (task.brief || task.description || '').trim()
               : memberSafePostingBrief(legacyStd || task.description || '').trim();
@@ -1661,6 +1808,16 @@ function platformForTask(task: any) {
   if (text.includes('stack')) return 'Stack Exchange';
   if (text.includes('producthunt')) return 'Product Hunt';
   return 'Forum';
+}
+
+function stripInternalBriefMarkers(raw: string | null | undefined): string {
+  if (!raw) return '';
+  return raw
+    .split(/\r?\n/)
+    .filter((line) => !/^(?:bulk_source|bulk_target_title|bulk_suggested|comment)=/i.test(line.trim()))
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
 
 function splitForumBrief(raw: string | null | undefined) {

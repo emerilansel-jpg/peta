@@ -31,6 +31,9 @@ const CORS = {
 
 const BLOCKED_TEXT = 'THREAD_FETCH_BLOCKED';
 
+const SEARCH_OR_INVALID_RE = /google\.[a-z.]+\/search|bing\.com\/search|quora\.com\/search|indiehackers\.com\/search|community\.hubspot\.com\/t5\/forums\/searchpage|\/(?:search|searchpage)(?:\?|$)/i;
+const CLOSED_THREAD_RE = /this topic was automatically closed|this topic has been closed|this topic is closed|comments are closed|commenting has been closed|this thread is closed|this thread has been locked|locked for new replies|no longer accepting (?:new )?(?:replies|comments|answers)|not open for further replies|this question has been closed|this post is archived|<i[^>]*fa-lock[^>]*><\/i>\s*closed|wpforo-topic-closed|"closed"\s*:\s*true|"archived"\s*:\s*true/i;
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -52,7 +55,24 @@ function cleanText(input: string, max = 9000) {
     .slice(0, max);
 }
 
-async function fetchThreadText(url: string): Promise<{ text: string; fetched: boolean; reason?: string }> {
+async function fetchThreadText(url: string): Promise<{ text: string; fetched: boolean; reason?: string; unavailable?: boolean }> {
+  // Check Discourse .json if applicable
+  const discMatch = url.match(/^(https?:\/\/[^/]+\/t\/[^/?#]+\/\d+)(?:\/\d+)?(?:[?#].*)?$/i);
+  if (discMatch) {
+    try {
+      const dr = await fetch(`${discMatch[1]}.json`, { headers: { 'User-Agent': 'StraightLtdCommentAssistant/1.0', Accept: 'application/json' } });
+      if (dr.status === 410 || dr.status === 404) {
+        return { text: BLOCKED_TEXT, fetched: false, unavailable: true, reason: `http_${dr.status}` };
+      }
+      if (dr.ok) {
+        const dJson = await dr.json().catch(() => null) as { closed?: boolean; archived?: boolean; deleted_at?: string | null } | null;
+        if (dJson && (dJson.closed || dJson.archived || dJson.deleted_at)) {
+          return { text: BLOCKED_TEXT, fetched: false, unavailable: true, reason: 'thread_closed_or_archived' };
+        }
+      }
+    } catch { /* fallback below */ }
+  }
+
   const fetchViaReader = async (reason: string) => {
     try {
       const readerUrl = `https://r.jina.ai/${url}`;
@@ -63,8 +83,18 @@ async function fetchThreadText(url: string): Promise<{ text: string; fetched: bo
         },
         redirect: 'follow',
       });
+      if (r.status === 410 || r.status === 404) {
+        return { text: BLOCKED_TEXT, fetched: false, unavailable: true, reason: `${reason}_reader_http_${r.status}` };
+      }
       if (!r.ok) return { text: BLOCKED_TEXT, fetched: false, reason: `${reason}_reader_http_${r.status}` };
-      const text = cleanText(await r.text());
+      const rawBody = await r.text();
+      if (/returned error (?:410|404):/i.test(rawBody)) {
+        return { text: BLOCKED_TEXT, fetched: false, unavailable: true, reason: 'reader_410_or_404' };
+      }
+      if (CLOSED_THREAD_RE.test(rawBody)) {
+        return { text: BLOCKED_TEXT, fetched: false, unavailable: true, reason: 'thread_closed_or_locked' };
+      }
+      const text = cleanText(rawBody);
       if (text.length < 200) return { text: BLOCKED_TEXT, fetched: false, reason: `${reason}_reader_too_little_text` };
       return { text, fetched: true, reason: 'reader_fallback' };
     } catch (e) {
@@ -80,8 +110,15 @@ async function fetchThreadText(url: string): Promise<{ text: string; fetched: bo
       },
       redirect: 'follow',
     });
+    if (r.status === 410 || r.status === 404) {
+      return { text: BLOCKED_TEXT, fetched: false, unavailable: true, reason: `http_${r.status}` };
+    }
     if (!r.ok) return await fetchViaReader(`http_${r.status}`);
-    const text = cleanText(await r.text());
+    const rawHtml = await r.text();
+    if (CLOSED_THREAD_RE.test(rawHtml)) {
+      return { text: BLOCKED_TEXT, fetched: false, unavailable: true, reason: 'thread_closed_or_locked' };
+    }
+    const text = cleanText(rawHtml);
     if (text.length < 200) return await fetchViaReader('too_little_text');
     return { text, fetched: true };
   } catch (e) {
@@ -395,6 +432,9 @@ Deno.serve(async (req: Request) => {
     if (!payload.target_url || !/^https?:\/\//i.test(payload.target_url)) {
       return json({ error: 'valid target_url required' }, 400);
     }
+    if (SEARCH_OR_INVALID_RE.test(payload.target_url)) {
+      return json({ error: 'Target URL is a search page, not a direct discussion thread.' }, 400);
+    }
     if (!payload.brand_name && !payload.brand_domain) {
       return json({ error: 'brand_name or brand_domain required' }, 400);
     }
@@ -403,6 +443,9 @@ Deno.serve(async (req: Request) => {
     }
 
     const thread = await fetchThreadText(payload.target_url);
+    if (thread.unavailable) {
+      return json({ error: `Target URL is unavailable or closed for comments (${thread.reason || 'unavailable'}).` }, 422);
+    }
     const messages = buildPrompt(payload, thread.text);
     const settings = await getStraightAiSettings(req);
     const model = settings.draft_provider === 'claude' ? settings.claude_model : settings.deepseek_model;

@@ -477,6 +477,8 @@ export function Tasks() {
             {/* Filtered eligible tasks */}
             {(() => {
               const filtered = eligibleTasks.filter((t) => {
+                if (!t.target_url || !/^https?:\/\//i.test(t.target_url.trim())) return false;
+                if ((t.task_category as string) === 'reddit_challenge') return false;
                 const matchSearch = !taskSearch.trim() || `${t.title || ''} ${t.description || ''}`.toLowerCase().includes(taskSearch.toLowerCase());
                 const cat = t.task_category || '';
                 const matchPlatform = taskPlatformFilter === 'all' ||
