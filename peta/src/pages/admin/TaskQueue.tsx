@@ -34,9 +34,19 @@ const COMMENT_PRESETS = [5000, 8000, 11000, 14000, 17000, 20000];
 const UPVOTE_PRESETS  = [500, 1000, 1500, 2000];
 // LEVEL_OPTIONS removed; gates now use min_karma + min_age directly.
 
-type FilterKey = 'all' | 'pending_review' | 'draft' | 'active' | 'paused' | 'hidden';
+type FilterKey = 'all' | 'pending_review' | 'draft' | 'active' | 'paused' | 'broken' | 'hidden';
 type TaskStatus = 'draft' | 'active' | 'paused' | 'completed';
 type TaskCategory = 'reddit_upvote' | 'reddit_comment' | 'reddit_post_thread' | 'forum_comment' | 'youtube_upload';
+
+function isBrokenTask(t: Pick<TaskRow, 'url_status' | 'target_url' | 'task_category'>): boolean {
+  if (t.url_status && ['gone_410', 'not_found_404', 'closed_topic', 'search_page', 'invalid_url'].includes(t.url_status)) {
+    return true;
+  }
+  if ((t.task_category as string) !== 'reddit_challenge' && isInvalidOrSearchTaskUrl(t.target_url)) {
+    return true;
+  }
+  return false;
+}
 
 const TASK_CATEGORY_OPTIONS: Array<[TaskCategory, string, string, number]> = [
   ['reddit_upvote', 'Upvote', 'Rp500-1K', 500],
@@ -69,6 +79,7 @@ type TaskRow = {
   display_order: number;
   is_hidden: boolean;
   source_order_id?: number | null;
+  source_order?: { status?: string | null; user_id?: string | null } | null;
   task_assignments?: Array<{ status: string }>;
   eligibility_status?: 'legacy' | 'pending' | 'approved' | 'revision' | 'rejected' | null;
   eligibility_reason?: string | null;
@@ -76,12 +87,13 @@ type TaskRow = {
   url_check_error?: string | null;
 };
 
-const FILTERS: Array<[FilterKey, string, (tasks: TaskRow[], stats: { draft: number; active: number; paused: number; hidden: number; pending_review: number }) => number]> = [
-  ['all', 'Semua', (tasks) => tasks.length],
+const FILTERS: Array<[FilterKey, string, (tasks: TaskRow[], stats: { all_clean: number; draft: number; active: number; paused: number; broken: number; hidden: number; pending_review: number }) => number]> = [
+  ['all', 'Semua', (_tasks, stats) => stats.all_clean],
   ['pending_review', 'Review Kelayakan', (_tasks, stats) => stats.pending_review],
   ['draft', 'Draft', (_tasks, stats) => stats.draft],
   ['active', 'Aktif', (_tasks, stats) => stats.active],
   ['paused', 'Paused', (_tasks, stats) => stats.paused],
+  ['broken', 'Link Rusak', (_tasks, stats) => stats.broken],
   ['hidden', 'Hidden', (_tasks, stats) => stats.hidden],
 ];
 
@@ -94,6 +106,7 @@ function SortableTaskItem({
   onDelete,
   onReviewEligibility,
   onCancelInProgress,
+  onRefundBrokenOrder,
 }: {
   task: TaskRow;
   onEdit: (t: TaskRow) => void;
@@ -102,6 +115,7 @@ function SortableTaskItem({
   onDelete: (t: TaskRow) => void;
   onReviewEligibility?: (t: TaskRow, decision: 'approved' | 'revision' | 'rejected', reason?: string) => void;
   onCancelInProgress?: (t: TaskRow) => void;
+  onRefundBrokenOrder?: (t: TaskRow) => void;
 }) {
   const {
     attributes,
@@ -285,15 +299,27 @@ function SortableTaskItem({
                 )}
                 {task.source_order_id && (
                   <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                    task.source_order?.status === 'cancelled' ? 'bg-danger/10 text-danger' :
+                    isBrokenTask(task) ? 'bg-rose-100 text-rose-800' :
                     task.status === 'completed' ? 'bg-success/15 text-success' :
-                    task.status === 'paused' ? 'bg-danger/10 text-danger' :
+                    task.status === 'paused' ? 'bg-slate-100 text-slate-700' :
                     'bg-warning/10 text-warning'
                   }`}>
-                    #{task.source_order_id} B2B {task.status === 'completed' ? '✓ Complete' : task.status === 'paused' ? '✕ Cancelled' : '⏳ Processing'}
+                    #{task.source_order_id} B2B {
+                      task.source_order?.status === 'cancelled'
+                        ? '✕ Order Cancelled'
+                        : isBrokenTask(task)
+                        ? '⏸️ Menunggu Client (Link Rusak)'
+                        : task.status === 'completed'
+                        ? '✓ Complete'
+                        : task.status === 'paused'
+                        ? '⏸️ Paused'
+                        : '⏳ Processing'
+                    }
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-3 flex-wrap">
                 <button
                   onClick={() => onEdit(task)}
                   className="text-primary font-bold hover:underline flex items-center gap-1"
@@ -301,12 +327,24 @@ function SortableTaskItem({
                 >
                   <Pencil size={12} /> Edit
                 </button>
-                <button
-                  onClick={() => onToggleStatus(task)}
-                  className="text-primary font-bold hover:underline"
-                >
-                  {task.status === 'active' ? 'Pause' : 'Activate'}
-                </button>
+                {!(isBrokenTask(task) && task.status !== 'active') ? (
+                  <button
+                    onClick={() => onToggleStatus(task)}
+                    className="text-primary font-bold hover:underline"
+                  >
+                    {task.status === 'active' ? 'Pause' : 'Activate'}
+                  </button>
+                ) : (
+                  task.source_order_id && task.source_order?.status !== 'cancelled' && task.source_order?.status !== 'completed' && waitingCount === 0 && onRefundBrokenOrder && (
+                    <button
+                      onClick={() => onRefundBrokenOrder(task)}
+                      className="text-rose-700 font-bold hover:underline"
+                      title="Cancel order di Straight, refund saldo penuh ke client, dan sembunyikan task rusak ini"
+                    >
+                      Refund Client
+                    </button>
+                  )
+                )}
                 <button
                   onClick={() => onToggleHidden(task)}
                   className={`font-bold hover:underline flex items-center gap-1 ${task.is_hidden ? 'text-success' : 'text-muted'}`}
@@ -392,8 +430,31 @@ export function AdminTaskQueue() {
   const { data: tasks = [], isLoading, refetch } = useQuery({
     queryKey: ['adminTasks'],
     queryFn: async () => {
-      const { data } = await supabase.from('tasks').select('*, task_assignments(id, status)').order('display_order', { ascending: true }).order('created_at', { ascending: false });
+      const { data } = await supabase
+        .from('tasks')
+        .select('*, task_assignments(id, status), source_order:source_order_id(status, user_id)')
+        .order('display_order', { ascending: true })
+        .order('created_at', { ascending: false });
       return (data || []) as TaskRow[];
+    },
+  });
+
+  const refundBrokenOrderMutation = useMutation({
+    mutationFn: async (task: TaskRow) => {
+      if (!task.source_order_id) throw new Error('Order B2B tidak ditemukan');
+      const { error } = await supabase.rpc('fn_client_cancel_order', {
+        p_order_id: task.source_order_id,
+        p_reason: `Refund otomatis admin: ${task.url_check_error || task.url_status || 'Link target 410/search/closed'}`,
+      });
+      if (error) throw error;
+      await supabase.rpc('admin_update_task_hidden', { p_task_id: task.id, p_hidden: true });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['adminTasks'] });
+      toast.success('Order client dibatalkan, saldo di-refund penuh, dan task rusak disembunyikan.');
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Gagal refund order client');
     },
   });
 
@@ -645,16 +706,23 @@ export function AdminTaskQueue() {
     scope === 'all' ? true : scope === 'army' ? isArmyTask(t) : !isArmyTask(t)
   );
 
+  const isBrokenQuarantined = (t: TaskRow) =>
+    !t.is_hidden && t.status !== 'completed' && isBrokenTask(t) && t.source_order?.status !== 'cancelled';
+
   const filtered = scoped.filter((t) => {
-    if (filter === 'all') return true;
+    if (filter === 'all') return !t.is_hidden && !(t.status !== 'active' && isBrokenTask(t));
     if (filter === 'hidden') return t.is_hidden;
-    if (filter === 'pending_review') return t.eligibility_status === 'pending';
+    if (filter === 'broken') return isBrokenQuarantined(t);
+    if (filter === 'pending_review') return t.eligibility_status === 'pending' && !t.is_hidden;
+    if (filter === 'paused') return t.status === 'paused' && !t.is_hidden && !isBrokenTask(t);
     return t.status === filter && !t.is_hidden;
   });
-  const pendingReviewCount = scoped.filter((t) => t.eligibility_status === 'pending').length;
-  const activeCount = scoped.filter((t) => t.status === 'active' && !t.is_hidden).length;
+  const allCleanCount = scoped.filter((t) => !t.is_hidden && !(t.status !== 'active' && isBrokenTask(t))).length;
+  const pendingReviewCount = scoped.filter((t) => t.eligibility_status === 'pending' && !t.is_hidden).length;
   const draftCount = scoped.filter((t) => t.status === 'draft' && !t.is_hidden).length;
-  const pausedCount = scoped.filter((t) => t.status === 'paused' && !t.is_hidden).length;
+  const activeCount = scoped.filter((t) => t.status === 'active' && !t.is_hidden).length;
+  const pausedCount = scoped.filter((t) => t.status === 'paused' && !t.is_hidden && !isBrokenTask(t)).length;
+  const brokenCount = scoped.filter(isBrokenQuarantined).length;
   const hiddenCount = scoped.filter((t) => t.is_hidden).length;
   const openSlots = scoped.reduce((sum, t) => sum + Math.max(0, Number(t.max_assignments || 0) - Number(t.current_assignments || 0)), 0);
 
@@ -851,10 +919,22 @@ export function AdminTaskQueue() {
               filter === k ? 'bg-primary text-white' : 'bg-white ring-1 ring-border text-muted'
             }`}
           >
-            {l} ({getCount(scoped, { draft: draftCount, active: activeCount, paused: pausedCount, hidden: hiddenCount, pending_review: pendingReviewCount })})
+            {l} ({getCount(scoped, { all_clean: allCleanCount, draft: draftCount, active: activeCount, paused: pausedCount, broken: brokenCount, hidden: hiddenCount, pending_review: pendingReviewCount })})
           </button>
         ))}
       </div>
+
+      {filter === 'broken' && brokenCount > 0 && (
+        <div className="mb-4 p-3.5 rounded-2xl bg-rose-50 ring-1 ring-rose-200 text-xs text-rose-950 flex items-start gap-2.5">
+          <AlertTriangle size={16} className="text-rose-600 shrink-0 mt-0.5" />
+          <div>
+            <p className="font-bold text-rose-900">Task Dikarantina (410 Gone / Halaman Search / Thread Ditutup)</p>
+            <p className="mt-0.5 text-rose-800 leading-relaxed">
+              Task di bawah tidak tampil ke member PeTa Army dan terpisah dari antrean aktif. Client di Straight.ltd sudah diberi banner &amp; tombol untuk ganti link atau refund saldo penuh. Kamu juga bisa klik <b>Edit</b> untuk mengganti link atau <b>Refund Client</b> untuk menutup order &amp; mengembalikan saldo client secara langsung.
+            </p>
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="space-y-3"><CardSkeleton /><CardSkeleton /></div>
@@ -895,6 +975,10 @@ export function AdminTaskQueue() {
                   onToggleHidden={(task) => toggleHidden.mutate({ id: task.id, hidden: !task.is_hidden })}
                   onDelete={(task) => setDeleteTarget(task)}
                   onCancelInProgress={(task) => cancelInProgressMutation.mutate(task)}
+                  onRefundBrokenOrder={(task) => {
+                    if (!confirm(`Cancel order #${task.source_order_id} di Straight, kembalikan saldo penuh ke client, dan sembunyikan task ini?`)) return;
+                    refundBrokenOrderMutation.mutate(task);
+                  }}
                 />
               ))}
             </div>
