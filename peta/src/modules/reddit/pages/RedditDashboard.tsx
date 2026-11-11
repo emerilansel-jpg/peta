@@ -1,5 +1,5 @@
 import { spath } from '../lib/path';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   TrendingUp,
@@ -15,17 +15,29 @@ import {
   X,
   Check,
   AlertCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import { RedditLayout } from '../components/RedditLayout';
 import { useRedditCredits } from '../hooks/useRedditCredits';
 import { useRedditOrders } from '../hooks/useRedditOrders';
-import { formatUSD, getPricePerUpvoteUSD } from '../lib/api';
+import { formatUSD, getClientOrdersHealth, getPricePerUpvoteUSD, type ClientOrderHealth } from '../lib/api';
 
 export function RedditDashboard() {
   const navigate = useNavigate();
   const { balance, error: balanceError } = useRedditCredits();
   const { orders, listError } = useRedditOrders();
   const [showGuide, setShowGuide] = useState(false);
+  const [healthRows, setHealthRows] = useState<ClientOrderHealth[]>([]);
+
+  useEffect(() => {
+    getClientOrdersHealth().then(setHealthRows).catch(() => {});
+  }, [orders.length]);
+
+  const brokenActiveOrders = healthRows.filter((h) => {
+    if (!h.is_broken_url) return false;
+    const match = (orders as Array<{ id: number; status: string; delivered_upvotes: number; requested_upvotes: number }>).find((o) => Number(o.id) === Number(h.order_id));
+    return match && ['pending', 'processing', 'paused'].includes(match.status) && match.delivered_upvotes < match.requested_upvotes;
+  });
 
   // If balance or orders failed to load (network, RLS, 5xx), surface a clear
   // banner instead of silently showing $0 / empty list. A user with 50 orders
@@ -59,6 +71,31 @@ export function RedditDashboard() {
                 Check your connection and refresh. If it persists, contact support.
               </p>
             </div>
+          </div>
+        )}
+
+        {/* Action-required alert for inaccessible / 410 / search / closed URLs */}
+        {brokenActiveOrders.length > 0 && (
+          <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-2xl border border-rose-200 bg-rose-50 p-5 text-sm text-rose-950 shadow-sm">
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={22} className="text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-rose-950 text-base">
+                  Action Required: {brokenActiveOrders.length} order{brokenActiveOrders.length === 1 ? '' : 's'} cannot be delivered (410 Gone / Search Page / Closed Thread)
+                </p>
+                <p className="mt-1 text-rose-800 leading-relaxed">
+                  Some target URLs in your active queue returned HTTP 410 Gone, pointed to search pages, or have closed comment sections. Please submit a direct live thread URL or cancel those orders for an instant 100% credit refund.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => navigate(spath('/orders?filter=needs_action'))}
+              className="shrink-0 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold shadow-sm transition"
+            >
+              Review &amp; Resubmit ({brokenActiveOrders.length})
+              <ArrowRight size={15} />
+            </button>
           </div>
         )}
 

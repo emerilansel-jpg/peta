@@ -1146,7 +1146,58 @@ export async function getRankingForumResults(keyword: string): Promise<{
   });
   if (error) throw new Error(error.message || 'SERP scan failed');
   if ((data as { error?: string })?.error) throw new Error((data as { error: string }).error);
-  return data as { serp_results: RankingForumResult[]; provider: string; keyword: string; provider_notice?: string | null };
+
+  const payload = data as { serp_results: RankingForumResult[]; provider: string; keyword: string; provider_notice?: string | null };
+  // Never surface synthetic fallback search/410 URLs from un-redeployed edge functions.
+  if (payload.provider === 'fallback_top10') {
+    return {
+      serp_results: [],
+      provider: 'unavailable',
+      keyword: payload.keyword || keyword,
+      provider_notice: 'Live Google SERP access is temporarily unavailable. Please use New Order with a direct forum thread URL.',
+    };
+  }
+
+  // Strip google.com/goto redirects, Reddit URLs, and search/searchpage URLs.
+  const prefiltered = (payload.serp_results || []).filter((item) => {
+    const u = (item?.url || '').trim();
+    if (!u || isInvalidOrSearchForumUrl(u)) return false;
+    if (/google\.[a-z.]+\/goto\?/i.test(u) || /reddit\.com/i.test(u)) return false;
+    return true;
+  });
+
+  // Batch-verify live health of eligible forum thread URLs so 410/404/closed threads never reach checkout.
+  const eligibleUrls = Array.from(new Set(prefiltered.filter((r) => r.eligible).map((r) => r.url)));
+  if (eligibleUrls.length > 0) {
+    try {
+      const verifyResp = await fetch('/api/verify-task-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urls: eligibleUrls.slice(0, 20) }),
+      });
+      if (verifyResp.ok) {
+        const verifyData = (await verifyResp.json()) as { results?: Array<{ url: string; broken: boolean; reason?: string | null }> };
+        const brokenMap = new Map(
+          (verifyData.results || []).filter((r) => r.broken).map((r) => [r.url, r.reason || 'Unavailable / Closed thread'])
+        );
+        return {
+          ...payload,
+          serp_results: prefiltered.map((item) =>
+            item.eligible && brokenMap.has(item.url)
+              ? { ...item, eligible: false, reason: `Excluded: ${brokenMap.get(item.url)}` }
+              : item
+          ),
+        };
+      }
+    } catch {
+      // ignore verifier network hiccup
+    }
+  }
+
+  return {
+    ...payload,
+    serp_results: prefiltered,
+  };
 }
 
 // ============ AI / Google Visibility (GEO) check ============
@@ -2148,6 +2199,42 @@ export async function getOrderDeliveryProofs(orderId: number): Promise<OrderDeli
   return (data || []) as OrderDeliveryProof[];
 }
 
+export type ClientOrderHealth = {
+  order_id: number;
+  task_status: string | null;
+  url_status: string | null;
+  url_check_error: string | null;
+  locked_active_units: number;
+  is_broken_url: boolean;
+  can_update_url: boolean;
+  can_refund_broken: boolean;
+};
+
+export async function getClientOrdersHealth(orderId?: number): Promise<ClientOrderHealth[]> {
+  const { data, error } = await supabase.rpc('fn_get_client_orders_health', {
+    p_order_id: orderId ?? null,
+  });
+  if (error) {
+    console.warn('Failed to fetch client orders health:', error);
+    return [];
+  }
+  return (data || []) as ClientOrderHealth[];
+}
+
+export async function clientUpdateBrokenOrderUrl(orderId: number, newUrl: string): Promise<{
+  ok: boolean;
+  order_id: number;
+  new_url: string;
+  task_id: string | null;
+}> {
+  const { data, error } = await supabase.rpc('fn_client_update_broken_order_url', {
+    p_order_id: orderId,
+    p_new_url: newUrl.trim(),
+  });
+  if (error) throw new Error(error.message || 'Failed to update target URL');
+  return data as { ok: boolean; order_id: number; new_url: string; task_id: string | null };
+}
+
 export async function getOrderCancellationPreview(orderId: number): Promise<{
   ok: boolean;
   order_id: number;
@@ -2157,6 +2244,8 @@ export async function getOrderCancellationPreview(orderId: number): Promise<{
   total_committed: number;
   refundable_units: number;
   refund_amount: number;
+  is_broken_url?: boolean;
+  bypass_window?: boolean;
   can_cancel: boolean;
   error?: string;
 } | null> {

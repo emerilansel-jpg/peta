@@ -1,10 +1,10 @@
 import { spath } from '../lib/path';
-import { useNavigate, Link } from 'react-router-dom';
-import { Plus, Search, ShoppingCart, MessageSquare, ChevronRight } from 'lucide-react';
-import { useState } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
+import { Plus, Search, ShoppingCart, MessageSquare, ChevronRight, AlertTriangle } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
 import { RedditLayout } from '../components/RedditLayout';
 import { useRedditOrders } from '../hooks/useRedditOrders';
-import { formatUSD } from '../lib/api';
+import { formatUSD, getClientOrdersHealth, type ClientOrderHealth } from '../lib/api';
 import { CardSkeleton } from '../../../components/Skeleton';
 
 const STATUS_CONFIG: Record<string, { label: string; class: string; dot: string }> = {
@@ -35,7 +35,7 @@ const STATUS_CONFIG: Record<string, { label: string; class: string; dot: string 
   },
 };
 
-const FILTERS = ['all', 'pending', 'processing', 'paused', 'completed', 'cancelled'] as const;
+const FILTERS = ['all', 'needs_action', 'pending', 'processing', 'paused', 'completed', 'cancelled'] as const;
 
 type RedditOrderListItem = {
   id: number;
@@ -96,13 +96,42 @@ function serviceLabel(order: RedditOrderListItem) {
 
 export function RedditOrders() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { orders, isLoading } = useRedditOrders();
-  const [filter, setFilter] = useState<typeof FILTERS[number]>('all');
+  const initialFilter = searchParams.get('filter') === 'needs_action' ? 'needs_action' : 'all';
+  const [filter, setFilter] = useState<typeof FILTERS[number]>(initialFilter);
   const [query, setQuery] = useState('');
+  const [healthRows, setHealthRows] = useState<ClientOrderHealth[]>([]);
+
+  useEffect(() => {
+    getClientOrdersHealth().then(setHealthRows).catch(() => {});
+  }, [orders.length]);
+
+  useEffect(() => {
+    if (searchParams.get('filter') === 'needs_action') {
+      setFilter('needs_action');
+    }
+  }, [searchParams]);
+
+  const healthByOrder = useMemo(() => {
+    const map = new Map<number, ClientOrderHealth>();
+    for (const h of healthRows) map.set(Number(h.order_id), h);
+    return map;
+  }, [healthRows]);
+
+  const isOrderActionNeeded = (o: RedditOrderListItem) => {
+    const h = healthByOrder.get(Number(o.id));
+    return Boolean(h?.is_broken_url && ['pending', 'processing', 'paused'].includes(o.status) && o.delivered_upvotes < o.requested_upvotes);
+  };
 
   const typedOrders = orders as RedditOrderListItem[];
+  const needsActionCount = typedOrders.filter(isOrderActionNeeded).length;
   const filteredOrders = typedOrders.filter((o) => {
-    if (filter !== 'all' && o.status !== filter) return false;
+    if (filter === 'needs_action') {
+      if (!isOrderActionNeeded(o)) return false;
+    } else if (filter !== 'all' && o.status !== filter) {
+      return false;
+    }
     if (query && !o.thread_url.toLowerCase().includes(query.toLowerCase())) return false;
     return true;
   });
@@ -125,22 +154,58 @@ export function RedditOrders() {
           </button>
         </div>
 
+        {/* Action-needed alert banner */}
+        {needsActionCount > 0 && (
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-950">
+            <div className="flex items-start gap-2.5">
+              <AlertTriangle size={18} className="text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-rose-950">
+                  {needsActionCount} order{needsActionCount === 1 ? '' : 's'} paused due to inaccessible target URL (410 Gone / Search Page / Closed Thread)
+                </p>
+                <p className="text-xs text-rose-800 mt-0.5">
+                  Click any flagged order below to submit a replacement thread link or claim an instant 100% credit refund to place a new order.
+                </p>
+              </div>
+            </div>
+            {filter !== 'needs_action' && (
+              <button
+                type="button"
+                onClick={() => setFilter('needs_action')}
+                className="shrink-0 px-3.5 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold"
+              >
+                Show Flagged ({needsActionCount})
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Filters bar */}
         <div className="bg-white rounded-xl ring-1 ring-slate-200 p-2 mb-6 flex flex-col md:flex-row gap-2">
           <div className="flex gap-1 overflow-x-auto">
             {FILTERS.map((f) => {
-              const count = f === 'all' ? typedOrders.length : typedOrders.filter((o) => o.status === f).length;
+              const count =
+                f === 'all'
+                  ? typedOrders.length
+                  : f === 'needs_action'
+                  ? needsActionCount
+                  : typedOrders.filter((o) => o.status === f).length;
+              if (f === 'needs_action' && count === 0) return null;
               return (
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
                   className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition whitespace-nowrap ${
                     filter === f
-                      ? 'bg-slate-900 text-white'
+                      ? f === 'needs_action'
+                        ? 'bg-rose-600 text-white'
+                        : 'bg-slate-900 text-white'
+                      : f === 'needs_action'
+                      ? 'text-rose-700 bg-rose-50 hover:bg-rose-100'
                       : 'text-slate-600 hover:bg-slate-100'
                   }`}
                 >
-                  {f === 'all' ? 'All' : STATUS_CONFIG[f].label}
+                  {f === 'all' ? 'All' : f === 'needs_action' ? 'Link Issue' : STATUS_CONFIG[f].label}
                   <span className="ml-1.5 text-xs opacity-70">{count}</span>
                 </button>
               );
@@ -241,11 +306,18 @@ export function RedditOrders() {
                           {formatUSD(order.cost_credits)}
                         </td>
                         <td className="px-6 py-4">
-                          <div className="flex justify-center">
-                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ${status.class}`}>
-                              <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
-                              {status.label}
-                            </span>
+                          <div className="flex flex-col items-center gap-1">
+                            {isOrderActionNeeded(order) ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ring-1 bg-rose-50 text-rose-700 ring-rose-300">
+                                <AlertTriangle size={11} />
+                                Link Issue · Resubmit
+                              </span>
+                            ) : (
+                              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ${status.class}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
+                                {status.label}
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td className="px-6 py-4 text-right text-sm text-slate-500">
@@ -295,10 +367,17 @@ export function RedditOrders() {
                           </p>
                         )}
                       </div>
-                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ${status.class}`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
-                        {status.label}
-                      </span>
+                      {isOrderActionNeeded(order) ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ring-1 bg-rose-50 text-rose-700 ring-rose-300">
+                          <AlertTriangle size={11} />
+                          Resubmit Link
+                        </span>
+                      ) : (
+                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ring-1 ${status.class}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${status.dot}`} />
+                          {status.label}
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-slate-500 mb-3 truncate">
                       {order.thread_url.substring(0, 40)}...

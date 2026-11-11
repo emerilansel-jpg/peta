@@ -22,6 +22,8 @@ import {
   FileSpreadsheet,
   Eye,
   X,
+  AlertTriangle,
+  Link2,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { RedditLayout } from '../components/RedditLayout';
@@ -36,8 +38,13 @@ import {
   clientPauseOrder,
   clientResumeOrder,
   clientCancelOrder,
+  clientUpdateBrokenOrderUrl,
+  getClientOrdersHealth,
   getOrderDeliveryProofs,
   getOrderCancellationPreview,
+  isInvalidOrSearchForumUrl,
+  verifyForumThreadUrl,
+  type ClientOrderHealth,
   type OrderDeliveryProof,
 } from '../lib/api';
 import { MessageBubble } from './admin/AdminTickets';
@@ -383,8 +390,13 @@ export function RedditOrderDetail() {
     total_committed: number;
     refundable_units: number;
     refund_amount: number;
+    is_broken_url?: boolean;
+    bypass_window?: boolean;
     can_cancel: boolean;
   } | null>(null);
+  const [orderHealth, setOrderHealth] = useState<ClientOrderHealth | null>(null);
+  const [replacementUrl, setReplacementUrl] = useState('');
+  const [updatingUrl, setUpdatingUrl] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ email: string; fullName?: string }>({ email: '' });
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -485,6 +497,36 @@ export function RedditOrderDetail() {
     }
   };
 
+  const handleUpdateBrokenUrl = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!order) return;
+    const nextUrl = replacementUrl.trim();
+    if (!nextUrl || !/^https?:\/\/[^\s.]+\.[^\s]+/i.test(nextUrl)) {
+      toast.error('Please enter a valid http(s) URL.');
+      return;
+    }
+    if (isInvalidOrSearchForumUrl(nextUrl)) {
+      toast.error('Search result pages are not allowed. Please enter a direct thread URL.');
+      return;
+    }
+    setUpdatingUrl(true);
+    try {
+      const check = await verifyForumThreadUrl(nextUrl);
+      if (check.broken) {
+        toast.error(check.reason || 'This target URL returned 410/404 or is closed for comments.');
+        return;
+      }
+      await clientUpdateBrokenOrderUrl(order.id, nextUrl);
+      toast.success('Target URL updated and order resubmitted to delivery!');
+      setReplacementUrl('');
+      await load();
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update target URL');
+    } finally {
+      setUpdatingUrl(false);
+    }
+  };
+
   const load = async () => {
     if (!orderId) return;
 
@@ -523,11 +565,14 @@ export function RedditOrderDetail() {
         });
       }
 
-      const p = await getOrderDeliveryProofs(parseInt(orderId));
+      const [p, cancelPrev, healthList] = await Promise.all([
+        getOrderDeliveryProofs(parseInt(orderId)),
+        getOrderCancellationPreview(parseInt(orderId)),
+        getClientOrdersHealth(parseInt(orderId)),
+      ]);
       setProofs(p);
-
-      const cancelPrev = await getOrderCancellationPreview(parseInt(orderId));
       setCancellationPreview(cancelPrev);
+      setOrderHealth(healthList[0] || null);
     } catch {
       toast.error('Failed to load order');
     } finally {
@@ -669,6 +714,83 @@ export function RedditOrderDetail() {
             <p className="text-sm opacity-80 mt-0.5">{service.statusDesc[order.status] || status.desc}</p>
           </div>
         </div>
+
+        {/* Broken / 410 / Search Page / Closed Thread Alert & Self-Service Resubmit */}
+        {orderHealth?.is_broken_url && order.status !== 'cancelled' && order.status !== 'completed' && order.delivered_upvotes < order.requested_upvotes && (
+          <div className="p-5 rounded-2xl ring-2 ring-rose-300 bg-rose-50 mb-6 space-y-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle size={22} className="text-rose-600 shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <p className="font-bold text-rose-950 text-base">
+                  Action Required: Target URL cannot be fulfilled ({orderHealth.url_status === 'gone_410' ? 'HTTP 410 Gone' : orderHealth.url_status === 'not_found_404' ? 'HTTP 404 Not Found' : orderHealth.url_status === 'closed_topic' ? 'Thread Closed / Locked' : 'Search Results Page'})
+                </p>
+                <p className="text-sm text-rose-900 mt-1 leading-relaxed">
+                  {orderHealth.url_check_error || 'This target URL points to a search page, returned HTTP 410 Gone, or is closed for new comments.'}
+                  {' '}Delivery is automatically paused so no broken work is submitted.
+                </p>
+              </div>
+            </div>
+
+            {orderHealth.locked_active_units > 0 ? (
+              <div className="p-3.5 rounded-xl bg-amber-50 ring-1 ring-amber-300 text-xs text-amber-950">
+                <b>Under Review:</b> {orderHealth.locked_active_units} worker submission(s) are awaiting team review before this order can be edited or refunded. Check back shortly or message support below.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-1">
+                {orderHealth.can_update_url && (
+                  <form onSubmit={handleUpdateBrokenUrl} className="p-4 rounded-xl bg-white ring-1 ring-rose-200 space-y-2.5">
+                    <label className="block text-xs font-bold uppercase tracking-wide text-slate-800">
+                      Option 1 · Replace Link &amp; Resubmit
+                    </label>
+                    <div className="relative">
+                      <Link2 size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="url"
+                        value={replacementUrl}
+                        onChange={(e) => setReplacementUrl(e.target.value)}
+                        placeholder="https://community.example.com/t/live-thread/123"
+                        className="w-full pl-9 pr-3 py-2 rounded-lg ring-1 ring-slate-300 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                        required
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={updatingUrl}
+                      className="w-full px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 disabled:bg-slate-300 text-white font-semibold text-sm inline-flex items-center justify-center gap-2 transition"
+                    >
+                      {updatingUrl ? <Loader2 size={14} className="animate-spin" /> : null}
+                      {updatingUrl ? 'Verifying URL...' : 'Verify & Resubmit Order'}
+                    </button>
+                  </form>
+                )}
+
+                {orderHealth.can_refund_broken && (
+                  <div className="p-4 rounded-xl bg-white ring-1 ring-rose-200 flex flex-col justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-800">
+                        {orderHealth.can_update_url ? 'Option 2 · Cancel & Full Refund' : 'Cancel & Full Credit Refund'}
+                      </p>
+                      <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                        Get <b>{formatUSD(cancellationPreview?.refund_amount ?? order.cost_credits)}</b> refunded to your credit balance immediately so you can submit a fresh order. (6-hour limit waived)
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCancelReason('Inaccessible / 410 / search-page target URL — resubmitting');
+                        setShowCancelModal(true);
+                      }}
+                      className="w-full px-4 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-semibold text-sm inline-flex items-center justify-center gap-2 transition"
+                    >
+                      <AlertOctagon size={14} />
+                      Cancel &amp; Refund Credit
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Review prompt — when completed and not yet reviewed */}
         {order.status === 'completed' && !hasReviewed && (
@@ -1130,11 +1252,15 @@ export function RedditOrderDetail() {
             )}
 
             {/* Client self-cancellation window */}
-            {cancelState.cancelable && (
+            {(cancelState.cancelable || Boolean(cancellationPreview?.bypass_window)) && order.status !== 'cancelled' && order.status !== 'completed' && (
               <div className="p-5 rounded-2xl bg-rose-50 ring-1 ring-rose-200">
                 <h3 className="font-semibold text-sm text-slate-900 mb-1">Want to cancel this order?</h3>
                 <p className="text-xs text-slate-600 mb-3">
-                  You can cancel automatically within <strong className="text-slate-900">6 hours</strong> of placing the order.
+                  {cancellationPreview?.bypass_window ? (
+                    <>Target URL was flagged as inaccessible/410/closed. The <strong className="text-slate-900">6-hour window is waived</strong> for an instant refund.</>
+                  ) : (
+                    <>You can cancel automatically within <strong className="text-slate-900">6 hours</strong> of placing the order.</>
+                  )}
                   {cancellationPreview && cancellationPreview.locked_active_units > 0
                     ? ` ${cancellationPreview.locked_active_units} unit(s) are actively in progress by our delivery team and protected from cancellation. The remaining ${cancellationPreview.refundable_units} uncommitted unit(s) will be refunded.`
                     : order.requested_upvotes > 1
@@ -1147,21 +1273,23 @@ export function RedditOrderDetail() {
                   </div>
                 ) : (
                   <>
-                    <p className="text-xs font-medium text-rose-700 mb-3">
-                      Window closes in: {formatCountdown(cancelCountdown)}
-                    </p>
+                    {!cancellationPreview?.bypass_window && (
+                      <p className="text-xs font-medium text-rose-700 mb-3">
+                        Window closes in: {formatCountdown(cancelCountdown)}
+                      </p>
+                    )}
                     <button
                       onClick={() => setShowCancelModal(true)}
                       className="w-full px-4 py-2 rounded-lg bg-rose-100 text-rose-700 hover:bg-rose-200 font-semibold text-sm inline-flex items-center justify-center gap-2"
                     >
                       <AlertOctagon size={14} />
-                      Cancel order
+                      Cancel &amp; Refund Credit
                     </button>
                   </>
                 )}
               </div>
             )}
-            {!cancelState.cancelable && order.status !== 'cancelled' && order.status !== 'completed' && (
+            {!cancelState.cancelable && !cancellationPreview?.bypass_window && order.status !== 'cancelled' && order.status !== 'completed' && (
               <div className="p-4 rounded-2xl bg-slate-50 ring-1 ring-slate-200">
                 <p className="text-xs text-slate-500">
                   <strong className="text-slate-700">Cancellation window closed.</strong> {cancelState.reason}
