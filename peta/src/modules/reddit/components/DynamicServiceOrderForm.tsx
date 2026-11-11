@@ -180,6 +180,11 @@ export function DynamicServiceOrderForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (!service.enabled) {
+      toast.error('This service is paused right now.');
+      return;
+    }
+
     if (!isUrlValid()) {
       toast.error(`Please enter a valid URL. Example: ${service.url_placeholder || 'https://...'}`);
       return;
@@ -487,11 +492,11 @@ export function DynamicServiceOrderForm({
             ) : (
               <button
                 type="submit"
-                disabled={submitting}
-                className="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm inline-flex items-center gap-2 transition shadow-md"
+                disabled={submitting || !service.enabled}
+                className="px-6 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm inline-flex items-center gap-2 transition shadow-md"
               >
                 {submitting ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />}
-                Place Order Now
+                {service.enabled ? 'Place Order Now' : 'Service Paused'}
               </button>
             )}
           </div>

@@ -545,7 +545,7 @@ export function RedditNewOrder() {
   const startsInComments = serviceParam === 'comments';
   const startsInYelp = serviceParam === 'yelp' || serviceParam === 'yelp-review';
   const startsInClutch = serviceParam === 'clutch' || serviceParam === 'clutch-review';
-  const startsInTrustpilot = serviceParam === 'trustpilot' || serviceParam === 'trustpilot-review';
+  const startsInTrustpilot = serviceParam === 'trustpilot' || serviceParam === 'trustpilot-review' || serviceParam === 'trustpilot_review';
   const startsInGoogleMaps = serviceParam === 'gmaps' || serviceParam === 'google-maps';
 
   const [dynamicServices, setDynamicServices] = useState<StraightServiceRecord[]>([]);
@@ -566,7 +566,7 @@ export function RedditNewOrder() {
       if (serviceParam) {
         const cleanParam = serviceParam.toLowerCase().replace(/-/g, '_');
         const match = list.find((s) => s.slug === cleanParam || s.slug === serviceParam);
-        if (match && !['comments', 'yelp', 'yelp-review', 'clutch', 'clutch-review', 'trustpilot', 'trustpilot-review', 'gmaps', 'google-maps'].includes(serviceParam)) {
+        if (match && match.enabled && !['comments', 'yelp', 'yelp-review', 'clutch', 'clutch-review', 'trustpilot', 'trustpilot-review', 'trustpilot_review', 'gmaps', 'google-maps'].includes(serviceParam)) {
           setSelectedDynamicService(match);
           setView('dynamic-service');
         }
@@ -634,8 +634,10 @@ export function RedditNewOrder() {
       return { ...s, status: on ? s.status : 'paused' as const };
     }
     if (s.id === 'trustpilot-review') {
-      const on = straightEnabled(pricing, 'trustpilot_review', true);
-      return { ...s, status: on ? s.status : 'paused' as const };
+      const pricingOn = straightEnabled(pricing, 'trustpilot_review', false);
+      const svcRow = dynamicServices.find((ds) => ds.slug === 'trustpilot_review');
+      const svcOn = svcRow ? svcRow.enabled : false;
+      return { ...s, status: (pricingOn && svcOn) ? s.status : 'paused' as const };
     }
     if (s.id === 'google-maps-review') {
       const on = straightEnabled(pricing, 'google_maps_review', true);
@@ -654,7 +656,7 @@ export function RedditNewOrder() {
       return { ...s, status: on ? s.status : 'paused' as const };
     }
     return s;
-  }), [pricing]);
+  }), [pricing, redditServiceEnabled, dynamicServices]);
 
   const handleServiceClick = (service: Service) => {
     if (service.status === 'paused') {
@@ -711,7 +713,12 @@ export function RedditNewOrder() {
       {view === 'linkedin-like' && <LinkedInOrderForm serviceType="linkedin_like" onBack={handleBack} />}
       {view === 'linkedin-follow' && <LinkedInOrderForm serviceType="linkedin_follow" onBack={handleBack} />}
       {view === 'linkedin-comment' && <LinkedInOrderForm serviceType="linkedin_comment" onBack={handleBack} />}
-      {view === 'trustpilot-review' && <TrustpilotOrderForm onBack={handleBack} />}
+      {view === 'trustpilot-review' && (
+        <TrustpilotOrderForm
+          onBack={handleBack}
+          serviceEnabled={dynamicServices.find((ds) => ds.slug === 'trustpilot_review')?.enabled ?? false}
+        />
+      )}
       {view === 'google-maps-review' && <GoogleMapsReviewOrderForm onBack={handleBack} />}
       {view === 'quora-upvote' && <QuoraUpvoteOrderForm onBack={handleBack} />}
       {view === 'yelp-review' && <YelpReviewOrderForm onBack={handleBack} />}
@@ -811,7 +818,7 @@ function ServiceSelector({
       <div className="flex flex-wrap items-center gap-2 mb-8 pb-3 border-b border-slate-200">
         {[
           { id: 'all', label: 'All Services' },
-          { id: 'reviews', label: '⭐ Reviews (Maps, Trustpilot, Yelp, Clutch)' },
+          { id: 'reviews', label: '⭐ Reviews (Maps, Yelp, Clutch)' },
           { id: 'clutch', label: 'Clutch' },
           { id: 'yelp', label: 'Yelp' },
           { id: 'google', label: 'Google' },
@@ -3227,7 +3234,7 @@ function LinkedInOrderForm({
 // ============================================================
 // View 2f: Trustpilot Review Order Form
 // ============================================================
-function TrustpilotOrderForm({ onBack }: { onBack: () => void }) {
+function TrustpilotOrderForm({ onBack, serviceEnabled = false }: { onBack: () => void; serviceEnabled?: boolean }) {
   const navigate = useNavigate();
   const { balance } = useRedditCredits();
   const pricing = useStraightPricing();
@@ -3243,7 +3250,7 @@ function TrustpilotOrderForm({ onBack }: { onBack: () => void }) {
   const [showConfirm, setShowConfirm] = useState(false);
 
   const unitCents = straightPrice(pricing, 'trustpilot_review', 500);
-  const enabled = straightEnabled(pricing, 'trustpilot_review', true);
+  const enabled = straightEnabled(pricing, 'trustpilot_review', false) && serviceEnabled;
   const cost = unitCents * quantity;
 
   const handleQuantityChange = (newQty: number) => {
