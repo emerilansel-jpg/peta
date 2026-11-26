@@ -473,6 +473,8 @@ assert.ok(rankingPageCode.includes('Rescan before ordering.'), 'Ranking UI must 
 													assert.ok(orderFlowSql.includes("'avvo_comment', 'facebook_group_comment'"), 'Eligibility dedupe must match claim behavior');
 													assert.ok(newOrderCode.includes("dynamicSlug: 'facebook_page_review'"), 'Facebook Review must be a standard order card');
 													assert.ok(newOrderCode.includes("dynamicSlug: 'avvo_comment'"), 'Avvo must be a standard order card');
+													assert.ok(newOrderCode.includes("{ id: 'facebook', label: 'Facebook' }"), 'Service filter must include Facebook');
+													assert.ok(newOrderCode.includes("{ id: 'avvo', label: 'Avvo' }"), 'Service filter must include Avvo');
 													assert.ok(newOrderCode.includes('avvo: \'avvo_comment\''), 'Avvo service alias must resolve to catalog slug');
 													assert.ok(formCode.includes('requiresCustomText'), 'Order form must require review text before checkout');
 													assert.ok(formCode.includes('must be unique'), 'Order form must reject duplicate review texts');

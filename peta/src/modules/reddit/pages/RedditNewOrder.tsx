@@ -798,7 +798,7 @@ function ServiceSelector({
   onSelect: (s: Service) => void;
   onSelectDynamic?: (s: StraightServiceRecord) => void;
 }) {
-  const [activeFilter, setActiveFilter] = useState<'all' | 'reviews' | 'yelp' | 'clutch' | 'google' | 'linkedin' | 'social' | 'video' | 'twitter'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'reviews' | 'facebook' | 'avvo' | 'yelp' | 'clutch' | 'google' | 'linkedin' | 'social' | 'video' | 'twitter'>('all');
 
   // Hide paused services entirely — admin turned them off.
   // Reddit cards show when pricing matrix has them enabled.
@@ -806,6 +806,12 @@ function ServiceSelector({
     if (s.status === 'paused') return false;
     if (activeFilter === 'reviews') {
       return s.id === 'google-maps-review' || s.id === 'trustpilot-review' || s.id === 'yelp-review' || s.id === 'clutch-review' || s.id === 'facebook-page-review' || s.id === 'avvo-comment';
+    }
+    if (activeFilter === 'facebook') {
+      return s.platform === 'Facebook';
+    }
+    if (activeFilter === 'avvo') {
+      return s.platform === 'Avvo';
     }
     if (activeFilter === 'yelp') {
       return s.platform === 'Yelp';
@@ -862,7 +868,9 @@ function ServiceSelector({
       <div className="flex flex-wrap items-center gap-2 mb-8 pb-3 border-b border-slate-200">
         {[
           { id: 'all', label: 'All Services' },
-          { id: 'reviews', label: '⭐ Reviews (Maps, Yelp, Clutch)' },
+          { id: 'reviews', label: '⭐ Reviews (Maps, Facebook, Avvo)' },
+          { id: 'facebook', label: 'Facebook' },
+          { id: 'avvo', label: 'Avvo' },
           { id: 'clutch', label: 'Clutch' },
           { id: 'yelp', label: 'Yelp' },
           { id: 'google', label: 'Google' },
