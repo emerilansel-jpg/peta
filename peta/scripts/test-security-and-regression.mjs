@@ -475,6 +475,9 @@ assert.ok(rankingPageCode.includes('Rescan before ordering.'), 'Ranking UI must 
 													assert.ok(newOrderCode.includes("dynamicSlug: 'avvo_comment'"), 'Avvo must be a standard order card');
 													assert.ok(newOrderCode.includes("{ id: 'facebook', label: 'Facebook' }"), 'Service filter must include Facebook');
 													assert.ok(newOrderCode.includes("{ id: 'avvo', label: 'Avvo' }"), 'Service filter must include Avvo');
+													assert.ok(newOrderCode.includes("{ id: 'forum', label: 'Forums' }"), 'Service filter must include Forums');
+													assert.ok(newOrderCode.includes("{ id: 'trustpilot', label: 'Trustpilot' }"), 'Service filter must include Trustpilot');
+													assert.ok(newOrderCode.includes("{ id: 'quora', label: 'Quora' }"), 'Service filter must include Quora');
 													assert.ok(newOrderCode.includes('avvo: \'avvo_comment\''), 'Avvo service alias must resolve to catalog slug');
 													assert.ok(formCode.includes('requiresCustomText'), 'Order form must require review text before checkout');
 													assert.ok(formCode.includes('must be unique'), 'Order form must reject duplicate review texts');
