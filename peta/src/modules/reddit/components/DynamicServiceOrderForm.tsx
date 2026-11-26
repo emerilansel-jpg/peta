@@ -139,13 +139,15 @@ export function DynamicServiceOrderForm({
   onTopup,
 }: DynamicServiceOrderFormProps) {
   const fc = service.form_config || {};
+  const requiresCustomText = fc.requires_custom_drafts === true;
   const [targetUrl, setTargetUrl] = useState('');
   const [quantity, setQuantity] = useState(service.min_quantity || 1);
   const [location, setLocation] = useState('');
-  const [reviewMode, setReviewMode] = useState<'brief' | 'custom'>('brief');
+  const [reviewMode, setReviewMode] = useState<'brief' | 'custom'>(requiresCustomText ? 'custom' : 'brief');
   const [brief, setBrief] = useState('');
   const [drafts, setDrafts] = useState<string[]>(Array(quantity).fill(''));
   const [clientNotes, setClientNotes] = useState('');
+  const [customerAttested, setCustomerAttested] = useState(false);
   const [dripHours, setDripHours] = useState(fc.default_drip_hours || 24);
   const [submitting, setSubmitting] = useState(false);
 
@@ -200,19 +202,31 @@ export function DynamicServiceOrderForm({
       return;
     }
 
+    if (fc.requires_customer_attestation && !customerAttested) {
+      toast.error('Confirm that the reviewers are genuine customers before ordering.');
+      return;
+    }
+
     if (!hasEnoughCredits) {
       toast.error('Insufficient credits. Please top up your balance.');
       return;
     }
 
-    if (reviewMode === 'custom' && fc.allows_custom_drafts) {
+    if (requiresCustomText || (reviewMode === 'custom' && fc.allows_custom_drafts)) {
       const minLength = fc.min_draft_length || 10;
+      const texts: string[] = [];
       for (let i = 0; i < quantity; i++) {
         const d = (drafts[i] || '').trim();
         if (d.length < minLength) {
-          toast.error(`Draft #${i + 1} must be at least ${minLength} characters.`);
+          toast.error(`Text #${i + 1} must be at least ${minLength} characters.`);
           return;
         }
+        const normalized = d.toLowerCase().replace(/\s+/g, ' ');
+        if (texts.includes(normalized)) {
+          toast.error(`Text #${i + 1} must be unique. Each review needs different wording.`);
+          return;
+        }
+        texts.push(normalized);
       }
     }
 
@@ -232,11 +246,14 @@ export function DynamicServiceOrderForm({
         targetUrl: targetUrl.trim(),
         quantity,
         location: location.trim() || null,
-        notes: clientNotes.trim() || null,
-        reviewMode: fc.allows_custom_drafts ? reviewMode : null,
-        reviewBrief: brief.trim() || null,
-        reviewDrafts: reviewMode === 'custom' && fc.allows_custom_drafts
-          ? drafts.map((d) => ({ comment_text: d.trim() }))
+        notes: [
+          clientNotes.trim(),
+          fc.requires_customer_attestation ? 'customer_attestation=true' : '',
+        ].filter(Boolean).join('\n') || null,
+        reviewMode: fc.allows_custom_drafts ? (requiresCustomText ? 'custom' : reviewMode) : null,
+        reviewBrief: !requiresCustomText ? brief.trim() || null : null,
+        reviewDrafts: (requiresCustomText || (reviewMode === 'custom' && fc.allows_custom_drafts))
+          ? drafts.slice(0, quantity).map((d) => ({ comment_text: d.trim() }))
           : null,
         dripIntervalHours: fc.allows_drip_feed ? dripHours : 0,
         requestId,
@@ -388,31 +405,35 @@ export function DynamicServiceOrderForm({
         {/* Content Mode (Brief vs Custom Drafts) */}
         {fc.allows_custom_drafts && (
           <div className="bg-white rounded-2xl ring-1 ring-slate-200 p-6 shadow-sm space-y-4">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-bold text-slate-900">Content & Instructions</label>
-              <div className="flex rounded-lg bg-slate-100 p-1 text-xs font-semibold">
-                <button
-                  type="button"
-                  onClick={() => setReviewMode('brief')}
-                  className={`px-3 py-1 rounded-md transition ${
-                    reviewMode === 'brief' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Write Brief
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setReviewMode('custom')}
-                  className={`px-3 py-1 rounded-md transition ${
-                    reviewMode === 'custom' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  Provide Custom Texts
-                </button>
-              </div>
+            <div className="flex items-center justify-between gap-3">
+              <label className="text-sm font-bold text-slate-900">
+                {requiresCustomText ? 'Customer review text' : 'Content & Instructions'}
+              </label>
+              {!requiresCustomText && (
+                <div className="flex rounded-lg bg-slate-100 p-1 text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setReviewMode('brief')}
+                    className={`px-3 py-1 rounded-md transition ${
+                      reviewMode === 'brief' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Write Brief
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setReviewMode('custom')}
+                    className={`px-3 py-1 rounded-md transition ${
+                      reviewMode === 'custom' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    Provide Custom Texts
+                  </button>
+                </div>
+              )}
             </div>
 
-            {reviewMode === 'brief' ? (
+            {reviewMode === 'brief' && !requiresCustomText ? (
               <div>
                 <p className="text-xs text-slate-500 mb-2">
                   Describe key points, customer experience, or product highlights. Our verified workers will craft unique, natural responses.
@@ -428,12 +449,12 @@ export function DynamicServiceOrderForm({
             ) : (
               <div className="space-y-3">
                 <p className="text-xs text-slate-500">
-                  Provide exact text for each unit. Each unit must be unique.
+                  Provide one honest review text per unit. Each text must be different and based on a real customer experience.
                 </p>
                 {Array.from({ length: quantity }).map((_, idx) => (
                   <div key={idx}>
                     <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      Text #{idx + 1}
+                      {requiresCustomText ? `Customer review text #${idx + 1}` : `Text #${idx + 1}`}
                     </label>
                     <textarea
                       rows={2}
@@ -451,6 +472,20 @@ export function DynamicServiceOrderForm({
               </div>
             )}
           </div>
+        )}
+
+        {fc.requires_customer_attestation && (
+          <label className="flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-2xl p-4 text-sm text-amber-950">
+            <input
+              type="checkbox"
+              checked={customerAttested}
+              onChange={(e) => setCustomerAttested(e.target.checked)}
+              className="mt-0.5 h-5 w-5 shrink-0 accent-amber-600"
+            />
+            <span>
+              I confirm that every reviewer is a genuine customer with firsthand experience. I will not request fabricated testimonials, a guaranteed rating, or a review from someone who has not used the business.
+            </span>
+          </label>
         )}
 
         {/* Client General Notes */}

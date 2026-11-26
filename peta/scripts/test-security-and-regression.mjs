@@ -458,6 +458,30 @@ assert.ok(rankingPageCode.includes('Rescan before ordering.'), 'Ranking UI must 
 													assert.ok(emailFnCode.includes("'order_progress'"), 'Email function must support order progress notifications');
 													console.log('  ✓ Global progress notifications, preferences, dedup, and UI surfaces verified.');
 
+													// 24. Verify Facebook Review + Avvo self-service ordering
+													console.log('24. Checking Facebook Review + Avvo order flow...');
+													const orderFlowMigrationPath = path.join(rootDir, 'supabase', 'migrations', '20261127000000_facebook_avvo_order_flow.sql');
+													const orderFlowSql = fs.readFileSync(orderFlowMigrationPath, 'utf8');
+													const newOrderCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', 'reddit', 'pages', 'RedditNewOrder.tsx'), 'utf8');
+													const adminServicesCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', 'reddit', 'pages', 'admin', 'AdminServices.tsx'), 'utf8');
+													const orderDetailCode2 = fs.readFileSync(path.join(rootDir, 'src', 'modules', 'reddit', 'pages', 'RedditOrderDetail.tsx'), 'utf8');
+													const adminOrdersCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', 'reddit', 'pages', 'admin', 'AdminOrders.tsx'), 'utf8');
+													const workerTaskDetailCode = fs.readFileSync(path.join(rootDir, 'src', 'pages', 'TaskDetail.tsx'), 'utf8');
+													const formCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', 'reddit', 'components', 'DynamicServiceOrderForm.tsx'), 'utf8');
+													assert.ok(orderFlowSql.includes('requires_custom_drafts'), 'Server must require Facebook review text');
+													assert.ok(orderFlowSql.includes('Each review text must be unique'), 'Review texts must be unique server-side');
+													assert.ok(orderFlowSql.includes("'avvo_comment', 'facebook_group_comment'"), 'Eligibility dedupe must match claim behavior');
+													assert.ok(newOrderCode.includes("dynamicSlug: 'facebook_page_review'"), 'Facebook Review must be a standard order card');
+													assert.ok(newOrderCode.includes("dynamicSlug: 'avvo_comment'"), 'Avvo must be a standard order card');
+													assert.ok(newOrderCode.includes('avvo: \'avvo_comment\''), 'Avvo service alias must resolve to catalog slug');
+													assert.ok(formCode.includes('requiresCustomText'), 'Order form must require review text before checkout');
+													assert.ok(formCode.includes('must be unique'), 'Order form must reject duplicate review texts');
+													assert.ok(adminServicesCode.includes('...(editingService?.form_config || {})'), 'Admin service save must preserve safety flags');
+													assert.ok(orderDetailCode2.includes('Review / comment texts'), 'Client order detail must show review texts');
+													assert.ok(adminOrdersCode.includes('Customer review texts'), 'Admin order detail must show review texts');
+													assert.ok(workerTaskDetailCode.includes('Customer review text to publish'), 'Worker task must show assigned review text');
+													console.log('  ✓ Facebook Review text, Avvo standard card, and draft visibility verified.');
+
 												console.log('  ✓ Ranking Forum now consumes resolved SERP URLs and rejects redirect wrappers.');
 
 

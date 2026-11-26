@@ -34,6 +34,7 @@ import {
   MessageCircle,
   AlertTriangle,
   Clock,
+  ImagePlus,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { RedditLayout } from '../components/RedditLayout';
@@ -42,6 +43,7 @@ import { DynamicServiceOrderForm } from '../components/DynamicServiceOrderForm';
 import { useRedditCredits } from '../hooks/useRedditCredits';
 import { useRedditOrders } from '../hooks/useRedditOrders';
 import {
+  attachGoogleMapsReviewImages,
   formatUSD,
   generateForumComment,
   isInvalidOrSearchForumUrl,
@@ -51,6 +53,7 @@ import {
   straightPlatformKey,
   getStraightServices,
   verifyForumThreadUrl,
+  uploadGoogleMapsReviewImage,
   type StraightServiceRecord,
 } from '../lib/api';
 import { useStraightPricing, useStraightRedditServiceEnabled } from '../hooks/useStraightPricing';
@@ -186,6 +189,7 @@ interface Service {
   iconBg: string;
   iconColor: string;
   serviceKey?: string;
+  dynamicSlug?: string;
 }
 
 const SERVICES: Service[] = [
@@ -309,6 +313,30 @@ const SERVICES: Service[] = [
     badge: 'New',
     iconBg: 'bg-red-100',
     iconColor: 'text-red-700',
+  },
+  {
+    id: 'facebook-page-review',
+    platform: 'Facebook',
+    name: 'Page Reviews',
+    icon: Star,
+    description: 'Customer feedback for your Facebook Page, written by real customers ($5.00/review)',
+    status: 'active',
+    badge: 'New',
+    iconBg: 'bg-blue-100',
+    iconColor: 'text-blue-700',
+    dynamicSlug: 'facebook_page_review',
+  },
+  {
+    id: 'avvo-comment',
+    platform: 'Avvo',
+    name: 'Question Comments',
+    icon: MessageSquare,
+    description: 'Helpful comments on Avvo legal questions ($5.00/comment)',
+    status: 'active',
+    badge: 'New',
+    iconBg: 'bg-indigo-100',
+    iconColor: 'text-indigo-700',
+    dynamicSlug: 'avvo_comment',
   },
   {
     id: 'reddit-comment',
@@ -565,7 +593,9 @@ export function RedditNewOrder() {
       setDynamicServices(list);
       if (serviceParam) {
         const cleanParam = serviceParam.toLowerCase().replace(/-/g, '_');
-        const match = list.find((s) => s.slug === cleanParam || s.slug === serviceParam);
+        const aliases: Record<string, string> = { avvo: 'avvo_comment', facebook: 'facebook_page_review', 'facebook-review': 'facebook_page_review' };
+        const resolvedParam = aliases[serviceParam.toLowerCase()] || cleanParam;
+        const match = list.find((s) => s.slug === resolvedParam || s.slug === cleanParam || s.slug === serviceParam);
         if (match && match.enabled && !['comments', 'yelp', 'yelp-review', 'clutch', 'clutch-review', 'trustpilot', 'trustpilot-review', 'trustpilot_review', 'gmaps', 'google-maps'].includes(serviceParam)) {
           setSelectedDynamicService(match);
           setView('dynamic-service');
@@ -655,6 +685,10 @@ export function RedditNewOrder() {
       const on = straightEnabled(pricing, 'quora_upvote', true);
       return { ...s, status: on ? s.status : 'paused' as const };
     }
+    if (s.dynamicSlug) {
+      const row = dynamicServices.find((ds) => ds.slug === s.dynamicSlug);
+      return { ...s, status: row?.enabled ? 'active' as const : 'paused' as const };
+    }
     return s;
   }), [pricing, redditServiceEnabled, dynamicServices]);
 
@@ -667,6 +701,14 @@ export function RedditNewOrder() {
     if (service.serviceKey) {
       setView('reseller-order');
       return;
+    }
+    if (service.dynamicSlug) {
+      const row = dynamicServices.find((ds) => ds.slug === service.dynamicSlug);
+      if (row?.enabled) {
+        setSelectedDynamicService(row);
+        setView('dynamic-service');
+        return;
+      }
     }
     if (service.status === 'active') {
       setView(service.id as ViewMode);
@@ -804,7 +846,7 @@ function ServiceSelector({
   const customServices = visible.filter((s) => s.platform === 'Custom');
 
   const customDynamic = dynamicServices.filter(
-    (ds) => ds.enabled && !SERVICES.some((s) => s.id === ds.slug || s.id === ds.slug.replace(/_/g, '-'))
+    (ds) => ds.enabled && !SERVICES.some((s) => s.id === ds.slug || s.id === ds.slug.replace(/_/g, '-') || s.dynamicSlug === ds.slug)
   );
 
   return (
@@ -3649,7 +3691,41 @@ function GoogleMapsReviewOrderForm({ onBack }: { onBack: () => void }) {
   const [reviewMode, setReviewMode] = useState<'brief' | 'custom'>('brief');
   const [reviewBrief, setReviewBrief] = useState('');
   const [customDrafts, setCustomDrafts] = useState<string[]>(() => Array(5).fill(''));
+  const [reviewImages, setReviewImages] = useState<{ file: File; url: string }[]>([]);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  const addReviewImages = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    setReviewImages((prev) => {
+      const next = [...prev];
+      for (const f of Array.from(files)) {
+        if (next.length >= 10) {
+          toast.error('Maximum 10 photos per order.');
+          break;
+        }
+        if (!allowed.includes(f.type)) {
+          toast.error(`${f.name}: only JPG, PNG, or WEBP is allowed.`);
+          continue;
+        }
+        if (f.size > 5 * 1024 * 1024) {
+          toast.error(`${f.name}: max 5 MB.`);
+          continue;
+        }
+        next.push({ file: f, url: URL.createObjectURL(f) });
+      }
+      return next;
+    });
+  };
+
+  const removeReviewImage = (idx: number) => {
+    setReviewImages((prev) => {
+      const next = [...prev];
+      const [removed] = next.splice(idx, 1);
+      if (removed) URL.revokeObjectURL(removed.url);
+      return next;
+    });
+  };
 
   const priceGlobal = straightPrice(pricing, 'google_maps_review', 500);
   const priceLocation = straightPrice(pricing, 'google_maps_review_location', 600);
@@ -3728,10 +3804,33 @@ function GoogleMapsReviewOrderForm({ onBack }: { onBack: () => void }) {
         dripIntervalHours: dripHours,
       },
       {
-        onSuccess: (order: { id?: number } | null) => {
-          toast.success(`Google Maps order placed — ${quantity} review${quantity === 1 ? '' : 's'}. ${formatUSD(cost)} deducted.`);
+        onSuccess: async (order: { id?: number } | null) => {
           setShowConfirm(false);
-          navigate(order?.id ? `/orders/${order.id}` : spath('/orders'));
+          if (order?.id && reviewImages.length > 0) {
+            toast.loading(`Uploading photos 0/${reviewImages.length}...`, { id: 'gm-photo-upload' });
+            const paths: string[] = [];
+            try {
+              for (let i = 0; i < reviewImages.length; i++) {
+                paths.push(await uploadGoogleMapsReviewImage(order.id, reviewImages[i].file, i + 1));
+                toast.loading(`Uploading photos ${i + 1}/${reviewImages.length}...`, { id: 'gm-photo-upload' });
+              }
+              await attachGoogleMapsReviewImages(order.id, paths);
+              toast.success(
+                `Order placed — ${quantity} review${quantity === 1 ? '' : 's'}, ${paths.length} photo${paths.length === 1 ? '' : 's'} attached. Each reviewer gets a different photo.`,
+                { id: 'gm-photo-upload', duration: 5000 }
+              );
+            } catch {
+              toast.error(
+                `Order placed, but a photo failed to upload. Contact support quoting order #${order.id}.`,
+                { id: 'gm-photo-upload', duration: 6000 }
+              );
+            } finally {
+              navigate(`/orders/${order.id}`);
+            }
+          } else {
+            toast.success(`Google Maps order placed — ${quantity} review${quantity === 1 ? '' : 's'}. ${formatUSD(cost)} deducted.`);
+            navigate(order?.id ? `/orders/${order.id}` : spath('/orders'));
+          }
         },
         onError: (err: Error) => {
           toast.error(err.message || 'Failed to create order');
@@ -3982,6 +4081,56 @@ function GoogleMapsReviewOrderForm({ onBack }: { onBack: () => void }) {
               ))}
             </div>
           )}
+        </div>
+
+        <div>
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-900 mb-2">
+            <span className="w-6 h-6 rounded-full bg-emerald-600 text-white text-xs font-bold flex items-center justify-center">5</span>
+            Photos for reviewers <span className="text-slate-400 font-normal text-xs">(optional)</span>
+          </label>
+          <p className="text-xs text-slate-500 mb-3 leading-relaxed">
+            Upload photos reviewers should attach to their Google reviews. Each reviewer automatically receives a{' '}
+            <b className="text-slate-700">different photo</b> — never the same one. If you upload fewer photos than
+            reviews, the remaining reviews are posted text-only.
+          </p>
+          {reviewImages.length > 0 && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {reviewImages.map((img, i) => (
+                <div key={img.url} className="relative w-16 h-16 rounded-lg overflow-hidden ring-1 ring-slate-200">
+                  <img src={img.url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => removeReviewImage(i)}
+                    className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-slate-900/70 text-white text-[11px] flex items-center justify-center hover:bg-rose-600"
+                    aria-label={`Remove photo ${i + 1}`}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          <label
+            className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-lg border border-dashed text-sm font-semibold transition ${
+              reviewImages.length >= 10
+                ? 'border-slate-200 text-slate-400 cursor-not-allowed'
+                : 'border-slate-300 text-slate-700 hover:border-emerald-500 hover:text-emerald-700 cursor-pointer'
+            }`}
+          >
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              multiple
+              disabled={reviewImages.length >= 10}
+              className="hidden"
+              onChange={(e) => {
+                addReviewImages(e.target.files);
+                e.target.value = '';
+              }}
+            />
+            <ImagePlus size={16} />
+            {reviewImages.length === 0 ? 'Add photos' : `Add more (${reviewImages.length}/10)`}
+          </label>
         </div>
 
         <div>

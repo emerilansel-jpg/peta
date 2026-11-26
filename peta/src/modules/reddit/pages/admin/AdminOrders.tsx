@@ -26,6 +26,7 @@ import {
   formatUSD,
   getTicketByOrderId,
   getAdminSupplierFulfillment,
+  getOrderCommentDrafts,
   adminUpdateSupplierFulfillment,
   type AdminSupplierFulfillment,
 } from '../../lib/api';
@@ -55,6 +56,9 @@ const SERVICE_CONFIG: Record<string, { label: string; emoji: string; color: stri
   quora_upvote: { label: 'Quora Up Votes', emoji: '🔺', color: 'bg-red-100 text-red-700' },
   yelp_review: { label: 'Yelp Review', emoji: '⭐', color: 'bg-red-100 text-red-700' },
   clutch_review: { label: 'Clutch.co Review', emoji: '⭐', color: 'bg-indigo-100 text-indigo-700' },
+  facebook_group_comment: { label: 'Facebook Group Comment', emoji: '💬', color: 'bg-blue-100 text-blue-700' },
+  avvo_comment: { label: 'Avvo Comment', emoji: '⚖️', color: 'bg-indigo-100 text-indigo-700' },
+  facebook_page_review: { label: 'Facebook Review (Fb page customer feedback)', emoji: '⭐', color: 'bg-blue-100 text-blue-700' },
   reseller_order: { label: 'Social Engagement', emoji: '🌐', color: 'bg-indigo-100 text-indigo-700' },
 };
 
@@ -113,6 +117,17 @@ function parseOrderNotes(raw: string | null) {
         },
       };
     }
+    if (parsed?.service) {
+      return {
+        clientNote: cleanInternalText(parsed.client_notes || parsed.review_brief || ''),
+        commentText: parsed.comment_text || '',
+        useSuggested: parsed.review_mode === 'custom',
+        brand: parsed.brand_name || parsed.brand_domain || '',
+        mentionMode: '',
+        keyword: '',
+        youtubeMeta: null,
+      };
+    }
   } catch {
     return { clientNote: cleanInternalText(raw), commentText: '', useSuggested: false, brand: '', mentionMode: '', keyword: '', youtubeMeta: null };
   }
@@ -120,6 +135,9 @@ function parseOrderNotes(raw: string | null) {
 }
 
 function serviceMetric(order: AdminOrderRecord) {
+  if (['facebook_group_comment', 'avvo_comment', 'facebook_page_review'].includes(order.target_type || '')) {
+    return { label: 'Comments', value: String(order.requested_upvotes || 0), deliveredLabel: 'comments' };
+  }
   if ((order.target_type || 'upvote') === 'comment') {
     return { label: 'Comments', value: '1', deliveredLabel: 'comment' };
   }
@@ -499,10 +517,11 @@ function OrderEditModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const isCommentOrder = (order.target_type || 'upvote') === 'comment';
+  const isCommentOrder = ['comment', 'facebook_group_comment', 'avvo_comment', 'facebook_page_review'].includes(order.target_type || '');
+  const isBulkCommentOrder = ['facebook_group_comment', 'avvo_comment', 'facebook_page_review'].includes(order.target_type || '');
   const isYouTubeUploadOrder = (order.target_type || 'upvote') === 'youtube_upload';
   const isPreferredOrder = (order.target_type || '') === 'preferred_source';
-  const isSingleUnitOrder = isCommentOrder || isYouTubeUploadOrder;
+  const isSingleUnitOrder = isCommentOrder && !isBulkCommentOrder || isYouTubeUploadOrder;
   const parsedNotes = parseOrderNotes(order.notes);
   const [status, setStatus] = useState(order.status);
   const [deliveredStr, setDeliveredStr] = useState(
@@ -526,11 +545,13 @@ function OrderEditModal({
   const [fulfillmentStatus, setFulfillmentStatus] = useState<string>('pending');
   const [supplierRef, setSupplierRef] = useState<string>('');
   const [supplierNotes, setSupplierNotes] = useState<string>('');
+  const [commentDrafts, setCommentDrafts] = useState<Array<{ id: string; draft_index: number; comment_text: string }>>([]);
 
   useEffect(() => {
     getTicketByOrderId(order.id).then((t) => {
       if (t) setTicketId(t.id);
     });
+    getOrderCommentDrafts(order.id).then(setCommentDrafts);
     getAdminSupplierFulfillment(order.id).then((f) => {
       if (f) {
         setFulfillment(f);
@@ -625,9 +646,11 @@ function OrderEditModal({
                 <p className="font-medium">
                   {isPreferredOrder
                     ? `${order.requested_upvotes} selections`
-                    : isSingleUnitOrder
-                      ? (isYouTubeUploadOrder ? '1 upload' : '1 comment')
-                      : `${order.requested_upvotes} upvotes`}
+                    : isBulkCommentOrder
+                      ? `${order.requested_upvotes} comments`
+                      : isSingleUnitOrder
+                        ? (isYouTubeUploadOrder ? '1 upload' : '1 comment')
+                        : `${order.requested_upvotes} upvotes`}
                 </p>
               </div>
               <div>
@@ -653,6 +676,19 @@ function OrderEditModal({
                   {parsedNotes.mentionMode ? ` · ${parsedNotes.mentionMode}` : ''}
                   {parsedNotes.keyword ? ` · Keyword: ${parsedNotes.keyword}` : ''}
                 </p>
+              </div>
+            )}
+            {commentDrafts.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-slate-200">
+                <p className="text-xs text-slate-500">Customer review texts ({commentDrafts.length})</p>
+                <div className="mt-2 space-y-2">
+                  {commentDrafts.map((draft) => (
+                    <div key={draft.id} className="rounded-lg bg-slate-50 p-2.5">
+                      <p className="text-[10px] font-bold text-slate-500 mb-1">TEXT #{draft.draft_index + 1}</p>
+                      <p className="text-sm text-slate-900 whitespace-pre-wrap">{draft.comment_text}</p>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
             {parsedNotes.youtubeMeta && (

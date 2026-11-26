@@ -216,6 +216,7 @@ export function AdminServices() {
         url_pattern: urlPattern.trim() || null,
         url_placeholder: urlPlaceholder.trim() || null,
         form_config: {
+          ...(editingService?.form_config || {}),
           requires_url: requiresUrl,
           url_label: urlLabel.trim(),
           allows_brief: allowsBrief,

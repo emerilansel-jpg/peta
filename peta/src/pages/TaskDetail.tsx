@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import {
   ArrowLeft, ExternalLink, Check, Camera, Link as LinkIcon, X,
-  ArrowRight, MessageCircle, Target, Sparkles, Copy, Image as ImageIcon, Video, User, Flag, AlertTriangle,
+  ArrowRight, MessageCircle, Target, Sparkles, Copy, Image as ImageIcon, Video, User, Flag, AlertTriangle, Download,
 } from 'lucide-react';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/Card';
@@ -11,7 +11,7 @@ import { Button } from '../components/Button';
 import { CardSkeleton } from '../components/Skeleton';
 import { ConfettiBurst } from '../components/Confetti';
 import { supabase } from '../lib/supabase';
-import { createTaskAssignment, submitAssignmentProof, uploadTaskProofImage, getMyYouTubeAccounts, calculateFileSha256, verifyTaskUrl, reportBrokenTask, isInvalidOrSearchTaskUrl } from '../lib/api';
+import { createTaskAssignment, submitAssignmentProof, uploadTaskProofImage, getMyYouTubeAccounts, calculateFileSha256, verifyTaskUrl, reportBrokenTask, isInvalidOrSearchTaskUrl, getMyReviewImage, getReviewImageSignedUrl } from '../lib/api';
 import { WHATSAPP_GROUP_URL } from '../lib/config';
 import { toast } from '../components/Toast';
 
@@ -38,6 +38,9 @@ export function TaskDetail() {
   const [trustpilotConfirmed, setTrustpilotConfirmed] = React.useState(false);
   const [yelpConfirmed, setYelpConfirmed] = React.useState(false);
   const [clutchConfirmed, setClutchConfirmed] = React.useState(false);
+  // Review categories only: worker confirms the post is STILL live (visible
+  // to public, not hidden by platform filters) at the moment of submit.
+  const [liveProofConfirmed, setLiveProofConfirmed] = React.useState(false);
 
   React.useEffect(() => {
     (async () => {
@@ -75,6 +78,7 @@ export function TaskDetail() {
         setSubmittedUsername(existing.submitted_username || '');
         setProofImageUrl(existing.proof_image_url || null);
         setProofImageHash(existing.proof_image_hash || null);
+        setLiveProofConfirmed((existing.user_note || '').includes('[LIVE-OK]'));
         setStage(existing.status === 'submitted' ? 'done' : 'submit');
       }
       setCheckingExistingAssignment(false);
@@ -120,14 +124,37 @@ export function TaskDetail() {
   const isGoogleMapsReview = category === 'google_maps_review';
   const isYelpReview = category === 'yelp_review';
   const isClutchReview = category === 'clutch_review';
+  const isFacebookGroupComment = category === 'facebook_group_comment';
+  const isFacebookPageReview = category === 'facebook_page_review';
+  const isAvvoComment = category === 'avvo_comment';
   const isQuoraUpvote = category === 'quora_upvote';
   const isUpvote = (category === 'reddit_upvote' || isQuoraUpvote || task?.task_type === 'upvote') && !isLinkedIn && !isTrustpilotReview && !isGoogleMapsReview && !isYelpReview && !isClutchReview;
   const isForumComment = category === 'forum_comment' || (category === 'comment' && !isRedditTask);
   const isYouTubeUpload = category === 'youtube_upload';
+  // Keep in sync with claim_task_assignment timeout (migration 20261118000000).
+  const claimWindowLabel = isYouTubeUpload ? '4 Jam' : '3 Jam';
   const isPreferredSource = category === 'preferred_source';
-  const isComment = isForumComment || category === 'reddit_comment' || isLinkedInComment || isTrustpilotReview || isGoogleMapsReview || isYelpReview || isClutchReview || task?.task_type === 'comment';
+  const isComment = isForumComment || category === 'reddit_comment' || isLinkedInComment || isTrustpilotReview || isGoogleMapsReview || isYelpReview || isClutchReview || isFacebookGroupComment || isFacebookPageReview || isAvvoComment || task?.task_type === 'comment';
   const isNoAccountNeeded = !isRedditTask;
   const platformLabel = task ? platformForTask(task) : 'Forum';
+
+  // Google Maps review: client-supplied photo bound to MY assignment at claim
+  // time (migration 20261120000000). Each reviewer gets a distinct photo.
+  const [reviewImage, setReviewImage] = React.useState<{ path: string; url: string } | null>(null);
+  React.useEffect(() => {
+    if (!isGoogleMapsReview || !assignmentId || !taskId) return;
+    let cancelled = false;
+    setReviewImage(null);
+    (async () => {
+      const path = await getMyReviewImage(taskId);
+      if (!path || cancelled) return;
+      const url = await getReviewImageSignedUrl(path);
+      if (!cancelled && url) setReviewImage({ path, url });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isGoogleMapsReview, assignmentId, taskId]);
 
   const [reportingBroken, setReportingBroken] = React.useState(false);
   const [showReportMenu, setShowReportMenu] = React.useState(false);
@@ -193,7 +220,11 @@ export function TaskDetail() {
         submitted_username: submittedUsername || undefined,
         draft_comment: !isForumComment ? (draftComment || undefined) : undefined,
         proof_urls: proofImageUrl ? [proofImageUrl] : [],
-        user_note: userNote || null,
+        // [LIVE-OK] = worker confirmed the post is still publicly visible at
+        // submit time. Admin sees this marker in the approval queue.
+        user_note: userNote
+          ? (liveProofConfirmed && isReviewCategory ? `${userNote} [LIVE-OK]` : userNote)
+          : (liveProofConfirmed && isReviewCategory ? '[LIVE-OK]' : null),
         proof_image_url: proofImageUrl || null,
         proof_image_hash: proofImageHash || null,
       });
@@ -272,14 +303,17 @@ export function TaskDetail() {
         ? !!(draftComment?.trim() || commentPost || userNote.trim())
         : !!draftComment?.trim())
     : true;
+  const isReviewCategory = isGoogleMapsReview || isTrustpilotReview || isYelpReview || isClutchReview || isFacebookPageReview;
   const canSubmit = isGoogleMapsReview
-    ? !!proofImageUrl && !!submittedUsername.trim() && !!assignmentId
+    ? !!proofImageUrl && !!submittedUsername.trim() && liveProofConfirmed && !!assignmentId
     : isTrustpilotReview
-    ? !!proofImageUrl && !!submittedUsername.trim() && trustpilotConfirmed && !!assignmentId
+    ? !!proofImageUrl && !!submittedUsername.trim() && trustpilotConfirmed && liveProofConfirmed && !!assignmentId
     : isYelpReview
-    ? !!proofImageUrl && !!submittedUsername.trim() && yelpConfirmed && !!assignmentId
+    ? !!proofImageUrl && !!submittedUsername.trim() && yelpConfirmed && liveProofConfirmed && !!assignmentId
     : isClutchReview
-    ? !!proofImageUrl && !!submittedUsername.trim() && clutchConfirmed && !!assignmentId
+    ? !!proofImageUrl && !!submittedUsername.trim() && clutchConfirmed && liveProofConfirmed && !!assignmentId
+    : isFacebookPageReview
+    ? !!proofImageUrl && !!proofUrl.trim() && !!submittedUsername.trim() && liveProofConfirmed && !!assignmentId && hasCommentText
     : (isLinkedInLike || isLinkedInFollow)
     ? !!proofImageUrl && !!submittedUsername.trim() && !!assignmentId
     : isLinkedInComment
@@ -671,7 +705,7 @@ export function TaskDetail() {
 
             <div className="mb-3 p-2.5 bg-amber-50/70 rounded-xl border border-amber-200/80 text-[11px] text-amber-900 flex items-center justify-between">
               <span>⏱️ Batas waktu pengerjaan:</span>
-              <span className="font-bold">{isYouTubeUpload ? '4 Jam' : '1 Jam'}</span>
+              <span className="font-bold">{claimWindowLabel}</span>
             </div>
 
             <Button
@@ -775,7 +809,7 @@ export function TaskDetail() {
         {/* Batas waktu pengerjaan banner */}
         <div className="mb-4 p-3 bg-amber-50/80 rounded-2xl border border-amber-200 text-xs flex items-center justify-between gap-2 text-amber-950">
           <span className="flex items-center gap-1.5 font-bold">
-            ⏱️ Batas Waktu: {isYouTubeUpload ? '4 Jam' : '1 Jam'}
+            ⏱️ Batas Waktu: {claimWindowLabel}
           </span>
           <span className="text-[11px] text-amber-800">
             Submit bukti sebelum slot otomatis dilepas ke member lain.
@@ -950,6 +984,46 @@ export function TaskDetail() {
               New model: comment lives in task.brief, instructions in task.description.
               Legacy tasks packed both into brief — splitForumBrief() still handles them. */}
           {(() => {
+            if (isFacebookPageReview) {
+              const guide = (task.brief || task.description || '').trim();
+              return (
+                <div className="space-y-3 mb-3">
+                  <div className="bg-blue-50 ring-2 ring-blue-400 rounded-xl p-4 border-l-4 border-blue-600 shadow-sm">
+                    <p className="text-xs uppercase font-extrabold tracking-wide text-blue-900 mb-1.5">Facebook Review (Fb page customer feedback)</p>
+                    <ul className="text-xs text-blue-950 space-y-1.5 font-medium list-disc pl-4 leading-relaxed">
+                      <li>Kerjakan hanya jika kamu benar-benar pernah menjadi pelanggan bisnis ini.</li>
+                      <li>Tulis feedback jujur berdasarkan pengalaman sendiri. Jangan mengarang pengalaman atau hasil.</li>
+                      <li>Tidak ada kewajiban rating/bintang tertentu dan jangan memakai teks testimonial palsu.</li>
+                      <li>Screenshot, URL publik review, username, dan konfirmasi masih tayang wajib saat submit.</li>
+                    </ul>
+                  </div>
+                  {draftComment?.trim() && (
+                    <div className="bg-yellow-50 ring-1 ring-yellow-300 rounded-xl p-3">
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <p className="text-[10px] uppercase font-bold tracking-wide text-yellow-900">Customer review text to publish</p>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await navigator.clipboard.writeText(draftComment);
+                              toast.success('Review text copied.');
+                            } catch {
+                              toast.error('Copy failed. Select and copy manually.');
+                            }
+                          }}
+                          className="shrink-0 inline-flex items-center gap-1 text-[11px] font-bold text-yellow-900 bg-yellow-200 hover:bg-yellow-300 rounded-lg px-2.5 py-1.5 tap-shrink"
+                        >
+                          <Copy className="w-3.5 h-3.5" /> Copy text
+                        </button>
+                      </div>
+                      <p className="text-sm text-yellow-950 whitespace-pre-line leading-relaxed">{draftComment}</p>
+                    </div>
+                  )}
+                  {guide && <p className="bg-sky-50 ring-1 ring-sky-300 rounded-xl p-3 text-sm text-sky-950 whitespace-pre-line">{guide}</p>}
+                </div>
+              );
+            }
+
             // Trustpilot and Yelp review tasks: show draft or guidelines
             if (isTrustpilotReview || isYelpReview) {
               const platformName = isTrustpilotReview ? 'Trustpilot' : 'Yelp';
@@ -1202,11 +1276,11 @@ export function TaskDetail() {
               );
             }
 
-            const comment = (isForumComment || isLinkedInComment || category === 'reddit_comment')
+            const comment = (isForumComment || isLinkedInComment || isFacebookGroupComment || isFacebookPageReview || isAvvoComment || category === 'reddit_comment')
               ? (draftComment?.trim() || ((isForumComment || category === 'reddit_comment') ? commentPost : ''))
               : draftComment?.trim();
             const legacyStd = isForumComment ? splitForumBrief(stripInternalBriefMarkers(task.brief)).standardBrief : '';
-            const instructions = isLinkedInComment
+            const instructions = isLinkedInComment || isFacebookGroupComment || isFacebookPageReview || isAvvoComment
               ? (task.brief || task.description || '').trim()
               : memberSafePostingBrief(legacyStd || task.description || '').trim();
             if (!comment && !instructions) return null;
@@ -1242,7 +1316,7 @@ export function TaskDetail() {
                 {instructions && (
                   <div className="bg-sky-50 ring-1 ring-sky-300 rounded-xl p-3">
                     <p className="text-[10px] uppercase font-bold tracking-wide text-sky-900 mb-1">
-                      {isLinkedInComment ? 'Petunjuk Komentar' : 'Cara posting aman'}
+                      {isLinkedInComment || isFacebookGroupComment || isFacebookPageReview || isAvvoComment ? 'Petunjuk Komentar' : 'Cara posting aman'}
                     </p>
                     <p className="text-sm text-sky-950 whitespace-pre-line leading-relaxed">
                       {instructions}
@@ -1343,6 +1417,31 @@ export function TaskDetail() {
           {/* For Google Maps review tasks */}
           {isGoogleMapsReview ? (
             <div className="mt-3">
+              {reviewImage && (
+                <div className="p-3.5 mb-3 rounded-xl bg-orange-50 ring-2 ring-orange-300 text-xs text-orange-950">
+                  <p className="font-extrabold text-orange-900 mb-1.5 flex items-center gap-1">
+                    📷 FOTO DARI KLIEN — WAJIB DIPAKAI
+                  </p>
+                  <img
+                    src={reviewImage.url}
+                    alt="Foto produk dari klien"
+                    className="w-full max-h-56 object-contain bg-white rounded-lg ring-1 ring-orange-200 mb-2"
+                  />
+                  <p className="leading-relaxed mb-2">
+                    Lampirkan <b>foto ini</b> ke ulasan Google Maps kamu. Foto ini khusus buat kamu — reviewer lain
+                    otomatis dapat foto yang berbeda, jadi dijamin tidak ada yang sama.
+                  </p>
+                  <a
+                    href={reviewImage.url}
+                    download
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-[11px] font-bold"
+                  >
+                    <Download size={12} /> Unduh foto
+                  </a>
+                </div>
+              )}
               <div className="p-3.5 mb-3 rounded-xl bg-emerald-50 ring-2 ring-emerald-300 text-xs text-emerald-950">
                 <p className="font-extrabold text-emerald-900 mb-1 flex items-center gap-1">
                   📍 NAMA AKUN GOOGLE & SCREENSHOT ULASAN
@@ -1718,6 +1817,20 @@ export function TaskDetail() {
             </p>
           )}
 
+          {isReviewCategory && (
+            <label className="flex items-start gap-2.5 mt-4 p-3 bg-emerald-50/80 ring-1 ring-emerald-200 rounded-xl cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={liveProofConfirmed}
+                onChange={(e) => setLiveProofConfirmed(e.target.checked)}
+                className="mt-0.5 h-5 w-5 shrink-0 accent-emerald-600"
+              />
+              <span className="text-xs text-emerald-950 leading-snug">
+                <b>Saya cek ulang sebelum submit:</b> post/komentar/review saya <b>MASIH TAYANG</b> dan terlihat publik saat ini — bukan kena filter, hidden, atau "Not Recommended". Kalau nanti ketahuan hilang, task ini bisa ditolak.
+              </span>
+            </label>
+          )}
+
           {/* Submit button — desktop inline */}
           <div className="hidden sm:block mt-5">
             <Button
@@ -1736,6 +1849,8 @@ export function TaskDetail() {
                   ? 'Upload screenshot ulasan Google Maps kamu dulu.'
                   : isGoogleMapsReview && !submittedUsername.trim()
                   ? 'Masukkan nama akun Google reviewer kamu dulu.'
+                  : isReviewCategory && !liveProofConfirmed
+                  ? 'Centang konfirmasi "masih tayang" dulu ya.'
                   : isTrustpilotReview && !trustpilotConfirmed
                   ? 'Centang konfirmasi nama bule/English untuk submit.'
                   : isClutchReview && !clutchConfirmed
@@ -1828,6 +1943,8 @@ function platformForTask(task: any) {
   if (category === 'trustpilot_review' || (category && String(category).startsWith('trustpilot'))) return 'Trustpilot';
   if (category === 'yelp_review' || (category && String(category).startsWith('yelp'))) return 'Yelp';
   if (category === 'clutch_review' || (category && String(category).startsWith('clutch'))) return 'Clutch';
+  if (category === 'facebook_group_comment' || category === 'facebook_page_review') return 'Facebook';
+  if (category === 'avvo_comment') return 'Avvo';
   if (category === 'reddit_upvote' || category === 'reddit_comment' || category === 'reddit_post_thread' || String(category).startsWith('reddit')) return 'Reddit';
   const text = `${task.title || ''} ${task.description || ''} ${task.target_url || ''}`.toLowerCase();
   if (text.includes('hubspot')) return 'HubSpot';

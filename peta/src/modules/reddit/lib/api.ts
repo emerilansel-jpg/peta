@@ -1750,6 +1750,16 @@ export async function updateNotificationPreferences(input: NotificationPreferenc
   return (Array.isArray(data) ? data[0] : data) || input;
 }
 
+export async function getOrderCommentDrafts(orderId: number): Promise<Array<{ id: string; draft_index: number; comment_text: string }>> {
+  const { data, error } = await supabase
+    .from('reddit_order_comment_drafts')
+    .select('id, draft_index, comment_text')
+    .eq('order_id', orderId)
+    .order('draft_index', { ascending: true });
+  if (error) return [];
+  return (data || []) as Array<{ id: string; draft_index: number; comment_text: string }>;
+}
+
 export type OrderProgressEvent = {
   id: number;
   order_id: number;
@@ -2198,6 +2208,7 @@ export interface StraightServiceRecord {
     default_drip_hours?: number;
     requires_customer_attestation?: boolean;
     requires_public_review_proof?: boolean;
+    requires_custom_drafts?: boolean;
   };
   worker_sop: string;
   worker_brief_template?: string | null;

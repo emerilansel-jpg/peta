@@ -25,6 +25,7 @@ import {
   AlertTriangle,
   Link2,
   Activity,
+  MessageSquare,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { RedditLayout } from '../components/RedditLayout';
@@ -43,6 +44,7 @@ import {
   getClientOrdersHealth,
   getOrderDeliveryProofs,
   getOrderCancellationPreview,
+  getOrderCommentDrafts,
   getOrderProgress,
   type OrderProgressEvent,
   isInvalidOrSearchForumUrl,
@@ -436,6 +438,7 @@ export function RedditOrderDetail() {
   const [resuming, setResuming] = useState(false);
   const [proofs, setProofs] = useState<OrderDeliveryProof[]>([]);
   const [progressEvents, setProgressEvents] = useState<OrderProgressEvent[]>([]);
+  const [commentDrafts, setCommentDrafts] = useState<Array<{ id: string; draft_index: number; comment_text: string }>>([]);
   const [activeLightboxImg, setActiveLightboxImg] = useState<string | null>(null);
   const [cancellationPreview, setCancellationPreview] = useState<{
     ok: boolean;
@@ -621,16 +624,18 @@ export function RedditOrderDetail() {
         });
       }
 
-      const [p, cancelPrev, healthList, progress] = await Promise.all([
+      const [p, cancelPrev, healthList, progress, drafts] = await Promise.all([
         getOrderDeliveryProofs(parseInt(orderId)),
         getOrderCancellationPreview(parseInt(orderId)),
         getClientOrdersHealth(parseInt(orderId)),
         getOrderProgress(parseInt(orderId)),
+        getOrderCommentDrafts(parseInt(orderId)),
       ]);
       setProofs(p);
       setCancellationPreview(cancelPrev);
       setOrderHealth(healthList[0] || null);
       setProgressEvents(progress);
+      setCommentDrafts(drafts);
     } catch {
       toast.error('Failed to load order');
     } finally {
@@ -772,6 +777,23 @@ export function RedditOrderDetail() {
             <p className="text-sm opacity-80 mt-0.5">{service.statusDesc[order.status] || status.desc}</p>
           </div>
         </div>
+
+        {commentDrafts.length > 0 && (
+          <section className="mb-6 bg-white rounded-2xl ring-1 ring-slate-200 overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
+              <MessageSquare size={17} className="text-blue-500" />
+              <h2 className="font-bold text-slate-900">Review / comment texts</h2>
+            </div>
+            <ul className="divide-y divide-slate-100">
+              {commentDrafts.map((draft) => (
+                <li key={draft.id} className="px-5 py-3">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-1">Text #{draft.draft_index + 1}</p>
+                  <p className="text-sm text-slate-800 whitespace-pre-line">{draft.comment_text}</p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {/* Recent order progress activity — always visible, independent of notification settings */}
         {progressEvents.length > 0 && (
