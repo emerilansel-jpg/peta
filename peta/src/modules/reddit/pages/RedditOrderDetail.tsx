@@ -363,7 +363,7 @@ function serviceMeta(order: RedditOrderRecord) {
       } as Record<string, string>,
     };
   }
-  if ((order.target_type || 'upvote') === 'avvo_comment') {
+  if ((order.target_type || 'upvote') === 'avvo_review' || (order.target_type || 'upvote') === 'avvo_comment') {
     return {
       name: 'Avvo comments',
       targetLabel: 'Avvo question URL',
@@ -727,7 +727,7 @@ export function RedditOrderDetail() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Order #{order.id}</h1>
             <p className="text-slate-600 mt-1">
-              {service.name} · {order.subreddit && !['comment', 'preferred_source', 'linkedin_like', 'linkedin_follow', 'linkedin_comment', 'trustpilot_review', 'google_maps_review', 'quora_upvote', 'facebook_group_comment', 'avvo_comment', 'facebook_page_review'].includes(order.target_type || 'upvote') && order.subreddit !== 'LinkedIn' && order.subreddit !== 'Google' && order.subreddit !== 'Google Maps' && order.subreddit !== 'Trustpilot' && order.subreddit !== 'Quora' && order.subreddit !== 'Facebook' && order.subreddit !== 'Avvo' ? `r/${order.subreddit}` : order.thread_url}
+              {service.name} · {order.subreddit && !['comment', 'preferred_source', 'linkedin_like', 'linkedin_follow', 'linkedin_comment', 'trustpilot_review', 'google_maps_review', 'quora_upvote', 'facebook_group_comment', 'avvo_review', 'avvo_comment', 'facebook_page_review'].includes(order.target_type || 'upvote') && order.subreddit !== 'LinkedIn' && order.subreddit !== 'Google' && order.subreddit !== 'Google Maps' && order.subreddit !== 'Trustpilot' && order.subreddit !== 'Quora' && order.subreddit !== 'Facebook' && order.subreddit !== 'Avvo' ? `r/${order.subreddit}` : order.thread_url}
             </p>
           </div>
           <div className="flex items-center gap-2">

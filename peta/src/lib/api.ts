@@ -1336,7 +1336,11 @@ export type TaskCategory =
   | 'google_maps_review'
   | 'quora_upvote'
   | 'yelp_review'
-  | 'clutch_review';
+  | 'clutch_review'
+  | 'facebook_group_comment'
+  | 'avvo_review'
+  | 'avvo_comment'
+  | 'facebook_page_review';
 export type TaskStatus = 'draft' | 'active' | 'paused' | 'completed';
 
 export type AdminTaskUpdate = {
@@ -1831,6 +1835,26 @@ export async function uploadTaskProofImage(opts: {
   if (error) throw new Error(error.message || 'Terjadi kesalahan. Coba lagi.');
   const { data: publicUrl } = supabase.storage.from('task-proofs').getPublicUrl(path);
   return publicUrl.publicUrl;
+}
+
+// Google Maps review orders: fetch the client photo bound to the caller's
+// active assignment (SECURITY DEFINER RPC; see migration 20261120000000).
+export async function getMyReviewImage(taskId: string): Promise<string | null> {
+  const { data, error } = await supabase.rpc('fn_get_my_review_image', { p_task_id: taskId });
+  if (error) {
+    console.warn('getMyReviewImage failed:', error);
+    return null;
+  }
+  return (data as string | null) || null;
+}
+
+export async function getReviewImageSignedUrl(storagePath: string): Promise<string | null> {
+  const { data, error } = await supabase.storage.from('review-images').createSignedUrl(storagePath, 60 * 60);
+  if (error) {
+    console.warn('getReviewImageSignedUrl failed:', error);
+    return null;
+  }
+  return data?.signedUrl || null;
 }
 
 // Send a TEST broadcast to a single recipient (typically the admin themselves)

@@ -910,7 +910,7 @@ export function AdminApprovalQueue() {
                     </div>
                   )}
 
-                  {a.tasks?.task_category === 'avvo_comment' && (
+                  {(a.tasks?.task_category === 'avvo_review' || a.tasks?.task_category === 'avvo_comment') && (
                     <div className="mt-2.5 p-2 rounded-lg bg-indigo-50 ring-1 ring-indigo-300 text-xs text-indigo-950">
                       <p className="font-bold text-indigo-900 flex items-center gap-1">⚖️ Avvo Check:</p>
                       <p className="mt-0.5">Wajib marker <b>[VPN-WINDSCRIBE]</b> dan <b>[BULE-ACCOUNT]</b>. Pastikan akun Avvo bernama Bule / English dan VPN Windscribe aktif sebelum membuka Avvo. Jika tidak lengkap, <b>REJECT</b>.</p>

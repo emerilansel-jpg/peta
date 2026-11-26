@@ -96,7 +96,7 @@ export function Tasks() {
   const queryClient = useQueryClient();
   const [user, setUser] = React.useState<any>(null);
   const [taskSearch, setTaskSearch] = React.useState('');
-  const [taskPlatformFilter, setTaskPlatformFilter] = React.useState<'all' | 'reddit' | 'forum' | 'youtube' | 'google' | 'linkedin' | 'trustpilot' | 'yelp' | 'clutch' | 'quora'>('all');
+  const [taskPlatformFilter, setTaskPlatformFilter] = React.useState<'all' | 'reddit' | 'forum' | 'facebook' | 'avvo' | 'youtube' | 'google' | 'linkedin' | 'trustpilot' | 'yelp' | 'clutch' | 'quora'>('all');
 
   React.useEffect(() => {
     (async () => {
@@ -427,7 +427,7 @@ export function Tasks() {
                 />
               </div>
               <div className="flex gap-2 overflow-x-auto pb-1">
-                {(['all', 'reddit', 'forum', 'youtube', 'google', 'linkedin', 'trustpilot', 'yelp', 'clutch', 'quora'] as const).map((f) => (
+                {(['all', 'reddit', 'forum', 'facebook', 'avvo', 'youtube', 'google', 'linkedin', 'trustpilot', 'yelp', 'clutch', 'quora'] as const).map((f) => (
                   <button
                     key={f}
                     onClick={() => setTaskPlatformFilter(f)}
@@ -437,7 +437,7 @@ export function Tasks() {
                         : 'bg-light text-muted ring-1 ring-border hover:ring-primary/40'
                     }`}
                   >
-                    {f === 'all' ? 'Semua' : f === 'reddit' ? 'Reddit' : f === 'forum' ? 'Forum' : f === 'youtube' ? 'YouTube' : f === 'google' ? 'Google' : f === 'linkedin' ? 'LinkedIn' : f === 'trustpilot' ? 'Trustpilot' : f === 'yelp' ? 'Yelp' : f === 'clutch' ? 'Clutch' : 'Quora'}
+                    {f === 'all' ? 'Semua' : f === 'reddit' ? 'Reddit' : f === 'forum' ? 'Forum' : f === 'facebook' ? 'Facebook Group' : f === 'avvo' ? 'Avvo' : f === 'youtube' ? 'YouTube' : f === 'google' ? 'Google' : f === 'linkedin' ? 'LinkedIn' : f === 'trustpilot' ? 'Trustpilot' : f === 'yelp' ? 'Yelp' : f === 'clutch' ? 'Clutch' : 'Quora'}
                   </button>
                 ))}
               </div>
@@ -484,6 +484,8 @@ export function Tasks() {
                 const matchPlatform = taskPlatformFilter === 'all' ||
                   (taskPlatformFilter === 'reddit' && cat.startsWith('reddit')) ||
                   (taskPlatformFilter === 'forum' && cat === 'forum_comment') ||
+                  (taskPlatformFilter === 'facebook' && (cat === 'facebook_group_comment' || cat === 'facebook_page_review')) ||
+                  (taskPlatformFilter === 'avvo' && (cat === 'avvo_review' || cat === 'avvo_comment')) ||
                   (taskPlatformFilter === 'youtube' && cat === 'youtube_upload') ||
                   (taskPlatformFilter === 'google' && (cat === 'preferred_source' || cat === 'google_maps_review')) ||
                   (taskPlatformFilter === 'linkedin' && cat.startsWith('linkedin')) ||
@@ -519,6 +521,9 @@ export function Tasks() {
                   t.task_category === 'trustpilot_review' ? 'Trustpilot Review' :
                   t.task_category === 'yelp_review' ? 'Yelp Review' :
                   t.task_category === 'clutch_review' ? 'Clutch Review' :
+                  t.task_category === 'facebook_group_comment' ? 'Facebook Group Comment' :
+                  t.task_category === 'facebook_page_review' ? 'Facebook Review (Fb page customer feedback)' :
+                  (t.task_category === 'avvo_review' || t.task_category === 'avvo_comment') ? 'Avvo Review' :
                   'Reddit Comment';
                 const slotsLeft = Math.max(t.max_assignments - t.current_assignments, 0);
                 return (
@@ -720,6 +725,8 @@ function platformForTask(task: { title?: string | null; description?: string | n
   const text = `${task.title || ''} ${task.description || ''} ${task.target_url || ''}`.toLowerCase();
   if (text.includes('clutch.co') || text.includes('clutch')) return 'Clutch';
   if (text.includes('google maps') || text.includes('maps.google') || text.includes('google.com/maps') || text.includes('maps.app.goo.gl')) return 'Google Maps';
+  if (text.includes('facebook.com/groups') || text.includes('facebook group')) return 'Facebook Group';
+  if (text.includes('avvo.com') || text.includes('avvo')) return 'Avvo';
   if (text.includes('hubspot')) return 'HubSpot';
   if (text.includes('quora')) return 'Quora';
   if (text.includes('indiehackers')) return 'Indie Hackers';

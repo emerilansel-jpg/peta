@@ -336,7 +336,7 @@ const SERVICES: Service[] = [
     badge: 'New',
     iconBg: 'bg-indigo-100',
     iconColor: 'text-indigo-700',
-    dynamicSlug: 'avvo_comment',
+    dynamicSlug: 'avvo_review',
   },
   {
     id: 'reddit-comment',
@@ -593,7 +593,7 @@ export function RedditNewOrder() {
       setDynamicServices(list);
       if (serviceParam) {
         const cleanParam = serviceParam.toLowerCase().replace(/-/g, '_');
-        const aliases: Record<string, string> = { avvo: 'avvo_comment', facebook: 'facebook_page_review', 'facebook-review': 'facebook_page_review' };
+        const aliases: Record<string, string> = { avvo: 'avvo_review', avvo_comment: 'avvo_review', facebook: 'facebook_page_review', 'facebook-review': 'facebook_page_review' };
         const resolvedParam = aliases[serviceParam.toLowerCase()] || cleanParam;
         const match = list.find((s) => s.slug === resolvedParam || s.slug === cleanParam || s.slug === serviceParam);
         if (match && match.enabled && !['comments', 'yelp', 'yelp-review', 'clutch', 'clutch-review', 'trustpilot', 'trustpilot-review', 'trustpilot_review', 'gmaps', 'google-maps'].includes(serviceParam)) {

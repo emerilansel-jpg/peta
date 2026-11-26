@@ -130,7 +130,7 @@ export function TaskDetail() {
   const isClutchReview = category === 'clutch_review';
   const isFacebookGroupComment = category === 'facebook_group_comment';
   const isFacebookPageReview = category === 'facebook_page_review';
-  const isAvvoComment = category === 'avvo_comment';
+  const isAvvoComment = category === 'avvo_review' || category === 'avvo_comment';
   const isQuoraUpvote = category === 'quora_upvote';
   const isUpvote = (category === 'reddit_upvote' || isQuoraUpvote || task?.task_type === 'upvote') && !isLinkedIn && !isTrustpilotReview && !isGoogleMapsReview && !isYelpReview && !isClutchReview;
   const isForumComment = category === 'forum_comment' || (category === 'comment' && !isRedditTask);
@@ -2009,7 +2009,7 @@ function platformForTask(task: any) {
   if (category === 'yelp_review' || (category && String(category).startsWith('yelp'))) return 'Yelp';
   if (category === 'clutch_review' || (category && String(category).startsWith('clutch'))) return 'Clutch';
   if (category === 'facebook_group_comment' || category === 'facebook_page_review') return 'Facebook';
-  if (category === 'avvo_comment') return 'Avvo';
+  if (category === 'avvo_review' || category === 'avvo_comment') return 'Avvo';
   if (category === 'reddit_upvote' || category === 'reddit_comment' || category === 'reddit_post_thread' || String(category).startsWith('reddit')) return 'Reddit';
   const text = `${task.title || ''} ${task.description || ''} ${task.target_url || ''}`.toLowerCase();
   if (text.includes('hubspot')) return 'HubSpot';

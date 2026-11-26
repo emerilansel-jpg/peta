@@ -57,7 +57,7 @@ const SERVICE_CONFIG: Record<string, { label: string; emoji: string; color: stri
   yelp_review: { label: 'Yelp Review', emoji: '⭐', color: 'bg-red-100 text-red-700' },
   clutch_review: { label: 'Clutch.co Review', emoji: '⭐', color: 'bg-indigo-100 text-indigo-700' },
   facebook_group_comment: { label: 'Facebook Group Comment', emoji: '💬', color: 'bg-blue-100 text-blue-700' },
-  avvo_comment: { label: 'Avvo Comment', emoji: '⚖️', color: 'bg-indigo-100 text-indigo-700' },
+  avvo_review: { label: 'Avvo Review', emoji: '⚖️', color: 'bg-indigo-100 text-indigo-700' },
   facebook_page_review: { label: 'Facebook Review (Fb page customer feedback)', emoji: '⭐', color: 'bg-blue-100 text-blue-700' },
   reseller_order: { label: 'Social Engagement', emoji: '🌐', color: 'bg-indigo-100 text-indigo-700' },
 };
@@ -135,7 +135,7 @@ function parseOrderNotes(raw: string | null) {
 }
 
 function serviceMetric(order: AdminOrderRecord) {
-  if (['facebook_group_comment', 'avvo_comment', 'facebook_page_review'].includes(order.target_type || '')) {
+  if (['facebook_group_comment', 'avvo_review', 'avvo_comment', 'facebook_page_review'].includes(order.target_type || '')) {
     return { label: 'Comments', value: String(order.requested_upvotes || 0), deliveredLabel: 'comments' };
   }
   if ((order.target_type || 'upvote') === 'comment') {
@@ -517,8 +517,8 @@ function OrderEditModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const isCommentOrder = ['comment', 'facebook_group_comment', 'avvo_comment', 'facebook_page_review'].includes(order.target_type || '');
-  const isBulkCommentOrder = ['facebook_group_comment', 'avvo_comment', 'facebook_page_review'].includes(order.target_type || '');
+  const isCommentOrder = ['comment', 'facebook_group_comment', 'avvo_review', 'avvo_comment', 'facebook_page_review'].includes(order.target_type || '');
+  const isBulkCommentOrder = ['facebook_group_comment', 'avvo_review', 'avvo_comment', 'facebook_page_review'].includes(order.target_type || '');
   const isYouTubeUploadOrder = (order.target_type || 'upvote') === 'youtube_upload';
   const isPreferredOrder = (order.target_type || '') === 'preferred_source';
   const isSingleUnitOrder = isCommentOrder && !isBulkCommentOrder || isYouTubeUploadOrder;
