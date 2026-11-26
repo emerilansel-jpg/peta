@@ -2199,6 +2199,7 @@ export interface StraightServiceRecord {
     requires_url?: boolean;
     url_label?: string;
     url_helper?: string;
+    requires_business_name?: boolean;
     allows_brief?: boolean;
     allows_custom_drafts?: boolean;
     min_draft_length?: number;

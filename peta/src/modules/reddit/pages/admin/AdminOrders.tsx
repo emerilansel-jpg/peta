@@ -119,7 +119,7 @@ function parseOrderNotes(raw: string | null) {
     }
     if (parsed?.service) {
       return {
-        clientNote: cleanInternalText(parsed.client_notes || parsed.review_brief || ''),
+        clientNote: [cleanInternalText(parsed.client_notes || ''), cleanInternalText(parsed.review_brief || ''), cleanInternalText(parsed.business_name || '')].filter(Boolean).join(' · '),
         commentText: parsed.comment_text || '',
         useSuggested: parsed.review_mode === 'custom',
         brand: parsed.brand_name || parsed.brand_domain || '',

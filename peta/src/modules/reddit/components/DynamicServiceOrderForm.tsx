@@ -140,6 +140,7 @@ export function DynamicServiceOrderForm({
 }: DynamicServiceOrderFormProps) {
   const fc = service.form_config || {};
   const requiresCustomText = fc.requires_custom_drafts === true;
+  const requiresBusinessName = fc.requires_business_name === true;
   const [targetUrl, setTargetUrl] = useState('');
   const [quantity, setQuantity] = useState(service.min_quantity || 1);
   const [location, setLocation] = useState('');
@@ -167,7 +168,8 @@ export function DynamicServiceOrderForm({
 
   const isUrlValid = () => {
     if (fc.requires_url === false) return true;
-    if (!targetUrl.trim() || targetUrl.trim().length < 5) return false;
+    if (!targetUrl.trim() || targetUrl.trim().length < (requiresBusinessName ? 3 : 5)) return false;
+    if (requiresBusinessName) return !/^https?:\/\//i.test(targetUrl.trim());
     if (service.url_pattern) {
       try {
         const regex = new RegExp(service.url_pattern, 'i');
@@ -188,11 +190,13 @@ export function DynamicServiceOrderForm({
     }
 
     if (!isUrlValid()) {
-      toast.error(`Please enter a valid URL. Example: ${service.url_placeholder || 'https://...'}`);
+      toast.error(requiresBusinessName
+        ? 'Please enter the full Yelp business name, not a direct link.'
+        : `Please enter a valid URL. Example: ${service.url_placeholder || 'https://...'}`);
       return;
     }
 
-    if (fc.requires_url !== false && isInvalidOrSearchForumUrl(targetUrl)) {
+    if (fc.requires_url !== false && !requiresBusinessName && isInvalidOrSearchForumUrl(targetUrl)) {
       toast.error('Search result pages are not allowed. Please enter a direct target page or thread URL.');
       return;
     }
@@ -232,7 +236,7 @@ export function DynamicServiceOrderForm({
 
     setSubmitting(true);
     try {
-      if (fc.requires_url !== false) {
+      if (fc.requires_url !== false && !requiresBusinessName) {
         const check = await verifyForumThreadUrl(targetUrl.trim());
         if (check.broken) {
           toast.error(check.reason || 'Target URL is unavailable (410/404) or closed.');
@@ -322,10 +326,10 @@ export function DynamicServiceOrderForm({
               {fc.url_label || 'Target URL'} <span className="text-rose-500">*</span>
             </label>
             <input
-              type="url"
+              type={requiresBusinessName ? 'text' : 'url'}
               value={targetUrl}
               onChange={(e) => setTargetUrl(e.target.value)}
-              placeholder={service.url_placeholder || 'https://...'}
+              placeholder={service.url_placeholder || (requiresBusinessName ? 'Nama bisnis lengkap' : 'https://...')}
               className={`w-full px-4 py-2.5 rounded-xl text-sm border focus:outline-none focus:ring-2 ${
                 targetUrl && !isUrlValid()
                   ? 'border-rose-300 focus:ring-rose-500 bg-rose-50/30'
@@ -333,6 +337,9 @@ export function DynamicServiceOrderForm({
               }`}
               required
             />
+            {fc.url_helper && (
+              <p className="text-xs text-slate-500 mt-1.5">{fc.url_helper}</p>
+            )}
             {service.url_placeholder && (
               <p className="text-xs text-slate-400 mt-1.5">
                 Example: <code className="text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">{service.url_placeholder}</code>

@@ -482,6 +482,23 @@ assert.ok(rankingPageCode.includes('Rescan before ordering.'), 'Ranking UI must 
 													assert.ok(workerTaskDetailCode.includes('Customer review text to publish'), 'Worker task must show assigned review text');
 													console.log('  ✓ Facebook Review text, Avvo standard card, and draft visibility verified.');
 
+													// 25. Verify Avvo VPN and Yelp business-name-first SOP
+													console.log('25. Checking Avvo VPN + Yelp business-name flow...');
+													const sopMigrationPath = path.join(rootDir, 'supabase', 'migrations', '20261128000000_avvo_vpn_yelp_business_name.sql');
+													const sopSql = fs.readFileSync(sopMigrationPath, 'utf8');
+													const taskDetailCode3 = fs.readFileSync(path.join(rootDir, 'src', 'pages', 'TaskDetail.tsx'), 'utf8');
+													const approvalCode2 = fs.readFileSync(path.join(rootDir, 'src', 'pages', 'admin', 'ApprovalQueue.tsx'), 'utf8');
+													assert.ok(sopSql.includes('Nama Bisnis Yelp'), 'Yelp order field must use business name');
+													assert.ok(sopSql.includes("v_url ~* '^https?://'"), 'Yelp direct URLs must be rejected on new orders');
+													assert.ok(sopSql.includes('[VPN-WINDSCRIBE]'), 'Avvo must require Windscribe marker');
+													assert.ok(sopSql.includes('[SEARCH-FIRST]'), 'Yelp must require search-first marker');
+													assert.ok(sopSql.includes('tg_enforce_avvo_yelp_submission_sop'), 'SOP markers must be enforced server-side');
+													assert.ok(taskDetailCode3.includes('avvoVpnConfirmed') && taskDetailCode3.includes('avvoEnglishNameConfirmed'), 'Worker must confirm Avvo VPN + English name');
+													assert.ok(taskDetailCode3.includes('yelpSearchFirstConfirmed'), 'Worker must confirm Yelp search-first flow');
+													assert.ok(approvalCode2.includes('Avvo Check'), 'Approval queue must show Avvo SOP checks');
+													assert.ok(approvalCode2.includes('[SEARCH-FIRST]'), 'Approval queue must show Yelp search-first check');
+													console.log('  ✓ Avvo VPN, Yelp business-name-first, and submission SOP verified.');
+
 												console.log('  ✓ Ranking Forum now consumes resolved SERP URLs and rejects redirect wrappers.');
 
 

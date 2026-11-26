@@ -38,6 +38,10 @@ export function TaskDetail() {
   const [trustpilotConfirmed, setTrustpilotConfirmed] = React.useState(false);
   const [yelpConfirmed, setYelpConfirmed] = React.useState(false);
   const [clutchConfirmed, setClutchConfirmed] = React.useState(false);
+  const [avvoVpnConfirmed, setAvvoVpnConfirmed] = React.useState(false);
+  const [avvoEnglishNameConfirmed, setAvvoEnglishNameConfirmed] = React.useState(false);
+  const [yelpVpnConfirmed, setYelpVpnConfirmed] = React.useState(false);
+  const [yelpSearchFirstConfirmed, setYelpSearchFirstConfirmed] = React.useState(false);
   // Review categories only: worker confirms the post is STILL live (visible
   // to public, not hidden by platform filters) at the moment of submit.
   const [liveProofConfirmed, setLiveProofConfirmed] = React.useState(false);
@@ -222,9 +226,15 @@ export function TaskDetail() {
         proof_urls: proofImageUrl ? [proofImageUrl] : [],
         // [LIVE-OK] = worker confirmed the post is still publicly visible at
         // submit time. Admin sees this marker in the approval queue.
-        user_note: userNote
-          ? (liveProofConfirmed && isReviewCategory ? `${userNote} [LIVE-OK]` : userNote)
-          : (liveProofConfirmed && isReviewCategory ? '[LIVE-OK]' : null),
+        user_note: [
+          userNote.trim(),
+          liveProofConfirmed && isReviewCategory ? '[LIVE-OK]' : '',
+          isAvvoComment && avvoVpnConfirmed ? '[VPN-WINDSCRIBE]' : '',
+          isAvvoComment && avvoEnglishNameConfirmed ? '[BULE-ACCOUNT]' : '',
+          isYelpReview && yelpVpnConfirmed ? '[VPN-ACTIVE]' : '',
+          isYelpReview && yelpSearchFirstConfirmed ? '[SEARCH-FIRST]' : '',
+          isYelpReview ? '[BULE-ACCOUNT]' : '',
+        ].filter(Boolean).join(' ') || null,
         proof_image_url: proofImageUrl || null,
         proof_image_hash: proofImageHash || null,
       });
@@ -303,13 +313,15 @@ export function TaskDetail() {
         ? !!(draftComment?.trim() || commentPost || userNote.trim())
         : !!draftComment?.trim())
     : true;
-  const isReviewCategory = isGoogleMapsReview || isTrustpilotReview || isYelpReview || isClutchReview || isFacebookPageReview;
+  const isReviewCategory = isGoogleMapsReview || isTrustpilotReview || isYelpReview || isClutchReview || isFacebookPageReview || isAvvoComment;
   const canSubmit = isGoogleMapsReview
     ? !!proofImageUrl && !!submittedUsername.trim() && liveProofConfirmed && !!assignmentId
     : isTrustpilotReview
     ? !!proofImageUrl && !!submittedUsername.trim() && trustpilotConfirmed && liveProofConfirmed && !!assignmentId
     : isYelpReview
-    ? !!proofImageUrl && !!submittedUsername.trim() && yelpConfirmed && liveProofConfirmed && !!assignmentId
+    ? !!proofImageUrl && !!submittedUsername.trim() && yelpConfirmed && yelpVpnConfirmed && yelpSearchFirstConfirmed && liveProofConfirmed && !!assignmentId
+    : isAvvoComment
+    ? !!proofImageUrl && !!proofUrl.trim() && !!submittedUsername.trim() && avvoVpnConfirmed && avvoEnglishNameConfirmed && liveProofConfirmed && !!assignmentId
     : isClutchReview
     ? !!proofImageUrl && !!submittedUsername.trim() && clutchConfirmed && liveProofConfirmed && !!assignmentId
     : isFacebookPageReview
@@ -1619,7 +1631,29 @@ export function TaskDetail() {
                   className="mt-0.5 rounded border-amber-400 text-primary focus:ring-primary h-4 w-4 shrink-0"
                 />
                 <span className="text-xs text-amber-950 font-semibold leading-snug">
-                  Saya menyatakan bahwa saya sudah mengaktifkan <b>VPN US / UK (Windscribe)</b>, akun Yelp saya menggunakan <b>nama Bule / English dengan foto avatar</b>, dan review ditulis dalam <b>Bahasa Inggris minimal 3 kalimat</b>.
+                  Saya menyatakan bahwa saya sudah mengaktifkan <b>VPN US / UK (Windscribe)</b>, akun Yelp saya menggunakan <b>nama Bule / English dengan foto avatar</b>, saya membuka profil bisnis dari <b>hasil pencarian Yelp</b> (bukan link langsung), dan review ditulis dalam <b>Bahasa Inggris minimal 3 kalimat</b>.
+                </span>
+              </label>
+              <label className="flex items-start gap-2.5 p-3 rounded-xl bg-orange-50 ring-1 ring-orange-300 cursor-pointer mb-3 select-none">
+                <input
+                  type="checkbox"
+                  checked={yelpVpnConfirmed}
+                  onChange={(e) => setYelpVpnConfirmed(e.target.checked)}
+                  className="mt-0.5 rounded border-orange-400 text-primary focus:ring-primary h-4 w-4 shrink-0"
+                />
+                <span className="text-xs text-orange-950 font-semibold leading-snug">
+                  Saya sudah menggunakan <b>VPN</b> sebelum membuka Yelp.
+                </span>
+              </label>
+              <label className="flex items-start gap-2.5 p-3 rounded-xl bg-orange-50 ring-1 ring-orange-300 cursor-pointer mb-3 select-none">
+                <input
+                  type="checkbox"
+                  checked={yelpSearchFirstConfirmed}
+                  onChange={(e) => setYelpSearchFirstConfirmed(e.target.checked)}
+                  className="mt-0.5 rounded border-orange-400 text-primary focus:ring-primary h-4 w-4 shrink-0"
+                />
+                <span className="text-xs text-orange-950 font-semibold leading-snug">
+                  Saya sudah mencari <b>nama bisnis</b> di Yelp dan membuka profil dari hasil pencarian, bukan link langsung.
                 </span>
               </label>
 
@@ -1784,6 +1818,37 @@ export function TaskDetail() {
                     placeholder={isForumComment ? 'Contoh: nama profile HubSpot kamu' : 'u/username'}
                     className="w-full px-4 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm mb-3"
                   />
+                </>
+              )}
+
+              {isAvvoComment && (
+                <>
+                  <div className="p-3.5 mb-3 rounded-xl bg-indigo-50 ring-2 ring-indigo-300 text-xs text-indigo-950">
+                    <p className="font-extrabold text-indigo-900 mb-1">Avvo: wajib VPN Windscribe + nama bule</p>
+                    <p className="leading-relaxed">Aktifkan Windscribe sebelum membuka Avvo. Gunakan akun dengan nama Bule / English. Jangan pakai akun nama lokal.</p>
+                  </div>
+                  <label className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 ring-1 ring-amber-300 cursor-pointer mb-3 select-none">
+                    <input
+                      type="checkbox"
+                      checked={avvoVpnConfirmed}
+                      onChange={(e) => setAvvoVpnConfirmed(e.target.checked)}
+                      className="mt-0.5 rounded border-amber-400 text-primary focus:ring-primary h-4 w-4 shrink-0"
+                    />
+                    <span className="text-xs text-amber-950 font-semibold leading-snug">
+                      Saya sudah menggunakan <b>Windscribe VPN</b> sebelum membuka Avvo.
+                    </span>
+                  </label>
+                  <label className="flex items-start gap-2.5 p-3 rounded-xl bg-amber-50 ring-1 ring-amber-300 cursor-pointer mb-3 select-none">
+                    <input
+                      type="checkbox"
+                      checked={avvoEnglishNameConfirmed}
+                      onChange={(e) => setAvvoEnglishNameConfirmed(e.target.checked)}
+                      className="mt-0.5 rounded border-amber-400 text-primary focus:ring-primary h-4 w-4 shrink-0"
+                    />
+                    <span className="text-xs text-amber-950 font-semibold leading-snug">
+                      Akun Avvo yang saya pakai menggunakan <b>nama bule / English name</b>.
+                    </span>
+                  </label>
                 </>
               )}
 

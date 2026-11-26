@@ -904,8 +904,23 @@ export function AdminApprovalQueue() {
                       </p>
                       <p className="mt-0.5">
                         Username Yelp: <b className="font-mono bg-white px-1.5 py-0.5 rounded border border-red-300">{a.reddit_accounts?.username || a.submitted_username}</b>.
-                        Wajib nama <b>Bule / English</b>, rating bintang 5, foto avatar akun terpasang, dan review terbit di bisnis Yelp target.
+                        Wajib nama <b>Bule / English</b>, foto avatar, VPN aktif, dan profil bisnis dibuka dari <b>hasil pencarian Yelp</b>, bukan link langsung.
                       </p>
+                      <p className="mt-1 font-semibold">Cek marker: [VPN-ACTIVE] · [SEARCH-FIRST] · [BULE-ACCOUNT]. Jika tidak lengkap, <b>REJECT</b>.</p>
+                    </div>
+                  )}
+
+                  {a.tasks?.task_category === 'avvo_comment' && (
+                    <div className="mt-2.5 p-2 rounded-lg bg-indigo-50 ring-1 ring-indigo-300 text-xs text-indigo-950">
+                      <p className="font-bold text-indigo-900 flex items-center gap-1">⚖️ Avvo Check:</p>
+                      <p className="mt-0.5">Wajib marker <b>[VPN-WINDSCRIBE]</b> dan <b>[BULE-ACCOUNT]</b>. Pastikan akun Avvo bernama Bule / English dan VPN Windscribe aktif sebelum membuka Avvo. Jika tidak lengkap, <b>REJECT</b>.</p>
+                    </div>
+                  )}
+
+                  {a.tasks?.task_category === 'facebook_page_review' && (
+                    <div className="mt-2.5 p-2 rounded-lg bg-blue-50 ring-1 ring-blue-300 text-xs text-blue-950">
+                      <p className="font-bold text-blue-900 flex items-center gap-1">⭐ Facebook Review (Fb page customer feedback) Check:</p>
+                      <p className="mt-0.5">Pastikan reviewer adalah customer nyata, feedback berdasarkan pengalaman firsthand, tidak ada janji rating tertentu, screenshot dan URL publik cocok dengan Page target, serta reviewer identity terisi. Jika tidak terbukti, <b>REJECT</b>.</p>
                     </div>
                   )}
 
