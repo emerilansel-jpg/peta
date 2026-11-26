@@ -413,9 +413,16 @@ export function DynamicServiceOrderForm({
         {fc.allows_custom_drafts && (
           <div className="bg-white rounded-2xl ring-1 ring-slate-200 p-6 shadow-sm space-y-4">
             <div className="flex items-center justify-between gap-3">
-              <label className="text-sm font-bold text-slate-900">
-                {requiresCustomText ? 'Customer review text' : 'Content & Instructions'}
-              </label>
+              <div>
+                <label className="text-sm font-bold text-slate-900">
+                  {requiresCustomText ? 'Customer review text' : 'Content & Instructions'}
+                </label>
+                {requiresCustomText && (
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    {quantity} review text{quantity === 1 ? '' : 's'} required. Each worker gets one unique text.
+                  </p>
+                )}
+              </div>
               {!requiresCustomText && (
                 <div className="flex rounded-lg bg-slate-100 p-1 text-xs font-semibold">
                   <button
@@ -459,20 +466,25 @@ export function DynamicServiceOrderForm({
                   Provide one honest review text per unit. Each text must be different and based on a real customer experience.
                 </p>
                 {Array.from({ length: quantity }).map((_, idx) => (
-                  <div key={idx}>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
-                      {requiresCustomText ? `Customer review text #${idx + 1}` : `Text #${idx + 1}`}
-                    </label>
+                  <div key={idx} className="rounded-xl ring-1 ring-slate-200 p-3">
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <label className="block text-xs font-bold text-slate-800">
+                        {requiresCustomText ? `Customer review text #${idx + 1}` : `Text #${idx + 1}`}
+                      </label>
+                      <span className="text-[11px] text-slate-400">{(drafts[idx] || '').trim().length} chars</span>
+                    </div>
                     <textarea
-                      rows={2}
+                      rows={requiresCustomText ? 4 : 2}
                       value={drafts[idx] || ''}
                       onChange={(e) => {
                         const next = [...drafts];
                         next[idx] = e.target.value;
                         setDrafts(next);
                       }}
-                      placeholder={`Draft comment/review for unit #${idx + 1}...`}
-                      className="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                      placeholder={requiresCustomText
+                        ? `Tulis review pelanggan yang jujur untuk worker #${idx + 1}. Teks ini tidak boleh sama dengan review lain.`
+                        : `Draft comment/review for unit #${idx + 1}...`}
+                      className="w-full px-3 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-orange-500 resize-y"
                     />
                   </div>
                 ))}

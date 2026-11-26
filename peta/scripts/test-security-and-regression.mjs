@@ -476,6 +476,7 @@ assert.ok(rankingPageCode.includes('Rescan before ordering.'), 'Ranking UI must 
 													assert.ok(newOrderCode.includes('avvo: \'avvo_comment\''), 'Avvo service alias must resolve to catalog slug');
 													assert.ok(formCode.includes('requiresCustomText'), 'Order form must require review text before checkout');
 													assert.ok(formCode.includes('must be unique'), 'Order form must reject duplicate review texts');
+													assert.ok(formCode.includes('Each worker gets one unique text.'), 'Order form must show one review text box per ordered unit');
 													assert.ok(adminServicesCode.includes('...(editingService?.form_config || {})'), 'Admin service save must preserve safety flags');
 													assert.ok(orderDetailCode2.includes('Review / comment texts'), 'Client order detail must show review texts');
 													assert.ok(adminOrdersCode.includes('Customer review texts'), 'Admin order detail must show review texts');
