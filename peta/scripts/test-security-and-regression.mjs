@@ -495,6 +495,7 @@ assert.ok(rankingPageCode.includes('Rescan before ordering.'), 'Ranking UI must 
 													const taskDetailCode3 = fs.readFileSync(path.join(rootDir, 'src', 'pages', 'TaskDetail.tsx'), 'utf8');
 													const approvalCode2 = fs.readFileSync(path.join(rootDir, 'src', 'pages', 'admin', 'ApprovalQueue.tsx'), 'utf8');
 													assert.ok(sopSql.includes('Nama Bisnis Yelp'), 'Yelp order field must use business name');
+									assert.ok(!sopSql.includes('90014-ca-mohamad-abdallah-5316895'), 'Avvo examples must not expose client data');
 													assert.ok(sopSql.includes("v_url ~* '^https?://'"), 'Yelp direct URLs must be rejected on new orders');
 													assert.ok(sopSql.includes('[VPN-WINDSCRIBE]'), 'Avvo must require Windscribe marker');
 													assert.ok(sopSql.includes('[SEARCH-FIRST]'), 'Yelp must require search-first marker');
