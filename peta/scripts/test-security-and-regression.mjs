@@ -406,7 +406,7 @@ assert.ok(rankingPageCode.includes('Rescan before ordering.'), 'Ranking UI must 
 													const newServicesSql = fs.readFileSync(newServicesMigrationPath, 'utf8');
 													const claimSupportSql = fs.readFileSync(claimSupportMigrationPath, 'utf8');
 													assert.ok(newServicesSql.includes("'facebook_group_comment'"), 'Catalog must seed Facebook Group Comment');
-													assert.ok(newServicesSql.includes("'avvo_comment'"), 'Catalog must seed Avvo Comment');
+													assert.ok(newServicesSql.includes("'avvo_comment'"), 'Catalog must seed Avvo Review');
 													assert.ok(newServicesSql.includes("WHERE slug = 'yelp_review'"), 'Yelp catalog row must remain for historical orders');
 													assert.ok(newServicesSql.includes("WHERE key = 'yelp_review'"), 'Yelp pricing row must be disabled');
 													assert.ok(newServicesSql.includes('Yelp Reviews are paused right now.'), 'Legacy Yelp RPCs must reject new orders');
@@ -420,8 +420,8 @@ assert.ok(rankingPageCode.includes('Rescan before ordering.'), 'Ranking UI must 
 													assert.ok(tasksPageCode.includes("'avvo_comment'"), 'Worker task list must label Avvo tasks');
 													assert.ok(tasksPageCode.includes("'facebook_page_review'"), 'Worker task list must label Facebook Page reviews');
 													assert.ok(taskDetailPageCode.includes('isFacebookGroupComment') && taskDetailPageCode.includes('isAvvoComment'), 'Task detail must treat new services as comments');
-													assert.ok(ordersPageCode.includes('Facebook Group Comments') && ordersPageCode.includes('Avvo Comments'), 'Client order list must label new services');
-													assert.ok(orderDetailPageCode.includes('Facebook Group comments') && orderDetailPageCode.includes('Avvo comments'), 'Client order detail must label new services');
+													assert.ok(ordersPageCode.includes('Facebook Group Comments') && ordersPageCode.includes('Avvo Reviews'), 'Client order list must label new services');
+													assert.ok(orderDetailPageCode.includes('Facebook Group comments') && orderDetailPageCode.includes('Avvo reviews'), 'Client order detail must label new services');
 													const pageReviewMigrationPath = path.join(rootDir, 'supabase', 'migrations', '20261124020000_facebook_page_review_customer_feedback.sql');
 													const pageReviewProofPath = path.join(rootDir, 'supabase', 'migrations', '20261124030000_facebook_page_review_proof_enforcement.sql');
 													const pageReviewSql = fs.readFileSync(pageReviewMigrationPath, 'utf8');

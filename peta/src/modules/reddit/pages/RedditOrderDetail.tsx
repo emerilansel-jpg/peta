@@ -269,8 +269,8 @@ function serviceMeta(order: RedditOrderRecord) {
     return {
       name: 'LinkedIn post comments',
       targetLabel: 'Post URL',
-      quantityLabel: 'Comments',
-      progress: `${order.delivered_upvotes || 0} / ${order.requested_upvotes} comments`,
+      quantityLabel: 'Reviews',
+      progress: `${order.delivered_upvotes || 0} / ${order.requested_upvotes} reviews`,
       statusDesc: {
         pending: 'Reviewing your comment brief/drafts.',
         processing: 'Real people are posting comments on your LinkedIn post.',
@@ -358,20 +358,20 @@ function serviceMeta(order: RedditOrderRecord) {
       statusDesc: {
         pending: 'Reviewing your Facebook Group target and comment brief.',
         processing: 'Real people are posting contextual comments in the Facebook Group.',
-        completed: 'All comments delivered. Check the public proof below.',
+        completed: 'All reviews delivered. Check the public proof below.',
         cancelled: 'Order was cancelled; unfulfilled credits refunded.',
       } as Record<string, string>,
     };
   }
   if ((order.target_type || 'upvote') === 'avvo_review' || (order.target_type || 'upvote') === 'avvo_comment') {
     return {
-      name: 'Avvo comments',
-      targetLabel: 'Avvo question URL',
-      quantityLabel: 'Comments',
-      progress: `${order.delivered_upvotes || 0} / ${order.requested_upvotes} comments`,
+      name: 'Avvo reviews',
+      targetLabel: 'Avvo profile / review URL',
+      quantityLabel: 'Reviews',
+      progress: `${order.delivered_upvotes || 0} / ${order.requested_upvotes} reviews`,
       statusDesc: {
-        pending: 'Reviewing your Avvo question and comment brief.',
-        processing: 'Real people are posting helpful, careful answers on Avvo.',
+        pending: 'Reviewing your Avvo profile and review brief.',
+        processing: 'Real people are posting helpful, careful reviews on Avvo.',
         completed: 'All comments delivered. Check the public proof below.',
         cancelled: 'Order was cancelled; unfulfilled credits refunded.',
       } as Record<string, string>,

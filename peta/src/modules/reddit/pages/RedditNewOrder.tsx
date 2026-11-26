@@ -329,9 +329,9 @@ const SERVICES: Service[] = [
   {
     id: 'avvo-comment',
     platform: 'Avvo',
-    name: 'Question Comments',
-    icon: MessageSquare,
-    description: 'Helpful comments on Avvo legal questions ($5.00/comment)',
+    name: 'Avvo Review',
+    icon: Star,
+    description: 'Helpful, honest reviews on an Avvo profile ($5.00/review)',
     status: 'active',
     badge: 'New',
     iconBg: 'bg-indigo-100',

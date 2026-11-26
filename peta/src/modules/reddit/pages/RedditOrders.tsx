@@ -103,7 +103,7 @@ function serviceLabel(order: RedditOrderListItem) {
     return { label: 'Facebook Group Comments', metric: 'Comments', value: Number(order.requested_upvotes || 0).toLocaleString(), icon: '💬' };
   }
   if (targetType === 'avvo_review' || targetType === 'avvo_comment') {
-    return { label: 'Avvo Comments', metric: 'Comments', value: Number(order.requested_upvotes || 0).toLocaleString(), icon: '⚖️' };
+    return { label: 'Avvo Reviews', metric: 'Reviews', value: Number(order.requested_upvotes || 0).toLocaleString(), icon: '⚖️' };
   }
   if (targetType === 'facebook_page_review') {
     return { label: 'Facebook Review (Fb page customer feedback)', metric: 'Reviews', value: Number(order.requested_upvotes || 0).toLocaleString(), icon: '⭐' };
