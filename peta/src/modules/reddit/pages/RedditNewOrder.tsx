@@ -317,7 +317,7 @@ const SERVICES: Service[] = [
   {
     id: 'facebook-page-review',
     platform: 'Facebook',
-    name: 'Page Reviews',
+    name: 'Facebook Review',
     icon: Star,
     description: 'Customer feedback for your Facebook Page, written by real customers ($5.00/review)',
     status: 'active',
@@ -805,7 +805,7 @@ function ServiceSelector({
   const visible = services.filter((s) => {
     if (s.status === 'paused') return false;
     if (activeFilter === 'reviews') {
-      return s.id === 'google-maps-review' || s.id === 'trustpilot-review' || s.id === 'yelp-review' || s.id === 'clutch-review';
+      return s.id === 'google-maps-review' || s.id === 'trustpilot-review' || s.id === 'yelp-review' || s.id === 'clutch-review' || s.id === 'facebook-page-review' || s.id === 'avvo-comment';
     }
     if (activeFilter === 'yelp') {
       return s.platform === 'Yelp';
@@ -842,7 +842,9 @@ function ServiceSelector({
   const videoServices = visible.filter((s) => s.platform === 'Short-Form Video');
   const growthServices = visible.filter((s) => s.platform === 'Growth' || s.platform === 'Research' || s.platform === 'Competitions' || s.platform === 'Amplification');
   const twitterServices = visible.filter((s) => s.platform === 'X (Twitter)');
-  const forumServices = visible.filter((s) => s.platform === 'Forums' || s.platform === 'Facebook');
+  const forumServices = visible.filter((s) => s.platform === 'Forums');
+  const facebookServices = visible.filter((s) => s.platform === 'Facebook');
+  const avvoServices = visible.filter((s) => s.platform === 'Avvo');
   const customServices = visible.filter((s) => s.platform === 'Custom');
 
   const customDynamic = dynamicServices.filter(
@@ -1064,6 +1066,36 @@ function ServiceSelector({
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {twitterServices.map((s) => (
+              <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Facebook */}
+      {facebookServices.length > 0 && (
+        <div className="mb-10">
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Facebook</h2>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-semibold">Active</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {facebookServices.map((s) => (
+              <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Avvo */}
+      {avvoServices.length > 0 && (
+        <div className="mb-10">
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="text-sm font-bold text-slate-900 uppercase tracking-wide">Avvo</h2>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 font-semibold">Active</span>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {avvoServices.map((s) => (
               <ServiceCard key={s.id} service={s} onClick={() => onSelect(s)} />
             ))}
           </div>
