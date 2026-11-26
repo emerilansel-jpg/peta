@@ -31,6 +31,7 @@ interface EmailRequest {
     | 'review'
     | 'credit'
     | 'general'
+    | 'order_progress'
     | 'first_order_nudge'
     | 'reengagement'
     | 'balance_reminder';
@@ -55,6 +56,7 @@ function emailTemplate(payload: EmailRequest, link?: string): string {
       case 'message':
         return 'View message';
       case 'order_status':
+      case 'order_progress':
         return 'View order';
       case 'review':
         return 'See review';

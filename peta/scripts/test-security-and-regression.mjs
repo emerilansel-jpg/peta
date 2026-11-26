@@ -366,9 +366,101 @@ assert.ok(redditNewOrderCode.includes('!wantsSuggestion ? 1'), 'RedditNewOrder m
 										assert.ok(fs.existsSync(dynamicFormPath), 'DynamicServiceOrderForm.tsx must exist');
 
 										const invoiceModalPath = path.join(rootDir, 'src', 'modules', 'reddit', 'components', 'InvoiceModal.tsx');
-										assert.ok(fs.existsSync(invoiceModalPath), 'InvoiceModal.tsx must exist');
-										console.log('  ✓ Dynamic Service Architecture, Live Proofs & B2B Invoicing verified.');
+											assert.ok(fs.existsSync(invoiceModalPath), 'InvoiceModal.tsx must exist');
+											console.log('  ✓ Dynamic Service Architecture, Live Proofs & B2B Invoicing verified.');
 
-										console.log('===================================================');
+											// 21. Verify Ranking Forum SERP Redirect Resolution
+											console.log('21. Checking Ranking Forum SERP Redirect Resolution...');
+											const rankingFunctionPath = path.join(rootDir, 'supabase', 'functions', 'rank-forum-pages', 'index.ts');
+											const rankingApiPath = path.join(rootDir, 'src', 'modules', 'reddit', 'lib', 'api.ts');
+											const rankingPagePath = path.join(rootDir, 'src', 'modules', 'reddit', 'pages', 'RankingForumPage.tsx');
+											const rankingFunctionCode = fs.readFileSync(rankingFunctionPath, 'utf8');
+											const rankingApiCode = fs.readFileSync(rankingApiPath, 'utf8');
+											const rankingPageCode = fs.readFileSync(rankingPagePath, 'utf8');
+
+											assert.ok((rankingFunctionCode.match(/resolve_goto_urls:\s*true/g) || []).length >= 2, 'All DataForSEO SERP calls must resolve Google redirect URLs');
+													assert.ok(rankingFunctionCode.includes('GOOGLE_REDIRECT_URL_RE'), 'Ranking provider must identify Google redirect wrappers');
+													assert.ok(rankingFunctionCode.includes('if (GOOGLE_REDIRECT_URL_RE.test(low)) return false;'), 'Google redirect wrappers must never be classified as forum targets');
+													assert.ok(rankingFunctionCode.includes('return mapped.length ? mapped : null;'), 'Empty or wrapper-only DataForSEO rows must trigger provider fallback');
+													assert.ok(rankingFunctionCode.includes('if (!url || GOOGLE_REDIRECT_URL_RE.test(url)) continue;'), 'Citation checks must not return Google redirect URLs');
+
+													assert.ok(rankingApiCode.includes('google\\.[a-z.]+\\/goto'), 'Frontend must reject unresolved Google goto URLs');
+assert.ok(rankingApiCode.includes('unresolvedRedirectCount'), 'Frontend must detect wrapper-only stale provider responses');
+assert.ok(rankingApiCode.includes("'/api/resolve-serp-urls'"), 'Frontend must repair legacy Google redirect responses through the Pages resolver');
+const serpResolverPath = path.join(rootDir, 'functions', 'api', 'resolve-serp-urls.ts');
+const serpResolverCode = fs.readFileSync(serpResolverPath, 'utf8');
+assert.ok(serpResolverCode.includes('redirect: \'manual\''), 'SERP resolver must inspect redirect headers without following arbitrary redirects');
+assert.ok(serpResolverCode.includes('GOOGLE_REDIRECT_RE'), 'SERP resolver must only accept Google redirect wrappers');
+assert.ok(serpResolverCode.includes('i += 6'), 'SERP resolver must resolve URLs in bounded concurrent batches');
+
+											assert.ok(rankingPageCode.includes('!isInvalidOrSearchForumUrl(r.url)'), 'Ranking UI must retain a defense-in-depth URL filter');
+assert.ok(rankingPageCode.includes('selectKeywordsToScan'), 'Ranking UI must prioritize forum-intent keywords');
+assert.ok(rankingPageCode.includes('SERP_SCAN_CONCURRENCY'), 'Ranking UI must batch SERP requests');
+assert.ok(rankingPageCode.includes('result.eligible'), 'Ranking UI must discard stale ineligible restored results');
+assert.ok(rankingPageCode.includes('Rescan before ordering.'), 'Ranking UI must recheck eligibility before checkout');
+
+													// 22. Verify Facebook/Avvo Dynamic Services and Yelp Pause Contract
+													console.log('22. Checking Facebook/Avvo services and Yelp pause contract...');
+													const newServicesMigrationPath = path.join(rootDir, 'supabase', 'migrations', '20261124000000_straight_facebook_avvo_services.sql');
+													const claimSupportMigrationPath = path.join(rootDir, 'supabase', 'migrations', '20261124010000_straight_facebook_avvo_claim_support.sql');
+													const newServicesSql = fs.readFileSync(newServicesMigrationPath, 'utf8');
+													const claimSupportSql = fs.readFileSync(claimSupportMigrationPath, 'utf8');
+													assert.ok(newServicesSql.includes("'facebook_group_comment'"), 'Catalog must seed Facebook Group Comment');
+													assert.ok(newServicesSql.includes("'avvo_comment'"), 'Catalog must seed Avvo Comment');
+													assert.ok(newServicesSql.includes("WHERE slug = 'yelp_review'"), 'Yelp catalog row must remain for historical orders');
+													assert.ok(newServicesSql.includes("WHERE key = 'yelp_review'"), 'Yelp pricing row must be disabled');
+													assert.ok(newServicesSql.includes('Yelp Reviews are paused right now.'), 'Legacy Yelp RPCs must reject new orders');
+													assert.ok(newServicesSql.includes('CREATE TRIGGER trg_auto_import_reddit_order'), 'Migration must preserve one canonical order-task trigger');
+													assert.ok(claimSupportSql.includes("'facebook_group_comment', 'avvo_comment', 'facebook_page_review'"), 'Claim draft/dedup allowlists must include new services');
+													const tasksPageCode = fs.readFileSync(path.join(rootDir, 'src', 'pages', 'Tasks.tsx'), 'utf8');
+													const taskDetailPageCode = fs.readFileSync(path.join(rootDir, 'src', 'pages', 'TaskDetail.tsx'), 'utf8');
+													const ordersPageCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', 'reddit', 'pages', 'RedditOrders.tsx'), 'utf8');
+													const orderDetailPageCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', 'reddit', 'pages', 'RedditOrderDetail.tsx'), 'utf8');
+													assert.ok(tasksPageCode.includes("'facebook_group_comment'"), 'Worker task list must label Facebook Group tasks');
+													assert.ok(tasksPageCode.includes("'avvo_comment'"), 'Worker task list must label Avvo tasks');
+													assert.ok(tasksPageCode.includes("'facebook_page_review'"), 'Worker task list must label Facebook Page reviews');
+													assert.ok(taskDetailPageCode.includes('isFacebookGroupComment') && taskDetailPageCode.includes('isAvvoComment'), 'Task detail must treat new services as comments');
+													assert.ok(ordersPageCode.includes('Facebook Group Comments') && ordersPageCode.includes('Avvo Comments'), 'Client order list must label new services');
+													assert.ok(orderDetailPageCode.includes('Facebook Group comments') && orderDetailPageCode.includes('Avvo comments'), 'Client order detail must label new services');
+													const pageReviewMigrationPath = path.join(rootDir, 'supabase', 'migrations', '20261124020000_facebook_page_review_customer_feedback.sql');
+													const pageReviewProofPath = path.join(rootDir, 'supabase', 'migrations', '20261124030000_facebook_page_review_proof_enforcement.sql');
+													const pageReviewSql = fs.readFileSync(pageReviewMigrationPath, 'utf8');
+													const pageReviewProofSql = fs.readFileSync(pageReviewProofPath, 'utf8');
+													assert.ok(pageReviewSql.includes("'facebook_page_review'"), 'Catalog must define Facebook Page customer feedback');
+													assert.ok(pageReviewSql.includes("'Star', 'blue', false"), 'Page review must remain disabled by default');
+													assert.ok(pageReviewSql.includes('customer_attestation=true'), 'Server order RPC must require customer attestation');
+													assert.ok(pageReviewSql.includes("'Star', 'blue', false"), 'Page review stays disabled until genuine-customer workflow is enabled');
+													assert.ok(pageReviewProofSql.includes("COALESCE(v_task.task_category, '') = 'facebook_page_review'"), 'Server must special-case Page review proof');
+													assert.ok(pageReviewProofSql.includes('[LIVE-OK]'), 'Page review proof must require live-public confirmation');
+													assert.ok(taskDetailPageCode.includes('isFacebookPageReview'), 'Task detail must gate Page review tasks');
+													const approvalQueueCode = fs.readFileSync(path.join(rootDir, 'src', 'pages', 'admin', 'ApprovalQueue.tsx'), 'utf8');
+													assert.ok(approvalQueueCode.includes("task_category === 'facebook_page_review'"), 'Approval queue must show Page review authenticity checklist');
+													console.log('  ✓ Facebook/Avvo catalog, Yelp pause-only behavior, and claim wiring verified.');
+
+													// 23. Verify global client order-progress notifications
+													console.log('23. Checking global order-progress notifications...');
+													const progressMigrationPath = path.join(rootDir, 'supabase', 'migrations', '20261126000000_straight_order_progress_notifications.sql');
+													const progressSql = fs.readFileSync(progressMigrationPath, 'utf8');
+													const dashboardCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', 'reddit', 'pages', 'RedditDashboard.tsx'), 'utf8');
+													const orderDetailCode = fs.readFileSync(path.join(rootDir, 'src', 'modules', 'reddit', 'pages', 'RedditOrderDetail.tsx'), 'utf8');
+													const emailFnCode = fs.readFileSync(path.join(rootDir, 'supabase', 'functions', 'send-notification-email', 'index.ts'), 'utf8');
+													assert.ok(progressSql.includes('order_progress_events'), 'Progress events must be persisted independent of notification preferences');
+													assert.ok(progressSql.includes("'order_progress'"), 'Notification type constraint must allow order_progress');
+													assert.ok(progressSql.includes('event_key text NOT NULL UNIQUE'), 'Progress events must be idempotent by event key');
+													assert.ok(progressSql.includes('email_progress_notifications'), 'Email notification preference must exist');
+													assert.ok(progressSql.includes('dashboard_progress_notifications'), 'Dashboard notification preference must exist');
+													assert.ok(progressSql.includes('fn_notify_client_order_progress'), 'Reusable global progress notifier must exist');
+													assert.ok(progressSql.includes("p_activity_type text DEFAULT 'assignment_approved'"), 'Progress notifier must be generic across activities');
+													assert.ok(progressSql.includes('PERFORM public.fn_notify_client_order_progress'), 'Approval trigger must emit progress globally');
+													assert.ok(dashboardCode.includes('Progress notifications'), 'Dashboard must expose notification preferences');
+													assert.ok(dashboardCode.includes('Recent order activity'), 'Dashboard must show recent progress');
+													assert.ok(orderDetailCode.includes('Recent activity'), 'Order detail must always show progress history');
+													assert.ok(emailFnCode.includes("'order_progress'"), 'Email function must support order progress notifications');
+													console.log('  ✓ Global progress notifications, preferences, dedup, and UI surfaces verified.');
+
+												console.log('  ✓ Ranking Forum now consumes resolved SERP URLs and rejects redirect wrappers.');
+
+
+											console.log('===================================================');
 										console.log('ALL SECURITY AND QA REGRESSION CHECKS PASSED (100%)');
 										console.log('===================================================');

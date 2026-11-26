@@ -317,6 +317,29 @@ export async function createClutchReviewOrder(input: ClutchReviewOrderInput) {
   return data;
 }
 
+export async function uploadGoogleMapsReviewImage(orderId: number, file: File, index: number): Promise<string> {
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+  const path = `${orderId}/${Date.now()}-${index}.${ext}`;
+  const { error } = await supabase.storage.from('review-images').upload(path, file, {
+    contentType: file.type,
+    upsert: false,
+  });
+  if (error) throw new Error(error.message || 'Failed to upload image');
+  return path;
+}
+
+export async function attachGoogleMapsReviewImages(
+  orderId: number,
+  storagePaths: string[]
+): Promise<{ ok: boolean; added: number; total: number }> {
+  const { data, error } = await supabase.rpc('fn_attach_review_images', {
+    p_order_id: orderId,
+    p_storage_paths: storagePaths,
+  });
+  if (error) throw new Error(error.message || 'Failed to attach review images');
+  return data as { ok: boolean; added: number; total: number };
+}
+
 export interface GoogleMapsReviewOrderInput {
   targetUrl: string;
   quantity: number;
@@ -591,6 +614,7 @@ export function isInvalidOrSearchForumUrl(url?: string | null): boolean {
   const u = (url || '').trim().toLowerCase();
   if (!u || !/^https?:\/\/[a-z0-9.-]+\.[a-z]{2,}(?:[:/?#]|$)/i.test(u)) return true;
   return (
+    /^https?:\/\/(?:[a-z0-9-]+\.)*google\.[a-z.]+\/(?:goto|url|aclk)(?:[/?#]|$)/i.test(u) ||
     /^https?:\/\/(?:[a-z0-9-]+\.)?google\.[a-z.]+\/search(?:[/?#]|$)/i.test(u) ||
     /^https?:\/\/(?:[a-z0-9-]+\.)?bing\.com\/search(?:[/?#]|$)/i.test(u) ||
     /^https?:\/\/(?:[a-z0-9-]+\.)?search\.yahoo\.com(?:[/?#]|$)/i.test(u) ||
@@ -598,8 +622,38 @@ export function isInvalidOrSearchForumUrl(url?: string | null): boolean {
     /^https?:\/\/(?:[a-z0-9-]+\.)?quora\.com\/search(?:[/?#]|$)/i.test(u) ||
     /^https?:\/\/(?:[a-z0-9-]+\.)?indiehackers\.com\/search(?:[/?#]|$)/i.test(u) ||
     /^https?:\/\/community\.hubspot\.com\/t5\/forums\/searchpage(?:[/?#]|$)/i.test(u) ||
-    /\/(?:search|searchpage)(?:\?|$)/i.test(u)
+    /\/(?:search|searchpage)(?:[/?#]|$)/i.test(u)
   );
+}
+
+const FORUM_HOST_RE = /(?:^|\.)quora\.com$|(?:^|\.)community\.hubspot\.com$|(?:^|\.)indiehackers\.com$|(?:^|\.)blackhatworld\.com$|(?:^|\.)warriorforum\.com$|(?:^|\.)stackexchange\.com$|(?:^|\.)stackoverflow\.com$|(?:^|\.)news\.ycombinator\.com$|(?:^|\.)producthunt\.com$/i;
+const FORUM_PATH_RE = /\/(?:forums?|community|communities|discussions?|questions?|threads?|topics?|boards?|viewtopic|showthread|viewforum|forumdisplay)(?:[/?#]|$)|\/t\/[^/]+\/\d+(?:[/?#]|$)|\/posts?\/\d+(?:[/?#]|$)/i;
+const FORUM_SUBDOMAIN_RE = /^(?:forums?|community|communities|discuss|discussion|boards?|talk|bbs|answers|ask)\./i;
+
+export function isLikelyForumUrl(url?: string | null): boolean {
+  if (isInvalidOrSearchForumUrl(url) || /reddit\.com/i.test(url || '')) return false;
+  try {
+    const parsed = new URL(url as string);
+    const host = parsed.hostname.replace(/^www\./i, '').toLowerCase();
+    return FORUM_HOST_RE.test(host) || FORUM_PATH_RE.test(parsed.pathname) || FORUM_SUBDOMAIN_RE.test(host) || /forum|discourse|phpbb|vbulletin|proboards|tapatalk/i.test(host);
+  } catch {
+    return false;
+  }
+}
+
+function platformForForumUrl(url: string): string {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./i, '').toLowerCase();
+    if (host.includes('quora.com')) return 'Quora';
+    if (host.includes('hubspot.com')) return 'HubSpot';
+    if (host.includes('indiehackers.com')) return 'Indie Hackers';
+    if (host.includes('stack')) return 'Stack Exchange';
+    if (host.includes('producthunt.com')) return 'Product Hunt';
+    if (host.includes('forum') || host.includes('discourse')) return 'Forum';
+    return host.split('.')[0] || 'Forum';
+  } catch {
+    return 'Forum';
+  }
 }
 
 export async function verifyForumThreadUrl(url: string): Promise<{
@@ -1159,12 +1213,52 @@ export async function getRankingForumResults(keyword: string): Promise<{
   }
 
   // Strip google.com/goto redirects, Reddit URLs, and search/searchpage URLs.
-  const prefiltered = (payload.serp_results || []).filter((item) => {
+  const rawResults = payload.serp_results || [];
+  const unresolvedRedirectCount = rawResults.filter((item) => /^https?:\/\/(?:[a-z0-9-]+\.)*google\.[a-z.]+\/(?:goto|url|aclk)(?:[/?#]|$)/i.test((item?.url || '').trim())).length;
+  const prefiltered = rawResults.filter((item) => {
     const u = (item?.url || '').trim();
     if (!u || isInvalidOrSearchForumUrl(u)) return false;
     if (/google\.[a-z.]+\/goto\?/i.test(u) || /reddit\.com/i.test(u)) return false;
     return true;
   });
+  if (unresolvedRedirectCount > 0 && !prefiltered.some((item) => item.eligible)) {
+    try {
+      const resolveResp = await fetch('/api/resolve-serp-urls', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ urls: rawResults.map((item) => item?.url).filter(Boolean) }),
+      });
+      if (resolveResp.ok) {
+        const resolveData = await resolveResp.json() as { results?: Array<{ source_url: string; resolved_url?: string | null; ok: boolean }> };
+        const resolved = new Map(
+          (resolveData.results || []).filter((item) => item.ok && item.resolved_url).map((item) => [item.source_url, item.resolved_url as string])
+        );
+        const repaired = rawResults
+          .map((item) => {
+            const resolvedUrl = resolved.get((item?.url || '').trim());
+            return resolvedUrl ? { ...item, url: resolvedUrl } : null;
+          })
+          .filter((item): item is RankingForumResult => !!item)
+          .map((item) => ({
+            ...item,
+            platform: platformForForumUrl(item.url),
+            eligible: isLikelyForumUrl(item.url),
+          }))
+          .filter((item) => item.eligible);
+        if (repaired.some((item) => item.eligible)) {
+          return { ...payload, provider: 'live_serp_resolved', serp_results: repaired };
+        }
+      }
+    } catch {
+      // provider refresh remains the final fallback
+    }
+    return {
+      serp_results: [],
+      provider: 'unavailable',
+      keyword: payload.keyword || keyword,
+      provider_notice: 'Live SERP data needs a provider refresh. Please rescan in a moment or use New Order with a direct forum thread URL.',
+    };
+  }
 
   // Batch-verify live health of eligible forum thread URLs so 410/404/closed threads never reach checkout.
   const eligibleUrls = Array.from(new Set(prefiltered.filter((r) => r.eligible).map((r) => r.url)));
@@ -1602,6 +1696,7 @@ export async function getMyNotifications(targetRole: 'user' | 'admin' = 'user', 
     .from('notifications')
     .select('*')
     .eq('target_role', targetRole)
+    .eq('is_read', false)
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error) throw error;
@@ -1630,6 +1725,50 @@ export async function markAllNotificationsRead(targetRole: 'user' | 'admin' = 'u
     p_target_role: targetRole,
   });
   if (error) throw error;
+}
+
+export type NotificationPreferences = {
+  email_progress_notifications: boolean;
+  dashboard_progress_notifications: boolean;
+};
+
+export async function getNotificationPreferences(): Promise<NotificationPreferences> {
+  const { data, error } = await supabase.rpc('get_my_notification_preferences');
+  if (error) throw error;
+  return (Array.isArray(data) ? data[0] : data) || {
+    email_progress_notifications: true,
+    dashboard_progress_notifications: true,
+  };
+}
+
+export async function updateNotificationPreferences(input: NotificationPreferences): Promise<NotificationPreferences> {
+  const { data, error } = await supabase.rpc('update_my_notification_preferences', {
+    p_email_progress_notifications: input.email_progress_notifications,
+    p_dashboard_progress_notifications: input.dashboard_progress_notifications,
+  });
+  if (error) throw error;
+  return (Array.isArray(data) ? data[0] : data) || input;
+}
+
+export type OrderProgressEvent = {
+  id: number;
+  order_id: number;
+  activity_type: string;
+  title: string;
+  body: string;
+  progress_units: number;
+  requested_units: number | null;
+  delivered_units: number | null;
+  email_queued: boolean;
+  created_at: string;
+};
+
+export async function getOrderProgress(orderId?: number): Promise<OrderProgressEvent[]> {
+  const { data, error } = await supabase.rpc('get_order_progress', {
+    p_order_id: orderId ?? null,
+  });
+  if (error) return [];
+  return (data || []) as OrderProgressEvent[];
 }
 
 // Count unread order_status notifications for current user (for nav badge)
@@ -2057,6 +2196,8 @@ export interface StraightServiceRecord {
     requires_location?: boolean;
     allows_drip_feed?: boolean;
     default_drip_hours?: number;
+    requires_customer_attestation?: boolean;
+    requires_public_review_proof?: boolean;
   };
   worker_sop: string;
   worker_brief_template?: string | null;
@@ -2233,6 +2374,41 @@ export async function clientUpdateBrokenOrderUrl(orderId: number, newUrl: string
   });
   if (error) throw new Error(error.message || 'Failed to update target URL');
   return data as { ok: boolean; order_id: number; new_url: string; task_id: string | null };
+}
+
+export type BulkLinkActionResult = {
+  order_id: number;
+  ok: boolean;
+  error: string | null;
+  new_url?: string | null;
+  refund_credits?: number | null;
+};
+
+export type BulkLinkActionSummary = {
+  ok: boolean;
+  processed: number;
+  succeeded: number;
+  failed: number;
+  refund_credits_total?: number;
+  results: BulkLinkActionResult[];
+};
+
+export async function clientBulkUpdateBrokenUrls(
+  updates: { orderId: number; newUrl: string }[]
+): Promise<BulkLinkActionSummary> {
+  const { data, error } = await supabase.rpc('fn_client_bulk_update_broken_urls', {
+    p_updates: updates.map((u) => ({ order_id: u.orderId, new_url: u.newUrl })),
+  });
+  if (error) throw new Error(error.message || 'Bulk URL replacement failed');
+  return data as BulkLinkActionSummary;
+}
+
+export async function clientBulkCancelBrokenOrders(orderIds?: number[]): Promise<BulkLinkActionSummary> {
+  const { data, error } = await supabase.rpc('fn_client_bulk_cancel_broken_orders', {
+    p_order_ids: orderIds && orderIds.length > 0 ? orderIds : null,
+  });
+  if (error) throw new Error(error.message || 'Bulk cancellation failed');
+  return data as BulkLinkActionSummary;
 }
 
 export async function getOrderCancellationPreview(orderId: number): Promise<{

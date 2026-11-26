@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { Bell, MessageSquare, ShoppingCart, Star, DollarSign, Info, Check } from 'lucide-react';
+import { Bell, MessageSquare, ShoppingCart, Star, DollarSign, Info, Check, Activity } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
   getMyNotifications,
@@ -18,6 +18,7 @@ interface NotificationBellProps {
 const ICON_BY_TYPE: Record<string, any> = {
   message: MessageSquare,
   order_status: ShoppingCart,
+  order_progress: Activity,
   review: Star,
   credit: DollarSign,
   payment: DollarSign,
@@ -27,6 +28,7 @@ const ICON_BY_TYPE: Record<string, any> = {
 const COLOR_BY_TYPE: Record<string, string> = {
   message: 'bg-blue-100 text-blue-600',
   order_status: 'bg-amber-100 text-amber-600',
+  order_progress: 'bg-indigo-100 text-indigo-600',
   review: 'bg-yellow-100 text-yellow-600',
   credit: 'bg-emerald-100 text-emerald-600',
   payment: 'bg-emerald-100 text-emerald-600',

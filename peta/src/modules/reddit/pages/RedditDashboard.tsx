@@ -16,11 +16,24 @@ import {
   Check,
   AlertCircle,
   AlertTriangle,
+  Mail,
+  BellRing,
+  Activity as ActivityIcon,
 } from 'lucide-react';
 import { RedditLayout } from '../components/RedditLayout';
 import { useRedditCredits } from '../hooks/useRedditCredits';
 import { useRedditOrders } from '../hooks/useRedditOrders';
-import { formatUSD, getClientOrdersHealth, getPricePerUpvoteUSD, type ClientOrderHealth } from '../lib/api';
+import {
+  formatUSD,
+  getClientOrdersHealth,
+  getPricePerUpvoteUSD,
+  getNotificationPreferences,
+  getOrderProgress,
+  updateNotificationPreferences,
+  type OrderProgressEvent,
+  type ClientOrderHealth,
+  type NotificationPreferences,
+} from '../lib/api';
 
 export function RedditDashboard() {
   const navigate = useNavigate();
@@ -28,10 +41,43 @@ export function RedditDashboard() {
   const { orders, listError } = useRedditOrders();
   const [showGuide, setShowGuide] = useState(false);
   const [healthRows, setHealthRows] = useState<ClientOrderHealth[]>([]);
+  const [prefs, setPrefs] = useState<NotificationPreferences>({
+    email_progress_notifications: true,
+    dashboard_progress_notifications: true,
+  });
+  const [prefsLoading, setPrefsLoading] = useState(true);
+  const [prefsSaving, setPrefsSaving] = useState(false);
+  const [prefsError, setPrefsError] = useState('');
+  const [progressEvents, setProgressEvents] = useState<OrderProgressEvent[]>([]);
 
   useEffect(() => {
     getClientOrdersHealth().then(setHealthRows).catch(() => {});
   }, [orders.length]);
+
+  useEffect(() => {
+    getNotificationPreferences()
+      .then(setPrefs)
+      .catch(() => setPrefsError('Could not load notification settings.'))
+      .finally(() => setPrefsLoading(false));
+  }, []);
+
+  useEffect(() => {
+    getOrderProgress().then((events) => setProgressEvents(events.slice(0, 6))).catch(() => {});
+  }, [orders.length]);
+
+  const savePrefs = async (next: NotificationPreferences) => {
+    setPrefs(next);
+    setPrefsSaving(true);
+    setPrefsError('');
+    try {
+      const saved = await updateNotificationPreferences(next);
+      setPrefs(saved);
+    } catch {
+      setPrefsError('Could not save notification settings. Please try again.');
+    } finally {
+      setPrefsSaving(false);
+    }
+  };
 
   const brokenActiveOrders = healthRows.filter((h) => {
     if (!h.is_broken_url) return false;
@@ -115,6 +161,82 @@ export function RedditDashboard() {
             </button>
           </div>
         </div>
+
+        {progressEvents.length > 0 && (
+          <section className="mb-8 bg-white rounded-2xl ring-1 ring-slate-200 p-5 md:p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <ActivityIcon size={17} className="text-indigo-500" />
+              <h2 className="text-lg font-bold text-slate-900">Recent order activity</h2>
+            </div>
+            <ul className="divide-y divide-slate-100">
+              {progressEvents.map((event) => (
+                <li key={event.id} className="py-3 first:pt-0 last:pb-0 flex items-start gap-3">
+                  <span className="mt-1 w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-slate-900">{event.title}</p>
+                    <p className="text-xs text-slate-600 mt-0.5">{event.body}</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => navigate(spath(`/orders/${event.order_id}`))}
+                    className="text-xs font-semibold text-orange-600 hover:text-orange-700 shrink-0"
+                  >
+                    View order
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {/* Notification preferences */}
+        <section className="mb-8 rounded-2xl bg-white ring-1 ring-slate-200 p-5 md:p-6">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+              <BellRing size={18} />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Progress notifications</h2>
+              <p className="text-sm text-slate-500 mt-0.5">Choose how you hear about new order activity. Progress is always recorded on the order page.</p>
+            </div>
+          </div>
+          {prefsError && <p className="mb-3 text-sm text-rose-600">{prefsError}</p>}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <label className="flex items-center justify-between gap-4 p-4 rounded-xl ring-1 ring-slate-200 cursor-pointer">
+              <span className="flex items-center gap-3">
+                <Mail size={17} className="text-slate-500" />
+                <span>
+                  <span className="block text-sm font-semibold text-slate-900">Email notifications</span>
+                  <span className="block text-xs text-slate-500">Get an email when an order gets new progress.</span>
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                checked={prefs.email_progress_notifications}
+                disabled={prefsLoading || prefsSaving}
+                onChange={(e) => void savePrefs({ ...prefs, email_progress_notifications: e.target.checked })}
+                className="h-5 w-5 accent-orange-500"
+              />
+            </label>
+            <label className="flex items-center justify-between gap-4 p-4 rounded-xl ring-1 ring-slate-200 cursor-pointer">
+              <span className="flex items-center gap-3">
+                <BellRing size={17} className="text-slate-500" />
+                <span>
+                  <span className="block text-sm font-semibold text-slate-900">Dashboard notifications</span>
+                  <span className="block text-xs text-slate-500">Show progress alerts in your notification bell.</span>
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                checked={prefs.dashboard_progress_notifications}
+                disabled={prefsLoading || prefsSaving}
+                onChange={(e) => void savePrefs({ ...prefs, dashboard_progress_notifications: e.target.checked })}
+                className="h-5 w-5 accent-orange-500"
+              />
+            </label>
+          </div>
+          {prefsSaving && <p className="mt-2 text-xs text-slate-500">Saving…</p>}
+        </section>
 
         {/* Ranking Forum campaign starter — guided entry point */}
         <div className="mb-8 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-500 text-white relative overflow-hidden">

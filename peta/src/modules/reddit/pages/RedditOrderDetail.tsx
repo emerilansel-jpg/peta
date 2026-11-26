@@ -24,6 +24,7 @@ import {
   X,
   AlertTriangle,
   Link2,
+  Activity,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { RedditLayout } from '../components/RedditLayout';
@@ -42,6 +43,8 @@ import {
   getClientOrdersHealth,
   getOrderDeliveryProofs,
   getOrderCancellationPreview,
+  getOrderProgress,
+  type OrderProgressEvent,
   isInvalidOrSearchForumUrl,
   verifyForumThreadUrl,
   type ClientOrderHealth,
@@ -171,6 +174,16 @@ function parseOrderNotes(raw: string | null) {
           privacy: parsed.privacy || 'unlisted',
           video_url: parsed.video_url || '',
         },
+      };
+    }
+    if (parsed?.service) {
+      return {
+        clientNote: cleanInternalText(parsed.client_notes || parsed.review_brief || ''),
+        commentText: parsed.comment_text || '',
+        useSuggested: parsed.review_mode === 'custom',
+        sourceKeyword: '',
+        brand: parsed.brand_name || parsed.brand_domain || '',
+        youtubeMeta: null,
       };
     }
   } catch {
@@ -334,6 +347,48 @@ function serviceMeta(order: RedditOrderRecord) {
       } as Record<string, string>,
     };
   }
+  if ((order.target_type || 'upvote') === 'facebook_group_comment') {
+    return {
+      name: 'Facebook Group comments',
+      targetLabel: 'Facebook Group post URL',
+      quantityLabel: 'Comments',
+      progress: `${order.delivered_upvotes || 0} / ${order.requested_upvotes} comments`,
+      statusDesc: {
+        pending: 'Reviewing your Facebook Group target and comment brief.',
+        processing: 'Real people are posting contextual comments in the Facebook Group.',
+        completed: 'All comments delivered. Check the public proof below.',
+        cancelled: 'Order was cancelled; unfulfilled credits refunded.',
+      } as Record<string, string>,
+    };
+  }
+  if ((order.target_type || 'upvote') === 'avvo_comment') {
+    return {
+      name: 'Avvo comments',
+      targetLabel: 'Avvo question URL',
+      quantityLabel: 'Comments',
+      progress: `${order.delivered_upvotes || 0} / ${order.requested_upvotes} comments`,
+      statusDesc: {
+        pending: 'Reviewing your Avvo question and comment brief.',
+        processing: 'Real people are posting helpful, careful answers on Avvo.',
+        completed: 'All comments delivered. Check the public proof below.',
+        cancelled: 'Order was cancelled; unfulfilled credits refunded.',
+      } as Record<string, string>,
+    };
+  }
+  if ((order.target_type || 'upvote') === 'facebook_page_review') {
+    return {
+      name: 'Facebook Review (Fb page customer feedback)',
+      targetLabel: 'Facebook Page / reviews URL',
+      quantityLabel: 'Reviews',
+      progress: `${order.delivered_upvotes || 0} / ${order.requested_upvotes} reviews`,
+      statusDesc: {
+        pending: 'Reviewing your Facebook Page target and customer eligibility attestation.',
+        processing: 'Genuine customers are submitting honest feedback on the Facebook Page.',
+        completed: 'All customer feedback delivered. Check the public proof below.',
+        cancelled: 'Order was cancelled; unfulfilled credits refunded.',
+      } as Record<string, string>,
+    };
+  }
   if ((order.target_type || 'upvote') === 'reseller_order') {
     return {
       name: order.subreddit ? `${order.subreddit} Service` : 'Social Engagement',
@@ -380,6 +435,7 @@ export function RedditOrderDetail() {
   const [pausing, setPausing] = useState(false);
   const [resuming, setResuming] = useState(false);
   const [proofs, setProofs] = useState<OrderDeliveryProof[]>([]);
+  const [progressEvents, setProgressEvents] = useState<OrderProgressEvent[]>([]);
   const [activeLightboxImg, setActiveLightboxImg] = useState<string | null>(null);
   const [cancellationPreview, setCancellationPreview] = useState<{
     ok: boolean;
@@ -565,14 +621,16 @@ export function RedditOrderDetail() {
         });
       }
 
-      const [p, cancelPrev, healthList] = await Promise.all([
+      const [p, cancelPrev, healthList, progress] = await Promise.all([
         getOrderDeliveryProofs(parseInt(orderId)),
         getOrderCancellationPreview(parseInt(orderId)),
         getClientOrdersHealth(parseInt(orderId)),
+        getOrderProgress(parseInt(orderId)),
       ]);
       setProofs(p);
       setCancellationPreview(cancelPrev);
       setOrderHealth(healthList[0] || null);
+      setProgressEvents(progress);
     } catch {
       toast.error('Failed to load order');
     } finally {
@@ -664,7 +722,7 @@ export function RedditOrderDetail() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-slate-900">Order #{order.id}</h1>
             <p className="text-slate-600 mt-1">
-              {service.name} · {order.subreddit && !['comment', 'preferred_source', 'linkedin_like', 'linkedin_follow', 'linkedin_comment', 'trustpilot_review', 'google_maps_review', 'quora_upvote'].includes(order.target_type || 'upvote') && order.subreddit !== 'LinkedIn' && order.subreddit !== 'Google' && order.subreddit !== 'Google Maps' && order.subreddit !== 'Trustpilot' && order.subreddit !== 'Quora' ? `r/${order.subreddit}` : order.thread_url}
+              {service.name} · {order.subreddit && !['comment', 'preferred_source', 'linkedin_like', 'linkedin_follow', 'linkedin_comment', 'trustpilot_review', 'google_maps_review', 'quora_upvote', 'facebook_group_comment', 'avvo_comment', 'facebook_page_review'].includes(order.target_type || 'upvote') && order.subreddit !== 'LinkedIn' && order.subreddit !== 'Google' && order.subreddit !== 'Google Maps' && order.subreddit !== 'Trustpilot' && order.subreddit !== 'Quora' && order.subreddit !== 'Facebook' && order.subreddit !== 'Avvo' ? `r/${order.subreddit}` : order.thread_url}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -714,6 +772,30 @@ export function RedditOrderDetail() {
             <p className="text-sm opacity-80 mt-0.5">{service.statusDesc[order.status] || status.desc}</p>
           </div>
         </div>
+
+        {/* Recent order progress activity — always visible, independent of notification settings */}
+        {progressEvents.length > 0 && (
+          <section className="mb-6 bg-white rounded-2xl ring-1 ring-slate-200 overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
+              <Activity size={17} className="text-indigo-500" />
+              <h2 className="font-bold text-slate-900">Recent activity</h2>
+            </div>
+            <ul className="divide-y divide-slate-100">
+              {progressEvents.slice(0, 8).map((event) => (
+                <li key={event.id} className="px-5 py-3 flex items-start gap-3">
+                  <span className="mt-1 w-2 h-2 rounded-full bg-indigo-500 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-slate-900">{event.title}</p>
+                    <p className="text-xs text-slate-600 mt-0.5">{event.body}</p>
+                  </div>
+                  <p className="text-[11px] text-slate-400 whitespace-nowrap">
+                    {new Date(event.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         {/* Broken / 410 / Search Page / Closed Thread Alert & Self-Service Resubmit */}
         {orderHealth?.is_broken_url && order.status !== 'cancelled' && order.status !== 'completed' && order.delivered_upvotes < order.requested_upvotes && (
