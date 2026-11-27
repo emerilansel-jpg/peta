@@ -549,6 +549,17 @@ assert.ok(rankingPageCode.includes('Rescan before ordering.'), 'Ranking UI must 
 													assert.ok(dripClaimSql.includes('trg_sync_order_drafts_to_task_brief_delete'), 'Draft deletion must resync the visible brief');
 													console.log('  ✓ Drip-feed one-brief-per-slot sequencing verified.');
 
+													// 29. Verify guard allowlist covers all worker-submittable columns
+													console.log('29. Checking assignment guard proof-fields allowlist...');
+													const guardFixPath = path.join(rootDir, 'supabase', 'migrations', '20261129050000_fix_guard_proof_fields_allowlist.sql');
+													const guardFixSql = fs.readFileSync(guardFixPath, 'utf8');
+													for (const field of ['submitted_at', 'proof_image_hash', 'submitted_url', 'user_note', 'draft_comment']) {
+														assert.ok(guardFixSql.includes(`'${field}'`), `Guard allowlist must include worker-submittable column ${field}`);
+													}
+													assert.ok(guardFixSql.includes("operation = 'claim'\n           AND task_id = NEW.task_id"), 'Guard must keep claim-time expiry authorization');
+													assert.ok(!guardFixSql.includes("'balance_credited_at'") || guardFixSql.indexOf("'balance_credited_at'") > guardFixSql.indexOf('ARRAY[', guardFixSql.indexOf('Worker-submittable')), 'Balance credit must stay admin/scheduler-only');
+													console.log('  ✓ Assignment guard allowlist verified.');
+
 												console.log('  ✓ Ranking Forum now consumes resolved SERP URLs and rejects redirect wrappers.');
 
 
