@@ -20,6 +20,8 @@ import { serve } from 'https://deno.land/std@0.224.0/http/server.ts';
 import nodemailer from 'npm:nodemailer';
 // @ts-ignore - Deno runtime, will be resolved at deploy
 import { createClient } from 'npm:@supabase/supabase-js@2.45.0';
+// @ts-ignore - Deno runtime has no global Buffer; import from node:buffer
+import { Buffer } from 'node:buffer';
 
 interface EmailRequest {
   to: string;
@@ -36,6 +38,8 @@ interface EmailRequest {
     | 'reengagement'
     | 'balance_reminder';
   link?: string;
+  // Optional file attachments (base64). Max 5 files, ~4 MB total after decoding.
+  attachments?: Array<{ filename: string; content: string; content_type?: string }>;
 }
 
 const CORS_HEADERS = {
@@ -169,11 +173,35 @@ serve(async (req: Request) => {
       },
     });
 
+    // Optional attachments: decode base64, cap count and size so the trigger
+    // path (and any caller) can never smuggle huge payloads through SMTP.
+    const mailAttachments = Array.isArray(payload.attachments)
+      ? payload.attachments.slice(0, 5).map((a) => {
+          const decoded = Buffer.from(a.content || '', 'base64');
+          if (decoded.length === 0) {
+            throw new Error('empty attachment content');
+          }
+          return {
+            filename: a.filename || 'attachment',
+            content: decoded,
+            contentType: a.content_type || undefined,
+          };
+        })
+      : [];
+    const totalAttachmentBytes = mailAttachments.reduce((sum, a) => sum + a.content.length, 0);
+    if (totalAttachmentBytes > 4 * 1024 * 1024) {
+      return new Response(JSON.stringify({ error: 'attachments_too_large' }), {
+        status: 413,
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
+    }
+
     const info = await transporter.sendMail({
       from: fromAddress,
       to: payload.to,
       subject: payload.subject,
       html: emailTemplate(payload, payload.link),
+      attachments: mailAttachments.length > 0 ? mailAttachments : undefined,
     });
 
     return new Response(JSON.stringify({ ok: true, id: info.messageId }), {
