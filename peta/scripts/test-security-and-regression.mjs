@@ -512,6 +512,8 @@ assert.ok(rankingPageCode.includes('Rescan before ordering.'), 'Ranking UI must 
 													assert.ok(resellerSql.includes('fn_create_reseller_order'), 'Reseller order RPC must exist');
 													assert.ok(resellerSql.includes('public_get_reseller_packages'), 'Public reseller package RPC must exist');
 													assert.ok(resellerSql.includes('valid http(s) URL'), 'Reseller RPC must reject malformed target URLs');
+													const resellerRestoreSql = fs.readFileSync(path.join(rootDir, 'supabase', 'migrations', '20261127030000_restore_reseller_catalog_without_constraint_reset.sql'), 'utf8');
+													assert.ok(resellerRestoreSql.includes('valid http(s) URL'), 'Final reseller catalog restore must preserve strict URL validation');
 													console.log('  ✓ Reseller RPC and strict target URL validation verified.');
 													// 27. Verify dynamic order drafts reach Army task briefs
 													console.log('27. Checking client draft propagation to Army tasks...');

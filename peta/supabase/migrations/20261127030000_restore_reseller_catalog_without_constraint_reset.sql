@@ -203,9 +203,11 @@ BEGIN
     END IF;
   END IF;
 
-  -- URL validation
-  IF p_target_url IS NULL OR length(btrim(p_target_url)) < 5 THEN
-    RAISE EXCEPTION 'Target URL is required' USING ERRCODE = 'P0001';
+  -- URL validation: require scheme plus a dotted host; reject bare domains and whitespace.
+  IF p_target_url IS NULL OR length(btrim(p_target_url)) < 5
+     OR btrim(p_target_url) !~* '^https?://[^\s]+$'
+     OR btrim(p_target_url) !~* '^https?://[^\s./]+(?:\.[^\s./]+)+(?:\:[0-9]{1,5})?(?:/[^\s]*)?$' THEN
+    RAISE EXCEPTION 'Target URL is required and must be a valid http(s) URL' USING ERRCODE = 'P0001';
   END IF;
 
   -- Look up package in supplier catalog
