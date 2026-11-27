@@ -525,6 +525,30 @@ assert.ok(rankingPageCode.includes('Rescan before ordering.'), 'Ranking UI must 
 													assert.ok(draftSyncSql.includes("replace(notes, chr(1), '')"), 'Control-character artifact cleanup must be safe');
 													console.log('  ✓ Client draft propagation and artifact cleanup verified.');
 
+													// 28. Verify drip-feed shows ONE client brief per released slot
+													console.log('28. Checking drip-feed one-brief-per-slot sequencing...');
+													const dripBriefPath = path.join(rootDir, 'supabase', 'migrations', '20261129030000_fix_drip_feed_brief_sequence.sql');
+													const dripBriefSql = fs.readFileSync(dripBriefPath, 'utf8');
+													const dripClaimPath = path.join(rootDir, 'supabase', 'migrations', '20261129040000_harden_drip_feed_claim_sequence.sql');
+													const dripClaimSql = fs.readFileSync(dripClaimPath, 'utf8');
+
+													// Brief sync: drip tasks must select a single draft via OFFSET, never string_agg
+													assert.ok(dripBriefSql.includes('fn_sync_order_drafts_to_task_brief'), 'Brief sync function must be redefined');
+													assert.ok(dripBriefSql.includes('OFFSET v_slot_index'), 'Drip tasks must expose only the released slot draft');
+													assert.ok(dripBriefSql.includes('trg_sync_drip_task_brief_on_release'), 'Slot release must advance the visible brief');
+													assert.ok(dripBriefSql.includes('drip_interval_hours'), 'Brief sync must branch on drip tasks');
+													assert.ok(dripBriefSql.includes('replace(v_notes->>'), 'Brief base must sanitize control-character artifacts');
+
+													// Claim: draft rows must be locked and durably bound to the assignment
+													assert.ok(dripClaimSql.includes('FOR UPDATE SKIP LOCKED'), 'Draft selection must lock rows against concurrent claims');
+													assert.ok(dripClaimSql.includes('SET assignment_id = v_assignment.id'), 'Claimed draft must be bound to its assignment');
+													assert.ok(dripClaimSql.includes("VALUES (txid_current(), pg_backend_pid(), 'claim', p_task_id)"), 'Claim capability must carry task_id');
+													assert.ok(dripClaimSql.includes('COALESCE(v_task.is_hidden, false) THEN'), 'Hidden tasks must never be claimable');
+													assert.ok(dripClaimSql.includes("COALESCE(v_task.task_category, '') NOT LIKE 'reddit_%'"), 'Non-Reddit categories must be accountless in trigger');
+													assert.ok(dripClaimSql.includes("operation = 'claim'\n           AND task_id = NEW.task_id"), 'Guard must authorize claim-time expiry release per task');
+													assert.ok(dripClaimSql.includes('trg_sync_order_drafts_to_task_brief_delete'), 'Draft deletion must resync the visible brief');
+													console.log('  ✓ Drip-feed one-brief-per-slot sequencing verified.');
+
 												console.log('  ✓ Ranking Forum now consumes resolved SERP URLs and rejects redirect wrappers.');
 
 
