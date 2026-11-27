@@ -1363,6 +1363,8 @@ export function TaskDetail() {
               ? 'Screenshot wajib untuk upvote.'
               : isYouTubeUpload
               ? 'URL video YouTube wajib. Screenshot optional tapi disarankan.'
+              : isFacebookPageReview
+              ? 'Screenshot review terbit, URL review publik, dan username wajib.'
               : 'URL komentar dan username wajib. Screenshot optional tapi disarankan.'
           }
         >
@@ -1801,7 +1803,15 @@ export function TaskDetail() {
                   type="url"
                   value={proofUrl}
                   onChange={(e) => setProofUrl(e.target.value)}
-                  placeholder={isYouTubeUpload ? 'https://youtube.com/watch?v=...' : isForumComment ? 'https://community.hubspot.com/...' : 'https://reddit.com/r/.../comments/...'}
+                  placeholder={
+                    isYouTubeUpload
+                      ? 'https://youtube.com/watch?v=...'
+                      : isFacebookPageReview
+                      ? 'https://www.facebook.com/share/p/... atau link postingan review kamu'
+                      : isForumComment
+                      ? 'https://community.hubspot.com/...'
+                      : 'https://reddit.com/r/.../comments/...'
+                  }
                   className="w-full pl-10 pr-3 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm"
                 />
               </div>
@@ -1815,7 +1825,13 @@ export function TaskDetail() {
                     type="text"
                     value={submittedUsername}
                     onChange={(e) => setSubmittedUsername(e.target.value)}
-                    placeholder={isForumComment ? 'Contoh: nama profile HubSpot kamu' : 'u/username'}
+                    placeholder={
+                      isFacebookPageReview
+                        ? 'Contoh: nama profile Facebook kamu'
+                        : isForumComment
+                        ? 'Contoh: nama profile HubSpot kamu'
+                        : 'u/username'
+                    }
                     className="w-full px-4 py-3 bg-light rounded-xl border-2 border-transparent focus:outline-none focus:border-primary focus:bg-white transition text-sm mb-3"
                   />
                 </>
