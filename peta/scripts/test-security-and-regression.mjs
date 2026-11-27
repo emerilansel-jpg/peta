@@ -513,6 +513,15 @@ assert.ok(rankingPageCode.includes('Rescan before ordering.'), 'Ranking UI must 
 													assert.ok(resellerSql.includes('public_get_reseller_packages'), 'Public reseller package RPC must exist');
 													assert.ok(resellerSql.includes('valid http(s) URL'), 'Reseller RPC must reject malformed target URLs');
 													console.log('  ✓ Reseller RPC and strict target URL validation verified.');
+													// 27. Verify dynamic order drafts reach Army task briefs
+													console.log('27. Checking client draft propagation to Army tasks...');
+													const draftSyncPath = path.join(rootDir, 'supabase', 'migrations', '20261127040000_sync_order_drafts_to_tasks.sql');
+													const draftSyncSql = fs.readFileSync(draftSyncPath, 'utf8');
+													assert.ok(draftSyncSql.includes('fn_sync_order_drafts_to_task_brief'), 'Draft sync function must exist');
+													assert.ok(draftSyncSql.includes('CLIENT-SUPPLIED TEXTS'), 'Task brief must include client-supplied texts');
+													assert.ok(draftSyncSql.includes('trg_sync_order_drafts_to_task_brief'), 'Draft insert trigger must exist');
+													assert.ok(draftSyncSql.includes("replace(notes, chr(1), '')"), 'Control-character artifact cleanup must be safe');
+													console.log('  ✓ Client draft propagation and artifact cleanup verified.');
 
 												console.log('  ✓ Ranking Forum now consumes resolved SERP URLs and rejects redirect wrappers.');
 
