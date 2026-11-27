@@ -505,6 +505,14 @@ assert.ok(rankingPageCode.includes('Rescan before ordering.'), 'Ranking UI must 
 													assert.ok(approvalCode2.includes('Avvo Check'), 'Approval queue must show Avvo SOP checks');
 													assert.ok(approvalCode2.includes('[SEARCH-FIRST]'), 'Approval queue must show Yelp search-first check');
 													console.log('  ✓ Avvo VPN, Yelp business-name-first, and submission SOP verified.');
+													// 26. Verify reseller RPC and strict target URL validation
+													console.log('26. Checking reseller Organic Likes order boundary...');
+													const resellerMigrationPath = path.join(rootDir, 'supabase', 'migrations', '20261127020000_restore_reseller_order_rpcs.sql');
+													const resellerSql = fs.readFileSync(resellerMigrationPath, 'utf8');
+													assert.ok(resellerSql.includes('fn_create_reseller_order'), 'Reseller order RPC must exist');
+													assert.ok(resellerSql.includes('public_get_reseller_packages'), 'Public reseller package RPC must exist');
+													assert.ok(resellerSql.includes('valid http(s) URL'), 'Reseller RPC must reject malformed target URLs');
+													console.log('  ✓ Reseller RPC and strict target URL validation verified.');
 
 												console.log('  ✓ Ranking Forum now consumes resolved SERP URLs and rejects redirect wrappers.');
 
